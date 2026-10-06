@@ -86,7 +86,7 @@ export function VpsPlans() {
             </div>
 
             <h2 className="text-xl font-black mt-16 mb-4 flex items-center gap-2"><Icon name="layout-dashboard" size={20} className="acc" />مقایسه کامل پلن‌های {k === "cloud" ? "سرور ابری" : "سرور اختصاصی"}</h2>
-            <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"}>
+            <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"} tabIndex={0} role="region" aria-label={"جدول مقایسه پلن‌های " + (k === "cloud" ? "سرور ابری" : "سرور اختصاصی")}>
               <table className="w-full min-w-[680px] text-sm">
                 <thead><tr className="border-b border-white/15">
                   <th scope="col" className="text-right font-medium text-white/50 p-4">ویژگی</th>

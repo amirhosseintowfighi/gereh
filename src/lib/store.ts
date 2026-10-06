@@ -220,6 +220,9 @@ export const byId = <T extends { id: string }>(list: T[], id: string) => list.fi
 export const invTotal = (inv: Invoice) => inv.items.reduce((s, i) => s + i.amount, 0);
 export const invGross = (inv: Invoice, tax: number) => roundK(invTotal(inv) * (1 + tax / 100));
 const at = () => nowFa() + " " + nowTime();
+/** next sequential id for "PREFIX-<n>" lists, safe against deletions and concurrent id schemes */
+const nextNum = (list: { id: string }[], prefix: string, floor: number) =>
+  prefix + "-" + (list.reduce((m, x) => Math.max(m, Number(x.id.slice(prefix.length + 1)) || 0), floor) + 1);
 const logActivity = (d: DB, icon: string, text: string) => d.activity.unshift({ id: uid("a"), icon, text, at: at(), ip: "5.120.44.18" });
 const logAudit = (d: DB, action: string, target: string) => d.audit.unshift({ id: uid("au"), actor: readSession()?.name || "مدیر سیستم", action, target, at: at(), ip: "10.0.0.4" });
 const addTask = (d: DB, id: string, action: string) => byId(d.servers, id)!.tasks.unshift({ id: uid("t"), action, status: "done", at: at(), progress: 100 });
@@ -304,7 +307,7 @@ export const api = {
       mutate((d) => {
         const dm = byId(d.domains, id)!;
         const t = TLDS.slice().sort((a, b) => b.tld.length - a.tld.length).find((x) => dm.name.endsWith(x.tld)) || TLDS[0];
-        inv = { id: "INV-" + (14200 + d.invoices.length + 50), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items: [{ desc: "تمدید دامنه " + dm.name + "، " + fa(years) + " سال", amount: t.renew * years }] };
+        inv = { id: nextNum(d.invoices, "INV", 14200), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items: [{ desc: "تمدید دامنه " + dm.name + "، " + fa(years) + " سال", amount: t.renew * years }] };
         d.invoices.unshift(inv);
       });
       return inv;
@@ -334,7 +337,7 @@ export const api = {
       await delay(800);
       if (!cart.length) throw new Error("سبد خرید خالی است.");
       let inv!: Invoice;
-      mutate((d) => { inv = { id: "INV-" + (14200 + d.invoices.length), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items: cart.map((c) => ({ desc: c.title + (c.meta ? "، " + c.meta : ""), amount: c.base })) }; d.invoices.unshift(inv); });
+      mutate((d) => { inv = { id: nextNum(d.invoices, "INV", 14200), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items: cart.map((c) => ({ desc: c.title + (c.meta ? "، " + c.meta : ""), amount: c.base })) }; d.invoices.unshift(inv); });
       return inv;
     },
     async markPaid(id: string) { await delay(); mutate((d) => { byId(d.invoices, id)!.status = "paid"; logAudit(d, "علامت‌گذاری پرداخت‌شده", id); }); },
@@ -348,13 +351,13 @@ export const api = {
         logAudit(d, "بازگشت وجه", id);
       });
     },
-    async createInvoice(inv: Pick<Invoice, "userId" | "due" | "items">) { await delay(); mutate((d) => { d.invoices.unshift({ id: "INV-" + (14300 + d.invoices.length), date: nowFa(), status: "unpaid", ...inv }); logAudit(d, "صدور صورتحساب دستی", inv.userId); }); },
+    async createInvoice(inv: Pick<Invoice, "userId" | "due" | "items">) { await delay(); mutate((d) => { d.invoices.unshift({ id: nextNum(d.invoices, "INV", 14200), date: nowFa(), status: "unpaid", ...inv }); logAudit(d, "صدور صورتحساب دستی", inv.userId); }); },
   },
   tickets: {
     async create(t: { subject: string; dept: string; priority: string; service: string; message: string }) {
       await delay(700);
       let id = "";
-      mutate((d) => { id = "TK-" + (3100 + d.tickets.length); const name = byId(d.users, me())?.name || "کاربر"; d.tickets.unshift({ id, userId: me(), subject: t.subject, dept: t.dept, priority: t.priority, service: t.service, status: "open", updated: nowFa(), assignee: "", messages: [{ from: "user", name, at: at(), text: t.message }] }); });
+      mutate((d) => { id = nextNum(d.tickets, "TK", 3100); const name = byId(d.users, me())?.name || "کاربر"; d.tickets.unshift({ id, userId: me(), subject: t.subject, dept: t.dept, priority: t.priority, service: t.service, status: "open", updated: nowFa(), assignee: "", messages: [{ from: "user", name, at: at(), text: t.message }] }); });
       return id;
     },
     async reply(id: string, text: string, from: "user" | "staff" = "user") {
@@ -450,5 +453,6 @@ export const api = {
   },
 };
 
-/** test hook: reset the mock DB */
+/** test hooks: reset / read the mock DB without React */
 export const __resetDB = () => { DB = null; SESSION = undefined; emit(); };
+export const __getDB = getDB;

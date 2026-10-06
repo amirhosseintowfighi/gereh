@@ -5,13 +5,12 @@ import { useEffect, useState } from "react";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { EMAIL_RE, PHONE_RE, fa, strength, toEnDigits } from "@/lib/format";
 import { api, useSession, type Session } from "@/lib/store";
+import { safeNext } from "@/lib/url";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Field } from "../ui";
 import { AsyncButton, OtpInput, StrengthBar, Tabs } from "../ui-client";
 
-/** only same-origin relative paths, never "//evil.com" */
-export const safeNext = (n: string | null) => (n && /^\/(?!\/)[\w\-/?=&#%.]*$/.test(n) ? n : null);
 
 export function AuthForm() {
   const { notify } = useApp();

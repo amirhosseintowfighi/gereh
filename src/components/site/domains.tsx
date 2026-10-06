@@ -163,7 +163,7 @@ export function DomainSearch() {
             <div className="overflow-x-auto no-scrollbar"><Tabs size="sm" value={cat} onChange={setCat} label="دسته پسوند" options={TLD_CATS} /></div>
           </div>
         </div>
-        <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"}>
+        <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"} tabIndex={0} role="region" aria-label={"جدول قیمت پسوندها"}>
           <table className="w-full min-w-[620px] text-sm">
             <thead><tr className="border-b border-white/15 text-white/50">
               <th scope="col" className="text-right font-medium p-4">پسوند</th><th scope="col" className="font-medium p-4">ثبت</th><th scope="col" className="font-medium p-4">تمدید</th><th scope="col" className="font-medium p-4">انتقال</th><th className="p-4"><span className="sr-only-focusable">بررسی</span></th>
