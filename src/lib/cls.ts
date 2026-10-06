@@ -1,0 +1,9 @@
+export const GLASS = "bg-white/[0.055] backdrop-blur-xl border border-white/[0.11] hl";
+export const GLASS_SOFT = "bg-white/[0.035] backdrop-blur-xl border border-white/[0.08] hl";
+export const GLASS_STRONG = "bg-white/[0.08] backdrop-blur-2xl border border-white/[0.14] hl";
+export const BTN = "inline-flex items-center justify-center gap-2 rounded-xl font-bold transition duration-200 active:scale-[.97] select-none disabled:opacity-60 disabled:cursor-not-allowed";
+export const BTN_P = BTN + " btn-p";
+export const BTN_G = BTN + " bg-white/[0.06] border border-white/[0.12] text-white hover:bg-white/[0.1] hover:border-white/25";
+export const BTN_D = BTN + " bg-rose-500/15 border border-rose-400/30 text-rose-200 hover:bg-rose-500/25";
+export const INPUT = "w-full h-11 rounded-xl bg-white/[0.04] border border-white/[0.12] px-3.5 text-sm outline-none placeholder:text-white/30 focus:border-white/35 focus:bg-white/[0.06] transition";
+export const TEXTAREA = "w-full rounded-xl bg-white/[0.04] border border-white/[0.12] p-3.5 text-sm outline-none placeholder:text-white/30 focus:border-white/35 transition resize-none";
