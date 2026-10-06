@@ -66,7 +66,7 @@ function LiveMetric({ label, icon, base, unit, max = 100, seed }: { label: strin
   const cur = vals[vals.length - 1];
   return (
     <Card pad="p-5">
-      <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/40">{unit}</span></span></div>
+      <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
       <AreaChart data={vals} height={90} unit={unit} />
     </Card>
   );
@@ -84,7 +84,7 @@ function Overview({ s }: { s: Server }) {
     <div className="grid lg:grid-cols-2 gap-4 mt-4">
       <Card title="مشخصات" icon="cpu">
         <dl className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-          {([["شناسه VPS", <span key="v" className="mono">{s.vpsid}</span>], ["Hostname", <span key="h" className="mono text-xs ltr break-all">{s.hostname}</span>], ["پلن", s.plan], ["پردازنده", fa(s.cpu) + " هسته"], ["حافظه", fa(s.ram) + " گیگابایت"], ["دیسک", fa(s.disk) + " گیگ NVMe"], ["سیستم‌عامل", s.os], ["موقعیت", locLabel(s.loc)], ["تاریخ ساخت", s.created], ["هزینه ماهانه", toman(s.price)]] as [string, React.ReactNode][]).map(([k, v]) => <div key={k}><dt className="text-white/40 text-xs">{k}</dt><dd className="mt-1 font-medium">{v}</dd></div>)}
+          {([["شناسه VPS", <span key="v" className="mono">{s.vpsid}</span>], ["Hostname", <span key="h" className="mono text-xs ltr break-all">{s.hostname}</span>], ["پلن", s.plan], ["پردازنده", fa(s.cpu) + " هسته"], ["حافظه", fa(s.ram) + " گیگابایت"], ["دیسک", fa(s.disk) + " گیگ NVMe"], ["سیستم‌عامل", s.os], ["موقعیت", locLabel(s.loc)], ["تاریخ ساخت", s.created], ["هزینه ماهانه", toman(s.price)]] as [string, React.ReactNode][]).map(([k, v]) => <div key={k}><dt className="text-white/55 text-xs">{k}</dt><dd className="mt-1 font-medium">{v}</dd></div>)}
         </dl>
       </Card>
       <Card title="مصرف منابع" icon="gauge">
@@ -125,9 +125,9 @@ function ServerTraffic({ s }: { s: Server }) {
             </div>
           ))}
         </div>
-        <div className="flex justify-between text-[10px] text-white/35 mt-2"><span>۱</span><span>{fa(days)}</span></div>
+        <div className="flex justify-between text-[10px] text-white/50 mt-2"><span>۱</span><span>{fa(days)}</span></div>
         <div className="flex gap-5 mt-4 text-xs text-white/55"><span className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#9cc9ff]/80" />خروجی</span><span className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-white/25" />ورودی</span></div>
-        <p className="text-[11px] text-white/40 mt-4 leading-6">با رسیدن به سقف، طبق تنظیم مدیر یا سرعت شبکه محدود می‌شود یا سرور معلق می‌شود. ترافیک اضافه را از بخش صورتحساب بخرید.</p>
+        <p className="text-[11px] text-white/55 mt-4 leading-6">با رسیدن به سقف، طبق تنظیم مدیر یا سرعت شبکه محدود می‌شود یا سرور معلق می‌شود. ترافیک اضافه را از بخش صورتحساب بخرید.</p>
       </Card>
     </div>
   );
@@ -157,7 +157,7 @@ function DemoConsole({ s }: { s: Server }) {
   const on = s.status === "running";
   return (
     <div className="rounded-b-[14px] bg-[#020306] overflow-hidden" dir="ltr">
-      <div className="flex items-center justify-between px-4 h-10 border-b border-white/[0.07] text-[11px] text-white/40 mono"><span>root@{s.name} — VNC console</span><span className={on ? "text-emerald-300" : "text-rose-300"}>{on ? "● connected" : "● offline"}</span></div>
+      <div className="flex items-center justify-between px-4 h-10 border-b border-white/[0.07] text-[11px] text-white/55 mono"><span>root@{s.name} — VNC console</span><span className={on ? "text-emerald-300" : "text-rose-300"}>{on ? "● connected" : "● offline"}</span></div>
       <div ref={ref} className="mono text-[12.5px] leading-6 p-4 h-80 overflow-auto whitespace-pre-wrap" onClick={() => input.current?.focus()}>
         {hist.map((h, i) => <div key={i} className={h.t === "in" ? "text-white" : "text-white/60"}>{h.t === "in" && <span className="text-[#9cc9ff]">root@{s.name}:~# </span>}{h.v}</div>)}
         {on ? <div className="flex"><span className="text-[#9cc9ff]">root@{s.name}:~#&nbsp;</span><input ref={input} value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} className="flex-1 bg-transparent outline-none text-white mono" aria-label="فرمان کنسول" autoComplete="off" spellCheck={false} /></div>
@@ -187,9 +187,9 @@ function VncPanel({ s }: { s: Server }) {
       <div className="space-y-4">
         <Card title="اتصال مستقیم VNC" icon="key-round">
           <dl className="space-y-3 text-sm">
-            <div className="flex justify-between items-center"><dt className="text-white/45">آدرس</dt><dd><CopyText text={s.vnc.host} className="mono text-xs" /></dd></div>
-            <div className="flex justify-between items-center"><dt className="text-white/45">پورت</dt><dd className="mono">{s.vnc.port}</dd></div>
-            <div className="flex justify-between items-center"><dt className="text-white/45">رمز</dt><dd className="flex items-center gap-1"><span className="mono text-xs">{show ? s.vnc.password : "••••••••"}</span><IconBtn icon={show ? "eye-off" : "eye"} label={show ? "پنهان کردن رمز" : "نمایش رمز"} onClick={() => setShow((x) => !x)} /></dd></div>
+            <div className="flex justify-between items-center"><dt className="text-white/55">آدرس</dt><dd><CopyText text={s.vnc.host} className="mono text-xs" /></dd></div>
+            <div className="flex justify-between items-center"><dt className="text-white/55">پورت</dt><dd className="mono">{s.vnc.port}</dd></div>
+            <div className="flex justify-between items-center"><dt className="text-white/55">رمز</dt><dd className="flex items-center gap-1"><span className="mono text-xs">{show ? s.vnc.password : "••••••••"}</span><IconBtn icon={show ? "eye-off" : "eye"} label={show ? "پنهان کردن رمز" : "نمایش رمز"} onClick={() => setShow((x) => !x)} /></dd></div>
           </dl>
         </Card>
         <Card title="تغییر رمز VNC" icon="lock">
@@ -240,7 +240,7 @@ function ServerNetwork({ s }: { s: Server }) {
       <Card title="آدرس‌ها" icon="network">
         <dl className="space-y-4 text-sm">
           <div className="flex justify-between items-center"><dt className="text-white/50">IPv4 اصلی</dt><dd><CopyText text={s.ip} className="mono" /></dd></div>
-          <div className="flex justify-between items-center"><dt className="text-white/50">IPv6</dt><dd>{s.ipv6 ? <CopyText text={s.ipv6} className="mono text-xs" /> : <span className="text-white/40">—</span>}</dd></div>
+          <div className="flex justify-between items-center"><dt className="text-white/50">IPv6</dt><dd>{s.ipv6 ? <CopyText text={s.ipv6} className="mono text-xs" /> : <span className="text-white/55">—</span>}</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">دروازه</dt><dd className="mono ltr">{s.ip.split(".").slice(0, 3).join(".")}.1</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>۱ گیگابیت بر ثانیه</dd></div>
         </dl>
@@ -264,7 +264,7 @@ function ServerFirewall({ s }: { s: Server }) {
     <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> قانون جدید</button>} pad="p-3 sm:p-4">
       {s.firewall.length === 0 ? <Empty icon="shield" title="قانونی تعریف نشده" text="همه ترافیک ورودی مجاز است. برای امنیت بیشتر، فقط پورت‌های لازم را باز کنید." /> : (
         <div className="overflow-x-auto"><table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-xs text-white/40"><th scope="col" className="text-right font-medium p-3">پروتکل</th><th scope="col" className="text-right font-medium p-3">پورت</th><th scope="col" className="text-right font-medium p-3">مبدأ</th><th scope="col" className="text-right font-medium p-3">عملکرد</th><th scope="col" className="text-right font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
+          <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">پروتکل</th><th scope="col" className="text-right font-medium p-3">پورت</th><th scope="col" className="text-right font-medium p-3">مبدأ</th><th scope="col" className="text-right font-medium p-3">عملکرد</th><th scope="col" className="text-right font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
           <tbody>{s.firewall.map((r) => (
             <tr key={r.id} className="border-t border-white/[0.06]">
               <td className="p-3 mono">{r.proto}</td><td className="p-3 mono ltr text-right">{r.port}</td><td className="p-3 mono ltr text-right text-white/60">{r.source}</td>
@@ -303,7 +303,7 @@ function ServerBackups({ s }: { s: Server }) {
           : s.backupsList.length === 0 ? <Empty icon="clock" title="اولین بکاپ امشب ساخته می‌شود" />
           : s.backupsList.map((b) => (
             <div key={b.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div className="flex items-center gap-3"><Icon name="database-backup" size={17} className="text-white/45" /><div><div className="text-sm">{b.at}</div><div className="text-[11px] text-white/40">{fa(b.size, 1)} گیگابایت</div></div></div>
+              <div className="flex items-center gap-3"><Icon name="database-backup" size={17} className="text-white/55" /><div><div className="text-sm">{b.at}</div><div className="text-[11px] text-white/55">{fa(b.size, 1)} گیگابایت</div></div></div>
               <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} danger confirmText="سرور به این نسخه بازگردانده شود؟ اطلاعات فعلی جایگزین می‌شود." onClick={async () => { await api.servers.restore(s.id, "بکاپ " + b.at); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
             </div>
           ))}
@@ -312,7 +312,7 @@ function ServerBackups({ s }: { s: Server }) {
         {s.snapshots.length === 0 ? <Empty icon="camera" title="اسنپ‌شاتی ندارید" text="پیش از تغییرات بزرگ، یک نسخه لحظه‌ای بگیرید." />
           : s.snapshots.map((sn) => (
             <div key={sn.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div><div className="text-sm font-bold ltr text-right">{sn.name}</div><div className="text-[11px] text-white/40">{sn.at}، {fa(sn.size, 1)} گیگابایت</div></div>
+              <div><div className="text-sm font-bold ltr text-right">{sn.name}</div><div className="text-[11px] text-white/55">{sn.at}، {fa(sn.size, 1)} گیگابایت</div></div>
               <div className="flex gap-1 items-center">
                 <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} danger confirmText="سرور به این اسنپ‌شات بازگردانده شود؟" onClick={async () => { await api.servers.restore(s.id, "اسنپ‌شات " + sn.name); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
                 <IconBtn icon="trash-2" label={"حذف اسنپ‌شات " + sn.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("اسنپ‌شات " + sn.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.servers.deleteSnapshot(s.id, sn.id); notify("اسنپ‌شات حذف شد"); } }} />

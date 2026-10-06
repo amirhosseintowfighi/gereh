@@ -63,7 +63,7 @@ export function AuthForm() {
           <Field label="رمز عبور">
             <div className="relative">
               <input name="password" type={show ? "text" : "password"} value={f.password} onChange={set("password")} dir="ltr" autoComplete="current-password" className={INPUT + " text-left h-12 pl-11"} />
-              <button type="button" onClick={() => setShow((s) => !s)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-white/45 hover:text-white" aria-label={show ? "پنهان کردن رمز" : "نمایش رمز"} aria-pressed={show}><Icon name={show ? "eye-off" : "eye"} size={17} /></button>
+              <button type="button" onClick={() => setShow((s) => !s)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-white/55 hover:text-white" aria-label={show ? "پنهان کردن رمز" : "نمایش رمز"} aria-pressed={show}><Icon name={show ? "eye-off" : "eye"} size={17} /></button>
             </div>
           </Field>
           <div className="flex items-center justify-between text-xs">
@@ -80,7 +80,7 @@ export function AuthForm() {
         </> : <>
           <p className="text-sm text-white/60 text-center">کد ارسال‌شده به <span className="ltr tabular text-white">{phone}</span> را وارد کنید.</p>
           <OtpInput value={code} onChange={setCode} />
-          <div className="text-center text-xs text-white/45" aria-live="polite">{timer > 0 ? "ارسال دوباره تا " + fa(timer) + " ثانیه دیگر" : (
+          <div className="text-center text-xs text-white/55" aria-live="polite">{timer > 0 ? "ارسال دوباره تا " + fa(timer) + " ثانیه دیگر" : (
             <AsyncButton className="text-white/80 hover:text-white" onClick={wrap(async () => { await api.auth.sendOtp(phone); setTimer(90); notify("کد دوباره ارسال شد", "smartphone"); })}>ارسال دوباره کد</AsyncButton>
           )}</div>
           {errorLine}
@@ -107,7 +107,7 @@ export function AuthForm() {
         </>}
       </form>
       <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-4">
-        <div className="text-[11px] text-white/45 mb-3 text-center">نسخه نمایشی: ورود سریع بدون رمز</div>
+        <div className="text-[11px] text-white/55 mb-3 text-center">نسخه نمایشی: ورود سریع بدون رمز</div>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => done(api.auth.demo("user"))} className={BTN_G + " h-10 text-xs"}><Icon name="user-round" size={15} /> پنل کاربر</button>
           <button type="button" onClick={() => done(api.auth.demo("admin"))} className={BTN_G + " h-10 text-xs"}><Icon name="shield-half" size={15} /> پنل مدیریت</button>

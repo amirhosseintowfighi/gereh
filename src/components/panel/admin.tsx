@@ -32,7 +32,7 @@ export function AdminDashboard() {
         <StatCard icon="message-circle" label="تیکت‌های در انتظار" value={openT.length} sub="میانگین پاسخ ۹ دقیقه" tone={openT.length > 5 ? "down" : ""} href="/admin/tickets" />
       </div>
       <div className="grid xl:grid-cols-[1.7fr_1fr] gap-4 mt-4">
-        <Card title="درآمد ۱۲ ماه اخیر" icon="trending-up" action={<span className="text-xs text-white/45">میلیون تومان</span>}>
+        <Card title="درآمد ۱۲ ماه اخیر" icon="trending-up" action={<span className="text-xs text-white/55">میلیون تومان</span>}>
           <AreaChart data={revenue} labels={MONTHS} unit="میلیون تومان" height={230} />
         </Card>
         <Card title="ثبت‌نام‌های هفته" icon="user-plus">
@@ -44,10 +44,10 @@ export function AdminDashboard() {
           <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>
         </Card>
         <Card title="آخرین صورتحساب‌ها" icon="receipt" pad="p-3">
-          {db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/40">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invTotal(i))}</div><StatusBadge s={i.status} /></div></div>)}
+          {db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invTotal(i))}</div><StatusBadge s={i.status} /></div></div>)}
         </Card>
         <Card title="صف تیکت" icon="message-circle" pad="p-3">
-          {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-right"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/40">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
+          {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-right"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/55">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
         </Card>
       </div>
     </div>
@@ -68,7 +68,7 @@ export function AdminUsers() {
       <DataTable rows={db.users} searchKeys={["name", "email", "phone"]} searchPlaceholder="نام، ایمیل یا موبایل" filters={[{ key: "status", label: "وضعیت", options: ["active", "pending", "suspended"] }, { key: "kyc", label: "احراز", options: ["verified", "pending", "none"] }]}
         onRowClick={(r) => { setSel(r.id); setAdj({ amount: "", reason: "" }); }} pageSize={10}
         columns={[
-          { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/40 ltr text-right">{r.email}</div></div></div> },
+          { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/55 ltr text-right">{r.email}</div></div></div> },
           { key: "phone", label: "موبایل", render: (r) => <span className="mono text-xs text-white/60">{r.phone}</span> },
           { key: "services", label: "سرویس", sortable: true, render: (r) => fa(r.services) },
           { key: "balance", label: "موجودی", sortable: true, render: (r) => <span className="tabular">{toman(r.balance)}</span> },
@@ -78,11 +78,11 @@ export function AdminUsers() {
         ]} />
       <SideDrawer open={!!u} onClose={() => setSel(null)} title="جزئیات کاربر">
         {u && <>
-          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/45 ltr text-right">{u.email}</div></div></div>
+          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/55 ltr text-right">{u.email}</div></div></div>
           <div className="flex flex-wrap gap-2 mt-4"><StatusBadge s={u.status} /><StatusBadge s={u.kyc} />{u.company && <Badge>{u.company}</Badge>}</div>
-          <dl className="grid grid-cols-2 gap-4 mt-6 text-sm">{[["موبایل", u.phone], ["عضویت", u.joined], ["سرویس‌ها", fa(u.services)], ["موجودی", toman(u.balance)]].map(([k, v]) => <div key={k} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3"><dt className="text-[11px] text-white/40">{k}</dt><dd className="mt-1 font-bold tabular">{v}</dd></div>)}</dl>
+          <dl className="grid grid-cols-2 gap-4 mt-6 text-sm">{[["موبایل", u.phone], ["عضویت", u.joined], ["سرویس‌ها", fa(u.services)], ["موجودی", toman(u.balance)]].map(([k, v]) => <div key={k} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3"><dt className="text-[11px] text-white/55">{k}</dt><dd className="mt-1 font-bold tabular">{v}</dd></div>)}</dl>
           <div className="mt-6 space-y-2">
-            <div className="text-xs text-white/45 mb-2">اقدامات</div>
+            <div className="text-xs text-white/55 mb-2">اقدامات</div>
             <div className="grid grid-cols-2 gap-2">
               {u.status === "suspended"
                 ? <AsyncButton className={BTN_G + " h-10 text-sm"} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); }}><Icon name="circle-check" size={15} /> فعال‌سازی</AsyncButton>
@@ -107,11 +107,11 @@ export function AdminUsers() {
             }}>اعمال</AsyncButton></div>
           </form>
           <div className="mt-6">
-            <div className="text-xs text-white/45 mb-2">سرویس‌های کاربر</div>
+            <div className="text-xs text-white/55 mb-2">سرویس‌های کاربر</div>
             {(() => {
               const list = [...db.servers.filter((s) => s.userId === u.id).map((s) => ["server", s.name, s.status]), ...db.hosting.filter((h) => h.userId === u.id).map((h) => ["layers", h.domain, h.status]), ...db.domains.filter((d) => d.userId === u.id).map((d) => ["globe", d.name, d.status])];
-              return list.length === 0 ? <div className="text-sm text-white/40 p-2.5">سرویسی ندارد.</div> : list.map(([ic, n, st], i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 text-sm"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/45" /><span className="ltr">{n}</span></span><StatusBadge s={st} /></div>
+              return list.length === 0 ? <div className="text-sm text-white/55 p-2.5">سرویسی ندارد.</div> : list.map(([ic, n, st], i) => (
+                <div key={i} className="flex items-center justify-between p-2.5 text-sm"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/55" /><span className="ltr">{n}</span></span><StatusBadge s={st} /></div>
               ));
             })()}
           </div>
@@ -274,7 +274,7 @@ export function AdminTickets({ id }: { id?: string }) {
           { key: "subject", label: "موضوع", render: (r) => <span className="font-bold">{r.subject}</span> },
           { key: "owner", label: "مشتری", render: (r) => owner(r.userId) },
           { key: "dept", label: "واحد" }, { key: "priority", label: "اولویت", render: (r) => <StatusBadge s={r.priority} /> },
-          { key: "assignee", label: "کارشناس", render: (r) => r.assignee || <span className="text-white/35">—</span> },
+          { key: "assignee", label: "کارشناس", render: (r) => r.assignee || <span className="text-white/50">—</span> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
           { key: "updated", label: "به‌روزرسانی" },
         ]} />
@@ -362,7 +362,7 @@ export function AdminInfra() {
           return (
             <div key={l.id} className="spot rounded-[1.4rem] p-5 bg-white/[0.055] backdrop-blur-xl border border-white/[0.11] hl">
               <div className="flex items-center justify-between"><span className="font-extrabold">{l.label}</span><span className={"w-2.5 h-2.5 rounded-full " + (ns.length ? "bg-emerald-400" : "bg-amber-300")} aria-label={ns.length ? "آنلاین" : "بدون نود فعال"} /></div>
-              <div className="text-xs text-white/45 mt-1">{fa(all.length)} نود، {fa(vms)} ماشین مجازی</div>
+              <div className="text-xs text-white/55 mt-1">{fa(all.length)} نود، {fa(vms)} ماشین مجازی</div>
               <div className="mt-4"><Meter label="میانگین بار CPU" value={avg} right={fa(avg) + "٪"} /></div>
             </div>
           );
@@ -370,7 +370,7 @@ export function AdminInfra() {
       </div>
       <DataTable rows={db.nodes} searchKeys={["id", "model"]} filters={[{ key: "status", label: "وضعیت", options: ["online", "maintenance"] }]}
         columns={[
-          { key: "id", label: "نود", render: (r) => <div><div className="mono font-bold">{r.id}</div><div className="text-[11px] text-white/40 ltr text-right">{r.model}</div></div> },
+          { key: "id", label: "نود", render: (r) => <div><div className="mono font-bold">{r.id}</div><div className="text-[11px] text-white/55 ltr text-right">{r.model}</div></div> },
           { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
           { key: "cpu", label: "CPU", sortable: true, render: (r) => <div className="w-28"><Meter value={r.cpu} right={fa(r.cpu) + "٪"} label="CPU" /></div> },
           { key: "ram", label: "RAM", sortable: true, render: (r) => <div className="w-28"><Meter value={r.ram} right={fa(r.ram) + "٪"} label="RAM" /></div> },
@@ -423,7 +423,7 @@ export function AdminVirtualizor() {
                 <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
                 <AsyncButton onClick={async () => { if (!cfg.host.trim() || !(cfg.port > 0 && cfg.port < 65536)) throw new Error("آدرس و پورت معتبر لازم است."); await api.admin.saveVirt({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("تنظیمات ذخیره شد"); }}>ذخیره</AsyncButton>
               </div>
-              <p className="text-[11px] text-white/40 mt-5 leading-6">کلید و رمز Admin API در Virtualizor: Configuration › Server Info (روی Master). IP سرور گره را در «Allowed IP list to restrict API operations» اضافه کنید.</p>
+              <p className="text-[11px] text-white/55 mt-5 leading-6">کلید و رمز Admin API در Virtualizor: Configuration › Server Info (روی Master). IP سرور گره را در «Allowed IP list to restrict API operations» اضافه کنید.</p>
             </Card>
             <Card title="همگام‌سازی" icon="refresh-cw" pad="p-3 sm:p-4">
               {[["سرورها و نودها", "servers", "radio-tower"], ["پلن‌ها", "plans", "tag"], ["قالب‌های سیستم‌عامل", "templates", "terminal"], ["VPSها و وضعیت", "vps", "server"], ["آمار ترافیک", "bandwidth", "activity"]].map(([l, k, ic]) => (
@@ -433,7 +433,7 @@ export function AdminVirtualizor() {
                 </div>
               ))}
               <div className="flex items-center justify-between gap-3 p-3 mt-1 border-t border-white/[0.06]">
-                <div><div className="text-sm font-bold">همگام‌سازی خودکار</div><div className="text-[11px] text-white/40 mt-0.5">وضعیت هر ۱ دقیقه، ترافیک هر ۵ دقیقه، تطبیق کامل شبانه</div></div>
+                <div><div className="text-sm font-bold">همگام‌سازی خودکار</div><div className="text-[11px] text-white/55 mt-0.5">وضعیت هر ۱ دقیقه، ترافیک هر ۵ دقیقه، تطبیق کامل شبانه</div></div>
                 <Switch on={!!db.virt.autoSync} label="همگام‌سازی خودکار" onChange={(v) => api.admin.saveVirt({ autoSync: v })} />
               </div>
             </Card>
@@ -447,7 +447,7 @@ export function AdminVirtualizor() {
               { key: "group", label: "گروه سرور (محل ساخت)", render: (r) => <Select className="w-44" label={"گروه سرور " + r.name} value={r.group} onChange={async (v) => { await api.admin.savePlanMap(r.id, { group: v }); notify("نگاشت ذخیره شد"); }} options={GROUPS} ltr /> },
               { key: "st", label: "وضعیت", render: (r) => r.plid ? <Badge tone="green">نگاشت شده</Badge> : <Badge tone="amber">بدون نگاشت</Badge> },
             ]} />
-          <p className="text-[11px] text-white/40 mt-3 leading-6">هنگام سفارش، VPS با همین plid و روی کم‌بارترین سرورِ گروه انتخاب‌شده ساخته می‌شود. لوکیشن‌های سایت (تهران، اصفهان…) به گروه سرورها نگاشت می‌شوند.</p>
+          <p className="text-[11px] text-white/55 mt-3 leading-6">هنگام سفارش، VPS با همین plid و روی کم‌بارترین سرورِ گروه انتخاب‌شده ساخته می‌شود. لوکیشن‌های سایت (تهران، اصفهان…) به گروه سرورها نگاشت می‌شوند.</p>
         </>}
         {tab === "templates" && (
           <DataTable rows={db.osTemplates.map((t) => ({ ...t, id: t.osid }))} searchKeys={["name", "distro"]}
@@ -467,7 +467,7 @@ export function AdminVirtualizor() {
               ["adminManaged", "غیرفعال کردن پنل Virtualizor برای کاربران", "کاربران فقط از پنل گره سرور را مدیریت می‌کنند (admin_managed)."],
             ].map(([k, l, h]) => (
               <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-[12px]">
-                <div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/45 mt-1 leading-6">{h}</div></div>
+                <div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/55 mt-1 leading-6">{h}</div></div>
                 <Switch on={!!db.virt[k]} label={l} onChange={async (v) => { await api.admin.saveVirt({ [k]: v }); notify("سیاست ذخیره شد"); }} />
               </div>
             ))}
@@ -545,7 +545,7 @@ export function AdminAnnouncements() {
         <Card title="منتشرشده" icon="scroll-text" pad="p-3 sm:p-4">
           {db.announcements.length === 0 ? <Empty icon="megaphone" title="اطلاعیه‌ای منتشر نشده" /> : db.announcements.map((a) => (
             <div key={a.id} className="p-4 rounded-xl hover:bg-white/[0.03] flex gap-4 justify-between">
-              <div><div className="flex flex-wrap items-center gap-2"><span className="font-bold">{a.title}</span><Badge tone={a.level === "critical" ? "red" : a.level === "warning" ? "amber" : "blue"}>{{ info: "اطلاع‌رسانی", warning: "هشدار", critical: "بحرانی" }[a.level]}</Badge></div><p className="text-sm text-white/55 leading-7 mt-1.5">{a.body}</p><div className="text-[11px] text-white/35 mt-1">{a.at}</div></div>
+              <div><div className="flex flex-wrap items-center gap-2"><span className="font-bold">{a.title}</span><Badge tone={a.level === "critical" ? "red" : a.level === "warning" ? "amber" : "blue"}>{{ info: "اطلاع‌رسانی", warning: "هشدار", critical: "بحرانی" }[a.level]}</Badge></div><p className="text-sm text-white/55 leading-7 mt-1.5">{a.body}</p><div className="text-[11px] text-white/50 mt-1">{a.at}</div></div>
               <IconBtn icon="trash-2" label={"حذف اطلاعیه " + a.title} className="hover:text-rose-300 shrink-0" onClick={async () => { if (await confirm("اطلاعیه «" + a.title + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.deleteAnnouncement(a.id); notify("اطلاعیه حذف شد"); } }} />
             </div>
           ))}
@@ -564,7 +564,7 @@ export function AdminAudit() {
         columns={[
           { key: "at", label: "زمان" }, { key: "actor", label: "کاربر", render: (r) => <span className="font-bold">{r.actor}</span> },
           { key: "action", label: "اقدام" }, { key: "target", label: "هدف", render: (r) => <span className="mono text-xs text-white/60">{r.target}</span> },
-          { key: "ip", label: "IP", render: (r) => <span className="mono text-xs text-white/45">{r.ip}</span> },
+          { key: "ip", label: "IP", render: (r) => <span className="mono text-xs text-white/55">{r.ip}</span> },
         ]} />
     </div>
   );
@@ -591,7 +591,7 @@ export function AdminSettings() {
             </div>
             <div className="mt-6 space-y-1 max-w-3xl">
               {([["registration", "ثبت‌نام کاربران جدید", "با خاموش کردن، فقط کاربران فعلی وارد می‌شوند."], ["maintenance", "حالت تعمیر و نگهداری", "سایت عمومی برای بازدیدکنندگان پیام نگهداری نشان می‌دهد."]] as const).map(([k, l, h]) => (
-                <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02]"><div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/45 mt-1">{h}</div></div><Switch on={s[k]} label={l} onChange={(v) => setS((x) => ({ ...x, [k]: v }))} /></div>
+                <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02]"><div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/55 mt-1">{h}</div></div><Switch on={s[k]} label={l} onChange={(v) => setS((x) => ({ ...x, [k]: v }))} /></div>
               ))}
             </div>
             <div className="mt-6 flex justify-end max-w-3xl"><AsyncButton onClick={async () => { if (!s.siteName.trim()) throw new Error("نام سایت لازم است."); if (!EMAIL_RE.test(s.supportEmail)) throw new Error("ایمیل پشتیبانی معتبر نیست."); await save({ siteName: s.siteName.trim(), supportEmail: s.supportEmail.trim(), supportPhone: s.supportPhone.trim(), registration: s.registration, maintenance: s.maintenance }); }}>ذخیره</AsyncButton></div>
@@ -602,7 +602,7 @@ export function AdminSettings() {
             <Field className="max-w-xs" label="نرخ مالیات بر ارزش افزوده (٪)"><input value={s.tax} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, tax: Math.min(100, +amountInput(e.target.value) || 0) }))} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
             <div className="mt-6 grid sm:grid-cols-2 gap-2 max-w-3xl">
               {[["zarinpal", "زرین‌پال"], ["idpay", "آیدی‌پی"], ["wallet", "کیف پول داخلی"], ["crypto", "پرداخت رمزارزی"]].map(([k, l]) => (
-                <div key={k} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.07]"><span className="text-sm font-bold flex items-center gap-2"><Icon name="lock" size={15} className="text-white/45" />{l}</span><Switch on={!!s.gateways[k]} label={l} onChange={(v) => setS((x) => ({ ...x, gateways: { ...x.gateways, [k]: v } }))} /></div>
+                <div key={k} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.07]"><span className="text-sm font-bold flex items-center gap-2"><Icon name="lock" size={15} className="text-white/55" />{l}</span><Switch on={!!s.gateways[k]} label={l} onChange={(v) => setS((x) => ({ ...x, gateways: { ...x.gateways, [k]: v } }))} /></div>
               ))}
             </div>
             <div className="mt-6 flex justify-end max-w-3xl"><AsyncButton onClick={async () => { if (!Object.values(s.gateways).some(Boolean)) throw new Error("حداقل یک روش پرداخت باید فعال باشد."); await save({ tax: s.tax, gateways: s.gateways }); }}>ذخیره</AsyncButton></div>
@@ -623,7 +623,7 @@ export function AdminSettings() {
           <Card title="مدیران" icon="users" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setSt({ name: "", email: "", role: "پشتیبانی فنی" })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> افزودن مدیر</button>}>
             {db.staff.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-                <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{m.name[0]}</span><div><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/40 ltr text-right">{m.email}</div></div></div>
+                <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{m.name[0]}</span><div><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-right">{m.email}</div></div></div>
                 <div className="flex items-center gap-2"><Badge tone={m.role === "مدیر کل" ? "violet" : "gray"}>{m.role}</Badge>{m.role !== "مدیر کل" && <IconBtn icon="trash-2" label={"حذف " + m.name} className="hover:text-rose-300" onClick={async () => { if (await confirm(m.name + " از مدیران حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.removeStaff(m.id); notify("مدیر حذف شد"); } }} />}</div>
               </div>
             ))}

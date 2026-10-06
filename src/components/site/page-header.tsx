@@ -8,7 +8,7 @@ export function PageHeader({ icon, title, sub, crumb }: { icon: string; title: s
     <div className="relative overflow-hidden">
       <GirihField />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-10 text-center hero-in">
-        <nav aria-label="مسیر صفحه" className="flex items-center justify-center gap-2 text-xs text-white/45">
+        <nav aria-label="مسیر صفحه" className="flex items-center justify-center gap-2 text-xs text-white/55">
           <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
           <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">{crumb}</span>
         </nav>

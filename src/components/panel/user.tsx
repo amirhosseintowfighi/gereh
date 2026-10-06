@@ -43,7 +43,7 @@ export function UserDashboard() {
         <StatCard icon="message-circle" label="تیکت‌های باز" value={openT.length} href="/panel/tickets" />
       </div>
       <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4 mt-4">
-        <Card title="ترافیک خروجی ۳۰ روز اخیر" icon="activity" action={<span className="text-xs text-white/45">مجموع {fa(Math.round(traffic.reduce((a, b) => a + b, 0)))} گیگابایت</span>}>
+        <Card title="ترافیک خروجی ۳۰ روز اخیر" icon="activity" action={<span className="text-xs text-white/55">مجموع {fa(Math.round(traffic.reduce((a, b) => a + b, 0)))} گیگابایت</span>}>
           <AreaChart data={traffic} labels={days} unit="گیگابایت" height={210} />
         </Card>
         <Card title="اقدام سریع" icon="zap">
@@ -61,7 +61,7 @@ export function UserDashboard() {
           {servers.length === 0 ? <Empty icon="server" title="هنوز سروری ندارید" /> : servers.map((s) => (
             <Link key={s.id} href={("/panel/servers/" + s.id) as never} className="w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.04] text-right">
               <span className={"w-2.5 h-2.5 rounded-full " + (s.status === "running" ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.7)]" : "bg-white/25")} aria-hidden="true" />
-              <div className="flex-1 min-w-0"><div className="font-bold text-sm ltr text-right">{s.name}</div><div className="text-xs text-white/40 mt-0.5">{s.plan}، {locLabel(s.loc)}</div></div>
+              <div className="flex-1 min-w-0"><div className="font-bold text-sm ltr text-right">{s.name}</div><div className="text-xs text-white/55 mt-0.5">{s.plan}، {locLabel(s.loc)}</div></div>
               <span className="mono text-xs text-white/50 hidden sm:block">{s.ip}</span>
               <StatusBadge s={s.status} />
             </Link>
@@ -72,7 +72,7 @@ export function UserDashboard() {
             {db.activity.slice(0, 6).map((a) => (
               <li key={a.id} className="flex gap-3">
                 <span className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.08] grid place-items-center shrink-0"><Icon name={a.icon} size={15} className="text-white/60" /></span>
-                <div className="min-w-0"><div className="text-sm">{a.text}</div><div className="text-[11px] text-white/35 mt-0.5">{a.at}</div></div>
+                <div className="min-w-0"><div className="text-sm">{a.text}</div><div className="text-[11px] text-white/50 mt-0.5">{a.at}</div></div>
               </li>
             ))}
           </ol>
@@ -89,7 +89,7 @@ export function PowerMenu({ s }: { s: Server }) {
     notify("در حال اجرا…", "loader-circle");
     try { await api.servers.power(s.id, a); notify(msg, "circle-check"); } catch (e) { notify(e instanceof Error ? e.message : "خطا", "circle-alert"); }
   };
-  if (s.status === "suspended") return <span className="text-[11px] text-white/35">معلق</span>;
+  if (s.status === "suspended") return <span className="text-[11px] text-white/50">معلق</span>;
   return (
     <Menu label={"کنترل روشن و خاموش " + s.name} triggerClass={ICON_BTN} trigger={<Icon name="power" size={17} />} items={[
       s.status !== "running" && { icon: "play", label: "روشن کردن", run: () => act("start", s.name + " روشن شد") },
@@ -108,7 +108,7 @@ export function UserServers() {
       {rows.length === 0 ? <Card><Empty icon="server" title="هنوز سروری ندارید" text="اولین سرور ابری را در کمتر از یک دقیقه بسازید." action={<Link href="/vps" className={BTN_P + " px-5 h-10 text-sm"}>ساخت سرور</Link>} /></Card> : (
         <DataTable rows={rows} searchKeys={["name", "ip"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }]} onRowClick={(r) => router.push(("/panel/servers/" + r.id) as never)}
           columns={[
-            { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-right">{r.name}</div><div className="text-[11px] text-white/40">{r.os}</div></div></div> },
+            { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-right">{r.name}</div><div className="text-[11px] text-white/55">{r.os}</div></div></div> },
             { key: "ip", label: "آدرس IP", render: (r) => <CopyText text={r.ip} className="mono text-xs text-white/70" /> },
             { key: "plan", label: "مشخصات", render: (r) => <span className="text-white/70">{fa(r.cpu)} هسته، {fa(r.ram)} گیگ، {fa(r.disk)} گیگ</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
@@ -142,7 +142,7 @@ export function UserHosting({ id }: { id?: string }) {
           </div>
         </Card>
         <Card title="اطلاعات" icon="file-text">
-          <dl className="space-y-3 text-sm">{[["کنترل‌پنل", h.panel], ["سررسید", h.expires], ["هزینه", toman(h.price) + " / ماه"], ["نام‌سرورها", "ns1/ns2.gereh.cloud"]].map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-white/45">{k}</dt><dd>{v}</dd></div>)}</dl>
+          <dl className="space-y-3 text-sm">{[["کنترل‌پنل", h.panel], ["سررسید", h.expires], ["هزینه", toman(h.price) + " / ماه"], ["نام‌سرورها", "ns1/ns2.gereh.cloud"]].map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd>{v}</dd></div>)}</dl>
         </Card>
         <Card title="رمز cPanel" icon="key-round">
           <p className="text-sm text-white/50 leading-7">رمز جدید فقط یک بار نمایش داده می‌شود.</p>
@@ -227,7 +227,7 @@ export function UserDomains({ id }: { id?: string }) {
             {!d.ns[0].includes("gereh") ? <Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.cloud تغییر دهید."} />
               : d.dns.length === 0 ? <Empty icon="settings-2" title="رکوردی ندارید" /> : (
               <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
-                <thead><tr className="text-xs text-white/40"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
+                <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
                 <tbody>{d.dns.map((r) => (
                   <tr key={r.id} className="border-t border-white/[0.06] hover:bg-white/[0.02]">
                     <td className="p-3"><Badge tone="blue">{r.type}</Badge></td><td className="p-3 mono ltr text-right">{r.name}</td>
@@ -287,7 +287,7 @@ export function UserDomains({ id }: { id?: string }) {
             <Card title="تنظیمات" icon="lock" pad="p-2 sm:p-3">
               {([["autoRenew", "تمدید خودکار", "پیش از سررسید از کیف پول تمدید می‌شود."], ["privacy", "محافظت از اطلاعات مالک", "اطلاعات تماس در WHOIS نمایش داده نمی‌شود."], ["locked", "قفل انتقال", "از انتقال بدون اجازه دامنه جلوگیری می‌کند."]] as const).map(([k, l, hint]) => (
                 <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-xl">
-                  <div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/45 mt-1">{hint}</div></div>
+                  <div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/55 mt-1">{hint}</div></div>
                   <Switch on={d[k]} label={l} onChange={async () => { await api.domains.toggle(d.id, k); notify(l + (d[k] ? " خاموش شد" : " فعال شد")); }} />
                 </div>
               ))}
@@ -306,7 +306,7 @@ export function UserDomains({ id }: { id?: string }) {
         {tab === "renew" && (
           <Card title="تمدید دامنه" icon="refresh-cw">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-2xl" role="radiogroup" aria-label="مدت تمدید">
-              {[1, 2, 3, 5, 10].map((y) => <button type="button" role="radio" aria-checked={years === y} key={y} onClick={() => setYears(y)} className={"rounded-xl p-4 border text-center transition " + (years === y ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}><div className="font-black">{fa(y)} سال</div><div className="text-[11px] text-white/45 mt-1 tabular">{toman(t.renew * y)}</div></button>)}
+              {[1, 2, 3, 5, 10].map((y) => <button type="button" role="radio" aria-checked={years === y} key={y} onClick={() => setYears(y)} className={"rounded-xl p-4 border text-center transition " + (years === y ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}><div className="font-black">{fa(y)} سال</div><div className="text-[11px] text-white/55 mt-1 tabular">{toman(t.renew * y)}</div></button>)}
             </div>
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 max-w-2xl">
               <div className="text-sm text-white/55">سررسید جدید پس از تمدید: <span className="text-white">{newExpiry}</span></div>
@@ -329,10 +329,10 @@ export function InvoiceModal({ inv, onClose, onPay }: { inv: Invoice | null; onC
       footer={<><button type="button" onClick={() => window.print()} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + " px-5 h-10 text-sm"}>پرداخت</button>}</>}>
       <div className="print-area">
         <div className="flex justify-between items-start">
-          <div><Wordmark size={30} /><div className="text-xs text-white/45 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
+          <div><Wordmark size={30} /><div className="text-xs text-white/55 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
           <div className="text-left text-sm space-y-1"><StatusBadge s={inv.status} /><div className="text-white/50 mt-2">تاریخ: {inv.date}</div><div className="text-white/50">سررسید: {inv.due}</div></div>
         </div>
-        <table className="w-full text-sm mt-8"><thead><tr className="text-xs text-white/40 border-b border-white/10"><th scope="col" className="text-right font-medium pb-3">شرح</th><th scope="col" className="text-left font-medium pb-3">مبلغ</th></tr></thead>
+        <table className="w-full text-sm mt-8"><thead><tr className="text-xs text-white/55 border-b border-white/10"><th scope="col" className="text-right font-medium pb-3">شرح</th><th scope="col" className="text-left font-medium pb-3">مبلغ</th></tr></thead>
           <tbody>{inv.items.map((it, i) => <tr key={i} className="border-b border-white/[0.06]"><td className="py-3">{it.desc}</td><td className="py-3 text-left tabular">{toman(it.amount)}</td></tr>)}</tbody></table>
         <div className="mt-5 mr-auto max-w-xs space-y-2 text-sm">
           <div className="flex justify-between text-white/60"><span>جمع</span><span className="tabular">{toman(sub)}</span></div>
@@ -390,7 +390,7 @@ export function UserBilling() {
             <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + " px-6 h-11"}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
-              <span className="text-xs text-white/40">پرداخت امن از طریق درگاه زرین‌پال (نمایشی)</span>
+              <span className="text-xs text-white/55">پرداخت امن از طریق درگاه زرین‌پال (نمایشی)</span>
             </div>
           </Card>
         )}
@@ -407,12 +407,12 @@ export function UserBilling() {
       <Modal open={!!pay} onClose={() => setPay(null)} title={pay ? "پرداخت " + pay.id : ""} icon="lock"
         footer={<><button type="button" onClick={() => setPay(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!pay) return; await api.billing.pay(pay.id, method); setPay(null); notify("صورتحساب پرداخت شد", "circle-check"); }}>پرداخت {pay ? toman(total(pay)) : ""}</AsyncButton></>}>
         {pay && <>
-          <div className="text-center mb-6"><div className="text-xs text-white/45">مبلغ قابل پرداخت</div><div className="text-3xl font-black silver mt-2 tabular">{toman(total(pay))}</div></div>
+          <div className="text-center mb-6"><div className="text-xs text-white/55">مبلغ قابل پرداخت</div><div className="text-3xl font-black silver mt-2 tabular">{toman(total(pay))}</div></div>
           <div className="space-y-2" role="radiogroup" aria-label="روش پرداخت">
             {([["wallet", "wallet", "کیف پول", "موجودی: " + toman(me.balance) + (me.balance < total(pay) ? " (کافی نیست)" : "")], ["gateway", "lock", "درگاه بانکی", "همه کارت‌های عضو شتاب"]] as const).map(([k, ic, l, hint]) => (
               <button type="button" role="radio" aria-checked={method === k} key={k} onClick={() => setMethod(k)} className={"w-full flex items-center gap-3 p-4 rounded-xl border text-right transition " + (method === k ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
                 <span className={"w-4 h-4 rounded-full border-2 " + (method === k ? "border-white bg-white shadow-[inset_0_0_0_3px_#0b0d16]" : "border-white/30")} />
-                <Icon name={ic} size={18} className="acc" /><div className="flex-1"><div className="text-sm font-bold">{l}</div><div className="text-[11px] text-white/45">{hint}</div></div>
+                <Icon name={ic} size={18} className="acc" /><div className="flex-1"><div className="text-sm font-bold">{l}</div><div className="text-[11px] text-white/55">{hint}</div></div>
               </button>
             ))}
           </div>
@@ -433,7 +433,7 @@ export function TicketThread({ t, as = "user" }: { t: Ticket; as?: "user" | "sta
           <li key={i} className={"flex gap-3 " + (m.from === "staff" ? "flex-row-reverse" : "")}>
             <span className={"w-9 h-9 rounded-xl grid place-items-center text-sm font-black shrink-0 " + (m.from === "staff" ? "acc-bg" : "tile")} aria-hidden="true">{m.name[0]}</span>
             <div className={"max-w-[85%] rounded-2xl p-4 " + (m.from === "staff" ? "bg-[#9cc9ff]/[0.08] border border-[#9cc9ff]/20" : "bg-white/[0.04] border border-white/[0.08]")}>
-              <div className="flex flex-wrap items-center gap-3 text-xs"><span className="font-bold">{m.name}</span>{m.from === "staff" && <Badge tone="blue">پشتیبانی گره</Badge>}<span className="text-white/35">{m.at}</span></div>
+              <div className="flex flex-wrap items-center gap-3 text-xs"><span className="font-bold">{m.name}</span>{m.from === "staff" && <Badge tone="blue">پشتیبانی گره</Badge>}<span className="text-white/50">{m.at}</span></div>
               <p className="text-sm text-white/80 leading-7 mt-2 whitespace-pre-wrap break-words">{m.text}</p>
             </div>
           </li>
@@ -446,7 +446,7 @@ export function TicketThread({ t, as = "user" }: { t: Ticket; as?: "user" | "sta
             <AsyncButton onClick={async () => { if (text.trim().length < 2) throw new Error("متن پاسخ خالی است."); await api.tickets.reply(t.id, text.trim(), as); setText(""); notify("پاسخ ارسال شد", "send"); }}><Icon name="send" size={15} /> ارسال</AsyncButton>
           </div>
         </form>
-      ) : <div className="mt-6 text-center text-sm text-white/45">این تیکت بسته شده است.</div>}
+      ) : <div className="mt-6 text-center text-sm text-white/55">این تیکت بسته شده است.</div>}
     </div>
   );
 }
@@ -514,15 +514,15 @@ export function UserKeys() {
         <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> افزودن کلید</button>}>
           {db.sshKeys.length === 0 ? <Empty icon="key-round" title="کلیدی ندارید" text="با کلید SSH، بدون رمز و امن‌تر وارد سرورها شوید." /> : db.sshKeys.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/40 ltr text-right">{x.fingerprint}</div></div></div>
-              <div className="flex items-center gap-3"><span className="text-[11px] text-white/35 hidden sm:block">{x.added}</span><IconBtn icon="trash-2" label={"حذف کلید " + x.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("کلید " + x.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.account.removeKey(x.id); notify("کلید حذف شد"); } }} /></div>
+              <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/55 ltr text-right">{x.fingerprint}</div></div></div>
+              <div className="flex items-center gap-3"><span className="text-[11px] text-white/50 hidden sm:block">{x.added}</span><IconBtn icon="trash-2" label={"حذف کلید " + x.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("کلید " + x.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.account.removeKey(x.id); notify("کلید حذف شد"); } }} /></div>
             </div>
           ))}
         </Card>
         <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> توکن جدید</button>}>
           {db.apiTokens.length === 0 ? <Empty icon="code-xml" title="توکنی ندارید" /> : db.apiTokens.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div><div className="text-sm font-bold ltr text-right">{x.name}</div><div className="text-[11px] text-white/40 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
+              <div><div className="text-sm font-bold ltr text-right">{x.name}</div><div className="text-[11px] text-white/55 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
               <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText="توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند قطع می‌شوند." onClick={async () => { await api.account.revokeToken(x.id); notify("توکن باطل شد"); }}>ابطال</AsyncButton>
             </div>
           ))}
@@ -579,7 +579,7 @@ function TwoFactorModal({ onClose, account }: { onClose: () => void; account: st
           <div className="w-44 h-44 mx-auto mt-4 bg-white p-2 rounded-xl grid place-items-center" role="img" aria-label="کد QR ورود دومرحله‌ای">
             {qr ? <div className="w-full h-full [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: qr }} /> : <Icon name="loader-circle" size={24} className="animate-spin text-slate-500" />}
           </div>
-          <div className="text-center mt-3 text-xs text-white/45">یا کد زیر را دستی وارد کنید:</div>
+          <div className="text-center mt-3 text-xs text-white/55">یا کد زیر را دستی وارد کنید:</div>
           <div className="text-center mt-1"><CopyText text={secret.replace(/(.{4})/g, "$1 ").trim()} className="mono text-xs text-white/70" /></div></li>
         <li><div className="font-bold mb-3">۲. کد شش‌رقمی را وارد کنید</div><OtpInput value={otp} onChange={setOtp} /></li>
       </ol>
@@ -604,7 +604,7 @@ export function UserAccount() {
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "profile" && (
           <Card title="اطلاعات شخصی" icon="user-round">
-            <div className="flex items-center gap-4 mb-6"><span className="w-16 h-16 rounded-2xl tile grid place-items-center text-2xl font-black" aria-hidden="true">{me.name[0]}</span><div><div className="font-bold">{me.name}</div><div className="text-xs text-white/45 mt-1">عضو از {me.joined}</div></div></div>
+            <div className="flex items-center gap-4 mb-6"><span className="w-16 h-16 rounded-2xl tile grid place-items-center text-2xl font-black" aria-hidden="true">{me.name[0]}</span><div><div className="font-bold">{me.name}</div><div className="text-xs text-white/55 mt-1">عضو از {me.joined}</div></div></div>
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field label="نام و نام خانوادگی"><input autoComplete="name" value={p.name} onChange={(e) => setP((s) => ({ ...s, name: e.target.value }))} className={INPUT} /></Field>
               <Field label="نام شرکت (اختیاری)"><input autoComplete="organization" value={p.company} onChange={(e) => setP((s) => ({ ...s, company: e.target.value }))} className={INPUT} /></Field>
@@ -635,7 +635,7 @@ export function UserAccount() {
               {db.sessions.map((se) => (
                 <div key={se.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
                   <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name={/iPhone|Android/.test(se.device) ? "smartphone" : "monitor-smartphone"} size={16} /></span>
-                    <div><div className="text-sm font-bold flex flex-wrap items-center gap-2">{se.device} {se.current && <Badge tone="green">همین دستگاه</Badge>}</div><div className="text-[11px] text-white/40 mt-0.5"><span className="mono ltr">{se.ip}</span>، {se.place}، {se.last}</div></div></div>
+                    <div><div className="text-sm font-bold flex flex-wrap items-center gap-2">{se.device} {se.current && <Badge tone="green">همین دستگاه</Badge>}</div><div className="text-[11px] text-white/55 mt-0.5"><span className="mono ltr">{se.ip}</span>، {se.place}، {se.last}</div></div></div>
                   {!se.current && <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText={"نشست " + se.device + " خاتمه یابد؟"} onClick={async () => { await api.account.revokeSession(se.id); notify("نشست خاتمه یافت"); }}>خروج از دستگاه</AsyncButton>}
                 </div>
               ))}
@@ -646,7 +646,7 @@ export function UserAccount() {
         {tab === "notif" && (
           <Card title="تنظیمات اعلان" icon="bell" pad="p-3 sm:p-4">
             <div className="grid grid-cols-[1fr_auto_auto] gap-x-8 items-center text-sm">
-              <div className="text-xs text-white/40 p-3">موضوع</div><div className="text-xs text-white/40 text-center">ایمیل</div><div className="text-xs text-white/40 text-center">پیامک</div>
+              <div className="text-xs text-white/55 p-3">موضوع</div><div className="text-xs text-white/55 text-center">ایمیل</div><div className="text-xs text-white/55 text-center">پیامک</div>
               {prefs.map(([k, l]) => (
                 <Fragment key={k}>
                   <div className="p-3 border-t border-white/[0.06]">{l}</div>

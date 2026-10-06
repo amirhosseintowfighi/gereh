@@ -82,9 +82,10 @@ button:disabled { cursor: not-allowed; }
 /* ---------- motion: short and decisive ---------- */
 .hero-in { animation: heroIn .8s cubic-bezier(.16,1,.3,1) both; }
 .hero-in.d2 { animation-delay: .1s; } .hero-in.d3 { animation-delay: .2s; } .hero-in.d4 { animation-delay: .3s; }
-@keyframes heroIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* transform-only: an opacity:0 start hides LCP candidates until hydration frees the main thread */
+@keyframes heroIn { from { transform: translateY(14px); } to { transform: none; } }
 .fade-page { animation: fadePage .35s cubic-bezier(.16,1,.3,1); }
-@keyframes fadePage { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fadePage { from { transform: translateY(8px); } to { transform: none; } }
 .marquee { display: flex; width: max-content; animation: marq 50s linear infinite; }
 .marquee-wrap:hover .marquee { animation-play-state: paused; }
 @keyframes marq { to { transform: translateX(-50%); } }

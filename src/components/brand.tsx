@@ -3,13 +3,13 @@ import { useId } from "react";
 export const VIRGULE_URL = "https://virgule.studio";
 
 /** Two interlocked links and a node. */
-export function Logo({ size = 36 }: { size?: number }) {
+export function Logo({ size = 36, decorative = false }: { size?: number; decorative?: boolean }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const A = "rotate(45 18 24)", B = "rotate(45 30 24)";
   const rectA = (extra: React.SVGProps<SVGRectElement>) => <rect x="9.5" y="15.5" width="17" height="17" rx="5.5" transform={A} {...extra} />;
   const rectB = (extra: React.SVGProps<SVGRectElement>) => <rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform={B} {...extra} />;
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" role="img" aria-label="نشان گره">
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" {...(decorative ? { "aria-hidden": true } : { role: "img", "aria-label": "نشان گره" })}>
       <defs>
         <linearGradient id={id + "g"} x1="4" y1="10" x2="44" y2="38" gradientUnits="userSpaceOnUse">
           <stop stopColor="#f8fafc" />
@@ -37,7 +37,7 @@ export function Logo({ size = 36 }: { size?: number }) {
 export function Wordmark({ size = 34, sub = true }: { size?: number; sub?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <Logo size={size} />
+      <Logo size={size} decorative />
       <span className="text-right leading-none">
         <span className="block font-black text-[1.3rem] tracking-tight">گره</span>
         {sub && <span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.cloud</span>}

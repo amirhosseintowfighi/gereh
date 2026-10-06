@@ -49,8 +49,6 @@ for (const path of PAGES) {
       await page.waitForLoadState("networkidle");
       const { violations } = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-        // glassmorphism over animated gradients: axe cannot compute contrast reliably for these
-        .disableRules(["color-contrast"])
         .analyze();
       const serious = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
       expect(serious.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);

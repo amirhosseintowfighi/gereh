@@ -27,7 +27,7 @@ export default function AuthPage() {
             ))}
           </ul>
         </div>
-        <div className="relative text-xs text-white/35">قدرت‌گرفته از <VirguleLink className="text-white/60" /></div>
+        <div className="relative text-xs text-white/50">قدرت‌گرفته از <VirguleLink className="text-white/60" /></div>
       </div>
       <div className="flex items-center justify-center px-4 sm:px-6 py-12">
         <div className="w-full max-w-md">

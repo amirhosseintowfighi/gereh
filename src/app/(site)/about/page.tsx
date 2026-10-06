@@ -71,7 +71,7 @@ export default function AboutPage() {
             {TIMELINE.map(([y, t, d]) => (
               <li key={y} className="relative">
                 <span className="absolute -right-[41px] top-1 w-4 h-4 rounded-full bg-[#04050b] border-2 border-[#9cc9ff]" aria-hidden="true" />
-                <div className="mono text-xs text-white/40"><time>{y}</time></div>
+                <div className="mono text-xs text-white/55"><time>{y}</time></div>
                 <h3 className="font-extrabold text-lg mt-1">{t}</h3>
                 <p className="text-white/55 text-sm leading-7 mt-1">{d}</p>
               </li>
@@ -85,7 +85,7 @@ export default function AboutPage() {
             {TEAM.map(([i, n, r]) => (
               <li key={n} className={"rounded-[1.4rem] p-6 text-center " + GLASS_SOFT}>
                 <div className="w-16 h-16 mx-auto rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{i}</div>
-                <h3 className="font-bold mt-4">{n}</h3><div className="text-xs text-white/45 mt-1">{r}</div>
+                <h3 className="font-bold mt-4">{n}</h3><div className="text-xs text-white/55 mt-1">{r}</div>
               </li>
             ))}
           </ul>
@@ -96,7 +96,7 @@ export default function AboutPage() {
             <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(156,201,255,.18), transparent)" }} />
             <div className="flex items-center gap-4">
               <Logo size={64} />
-              <span className="text-3xl text-white/30 font-light" aria-hidden="true">×</span>
+              <span className="text-3xl text-white/50 font-light" aria-hidden="true">×</span>
               <VirguleMark size={60} />
             </div>
             <div>

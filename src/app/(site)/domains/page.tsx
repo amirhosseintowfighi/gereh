@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { JsonLd } from "@/components/json-ld";
-import { DomainSearch } from "@/components/site/domains";
+import { DomainSearch, DomainSearchView } from "@/components/site/domains";
 import { PageHeader } from "@/components/site/page-header";
 import { IconTile } from "@/components/ui";
 import { TLDS } from "@/lib/catalog";
@@ -18,7 +18,7 @@ export default function DomainsPage() {
     <div className="fade-page pb-8">
       <JsonLd data={[breadcrumbLd([["دامنه", "/domains"]]), offerLd("ثبت دامنه گره", "ثبت و تمدید دامنه ملی و بین‌المللی", TLDS.map((t) => t.reg), "/domains")]} />
       <PageHeader icon="globe" crumb="دامنه" title="نامی که می‌ماند" sub="وضعیت نام دلخواه را روی همه پسوندها یک‌جا ببینید و در چند ثانیه ثبت کنید." />
-      <Suspense>
+      <Suspense fallback={<DomainSearchView urlQ="" />}>
         <DomainSearch />
       </Suspense>
       <ul className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 grid md:grid-cols-3 gap-4">

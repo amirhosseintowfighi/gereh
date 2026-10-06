@@ -74,7 +74,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const Side = (
     <div className="flex flex-col h-full">
       <div className="h-16 px-5 flex items-center justify-between border-b border-white/[0.07]">
-        <Link href="/" aria-label="بازگشت به سایت"><Wordmark size={30} sub={false} /></Link>
+        <Link href="/" aria-label="گره، بازگشت به سایت"><Wordmark size={30} sub={false} /></Link>
         <Badge tone={kind === "admin" ? "violet" : "blue"}>{kind === "admin" ? "مدیریت" : "کاربری"}</Badge>
       </div>
       <nav aria-label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} className="flex-1 overflow-auto p-3 space-y-0.5">
@@ -89,12 +89,12 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
       </nav>
       {kind === "user" && (
         <div className="mx-3 mb-3 rounded-2xl p-4 bg-white/[0.04] border border-white/[0.08]">
-          <div className="text-[11px] text-white/45">موجودی کیف پول</div>
+          <div className="text-[11px] text-white/55">موجودی کیف پول</div>
           <div className="font-black mt-1 tabular">{toman(user.balance)}</div>
           <Link href="/panel/billing?tab=wallet" className="text-xs acc mt-2 flex items-center gap-1 hover:gap-2 transition-all">شارژ کیف پول <Icon name="chevron-left" size={13} /></Link>
         </div>
       )}
-      <div className="px-5 py-4 border-t border-white/[0.07] text-[11px] text-white/35 flex items-center gap-2">
+      <div className="px-5 py-4 border-t border-white/[0.07] text-[11px] text-white/50 flex items-center gap-2">
         <VirguleMark size={16} /> قدرت‌گرفته از <VirguleLink className="text-white/60 text-[11px]" />
       </div>
     </div>
@@ -113,7 +113,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         <header className="sticky z-30 h-16 px-4 sm:px-8 flex items-center justify-between gap-3 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
           <div className="flex items-center gap-2">
             <button type="button" className="lg:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10" onClick={() => setMobile(true)} aria-label="منو" aria-expanded={mobile}><Icon name="menu" size={19} /></button>
-            <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/45 hover:text-white text-sm w-64">
+            <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/55 hover:text-white text-sm w-64">
               <Icon name="search" size={16} /> جست‌وجو در پنل <kbd className="mr-auto ltr text-[10px] px-1.5 py-0.5 rounded bg-white/10">Ctrl K</kbd>
             </button>
           </div>
@@ -123,7 +123,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
               items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => {} })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />
             <Menu label="حساب" triggerClass="flex items-center gap-2.5 h-10 pr-1 pl-3 rounded-xl hover:bg-white/[0.06]"
-              trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{me.name[0]}</span><span className="hidden sm:block text-sm">{me.name}</span><Icon name="chevron-down" size={14} className="text-white/40" /></>}
+              trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{me.name[0]}</span><span className="hidden sm:block text-sm">{me.name}</span><Icon name="chevron-down" size={14} className="text-white/55" /></>}
               items={[
                 kind === "user" && { icon: "settings-2", label: "تنظیمات حساب", run: () => router.push("/panel/account") },
                 { icon: "house", label: "بازگشت به سایت", run: () => router.push("/") },

@@ -42,7 +42,7 @@ export function LegalPage({ doc }: { doc: keyof typeof LEGAL }) {
           <h2 className="text-2xl font-black">{d.title}</h2>
           {d.sections.map(([h, p], i) => (
             <section key={h}>
-              <h3 className="font-extrabold text-lg flex items-center gap-3"><span className="mono text-xs text-white/35">{String(i + 1).padStart(2, "0")}</span>{h}</h3>
+              <h3 className="font-extrabold text-lg flex items-center gap-3"><span className="mono text-xs text-white/50">{String(i + 1).padStart(2, "0")}</span>{h}</h3>
               <p className="text-white/65 leading-8 mt-2">{p}</p>
             </section>
           ))}

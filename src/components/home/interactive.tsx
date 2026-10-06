@@ -72,22 +72,22 @@ export function Terminal() {
       <div className={GLASS_STRONG + " relative rounded-[1.4rem] overflow-hidden shadow-[0_40px_120px_-30px_rgba(0,0,0,.9)]"}>
         <div className="flex items-center justify-between px-4 h-11 border-b border-white/[0.08] bg-white/[0.03]" dir="ltr">
           <div className="flex gap-2" aria-hidden="true">{["#ff5f57", "#febc2e", "#28c840"].map((c) => <span key={c} className="w-3 h-3 rounded-full" style={{ background: c, opacity: 0.85 }} />)}</div>
-          <span className="mono text-[11px] text-white/45">gereh-cli — thr-1</span>
+          <span className="mono text-[11px] text-white/55">gereh-cli — thr-1</span>
           <span className={"mono text-[11px] tabular " + (done ? "text-emerald-300" : "text-white/60")}>{mmss}</span>
         </div>
         <div className="mono text-[12.5px] leading-[1.9] p-5 h-[300px] sm:h-[318px] overflow-hidden" dir="ltr" aria-label="نمایش ساخت سرور در ترمینال" role="img">
-          <div className="text-white/90 break-all"><span className="text-[#9cc9ff]">~</span> <span className="text-white/40">$</span> {typed}{!lines.length && <span className="caret" />}</div>
+          <div className="text-white/90 break-all"><span className="text-[#9cc9ff]">~</span> <span className="text-white/55">$</span> {typed}{!lines.length && <span className="caret" />}</div>
           {lines.map((l, i) => (
             <div key={i} className="line-in flex justify-between gap-3">
               <span className="text-white/70 truncate"><span className="text-emerald-300">✓</span> {l[0]}</span>
               <span className="text-white/25 shrink-0">+{l[1]}s</span>
             </div>
           ))}
-          {lines.length > 0 && !done && <div className="text-white/40 flex items-center gap-2"><Icon name="loader-circle" size={13} className="animate-spin" /> working…</div>}
+          {lines.length > 0 && !done && <div className="text-white/55 flex items-center gap-2"><Icon name="loader-circle" size={13} className="animate-spin" /> working…</div>}
           {done && (
             <div className="line-in mt-2">
               <div className="text-white"><span className="text-emerald-300">●</span> server ready in <span className="text-[#9cc9ff]">54s</span>  ip 185.143.232.17</div>
-              <div className="text-white/90 mt-1"><span className="text-[#9cc9ff]">~</span> <span className="text-white/40">$</span> ssh root@185.143.232.17<span className="caret ml-1" /></div>
+              <div className="text-white/90 mt-1"><span className="text-[#9cc9ff]">~</span> <span className="text-white/55">$</span> ssh root@185.143.232.17<span className="caret ml-1" /></div>
             </div>
           )}
         </div>
@@ -154,15 +154,15 @@ export function QuickStart() {
                       <span className={"w-4 h-4 rounded-full border-2 grid place-items-center " + (preset === p.id ? "border-white" : "border-white/25")}>{preset === p.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}</span>
                     </div>
                     <div className="text-[11px] text-white/50 mt-1.5 leading-5">{fa(p.cpu)} هسته، {fa(p.ram)} گیگ رم</div>
-                    <div className="text-[11px] text-white/35 hidden sm:block">{p.use}</div>
+                    <div className="text-[11px] text-white/50 hidden sm:block">{p.use}</div>
                   </button>
                 ))}
               </div>
               <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl bg-black/30 border border-white/[0.08] p-3">
                 <div className="flex items-center gap-3">
                   <Icon name="timer" size={20} className="acc" />
-                  <div><div className="text-[11px] text-white/45">آماده در ۵۵ ثانیه، تهران</div>
-                    <div className="font-black text-lg tabular"><Num value={prPrice} /> <span className="text-xs font-normal text-white/45">تومان / ماه</span></div></div>
+                  <div><div className="text-[11px] text-white/55">آماده در ۵۵ ثانیه، تهران</div>
+                    <div className="font-black text-lg tabular"><Num value={prPrice} /> <span className="text-xs font-normal text-white/55">تومان / ماه</span></div></div>
                 </div>
                 <div className="flex gap-2">
                   <a href="#builder" className={BTN_G + " px-4 h-11 text-sm flex-1 sm:flex-none"}><Icon name="sliders-horizontal" size={16} /> سفارشی‌سازی</a>
@@ -179,10 +179,10 @@ export function QuickStart() {
               <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl bg-black/30 border border-white/[0.08] p-3">
                 <div className="flex items-center gap-3">
                   <IconTile name="layers" size={18} cls="w-10 h-10 rounded-xl" />
-                  <div><div className="text-[11px] text-white/45">پیشنهاد ما: هاست {rec.name}</div><div className="text-xs text-white/65 mt-0.5">{rec.disk}، ترافیک {rec.traffic}</div></div>
+                  <div><div className="text-[11px] text-white/55">پیشنهاد ما: هاست {rec.name}</div><div className="text-xs text-white/65 mt-0.5">{rec.disk}، ترافیک {rec.traffic}</div></div>
                 </div>
                 <div className="flex items-center gap-3 justify-between">
-                  <div className="font-black tabular"><Num value={rec.price} /> <span className="text-xs font-normal text-white/45">تومان / ماه</span></div>
+                  <div className="font-black tabular"><Num value={rec.price} /> <span className="text-xs font-normal text-white/55">تومان / ماه</span></div>
                   <button type="button" onClick={() => addToCart({ title: "هاست " + rec.name, meta: "لینوکس، پرداخت ماهانه", base: rec.price, icon: "layers" })} className={BTN_P + " px-5 h-11 text-sm"}><Icon name="plus" size={16} /> افزودن</button>
                 </div>
               </div>
@@ -247,10 +247,10 @@ export function Hardware() {
               <rect className="scan" x="50" y="56" width="260" height="188" style={{ transformBox: "fill-box" }} fill="url(#scanGrad)" />
             </g>
           </svg>
-          <div className="text-center text-xs text-white/45 mt-4 h-5">{hover !== null ? "هسته " + fa(hover + 1) + " از " + fa(c.cores) + "، اختصاصی و بدون اشتراک" : "نشانگر را روی هسته‌ها ببرید"}</div>
+          <div className="text-center text-xs text-white/55 mt-4 h-5">{hover !== null ? "هسته " + fa(hover + 1) + " از " + fa(c.cores) + "، اختصاصی و بدون اشتراک" : "نشانگر را روی هسته‌ها ببرید"}</div>
         </div>
         <div>
-          <div className="mono text-xs text-white/40 ltr text-right">{c.name}</div>
+          <div className="mono text-xs text-white/55 ltr text-right">{c.name}</div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-9 mt-6">
             {specs.map((s) => (
               <div key={s.l} className="flex flex-col-reverse">
@@ -258,7 +258,7 @@ export function Hardware() {
                 <dd>
                   <div className="flex items-baseline gap-1.5">
                     <Num value={seen ? s.v : 0} d={s.d || 0} className="text-4xl sm:text-5xl font-black tracking-tight silver tabular" />
-                    {s.u && <span className="text-xs text-white/40 ltr">{s.u}</span>}
+                    {s.u && <span className="text-xs text-white/55 ltr">{s.u}</span>}
                   </div>
                   <div className="hairline my-3 opacity-60" />
                 </dd>
@@ -308,7 +308,7 @@ function Slider({ icon, label, steps, idx, setIdx, fmt }: { icon: string; label:
       </div>
       <input type="range" dir="rtl" className="rng" min="0" max={steps.length - 1} step="1" value={idx}
         onChange={(e) => setIdx(+e.target.value)} aria-label={label} aria-valuetext={fa(steps[idx]) + " " + fmt} style={{ "--fill": fill + "%" } as React.CSSProperties} />
-      <div className="flex justify-between text-[10px] text-white/35 mt-2"><span>{fa(steps[0])}</span><span>{fa(steps[steps.length - 1])}</span></div>
+      <div className="flex justify-between text-[10px] text-white/50 mt-2"><span>{fa(steps[0])}</span><span>{fa(steps[steps.length - 1])}</span></div>
     </div>
   );
 }
@@ -342,7 +342,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
                 <button type="button" key={l.id} onClick={() => setLoc(l.id)} aria-pressed={loc === l.id}
                   className={"rounded-2xl p-3 text-right border transition " + (loc === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.04] border-white/10 hover:bg-white/10")}>
                   <div className="font-bold text-sm">{l.label}</div>
-                  <div className="text-[11px] text-white/50 mt-1 flex items-center gap-1"><Icon name="wifi" size={12} /> پینگ {fa(l.ping)}ms{l.foreign ? "، +۱۲٪" : ""}</div>
+                  <div className="text-[11px] text-white/65 mt-1 flex items-center gap-1"><Icon name="wifi" size={12} /> پینگ {fa(l.ping)}ms{l.foreign ? "، +۱۲٪" : ""}</div>
                 </button>
               ))}
             </div>
@@ -359,11 +359,11 @@ export function Builder({ id = "builder" }: { id?: string }) {
           </fieldset>
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between rounded-2xl bg-white/[0.04] border border-white/10 p-4">
-              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="database-backup" size={16} className="acc" />بکاپ روزانه</div><div className="text-[11px] text-white/45 mt-1">۱۴ نسخه، در دیتاسنتر دوم</div></div>
+              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="database-backup" size={16} className="acc" />بکاپ روزانه</div><div className="text-[11px] text-white/55 mt-1">۱۴ نسخه، در دیتاسنتر دوم</div></div>
               <Switch on={backup} onChange={setBackup} label="بکاپ روزانه" />
             </div>
             <div className="flex items-center justify-between rounded-2xl bg-white/[0.04] border border-white/10 p-4">
-              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="hash" size={16} className="acc" />آی‌پی اضافه</div><div className="text-[11px] text-white/45 mt-1">{toman(120000)} برای هر آی‌پی</div></div>
+              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="hash" size={16} className="acc" />آی‌پی اضافه</div><div className="text-[11px] text-white/55 mt-1">{toman(120000)} برای هر آی‌پی</div></div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setIps((i) => Math.max(0, i - 1))} disabled={ips === 0} className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 grid place-items-center hover:bg-white/20 disabled:opacity-40" aria-label="کم کردن آی‌پی"><Icon name="minus" size={15} /></button>
                 <span className="w-6 text-center font-black" aria-live="polite">{fa(ips)}</span>
@@ -381,7 +381,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
           <div className="mt-4 space-y-3" aria-hidden="true">
             {([["cpu", ci / (CPU_STEPS.length - 1)], ["memory-stick", ri / (RAM_STEPS.length - 1)], ["hard-drive", di / (DISK_STEPS.length - 1)]] as const).map(([ic, v]) => (
               <div key={ic} className="flex items-center gap-3">
-                <Icon name={ic} size={15} className="text-white/45" />
+                <Icon name={ic} size={15} className="text-white/55" />
                 <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full acc-bg transition-all duration-500" style={{ width: Math.max(6, v * 100) + "%" }} /></div>
               </div>
             ))}
@@ -391,7 +391,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
           </dl>
           <div className="mt-6 pt-5 border-t border-white/15">
             <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
-            <div className="text-[11px] text-white/45 mt-1">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
+            <div className="text-[11px] text-white/55 mt-1">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
           </div>
           <button type="button" onClick={() => addToCart({ title: "سرور ابری سفارشی", meta: fa(cfg.cpu) + " هسته، " + fa(cfg.ram) + " گیگ رم، " + fa(cfg.disk) + " گیگ NVMe، " + locObj.label + (ips ? "، " + fa(ips) + " آی‌پی اضافه" : "") + (backup ? "، بکاپ روزانه" : ""), base: final, icon: "server" })}
             className={BTN_P + " w-full mt-5 py-3.5"}><Icon name="rocket" size={18} /> ساخت این سرور</button>
@@ -448,7 +448,7 @@ export function Network() {
                 <span className="font-extrabold">{l.label}</span>
                 <span className="relative flex w-2.5 h-2.5" aria-label="عملیاتی"><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-50" /><span className="relative w-2.5 h-2.5 rounded-full bg-emerald-400" /></span>
               </div>
-              <div className="text-[11px] text-white/45 mt-1">{l.sub}</div>
+              <div className="text-[11px] text-white/55 mt-1">{l.sub}</div>
               <div className="mt-3 flex items-baseline gap-1"><span className="font-black text-xl tabular-nums">{fa(pings[l.id])}</span><span className="text-[11px] text-white/50">ms</span></div>
             </button>
           ))}
@@ -496,7 +496,7 @@ export function Network() {
                 </div>
               )}
             </div>
-            <div className="flex justify-between text-[10px] text-white/35 mt-2"><span>۶۰ روز پیش</span><span>امروز</span></div>
+            <div className="flex justify-between text-[10px] text-white/50 mt-2"><span>۶۰ روز پیش</span><span>امروز</span></div>
           </div>
         </div>
       </div>
@@ -539,7 +539,7 @@ export function Performance() {
         <div className="min-w-0">
           <div className="mb-6 overflow-x-auto no-scrollbar"><Tabs value={m} onChange={setM} label="شاخص" options={METRICS.map((x) => ({ id: x.id, label: x.label }))} /></div>
           <div className="space-y-3">{bar(met.gereh, true)}{bar(met.market, false)}</div>
-          <div className="text-[11px] text-white/40 mt-4">واحد: {met.unit}، {met.better === "low" ? "عدد کمتر بهتر است" : "عدد بیشتر بهتر است"}</div>
+          <div className="text-[11px] text-white/55 mt-4">واحد: {met.unit}، {met.better === "low" ? "عدد کمتر بهتر است" : "عدد بیشتر بهتر است"}</div>
         </div>
       </div>
     </section>
@@ -602,7 +602,9 @@ export function Testimonials() {
         </figcaption>
         <div className="mt-8 flex items-center justify-center gap-4">
           <button type="button" onClick={() => setI((x) => (x - 1 + REVIEWS.length) % REVIEWS.length)} className="w-10 h-10 rounded-full bg-white/10 border border-white/20 grid place-items-center hover:bg-white/20" aria-label="نظر قبلی"><Icon name="chevron-right" size={18} /></button>
-          <div className="flex gap-2">{REVIEWS.map((_, k) => <button type="button" key={k} onClick={() => setI(k)} aria-label={"نظر " + fa(k + 1)} aria-current={k === i} className={"h-2 rounded-full transition-all duration-500 " + (k === i ? "w-8 acc-bg" : "w-2 bg-white/25 hover:bg-white/40")} />)}</div>
+          <div className="flex">{REVIEWS.map((_, k) => <button type="button" key={k} onClick={() => setI(k)} aria-label={"نظر " + fa(k + 1)} aria-current={k === i} className="group h-6 min-w-6 px-1 grid place-items-center">
+            <span className={"block h-2 rounded-full transition-all duration-500 " + (k === i ? "w-8 acc-bg" : "w-2 bg-white/25 group-hover:bg-white/40")} />
+          </button>)}</div>
           <button type="button" onClick={() => setI((x) => (x + 1) % REVIEWS.length)} className="w-10 h-10 rounded-full bg-white/10 border border-white/20 grid place-items-center hover:bg-white/20" aria-label="نظر بعدی"><Icon name="chevron-left" size={18} /></button>
         </div>
       </figure>

@@ -30,9 +30,9 @@ export default function ContactPage() {
             const body = (
               <>
                 <IconTile name={ic} size={18} cls="w-10 h-10 rounded-xl" />
-                <div className="text-xs text-white/45 mt-4">{t}</div>
+                <div className="text-xs text-white/55 mt-4">{t}</div>
                 <div className={"font-bold mt-1 " + (/[a-z0-9]/i.test(v) ? "ltr text-right" : "")}>{v}</div>
-                <div className="text-[11px] text-white/40 mt-1">{s}</div>
+                <div className="text-[11px] text-white/55 mt-1">{s}</div>
               </>
             );
             const cls = "spot block h-full rounded-[1.4rem] p-5 " + GLASS;

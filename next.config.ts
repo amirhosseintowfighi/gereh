@@ -12,7 +12,6 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
   typedRoutes: true,
-  experimental: { inlineCss: true },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -42,7 +42,7 @@ export function Navbar() {
     <header className="sticky z-40 px-3 sm:px-6 pt-3" style={{ top: "env(safe-area-inset-top, 0px)" }}>
       <nav aria-label="منوی اصلی" className={"mx-auto max-w-6xl rounded-2xl pl-2 pr-3 sm:pr-4 h-16 flex items-center justify-between backdrop-blur-xl border transition-all duration-500 " +
         (scrolled ? "bg-[#05060d]/75 border-white/[0.12] shadow-2xl shadow-black/60" : "bg-white/[0.04] border-white/[0.1]")}>
-        <Link href="/" aria-label="صفحه اصلی گره"><Wordmark size={34} /></Link>
+        <Link href="/" aria-label="گره gereh.cloud، صفحه اصلی"><Wordmark size={34} /></Link>
 
         <div className="hidden lg:flex items-center relative h-16">
           {pill && <span className="nav-pill" style={{ left: pill.left, width: pill.width }} />}
@@ -53,7 +53,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <button type="button" onClick={openPalette} aria-label="جست‌وجو و دسترسی سریع (Ctrl+K)"
+          <button type="button" onClick={openPalette} aria-keyshortcuts="Control+K"
             className="hidden md:flex items-center gap-2 h-10 pr-3 pl-2 rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-sm">
             <Icon name="search" size={16} /> جست‌وجو
             <kbd className="ltr text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 border border-white/15 text-white/70">Ctrl K</kbd>

@@ -12,12 +12,15 @@ import { PriceTag, Tabs } from "../ui-client";
 type Res = Tld & { domain: string; available: boolean };
 type BulkRes = Res | { domain: string; invalid: true };
 
+/** Reads ?q= (client-only); the page renders <DomainSearchView urlQ="" /> as the Suspense fallback so the server HTML is complete. */
 export function DomainSearch() {
+  return <DomainSearchView urlQ={useSearchParams().get("q") || ""} />;
+}
+
+export function DomainSearchView({ urlQ }: { urlQ: string }) {
   const { addToCart, cart } = useApp();
   const router = useRouter();
   const pathname = usePathname();
-  const params = useSearchParams();
-  const urlQ = params.get("q") || "";
   const [mode, setMode] = useState("single");
   const [q, setQ] = useState(urlQ);
   const [bulk, setBulk] = useState("");
@@ -124,12 +127,12 @@ export function DomainSearch() {
                 <li key={d.tld} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={"w-2 h-2 rounded-full shrink-0 " + (d.available ? "bg-emerald-400" : "bg-white/25")} />
-                    <span className={"font-bold ltr truncate " + (d.available ? "" : "text-white/40 line-through")}>{d.domain}</span>
+                    <span className={"font-bold ltr truncate " + (d.available ? "" : "text-white/55 line-through")}>{d.domain}</span>
                     {d.promo && d.available && <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-300/20 text-amber-200 shrink-0 flex items-center gap-1"><Icon name="badge-percent" size={11} />تخفیف</span>}
                   </div>
                   {d.available
                     ? <div className="flex items-center gap-3 shrink-0"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
-                    : <span className="text-xs text-white/40 shrink-0">ثبت شده</span>}
+                    : <span className="text-xs text-white/55 shrink-0">ثبت شده</span>}
                 </li>
               ))}
             </ul>
@@ -139,10 +142,10 @@ export function DomainSearch() {
           <ul className={GLASS + " max-w-4xl mx-auto mt-10 rounded-[1.75rem] divide-y divide-white/10 overflow-hidden fade-in"}>
             {bulkRes.map((d, i) => (
               <li key={i} className="flex items-center justify-between gap-3 px-5 py-3.5">
-                <span className={"font-bold ltr truncate " + ("available" in d && d.available ? "" : "text-white/40")}>{d.domain}</span>
+                <span className={"font-bold ltr truncate " + ("available" in d && d.available ? "" : "text-white/55")}>{d.domain}</span>
                 {"invalid" in d ? <span className="text-xs text-rose-200">نام نامعتبر</span>
                   : d.available ? <div className="flex items-center gap-3"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
-                  : <span className="text-xs text-white/40">ثبت شده</span>}
+                  : <span className="text-xs text-white/55">ثبت شده</span>}
               </li>
             ))}
           </ul>

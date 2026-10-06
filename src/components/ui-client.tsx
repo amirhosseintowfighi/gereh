@@ -117,7 +117,7 @@ export function Select({ value, onChange, options, className = "", ltr = false, 
           ? <option key={o} value={o} className="bg-[#0d1018]">{o}</option>
           : <option key={o.value} value={o.value} className="bg-[#0d1018]">{o.label}</option>)}
       </select>
-      <Icon name="chevron-down" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+      <Icon name="chevron-down" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/55 pointer-events-none" />
     </div>
   );
 }
@@ -231,8 +231,8 @@ export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon
         <span className="text-xs text-white/50">{label}</span>
         <span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name={icon} size={17} /></span>
       </div>
-      <div className="mt-4 flex items-baseline gap-1.5"><span className="text-[1.75rem] font-black tracking-tight silver tabular">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-xs text-white/40">{suffix}</span>}</div>
-      {sub && <div className={"text-[11px] mt-1.5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/40")}>{sub}</div>}
+      <div className="mt-4 flex items-baseline gap-1.5"><span className="text-[1.75rem] font-black tracking-tight silver tabular">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-xs text-white/55">{suffix}</span>}</div>
+      {sub && <div className={"text-[11px] mt-1.5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/55")}>{sub}</div>}
     </>
   );
   const cls = "spot block text-right rounded-[1.4rem] p-5 " + GLASS;
@@ -263,7 +263,7 @@ export function AreaChart({ data, labels, height = 200, unit = "", fmt = (v: num
           <div className="text-white/50">{labels ? labels[hover] : fa(hover + 1)}</div><div className="font-bold mt-0.5 tabular">{fmt(data[hover])} {unit}</div>
         </div>
       )}
-      {labels && <div className="flex justify-between text-[10px] text-white/35 mt-2">{[0, Math.floor(labels.length / 2), labels.length - 1].map((i) => <span key={i}>{labels[i]}</span>)}</div>}
+      {labels && <div className="flex justify-between text-[10px] text-white/50 mt-2">{[0, Math.floor(labels.length / 2), labels.length - 1].map((i) => <span key={i}>{labels[i]}</span>)}</div>}
     </div>
   );
 }
@@ -276,7 +276,7 @@ export function Bars({ data, labels, height = 160, fmt = (v: number) => fa(v) }:
         <div key={i} className="group flex-1 flex flex-col items-center gap-2 h-full justify-end">
           <div className="text-[10px] text-white/0 group-hover:text-white/70 transition tabular">{fmt(v)}</div>
           <div className="w-full rounded-lg bg-white/[0.1] group-hover:bg-[#9cc9ff] transition-colors" style={{ height: Math.max(4, (v / max) * (height - 40)) }} />
-          <div className="text-[10px] text-white/35">{labels[i]}</div>
+          <div className="text-[10px] text-white/50">{labels[i]}</div>
         </div>
       ))}
     </div>
@@ -311,7 +311,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
           <div className="flex flex-col sm:flex-row gap-2 flex-1">
             {searchKeys.length > 0 && (
               <div className="relative sm:w-72">
-                <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/35" />
+                <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50" />
                 <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder={searchPlaceholder} aria-label={searchPlaceholder} className={INPUT + " pr-9 h-10"} />
               </div>
             )}
@@ -325,7 +325,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
       )}
       <div className={GLASS + " rounded-[1.25rem] overflow-x-auto"}>
         <table className="w-full text-sm min-w-[720px]">
-          <thead><tr className="border-b border-white/[0.08] text-white/45 text-xs">
+          <thead><tr className="border-b border-white/[0.08] text-white/55 text-xs">
             {columns.map((c) => (
               <th key={c.key} scope="col" className={"font-medium p-4 text-right whitespace-nowrap " + (c.className || "")} aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
                 {c.sortable ? (
@@ -337,7 +337,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
             ))}
           </tr></thead>
           <tbody>
-            {view.length === 0 && <tr><td colSpan={columns.length} className="p-10 text-center text-white/45">{empty}</td></tr>}
+            {view.length === 0 && <tr><td colSpan={columns.length} className="p-10 text-center text-white/55">{empty}</td></tr>}
             {view.map((r) => (
               <tr key={r.id} onClick={onRowClick ? () => onRowClick(r) : undefined} tabIndex={onRowClick ? 0 : undefined}
                 onKeyDown={onRowClick ? (e) => { if (e.key === "Enter" && e.target === e.currentTarget) onRowClick(r); } : undefined}
@@ -397,7 +397,7 @@ export function PageTitle({ title, sub, action, back }: { title: React.ReactNode
   return (
     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7">
       <div className="min-w-0">
-        {back && <Link href={back[0] as never} className="text-xs text-white/45 hover:text-white inline-flex items-center gap-1 mb-2"><Icon name="chevron-right" size={14} />{back[1]}</Link>}
+        {back && <Link href={back[0] as never} className="text-xs text-white/55 hover:text-white inline-flex items-center gap-1 mb-2"><Icon name="chevron-right" size={14} />{back[1]}</Link>}
         <h1 className="text-2xl sm:text-[1.9rem] font-black tracking-tight">{title}</h1>
         {sub && <div className="text-sm text-white/50 mt-1.5">{sub}</div>}
       </div>
@@ -412,7 +412,7 @@ export function StrengthBar({ value }: { value: string }) {
   return (
     <div className="mt-2">
       <div className="flex gap-1" aria-hidden="true">{[0, 1, 2, 3].map((i) => <span key={i} className={"h-1 flex-1 rounded-full transition-colors " + (i < s ? (s < 2 ? "bg-rose-400" : s < 3 ? "bg-amber-300" : "bg-emerald-400") : "bg-white/10")} />)}</div>
-      {value && <div className="text-[11px] text-white/45 mt-1.5" aria-live="polite">قدرت رمز: {labels[s]}</div>}
+      {value && <div className="text-[11px] text-white/55 mt-1.5" aria-live="polite">قدرت رمز: {labels[s]}</div>}
     </div>
   );
 }
@@ -444,7 +444,7 @@ export function PriceTag({ base, suffix = "تومان / ماه", big = true }: {
   return (
     <div className="flex items-baseline gap-1.5">
       <Num value={base} className={(big ? "text-[2.1rem]" : "text-xl") + " font-black tracking-tight tabular silver"} />
-      <span className="text-xs text-white/45">{suffix}</span>
+      <span className="text-xs text-white/55">{suffix}</span>
     </div>
   );
 }

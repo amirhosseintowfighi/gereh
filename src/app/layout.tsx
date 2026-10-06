@@ -6,8 +6,10 @@ import { AppProvider } from "@/components/providers";
 import { orgLd, SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
-const vazirmatn = Vazirmatn({ subsets: ["arabic", "latin"], variable: "--font-vazirmatn", display: "swap" });
-const geistMono = Geist_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-geist-mono", display: "swap" });
+// Only the Arabic-script subset is preloaded (it carries the first paint); the Latin subset and the
+// mono face are still declared via @font-face and fetched on demand when such glyphs appear.
+const vazirmatn = Vazirmatn({ subsets: ["arabic"], variable: "--font-vazirmatn", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-geist-mono", display: "swap", preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -95,13 +95,13 @@ export function VpsPlans() {
                 <tbody>
                   {VPS_ALL.map(([ic, label, key], i) => (
                     <tr key={key} className={"hover:bg-white/[0.06] transition-colors " + (i % 2 ? "bg-white/[0.03]" : "")}>
-                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/40" />{label}</span></th>
+                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/55" />{label}</span></th>
                       {plans.map((p) => <td key={p.id} className="p-4 text-center">{String(p[key] ?? "")}</td>)}
                     </tr>
                   ))}
                   {["محافظت DDoS", "دسترسی root و کنسول", "آی‌پی نسخه ۶"].map((f) => (
                     <tr key={f} className="hover:bg-white/[0.06] transition-colors">
-                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name="shield-check" size={15} className="text-white/40" />{f}</span></th>
+                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name="shield-check" size={15} className="text-white/55" />{f}</span></th>
                       {plans.map((p) => <td key={p.id} className="p-4 text-center"><Icon name="circle-check" size={18} className="inline text-emerald-300" /><span className="sr-only-focusable">دارد</span></td>)}
                     </tr>
                   ))}

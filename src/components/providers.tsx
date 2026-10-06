@@ -122,7 +122,7 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
         <div id="palette-list" role="listbox" className="max-h-[52vh] overflow-auto p-2">
           {items.length === 0 && <div className="p-8 text-center text-white/55 text-sm">موردی پیدا نشد. یک نام دامنه انگلیسی امتحان کنید.</div>}
           {items.map((it, i) => {
-            const head = i === 0 || items[i - 1].group !== it.group ? <div className="px-3 pt-3 pb-1.5 text-[11px] text-white/40">{it.group}</div> : null;
+            const head = i === 0 || items[i - 1].group !== it.group ? <div className="px-3 pt-3 pb-1.5 text-[11px] text-white/55">{it.group}</div> : null;
             return (
               <Fragment key={it.id}>
                 {head}
@@ -130,13 +130,13 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
                   className={"w-full flex items-center gap-3 px-3 py-3 rounded-xl text-right transition " + (i === cur ? "bg-white/[0.12]" : "")}>
                   <span className={"w-9 h-9 rounded-xl grid place-items-center " + (i === cur ? "acc-bg" : "bg-white/[0.08] text-white/70")}><Icon name={it.icon} size={17} /></span>
                   <span className="flex-1 text-sm">{it.label}</span>
-                  {i === cur && <Icon name="corner-down-left" size={16} className="text-white/45" />}
+                  {i === cur && <Icon name="corner-down-left" size={16} className="text-white/55" />}
                 </button>
               </Fragment>
             );
           })}
         </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t border-white/10 text-[11px] text-white/40">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-white/10 text-[11px] text-white/55">
           <span className="flex items-center gap-1.5"><Icon name="keyboard" size={14} /> با کلیدهای جهت حرکت کنید</span>
           <span className="flex items-center gap-1"><Icon name="command" size={13} /> دسترسی سریع گره</span>
         </div>
@@ -196,7 +196,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
                     {i.meta && <div className="text-xs text-white/50 mt-1 leading-5">{i.meta}</div>}
                     <div className="text-xs mt-1.5 text-white/85">{toman(i.base)}</div>
                   </div>
-                  <button type="button" onClick={() => setCart((c) => c.filter((x) => x.id !== i.id))} className="w-8 h-8 grid place-items-center rounded-lg text-white/45 hover:text-rose-300 hover:bg-rose-400/10" aria-label={"حذف " + i.title}><Icon name="trash-2" size={16} /></button>
+                  <button type="button" onClick={() => setCart((c) => c.filter((x) => x.id !== i.id))} className="w-8 h-8 grid place-items-center rounded-lg text-white/55 hover:text-rose-300 hover:bg-rose-400/10" aria-label={"حذف " + i.title}><Icon name="trash-2" size={16} /></button>
                 </li>
               ))}
             </ul>

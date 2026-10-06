@@ -84,7 +84,7 @@ export function Field({ label, hint, error, children, className = "" }: { label?
     <label className={"block " + className}>
       {label && <span className="block text-xs text-white/60 mb-2">{label}</span>}
       {children}
-      {error ? <span className="block text-[11px] text-rose-300 mt-1.5" role="alert">{error}</span> : hint ? <span className="block text-[11px] text-white/35 mt-1.5">{hint}</span> : null}
+      {error ? <span className="block text-[11px] text-rose-300 mt-1.5" role="alert">{error}</span> : hint ? <span className="block text-[11px] text-white/50 mt-1.5">{hint}</span> : null}
     </label>
   );
 }

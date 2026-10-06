@@ -48,7 +48,7 @@ function Hero() {
           <dl className="hero-in d4 mt-12 grid grid-cols-3 max-w-lg">
             {metrics.map((m, i) => (
               <div key={m.l} className={"pl-4 flex flex-col-reverse " + (i ? "border-r border-white/10 pr-4" : "")}>
-                <dt className="text-[11px] sm:text-xs text-white/40 mt-1.5 leading-5">{m.l}</dt>
+                <dt className="text-[11px] sm:text-xs text-white/55 mt-1.5 leading-5">{m.l}</dt>
                 <dd className="text-2xl sm:text-3xl font-black tracking-tight silver tabular"><Counter to={m.v} d={m.d || 0} suffix={m.s} /></dd>
               </div>
             ))}
@@ -65,7 +65,7 @@ function Clients() {
   const mask = "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)";
   return (
     <section className="pb-16" aria-label="مشتریان گره">
-      <p className="text-center text-sm text-white/45 mb-6">بیش از ۱۲ هزار کسب‌وکار زیرساختشان را به گره سپرده‌اند</p>
+      <p className="text-center text-sm text-white/55 mb-6">بیش از ۱۲ هزار کسب‌وکار زیرساختشان را به گره سپرده‌اند</p>
       <div className="marquee-wrap relative overflow-hidden" dir="ltr" style={{ maskImage: mask, WebkitMaskImage: mask }}>
         <ul className="marquee gap-4 pr-4">
           {CLIENTS.concat(CLIENTS).map(([ic, n], i) => (
