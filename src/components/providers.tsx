@@ -1,7 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BTN_D, BTN_G, BTN_P } from "@/lib/cls";
+import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
 import { api, useDB, useSession, type CartItem } from "@/lib/store";
 import { AppCtx, type AppApi, type ConfirmOpts } from "./app-context";
@@ -18,22 +19,14 @@ export const PAGES = [
   { href: "/contact", label: "تماس", icon: "message-circle" },
 ] as const;
 
-const CART_KEY = "gereh:cart";
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const cart = useCart();
   const [toast, setToast] = useState<{ msg: string; icon: string; k: number } | null>(null);
   const [palette, setPalette] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [ask, setAsk] = useState<{ text: string; opts: ConfirmOpts; resolve: (v: boolean) => void } | null>(null);
-  const loaded = useRef(false);
 
-  useEffect(() => {
-    try { const c = JSON.parse(localStorage.getItem(CART_KEY) || "[]"); if (Array.isArray(c)) setCart(c); } catch {}
-    loaded.current = true;
-  }, []);
-  useEffect(() => { if (loaded.current) try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {} }, [cart]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
 
   useEffect(() => {
@@ -68,7 +61,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <AppCtx.Provider value={ctx}>
       {children}
       {palette && <Palette onClose={() => setPalette(false)} onCart={() => setCartOpen(true)} />}
-      {cartOpen && <CartDrawer cart={cart} setCart={setCart} onClose={() => setCartOpen(false)} />}
+      {cartOpen && <CartDrawer cart={cart} onClose={() => setCartOpen(false)} />}
       <Modal open={!!ask} onClose={() => answer(false)} title={ask?.opts.title || "تأیید"} icon={ask?.opts.danger ? "circle-alert" : "circle-check"}
         footer={<>
           <button type="button" onClick={() => answer(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
@@ -116,7 +109,6 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
     else if (e.key === "ArrowUp") { e.preventDefault(); setIdx(Math.max(0, cur - 1)); }
     else if (e.key === "Enter") { e.preventDefault(); run(items[cur]); }
   };
-  let lastGroup = "";
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[12vh] fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -130,8 +122,7 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
         <div id="palette-list" role="listbox" className="max-h-[52vh] overflow-auto p-2">
           {items.length === 0 && <div className="p-8 text-center text-white/55 text-sm">موردی پیدا نشد. یک نام دامنه انگلیسی امتحان کنید.</div>}
           {items.map((it, i) => {
-            const head = it.group !== lastGroup ? <div className="px-3 pt-3 pb-1.5 text-[11px] text-white/40">{it.group}</div> : null;
-            lastGroup = it.group;
+            const head = i === 0 || items[i - 1].group !== it.group ? <div className="px-3 pt-3 pb-1.5 text-[11px] text-white/40">{it.group}</div> : null;
             return (
               <Fragment key={it.id}>
                 {head}
@@ -154,7 +145,7 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
   );
 }
 
-function CartDrawer({ cart, setCart, onClose }: { cart: CartItem[]; setCart: React.Dispatch<React.SetStateAction<CartItem[]>>; onClose: () => void }) {
+function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }) {
   const router = useRouter();
   const session = useSession();
   const db = useDB();

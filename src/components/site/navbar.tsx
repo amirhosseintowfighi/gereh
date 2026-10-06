@@ -35,7 +35,8 @@ export function Navbar() {
     window.addEventListener("scroll", onS, { passive: true });
     return () => window.removeEventListener("scroll", onS);
   }, []);
-  useEffect(() => setOpen(false), [path]);
+  const [navPath, setNavPath] = useState(path);
+  if (navPath !== path) { setNavPath(path); setOpen(false); }
 
   return (
     <header className="sticky z-40 px-3 sm:px-6 pt-3" style={{ top: "env(safe-area-inset-top, 0px)" }}>

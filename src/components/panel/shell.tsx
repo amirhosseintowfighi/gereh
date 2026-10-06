@@ -68,7 +68,8 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
     ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length }
     : { "/panel/billing": db.invoices.filter((i) => i.userId === myId && (i.status === "unpaid" || i.status === "overdue")).length, "/panel/tickets": db.tickets.filter((t) => t.userId === myId && t.status === "answered").length };
   const logout = async () => { await api.auth.logout(); notify("از حساب خارج شدید", "log-out"); router.push("/"); };
-  useEffect(() => setMobile(false), [path]);
+  const [navPath, setNavPath] = useState(path);
+  if (navPath !== path) { setNavPath(path); setMobile(false); }
 
   const Side = (
     <div className="flex flex-col h-full">

@@ -354,7 +354,9 @@ export function UserBilling() {
   const [pay, setPay] = useState<Invoice | null>(null);
   const [method, setMethod] = useState<"wallet" | "gateway">("wallet");
   const [amount, setAmount] = useState(1000000);
-  useEffect(() => { if (params.get("tab") === "wallet") setTab("wallet"); }, [params]);
+  const tabParam = params.get("tab");
+  const [seenTabParam, setSeenTabParam] = useState(tabParam);
+  if (seenTabParam !== tabParam) { setSeenTabParam(tabParam); if (tabParam === "wallet") setTab("wallet"); }
   const invs = db.invoices.filter((i) => i.userId === myId);
   const txs = db.transactions.filter((t) => t.userId === myId);
   const total = (inv: Invoice) => invGross(inv, db.settings.tax);
@@ -558,21 +560,19 @@ export function UserKeys() {
 }
 
 /* ================= account ================= */
-function TwoFactorModal({ open, onClose, account }: { open: boolean; onClose: () => void; account: string }) {
+/** Mounted only while open, so every opening gets a fresh secret. */
+function TwoFactorModal({ onClose, account }: { onClose: () => void; account: string }) {
   const { notify } = useApp();
-  const [secret, setSecret] = useState("");
+  const [secret] = useState(newSecret);
   const [qr, setQr] = useState("");
   const [otp, setOtp] = useState("");
   useEffect(() => {
-    if (!open) return;
-    const s = newSecret();
-    setSecret(s); setOtp(""); setQr("");
     let alive = true;
-    import("qrcode").then((m) => m.toString(otpauthUrl(s, account), { type: "svg", margin: 1, color: { dark: "#05070d", light: "#ffffff" } })).then((svg) => { if (alive) setQr(svg); });
+    import("qrcode").then((m) => m.toString(otpauthUrl(secret, account), { type: "svg", margin: 1, color: { dark: "#05070d", light: "#ffffff" } })).then((svg) => { if (alive) setQr(svg); });
     return () => { alive = false; };
-  }, [open, account]);
+  }, [secret, account]);
   return (
-    <Modal open={open} onClose={onClose} title="فعال‌سازی ورود دومرحله‌ای" icon="shield-check"
+    <Modal open onClose={onClose} title="فعال‌سازی ورود دومرحله‌ای" icon="shield-check"
       footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(true, secret, otp); onClose(); notify("ورود دومرحله‌ای فعال شد", "shield-check"); }}>تأیید و فعال‌سازی</AsyncButton></>}>
       <ol className="space-y-5 text-sm">
         <li><div className="font-bold">۱. اسکن کنید</div><p className="text-white/50 mt-1">با Google Authenticator، Microsoft Authenticator یا Authy این کد را اسکن کنید.</p>
@@ -640,7 +640,7 @@ export function UserAccount() {
                 </div>
               ))}
             </Card>
-            <TwoFactorModal open={twofaM} onClose={() => setTwofaM(false)} account={me.email} />
+            {twofaM && <TwoFactorModal onClose={() => setTwofaM(false)} account={me.email} />}
           </div>
         )}
         {tab === "notif" && (

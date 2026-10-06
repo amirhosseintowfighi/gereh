@@ -74,7 +74,7 @@ export function DomainSearch() {
   const parsedQ = parseDomain(q);
   const baseName = "name" in parsedQ && parsedQ.name ? parsedQ.name : "mybrand";
 
-  const AddBtn = ({ d, small }: { d: Res; small?: boolean }) => inCart(d.domain)
+  const addBtn = (d: Res, small?: boolean) => inCart(d.domain)
     ? <span className={"inline-flex items-center gap-1.5 text-emerald-300 font-bold " + (small ? "text-xs" : "text-sm")}><Icon name="circle-check" size={small ? 15 : 18} /> در سبد</span>
     : <button type="button" onClick={() => order(d)} aria-label={"ثبت " + d.domain} className={small ? BTN_G + " px-3 py-1.5 text-xs" : BTN_P + " px-5 py-3 text-sm"}><Icon name="plus" size={small ? 14 : 16} /> ثبت</button>;
 
@@ -117,7 +117,7 @@ export function DomainSearch() {
                   <div className="text-sm text-white/70 mt-1">{result.primary.available ? "آزاد است و همین حالا قابل ثبت است." : "قبلا ثبت شده است. پسوندهای آزاد را پایین‌تر ببینید."}</div>
                 </div>
               </div>
-              {result.primary.available && <div className="flex items-center gap-4"><div className="text-left"><PriceTag base={result.primary.reg} suffix="تومان / سال" big={false} /></div><AddBtn d={result.primary} /></div>}
+              {result.primary.available && <div className="flex items-center gap-4"><div className="text-left"><PriceTag base={result.primary.reg} suffix="تومان / سال" big={false} /></div>{addBtn(result.primary)}</div>}
             </div>
             <ul className={GLASS + " rounded-[1.75rem] mt-4 divide-y divide-white/10 overflow-hidden"}>
               {result.others.map((d) => (
@@ -128,7 +128,7 @@ export function DomainSearch() {
                     {d.promo && d.available && <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-300/20 text-amber-200 shrink-0 flex items-center gap-1"><Icon name="badge-percent" size={11} />تخفیف</span>}
                   </div>
                   {d.available
-                    ? <div className="flex items-center gap-3 shrink-0"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span><AddBtn d={d} small /></div>
+                    ? <div className="flex items-center gap-3 shrink-0"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
                     : <span className="text-xs text-white/40 shrink-0">ثبت شده</span>}
                 </li>
               ))}
@@ -141,7 +141,7 @@ export function DomainSearch() {
               <li key={i} className="flex items-center justify-between gap-3 px-5 py-3.5">
                 <span className={"font-bold ltr truncate " + ("available" in d && d.available ? "" : "text-white/40")}>{d.domain}</span>
                 {"invalid" in d ? <span className="text-xs text-rose-200">نام نامعتبر</span>
-                  : d.available ? <div className="flex items-center gap-3"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span><AddBtn d={d} small /></div>
+                  : d.available ? <div className="flex items-center gap-3"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
                   : <span className="text-xs text-white/40">ثبت شده</span>}
               </li>
             ))}

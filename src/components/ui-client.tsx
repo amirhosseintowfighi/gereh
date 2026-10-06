@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { BTN_D, BTN_G, BTN_P, GLASS, INPUT } from "@/lib/cls";
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { BTN_D, BTN_P, GLASS, INPUT } from "@/lib/cls";
 import { fa, strength, toEnDigits } from "@/lib/format";
 import { useApp } from "./app-context";
 import { Icon } from "./icon";
@@ -9,17 +9,21 @@ import { STATUS } from "./ui";
 
 export const prefersReducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+const noopSubscribe = () => () => {};
+/** false during SSR and hydration, true afterwards — without a setState-in-effect. */
+export const useHydrated = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
+
 export function useTween(value: number, dur = 600) {
   const [v, setV] = useState(value);
   const cur = useRef(value);
   useEffect(() => {
     const from = cur.current, to = value;
     if (from === to) return;
-    if (prefersReducedMotion()) { cur.current = to; setV(to); return; }
+    const instant = prefersReducedMotion();
     let raf = 0, start = 0;
     const step = (t: number) => {
       if (!start) start = t;
-      const k = Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - k, 3);
+      const k = instant ? 1 : Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - k, 3);
       cur.current = from + (to - from) * e; setV(cur.current);
       if (k < 1) raf = requestAnimationFrame(step);
     };
@@ -34,7 +38,6 @@ export function useInView<T extends Element>(threshold = 0.3) {
   const [seen, setSeen] = useState(false);
   useEffect(() => {
     if (!ref.current || seen) return;
-    if (!("IntersectionObserver" in window)) { setSeen(true); return; }
     const io = new IntersectionObserver(([en]) => { if (en.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold });
     io.observe(ref.current);
     return () => io.disconnect();
@@ -51,8 +54,7 @@ export function Counter({ to, d = 0, suffix = "" }: { to: number; d?: number; su
   const [ref, seen] = useInView<HTMLSpanElement>();
   const v = useTween(seen ? to : 0, 1600);
   // SSR / no-JS shows the real number; the count-up starts once visible.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   const shown = mounted ? v : to;
   return <span ref={ref}>{fa(d ? shown : Math.round(shown), d)}{suffix}</span>;
 }

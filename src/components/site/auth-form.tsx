@@ -36,7 +36,7 @@ export function AuthForm() {
   const wrap = (fn: () => Promise<void>) => async () => { setError(""); try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : "خطایی رخ داد"); } };
   const switchMode = (m: string) => { setMode(m); setOtpStep(0); setError(""); };
   const phone = toEnDigits(f.phone.trim());
-  const ErrorLine = () => error ? <div role="alert" className="text-xs text-rose-300 flex gap-1.5"><Icon name="circle-alert" size={14} />{error}</div> : null;
+  const errorLine = error ? <div role="alert" className="text-xs text-rose-300 flex gap-1.5"><Icon name="circle-alert" size={14} />{error}</div> : null;
 
   if (mode === "forgot") return (
     <div className="fade-in">
@@ -46,7 +46,7 @@ export function AuthForm() {
       {sentForgot ? <div role="status" className="mt-8 rounded-2xl bg-emerald-400/10 border border-emerald-300/25 p-5 text-sm text-emerald-100 leading-7 flex gap-3"><Icon name="circle-check" size={20} />لینک بازیابی به {f.email} ارسال شد. پوشه اسپم را هم بررسی کنید.</div> : (
         <form className="mt-8 space-y-4" onSubmit={(e) => e.preventDefault()}>
           <Field label="ایمیل"><input type="email" autoComplete="email" value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-left h-12"} placeholder="name@example.com" /></Field>
-          <ErrorLine />
+          {errorLine}
           <AsyncButton onClick={wrap(async () => { await api.auth.forgot(f.email.trim()); setSentForgot(true); })} className={BTN_P + " w-full h-12"}>ارسال لینک بازیابی</AsyncButton>
         </form>
       )}
@@ -71,12 +71,12 @@ export function AuthForm() {
             <label className="flex items-center gap-2 text-white/60 cursor-pointer"><input type="checkbox" className="accent-white" defaultChecked /> مرا به خاطر بسپار</label>
             <button type="button" onClick={() => switchMode("forgot")} className="text-white/60 hover:text-white">فراموشی رمز</button>
           </div>
-          <ErrorLine />
+          {errorLine}
           <AsyncButton onClick={wrap(async () => done(await api.auth.login(toEnDigits(f.id.trim()), f.password)))} className={BTN_P + " w-full h-12"}><Icon name="log-in" size={17} /> ورود</AsyncButton>
         </>}
         {mode === "otp" && (otpStep === 0 ? <>
           <Field label="شماره موبایل" hint="کد یک‌بارمصرف پیامک می‌شود."><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-left h-12 tabular"} placeholder="09121234567" /></Field>
-          <ErrorLine />
+          {errorLine}
           <AsyncButton onClick={wrap(async () => { await api.auth.sendOtp(phone); setOtpStep(1); setTimer(90); setCode(""); })} className={BTN_P + " w-full h-12"}><Icon name="smartphone" size={17} /> دریافت کد</AsyncButton>
         </> : <>
           <p className="text-sm text-white/60 text-center">کد ارسال‌شده به <span className="ltr tabular text-white">{phone}</span> را وارد کنید.</p>
@@ -84,7 +84,7 @@ export function AuthForm() {
           <div className="text-center text-xs text-white/45" aria-live="polite">{timer > 0 ? "ارسال دوباره تا " + fa(timer) + " ثانیه دیگر" : (
             <AsyncButton className="text-white/80 hover:text-white" onClick={wrap(async () => { await api.auth.sendOtp(phone); setTimer(90); notify("کد دوباره ارسال شد", "smartphone"); })}>ارسال دوباره کد</AsyncButton>
           )}</div>
-          <ErrorLine />
+          {errorLine}
           <AsyncButton onClick={wrap(async () => done(await api.auth.verifyOtp(phone, code)))} className={BTN_P + " w-full h-12"}>تأیید و ورود</AsyncButton>
           <button type="button" onClick={() => setOtpStep(0)} className="w-full text-xs text-white/50 hover:text-white">تغییر شماره</button>
         </>)}
@@ -96,7 +96,7 @@ export function AuthForm() {
           </div>
           <Field label="رمز عبور"><input name="new-password" type="password" autoComplete="new-password" value={f.password} onChange={set("password")} dir="ltr" className={INPUT + " text-left h-12"} /><StrengthBar value={f.password} /></Field>
           <label className="flex items-start gap-2.5 text-xs text-white/60 cursor-pointer leading-6"><input type="checkbox" checked={f.agree} onChange={set("agree")} className="accent-white mt-1" /><span><Link href="/terms" target="_blank" className="underline underline-offset-4 hover:text-white">قوانین و حریم خصوصی</Link> گره را خوانده‌ام و می‌پذیرم.</span></label>
-          <ErrorLine />
+          {errorLine}
           <AsyncButton onClick={wrap(async () => {
             if (f.name.trim().length < 2) throw new Error("نام را وارد کنید.");
             if (!EMAIL_RE.test(f.email.trim())) throw new Error("ایمیل معتبر نیست.");
