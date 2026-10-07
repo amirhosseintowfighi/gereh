@@ -15,6 +15,24 @@ STATE=/etc/gereh-paas; mkdir -p "$STATE"; chmod 700 "$STATE"
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 gen() { [ -s "$STATE/$1" ] || head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32 > "$STATE/$1"; cat "$STATE/$1"; }
 [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
+die() { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
+
+# ---- preflight: fail before touching the machine ----
+SITE_HOST=${SITE_URL#*://}; SITE_HOST=${SITE_HOST%%/*}; SITE_HOST=${SITE_HOST%%:*}
+if [ -n "$SITE_HOST" ]; then
+  case "$APPS_DOMAIN" in
+    "$SITE_HOST"|*."$SITE_HOST") die "APPS_DOMAIN ($APPS_DOMAIN) must not be the site's domain or under it ($SITE_HOST):
+   customer code on it could set cookies for the panel. Use a separate domain, e.g. gereh.app
+   (for a test setup at least a sibling such as apps-${SITE_HOST%%.*}.${SITE_HOST#*.})." ;;
+  esac
+fi
+if ! command -v k3s >/dev/null; then
+  BUSY=$(ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null | grep -oE 'users:\(\("[^"]+' | cut -d'"' -f2 | sort -u | tr '\n' ' ')
+  [ -z "$BUSY" ] || die "ports 80/443 are already used by: $BUSY
+   The cluster's ingress needs them. Run this on a separate server (recommended), not on the site's server."
+  MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+  [ "$MEM_MB" -ge 3500 ] || die "this server has ${MEM_MB} MB RAM; the cluster needs at least 4 GB (16 GB+ for real customers)."
+fi
 
 say "packages"
 apt-get update -qq && apt-get install -y -qq curl apache2-utils jq >/dev/null
