@@ -133,3 +133,37 @@ test("command palette opens with Ctrl+K and navigates", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/hosting$/);
 });
+
+test.describe("admin ↔ customer", () => {
+  // the mock DB lives in memory, so these flows use client-side navigation only
+  test("impersonation shows a banner and can be ended", async ({ page }) => {
+    await login(page, "admin@gereh.cloud");
+    await expect(page).toHaveURL(/\/admin$/);
+    await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "کاربران" }).click();
+    await page.getByRole("cell", { name: /user2@mail\.ir/ }).click();
+    await page.getByRole("button", { name: /ورود به‌جای کاربر/ }).click();
+    await page.getByRole("dialog").getByRole("button").last().click();
+    await expect(page).toHaveURL(/\/panel$/);
+    const banner = page.getByRole("status").filter({ hasText: "در حال مشاهده پنل" });
+    await expect(banner).toBeVisible();
+    await banner.getByRole("button", { name: /پایان/ }).click();
+    await expect(page).toHaveURL(/\/admin\/users$/);
+  });
+
+  test("a suspended server is read-only for the customer", async ({ page }) => {
+    await login(page, "admin@gereh.cloud");
+    await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "سرویس‌ها" }).click();
+    await page.getByRole("row", { name: /web-prod-1/ }).getByRole("button", { name: "اقدامات" }).click();
+    await page.getByRole("menuitem", { name: "تعلیق" }).click();
+    await page.getByRole("dialog").getByRole("button").last().click();
+    await expect(page.getByRole("row", { name: /web-prod-1/ })).toContainText("معلق");
+
+    await page.getByRole("link", { name: "نمای کاربر" }).click();
+    await page.getByRole("navigation", { name: "منوی پنل" }).getByRole("link", { name: /سرورها/ }).click();
+    await page.getByRole("row", { name: /web-prod-1/ }).click();
+    await expect(page.getByText("این سرور معلق است")).toBeVisible();
+    const tabs = page.getByRole("tablist", { name: "بخش‌های سرور" }).getByRole("tab");
+    await expect(tabs).toHaveCount(3);
+    await expect(page.getByRole("tab", { name: "نصب مجدد" })).toHaveCount(0);
+  });
+});

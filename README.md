@@ -51,7 +51,7 @@ docs/               HANDOFF.md (requirements), VIRTUALIZOR.md (API notes), proto
 
 - **SEO:** every public page has a title, description, canonical, Open Graph/Twitter tags and valid JSON-LD (Organization, WebSite, Product/AggregateOffer, FAQ, Breadcrumb). The repo also includes `sitemap.xml`, `robots.txt` (panel/admin/auth disallowed and `noindex`) and a web manifest. Pages are statically prerendered.
 - **Accessibility:** axe (WCAG 2.1 A/AA, colour contrast included) passes on all public pages at desktop and mobile sizes, and Lighthouse accessibility is 100.
-- **Tests:** 80 unit and 75 end-to-end tests. CI (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, build and e2e on every push and PR.
+- **Tests:** 82 unit and 77 end-to-end tests. CI (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, build and e2e on every push and PR.
 - **Performance:** see [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
 
 Design and development: [Virgule](https://virgule.studio)

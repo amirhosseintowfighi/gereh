@@ -5,7 +5,7 @@ import { useState } from "react";
 import { LOCS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { EMAIL_RE, PHONE_RE, fa, nowFa, toEnDigits, toman } from "@/lib/format";
-import { api, byId, invGross, invTotal, useDB, type Coupon, type Invoice } from "@/lib/store";
+import { api, byId, invGross, useDB, type Coupon, type Invoice } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, STATUS, StatusBadge } from "../ui";
@@ -44,7 +44,7 @@ export function AdminDashboard() {
           <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>
         </Card>
         <Card title="آخرین صورتحساب‌ها" icon="receipt" pad="p-3">
-          {db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invTotal(i))}</div><StatusBadge s={i.status} /></div></div>)}
+          {db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invGross(i, db.settings.tax))}</div><StatusBadge s={i.status} /></div></div>)}
         </Card>
         <Card title="صف تیکت" icon="message-circle" pad="p-3">
           {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-right"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/55">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
@@ -189,7 +189,8 @@ export function AdminBilling() {
   const [view, setView] = useState<Invoice | null>(null);
   const [create, setCreate] = useState<{ userId: string; desc: string; amount: string } | null>(null);
   const owner = (id: string) => byId(db.users, id)?.name || "—";
-  const sum = (st: string) => db.invoices.filter((i) => i.status === st).reduce((s, i) => s + invTotal(i), 0);
+  const gross = (i: Invoice) => invGross(i, db.settings.tax);
+  const sum = (st: string) => db.invoices.filter((i) => i.status === st).reduce((s, i) => s + gross(i), 0);
   return (
     <div>
       <PageTitle title="مالی" sub="صورتحساب‌ها، پرداخت‌ها و بازگشت وجه" action={<button type="button" onClick={() => setCreate({ userId: db.users[0].id, desc: "", amount: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> صورتحساب دستی</button>} />
@@ -205,7 +206,7 @@ export function AdminBilling() {
           { key: "owner", label: "مشتری", render: (r) => owner(r.userId) },
           { key: "desc", label: "شرح", render: (r) => <span className="text-white/60 text-xs">{r.items[0].desc}</span> },
           { key: "date", label: "تاریخ", sortable: true },
-          { key: "amount", label: "مبلغ", sortable: true, sortValue: invTotal, render: (r) => <span className="tabular font-bold">{toman(invTotal(r))}</span> },
+          { key: "amount", label: "مبلغ (با مالیات)", sortable: true, sortValue: gross, render: (r) => <span className="tabular font-bold">{toman(gross(r))}</span> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
           { key: "a", label: "", className: "text-left", render: (r) => (
             <Menu label={"اقدامات " + r.id} triggerClass={ICON_BTN} trigger={<Icon name="settings-2" size={17} />} items={[
@@ -417,10 +418,10 @@ export function AdminVirtualizor() {
                 <Field label="آدرس Master"><input value={cfg.host} onChange={(e) => setCfg((c) => ({ ...c, host: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
                 <Field label="پورت"><input value={cfg.port} inputMode="numeric" onChange={(e) => setCfg((c) => ({ ...c, port: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
                 <Field label="API Key"><input value={cfg.key} autoComplete="off" onChange={(e) => setCfg((c) => ({ ...c, key: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder="••••••••" className={INPUT + " text-left mono"} /></Field>
+                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder={db.virt.passSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••"} className={INPUT + " text-left mono"} /></Field>
               </form>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
+                <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), pass: cfg.pass }); setCfg((c) => ({ ...c, pass: "" })); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
                 <AsyncButton onClick={async () => { if (!cfg.host.trim() || !(cfg.port > 0 && cfg.port < 65536)) throw new Error("آدرس و پورت معتبر لازم است."); await api.admin.saveVirt({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("تنظیمات ذخیره شد"); }}>ذخیره</AsyncButton>
               </div>
               <p className="text-[11px] text-white/55 mt-5 leading-6">کلید و رمز Admin API در Virtualizor: Configuration › Server Info (روی Master). IP سرور گره را در «Allowed IP list to restrict API operations» اضافه کنید.</p>
@@ -576,6 +577,7 @@ export function AdminSettings() {
   const [tab, setTab] = useState("general");
   const [s, setS] = useState(db.settings);
   const [st, setSt] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [smsKey, setSmsKey] = useState("");
   const save = async (patch: Partial<typeof s>) => { await api.admin.saveSettings(patch); notify("تنظیمات ذخیره شد"); };
   return (
     <div>
@@ -612,11 +614,17 @@ export function AdminSettings() {
           <Card title="پیامک و ایمیل" icon="mail">
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field label="سرویس پیامک"><Select value={s.smsProvider} label="سرویس پیامک" onChange={(v) => setS((x) => ({ ...x, smsProvider: v }))} options={["کاوه‌نگار", "ملی‌پیامک", "فراز اس‌ام‌اس"]} /></Field>
-              <Field label="کلید API پیامک" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" placeholder="••••••••••" dir="ltr" className={INPUT + " text-left"} /></Field>
+              <Field label="کلید API پیامک" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={smsKey} onChange={(e) => setSmsKey(e.target.value)} placeholder={s.smsKeySet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••••"} dir="ltr" className={INPUT + " text-left"} /></Field>
               <Field label="سرور SMTP"><input value={s.smtpHost} onChange={(e) => setS((x) => ({ ...x, smtpHost: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-              <Field label="پورت SMTP"><input defaultValue="587" inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
+              <Field label="پورت SMTP"><input value={s.smtpPort || ""} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, smtpPort: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
             </div>
-            <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await new Promise((r) => setTimeout(r, 600)); notify("ایمیل آزمایشی به " + s.supportEmail + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={() => save({ smsProvider: s.smsProvider, smtpHost: s.smtpHost.trim() })}>ذخیره</AsyncButton></div>
+            <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await new Promise((r) => setTimeout(r, 600)); notify("ایمیل آزمایشی به " + s.supportEmail + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={async () => {
+                if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.smtpHost.trim())) throw new Error("آدرس SMTP معتبر نیست.");
+                if (!(s.smtpPort > 0 && s.smtpPort < 65536)) throw new Error("پورت SMTP معتبر نیست.");
+                // ponytail: the key goes to the backend secret store; the mock only records that one exists
+                await save({ smsProvider: s.smsProvider, smtpHost: s.smtpHost.trim(), smtpPort: s.smtpPort, ...(smsKey ? { smsKeySet: true } : {}) });
+                setSmsKey(""); if (smsKey) setS((x) => ({ ...x, smsKeySet: true }));
+              }}>ذخیره</AsyncButton></div>
           </Card>
         )}
         {tab === "staff" && <>

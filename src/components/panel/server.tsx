@@ -18,6 +18,8 @@ const TABS = [
   { id: "resize", label: "ارتقا", icon: "trending-up" }, { id: "tasks", label: "لاگ عملیات", icon: "scroll-text" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 const SNAP_LIMIT = 5;
+/** a suspended server can only be inspected until the account is settled */
+const READONLY_TABS = new Set(["overview", "traffic", "tasks"]);
 
 export function ServerDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
@@ -26,6 +28,8 @@ export function ServerDetail({ id }: { id: string }) {
   const [tab, setTab] = useState("overview");
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
   const suspended = s.status === "suspended";
+  const tabs = suspended ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
+  const cur = tabs.some((t) => t.id === tab) ? tab : "overview";
   const power = async (a: "start" | "stop" | "reboot", m: string) => { await api.servers.power(s.id, a); notify(m, "circle-check"); };
   return (
     <div>
@@ -36,20 +40,20 @@ export function ServerDetail({ id }: { id: string }) {
           {s.status === "running" && <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
           {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
         </>} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های سرور" options={TABS} /></div>
-      <div key={tab} className="fade-in" role="tabpanel">
-        {tab === "overview" && <Overview s={s} />}
-        {tab === "traffic" && <ServerTraffic s={s} />}
-        {tab === "console" && <VncPanel s={s} />}
-        {tab === "access" && <ServerAccess s={s} />}
-        {tab === "network" && <ServerNetwork s={s} />}
-        {tab === "firewall" && <ServerFirewall s={s} />}
-        {tab === "backups" && <ServerBackups s={s} />}
-        {tab === "boot" && <ServerBoot s={s} />}
-        {tab === "rebuild" && <ServerRebuild s={s} />}
-        {tab === "resize" && <ServerResize s={s} />}
-        {tab === "tasks" && <ServerTasks s={s} />}
-        {tab === "settings" && <ServerSettings s={s} />}
+      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
+      <div key={cur} className="fade-in" role="tabpanel">
+        {cur === "overview" && <Overview s={s} />}
+        {cur === "traffic" && <ServerTraffic s={s} />}
+        {cur === "console" && <VncPanel s={s} />}
+        {cur === "access" && <ServerAccess s={s} />}
+        {cur === "network" && <ServerNetwork s={s} />}
+        {cur === "firewall" && <ServerFirewall s={s} />}
+        {cur === "backups" && <ServerBackups s={s} />}
+        {cur === "boot" && <ServerBoot s={s} />}
+        {cur === "rebuild" && <ServerRebuild s={s} />}
+        {cur === "resize" && <ServerResize s={s} />}
+        {cur === "tasks" && <ServerTasks s={s} />}
+        {cur === "settings" && <ServerSettings s={s} />}
       </div>
     </div>
   );
@@ -279,7 +283,7 @@ function ServerFirewall({ s }: { s: Server }) {
       footer={<><button type="button" onClick={() => setForm(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
         if (!form) return;
         const port = form.proto === "ICMP" ? "—" : form.port.replace(/\s/g, "");
-        if (form.proto !== "ICMP" && (!PORT_RE.test(port) || port.split(/[,-]/).some((p) => +p < 1 || +p > 65535))) throw new Error("پورت معتبر نیست؛ مثال: 22 یا 8000-8100 یا 80,443");
+        if (form.proto !== "ICMP" && (!PORT_RE.test(port) || port.split(/[,-]/).some((p) => +p < 1 || +p > 65535) || port.split(",").some((r) => { const [a, b] = r.split("-").map(Number); return b !== undefined && b < a; }))) throw new Error("پورت معتبر نیست؛ مثال: 22 یا 8000-8100 یا 80,443");
         if (!CIDR_RE.test(form.source.trim())) throw new Error("مبدأ باید IP یا CIDR معتبر باشد؛ مثل 0.0.0.0/0");
         await api.servers.addRule(s.id, { ...form, port, source: form.source.trim(), note: form.note.trim() }); setForm(null); notify("قانون اضافه شد");
       }}>افزودن قانون</AsyncButton></>}>

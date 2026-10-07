@@ -27,9 +27,15 @@ export function UserDashboard() {
   const days = useMemo(() => Array.from({ length: 30 }, (_, i) => fa(i + 1) + " " + month), [month]);
   const services = servers.length + db.hosting.filter((h) => h.userId === myId).length + db.domains.filter((d) => d.userId === myId).length;
   const ann = db.announcements[0];
+  const suspendedN = servers.filter((s) => s.status === "suspended").length + db.hosting.filter((h) => h.userId === myId && h.status === "suspended").length;
+  const stoppedN = servers.filter((s) => s.status === "stopped").length;
+  const health = suspendedN ? fa(suspendedN) + " سرویس معلق است؛ صورتحساب‌ها را بررسی کنید."
+    : unpaid.some((i) => i.status === "overdue") ? "صورتحساب سررسیدگذشته دارید؛ برای جلوگیری از تعلیق پرداخت کنید."
+    : stoppedN ? fa(stoppedN) + " سرور خاموش است."
+    : services ? "همه سرویس‌های شما فعال هستند." : "هنوز سرویسی ندارید.";
   return (
     <div>
-      <PageTitle title={"سلام، " + me.name.split(" ")[0]} sub={"امروز " + nowFa() + "؛ همه سرویس‌های شما پایدار هستند."} action={newBtn("/vps", "سرویس جدید")} />
+      <PageTitle title={"سلام، " + me.name.split(" ")[0]} sub={"امروز " + nowFa() + "؛ " + health} action={newBtn("/vps", "سرویس جدید")} />
       {ann && (
         <div className={"mb-6 rounded-2xl border p-4 flex gap-3 text-sm " + (ann.level === "critical" ? "border-rose-300/25 bg-rose-400/[0.07]" : ann.level === "warning" ? "border-amber-300/25 bg-amber-400/[0.07]" : "border-sky-300/20 bg-sky-400/[0.07]")} role="note">
           <Icon name="megaphone" size={19} className="text-sky-200 mt-0.5" />
@@ -367,7 +373,7 @@ export function UserBilling() {
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <StatCard icon="wallet" label="موجودی کیف پول" value={me.balance} suffix="تومان" />
         <StatCard icon="receipt" label="بدهی جاری" value={invs.filter((i) => i.status === "unpaid" || i.status === "overdue").reduce((s, i) => s + total(i), 0)} suffix="تومان" />
-        <StatCard icon="trending-up" label="پرداختی امسال" value={invs.filter((i) => i.status === "paid").reduce((s, i) => s + total(i), 0)} suffix="تومان" />
+        <StatCard icon="trending-up" label="مجموع پرداختی" value={invs.filter((i) => i.status === "paid").reduce((s, i) => s + total(i), 0)} suffix="تومان" />
       </div>
       <div className="mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش مالی" options={[{ id: "invoices", label: "صورتحساب‌ها", icon: "receipt" }, { id: "wallet", label: "شارژ کیف پول", icon: "wallet" }, { id: "tx", label: "تراکنش‌ها", icon: "arrow-down-up" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
@@ -458,7 +464,10 @@ export function UserTickets({ id }: { id?: string }) {
   const { notify } = useApp();
   const rows = db.tickets.filter((t) => t.userId === myId);
   const t = id ? rows.find((x) => x.id === id) : undefined;
-  const [open, setOpen] = useState(params.get("new") === "1");
+  const wantNew = params.get("new") === "1";
+  const [open, setOpen] = useState(wantNew);
+  const [seenNew, setSeenNew] = useState(wantNew);
+  if (seenNew !== wantNew) { setSeenNew(wantNew); if (wantNew) setOpen(true); }
   const [f, setF] = useState(EMPTY_TICKET);
   const myServices = [...db.servers.filter((s) => s.userId === myId).map((s) => ({ value: s.id, label: "سرور " + s.name })), ...db.domains.filter((d) => d.userId === myId).map((d) => ({ value: d.id, label: "دامنه " + d.name }))];
   if (id && !t) return <Card><Empty icon="message-circle" title="تیکت پیدا نشد" action={<Link href="/panel/tickets" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
@@ -587,7 +596,24 @@ function TwoFactorModal({ onClose, account }: { onClose: () => void; account: st
   );
 }
 
+/** keyed by customer so an admin switching impersonated users never sees the previous form values */
+function TwoFactorOffModal({ onClose }: { onClose: () => void }) {
+  const { notify } = useApp();
+  const [otp, setOtp] = useState("");
+  return (
+    <Modal open onClose={onClose} title="غیرفعال‌سازی ورود دومرحله‌ای" icon="shield-check"
+      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton danger onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(false, undefined, otp); onClose(); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton></>}>
+      <p className="text-sm text-white/60 leading-7 mb-4">برای تأیید، کد فعلی اپلیکیشن Authenticator را وارد کنید. با غیرفعال‌سازی، امنیت حساب کاهش می‌یابد.</p>
+      <OtpInput value={otp} onChange={setOtp} />
+    </Modal>
+  );
+}
+
 export function UserAccount() {
+  return <AccountView key={useMyId()} />;
+}
+
+function AccountView() {
   const db = useDB(); const myId = useMyId();
   const { notify } = useApp();
   const me = byId(db.users, myId)!;
@@ -595,6 +621,7 @@ export function UserAccount() {
   const [p, setP] = useState({ name: me.name, email: me.email, phone: me.phone, company: me.company });
   const [pw, setPw] = useState({ cur: "", next: "", rep: "" });
   const [twofaM, setTwofaM] = useState(false);
+  const [twofaOff, setTwofaOff] = useState(false);
   const prefs = [["billing", "صورتحساب و پرداخت"], ["service", "وضعیت سرویس‌ها و قطعی"], ["security", "امنیت و ورود"], ["news", "خبرنامه و تخفیف‌ها"]];
   const kycSteps: [string, boolean][] = [["تأیید شماره موبایل", true], ["تأیید ایمیل", true], ["بارگذاری تصویر کارت ملی", me.kyc !== "none"], ["تأیید نهایی توسط کارشناس", me.kyc === "verified"]];
   return (
@@ -628,7 +655,7 @@ export function UserAccount() {
             <Card title="ورود دومرحله‌ای" icon="shield-check" action={<Badge tone={db.twofa ? "green" : "gray"}>{db.twofa ? "فعال" : "غیرفعال"}</Badge>}>
               <p className="text-sm text-white/55 leading-7">با فعال‌سازی، علاوه بر رمز، یک کد شش‌رقمی از اپلیکیشن Authenticator هم لازم است.</p>
               <div className="mt-5">{db.twofa
-                ? <AsyncButton danger confirmText="ورود دومرحله‌ای غیرفعال شود؟ امنیت حساب کاهش می‌یابد." onClick={async () => { await api.account.setTwofa(false); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton>
+                ? <button type="button" onClick={() => setTwofaOff(true)} className={BTN_G + " px-4 h-10 text-sm text-rose-200"}>غیرفعال‌سازی</button>
                 : <button type="button" onClick={() => setTwofaM(true)} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="shield-check" size={16} /> فعال‌سازی</button>}</div>
             </Card>
             <Card title="نشست‌های فعال" icon="monitor-smartphone" className="xl:col-span-2" pad="p-3 sm:p-4">
@@ -641,6 +668,7 @@ export function UserAccount() {
               ))}
             </Card>
             {twofaM && <TwoFactorModal onClose={() => setTwofaM(false)} account={me.email} />}
+            {twofaOff && <TwoFactorOffModal onClose={() => setTwofaOff(false)} />}
           </div>
         )}
         {tab === "notif" && (

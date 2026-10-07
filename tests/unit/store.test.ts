@@ -151,6 +151,16 @@ describe("account", () => {
     expect(snapshot().twofa).toBe(true);
   });
 
+  it("disabling 2FA requires a valid code for the stored secret", async () => {
+    const secret = "JBSWY3DPEHPK3PXP";
+    await ok(api.account.setTwofa(true, secret, await totp(secret, Date.now())));
+    await fail(api.account.setTwofa(false));
+    await fail(api.account.setTwofa(false, undefined, "000000"));
+    expect(snapshot().twofa).toBe(true);
+    await ok(api.account.setTwofa(false, undefined, await totp(secret, Date.now())));
+    expect(snapshot()).toMatchObject({ twofa: false, twofaSecret: "" });
+  });
+
   it("validates profile updates", async () => {
     await fail(api.account.updateProfile({ email: "bad" }));
     await fail(api.account.updateProfile({ phone: "123" }));
@@ -201,6 +211,13 @@ describe("admin", () => {
     await ok(api.admin.impersonate("u2"));
     expect(JSON.parse(localStorage.getItem("gereh:session")!)).toMatchObject({ role: "admin", userId: "u2" });
     expect(snapshot().audit[0].action).toBe("ورود به‌جای کاربر");
+  });
+
+  it("stopImpersonate returns the admin to their own identity", async () => {
+    api.auth.demo("admin");
+    await ok(api.admin.impersonate("u2"));
+    api.admin.stopImpersonate();
+    expect(JSON.parse(localStorage.getItem("gereh:session")!)).toMatchObject({ role: "admin", userId: "a1" });
   });
 
   it("rejects duplicates for users, nodes and coupons", async () => {

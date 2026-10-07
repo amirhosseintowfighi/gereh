@@ -4,5 +4,5 @@ export const metadata = { title: "مدیریت دامنه" };
 
 export default async function Page({ params }: PageProps<"/panel/domains/[id]">) {
   const { id } = await params;
-  return <UserDomains id={id} />;
+  return <UserDomains key={id} id={id} />;
 }

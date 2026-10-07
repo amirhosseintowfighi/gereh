@@ -127,6 +127,8 @@ function seed() {
     ],
     notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } as Record<string, boolean>,
     twofa: false,
+    /** server-side only in production; kept here so disabling 2FA can demand a valid code */
+    twofaSecret: "",
     notifications: [
       { id: "n1", icon: "file-search", text: "صورتحساب INV-14062 صادر شد", at: "۲ ساعت پیش", read: false },
       { id: "n2", icon: "message-circle", text: "پاسخ جدید در تیکت TK-3021", at: "۵ ساعت پیش", read: false },
@@ -161,12 +163,12 @@ function seed() {
       { id: "st-2", name: "کاوه نوری", email: "kaveh@gereh.cloud", role: "پشتیبانی فنی" },
       { id: "st-3", name: "شیما کاظمی", email: "shima@gereh.cloud", role: "مالی" },
     ],
-    settings: { siteName: "گره", supportEmail: "support@gereh.cloud", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10, gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false } as Record<string, boolean>, smsProvider: "کاوه‌نگار", smtpHost: "smtp.gereh.cloud" },
+    settings: { siteName: "گره", supportEmail: "support@gereh.cloud", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10, gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false } as Record<string, boolean>, smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.cloud", smtpPort: 587 },
     /* catalog copies the admin can edit (the public site reads the static catalog; a real backend revalidates it) */
     plans: { cloud: structuredClone(VPS.cloud), metal: structuredClone(VPS.metal), hosting: structuredClone(HOSTING.linux.concat(HOSTING.wordpress)) } as Record<"cloud" | "metal" | "hosting", Plan[]>,
     tlds: structuredClone(TLDS) as Tld[],
     /* Virtualizor-backed fields (mirrors what listvs / vpsmanage return) */
-    virt: { host: "panel.gereh.cloud", port: 4085, key: "", connected: true, version: "Virtualizor 3.1.x", lastSync: "۱۴۰۵/۰۷/۱۴ ۰۹:۳۰", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>,
+    virt: { host: "panel.gereh.cloud", port: 4085, key: "", connected: true, version: "Virtualizor 3.1.x", lastSync: "۱۴۰۵/۰۷/۱۴ ۰۹:۳۰", autoSync: true, passSet: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>,
     virtLog: [
       { id: "vl1", at: "۱۴۰۵/۰۷/۱۴ ۰۹:۳۰", kind: "همگام‌سازی سرورها", result: "ok", detail: "۶ سرور، ۲۱۷ VPS" },
       { id: "vl2", at: "۱۴۰۵/۰۷/۱۴ ۰۹:۲۵", kind: "آمار ترافیک", result: "ok", detail: "۲۱۷ VPS به‌روز شد" },
@@ -376,10 +378,12 @@ export const api = {
     },
     async changePassword(cur: string, next: string) { await delay(700); if (!cur) throw new Error("رمز فعلی را وارد کنید."); if (next.length < 8) throw new Error("رمز جدید باید حداقل ۸ کاراکتر باشد."); },
     /** enabling requires a valid code for the freshly generated secret (POST /account/2fa/enable) */
+    /** enabling needs a valid code for the new secret; disabling needs a valid code for the stored one */
     async setTwofa(on: boolean, secret?: string, code?: string) {
       await delay(600);
-      if (on && !(secret && code && (await verifyTotp(secret, code)))) throw new Error("کد واردشده درست نیست؛ کد فعلی اپلیکیشن را وارد کنید.");
-      mutate((d) => { d.twofa = on; logActivity(d, "shield-check", on ? "فعال‌سازی ورود دومرحله‌ای" : "غیرفعال‌سازی ورود دومرحله‌ای"); });
+      const check = on ? secret : getDB().twofaSecret;
+      if (!(check && code && (await verifyTotp(check, code)))) throw new Error("کد واردشده درست نیست؛ کد فعلی اپلیکیشن را وارد کنید.");
+      mutate((d) => { d.twofa = on; d.twofaSecret = on ? check : ""; logActivity(d, "shield-check", on ? "فعال‌سازی ورود دومرحله‌ای" : "غیرفعال‌سازی ورود دومرحله‌ای"); });
     },
     /** POST /account/kyc (multipart) */
     async submitKyc(file: File) {
@@ -416,6 +420,12 @@ export const api = {
       mutate((d) => logAudit(d, "ورود به‌جای کاربر", id));
       setSession({ ...s, userId: id });
     },
+    /** back to the staff identity after impersonating a customer */
+    stopImpersonate() {
+      const s = readSession();
+      if (!s || s.role !== "admin") return;
+      setSession({ ...s, userId: "a1" });
+    },
     async adjustBalance(id: string, amount: number, reason: string) { await delay(); mutate((d) => { byId(d.users, id)!.balance += amount; logAudit(d, "تغییر موجودی " + toman(amount) + " (" + reason + ")", id); }); },
     async createUser(u: { name: string; email: string; phone: string }) {
       await delay();
@@ -438,10 +448,13 @@ export const api = {
     async deleteCoupon(id: string) { await delay(); mutate((d) => { const c = byId(d.coupons, id); d.coupons = d.coupons.filter((x) => x.id !== id); logAudit(d, "حذف کد تخفیف", c?.code || id); }); },
     async saveAnnouncement(a: Omit<Announcement, "id" | "at">) { await delay(); mutate((d) => { d.announcements.unshift({ id: uid("an"), at: nowFa(), ...a }); logAudit(d, "انتشار اطلاعیه", a.title); }); },
     async deleteAnnouncement(id: string) { await delay(); mutate((d) => { d.announcements = d.announcements.filter((a) => a.id !== id); logAudit(d, "حذف اطلاعیه", id); }); },
-    async virtTest(cfg: { host: string; port: number; key: string }) {
+    /** pass is sent to the backend only; the DB keeps a passSet flag, never the secret */
+    async virtTest(cfg: { host: string; port: number; key: string; pass?: string }) {
       await delay(1100);
-      if (!cfg.host || !cfg.key) throw new Error("آدرس و کلید API لازم است.");
-      mutate((d) => { d.virt = { ...d.virt, ...cfg, connected: true }; d.virtLog.unshift({ id: uid("vl"), at: at(), kind: "تست اتصال", result: "ok", detail: cfg.host + ":" + cfg.port }); });
+      const { pass, ...rest } = cfg;
+      if (!rest.host || !rest.key) throw new Error("آدرس و کلید API لازم است.");
+      if (!pass && !getDB().virt.passSet) throw new Error("رمز Admin API لازم است.");
+      mutate((d) => { d.virt = { ...d.virt, ...rest, passSet: true, connected: true }; d.virtLog.unshift({ id: uid("vl"), at: at(), kind: "تست اتصال", result: "ok", detail: cfg.host + ":" + cfg.port }); });
     },
     async virtSync(kind: string) { await delay(1400); mutate((d) => { d.virt.lastSync = at(); d.virtLog.unshift({ id: uid("vl"), at: at(), kind: "همگام‌سازی " + kind, result: "ok", detail: "بدون تغییر ناسازگار" }); logAudit(d, "همگام‌سازی Virtualizor: " + kind, "virtualizor"); }); },
     async savePlanMap(id: string, patch: { plid?: number; group?: string }) { await delay(400); mutate((d) => { Object.assign(byId(d.planMap, id)!, patch); logAudit(d, "نگاشت پلن به Virtualizor", id); }); },
