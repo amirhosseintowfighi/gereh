@@ -28,6 +28,7 @@ const ADMIN_NAV = [
   { href: "/admin/users", label: "کاربران", icon: "users" },
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
+  { href: "/admin/reports", label: "گزارش‌ها", icon: "chart-column" },
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/admin/chats", label: "گفتگوی آنلاین", icon: "headset" },
   { href: "/admin/products", label: "محصولات و قیمت", icon: "tag" },

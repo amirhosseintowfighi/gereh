@@ -301,3 +301,13 @@ test("live chat: visitor asks, staff replies, visitor sees the answer", async ({
 
   await expect(w.getByText("از کنسول VNC وارد شوید.")).toBeVisible({ timeout: 10_000 });
 });
+
+test("admin reports: monthly table renders and the Excel export downloads", async ({ page }) => {
+  await login(page, "admin@gereh.cloud");
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto("/admin/reports");
+  await expect(page.getByRole("region", { name: "جدول جزئیات ماهانه" })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("link", { name: "خروجی اکسل" }).click();
+  expect((await download).suggestedFilename()).toMatch(/^gereh-finance-\d{4}-\d{2}\.xlsx$/);
+});

@@ -54,7 +54,9 @@ export async function reconcile(db: DB) {
   await db.insert(virtLog).values({ id: rid("vl"), kind: "تطبیق شبانه", result: missing ? "warn" : "ok", detail: ours.length.toLocaleString("fa-IR") + " VPS بررسی شد" + (missing ? "، " + missing.toLocaleString("fa-IR") + " مورد بدون پاسخ" : "") });
 }
 
-const SLA_MIN: Record<string, number> = { high: 60, normal: 240, low: 1440 };
+/** first-response targets in minutes, by ticket priority */
+export const SLA_MIN: Record<string, number> = { high: 60, normal: 240, low: 1440 };
+export const AUTO_REPLY_NAME = "پاسخ خودکار گره";
 const inBusinessHours = (d = new Date()) => {
   const h = (d.getUTCHours() * 60 + d.getUTCMinutes() + 210) / 60 % 24; // Tehran UTC+3:30
   const day = new Date(d.getTime() + 3.5 * 3600_000).getUTCDay(); // 5 = Friday
@@ -67,7 +69,7 @@ export async function ticketSla(db: DB, payload: { ticketId?: string; kind?: str
     const [t] = await db.select().from(tickets).where(eq(tickets.id, payload.ticketId));
     if (!t) return;
     const eta = SLA_MIN[t.priority] ?? 240;
-    await db.insert(ticketMessages).values({ ticketId: t.id, from: "staff", name: "پاسخ خودکار گره", text: "تیکت شما با شماره " + t.id + " ثبت شد." + (inBusinessHours() ? "" : " اکنون خارج از ساعت کاری است؛ موارد فوری فنی همچنان رسیدگی می‌شوند.") + " زمان هدف اولین پاسخ برای این اولویت: " + (eta >= 60 ? (eta / 60).toLocaleString("fa-IR") + " ساعت" : eta.toLocaleString("fa-IR") + " دقیقه") + "." });
+    await db.insert(ticketMessages).values({ ticketId: t.id, from: "staff", name: AUTO_REPLY_NAME, text: "تیکت شما با شماره " + t.id + " ثبت شد." + (inBusinessHours() ? "" : " اکنون خارج از ساعت کاری است؛ موارد فوری فنی همچنان رسیدگی می‌شوند.") + " زمان هدف اولین پاسخ برای این اولویت: " + (eta >= 60 ? (eta / 60).toLocaleString("fa-IR") + " ساعت" : eta.toLocaleString("fa-IR") + " دقیقه") + "." });
     return;
   }
   const open = await db.select().from(tickets).where(and(inArray(tickets.status, ["open", "customer-reply"]), isNull(tickets.firstResponseAt)));
