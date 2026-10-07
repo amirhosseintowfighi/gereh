@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BILLING, HOSTING, LOCS, parseDomain, type Plan } from "@/lib/catalog";
+import { APPS, BILLING, HOSTING, LOCS, parseDomain, type Plan } from "@/lib/catalog";
 import { BTN_G, BTN_P, GLASS } from "@/lib/cls";
 import { roundK, toman } from "@/lib/format";
 import { useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
-import { PriceTag, Switch, Tabs } from "../ui-client";
+import { PriceTag, Select, Switch, Tabs } from "../ui-client";
 
 /** live catalog (admin price edits, disabled plans hidden); the static copy renders until it loads */
 const useLivePlans = () => {
@@ -47,6 +47,7 @@ export function VpsPlans() {
   const { addToCart } = useApp();
   const live = useLivePlans();
   const [hourly, setHourly] = useState(false);
+  const [app, setApp] = useState("");
   const [kind, setKindRaw] = useState<"cloud" | "metal">("cloud");
   const [billing, setBilling] = useState("m");
   const [loc, setLoc] = useState("thr");
@@ -80,10 +81,18 @@ export function VpsPlans() {
         </div>
         <div className="overflow-x-auto no-scrollbar"><Tabs value={billing} onChange={(v) => { setBilling(v); if (v !== "m") setHourly(false); }} label="دوره پرداخت" options={BILLING} /></div>
       </div>
-      {kind === "cloud" && billing === "m" && (
-        <div className={GLASS + " -mt-6 mb-10 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm"}>
-          <span className="flex items-center gap-2"><Icon name="timer" size={17} className="acc" /><span><b>پرداخت ساعتی</b><span className="text-white/55"> — یک ماه پیش‌پرداخت به کیف پول می‌رود و هر ساعت فقط به اندازه مصرف کم می‌شود.</span></span></span>
-          <Switch on={hourly} onChange={setHourly} label="پرداخت ساعتی" />
+      {kind === "cloud" && (
+        <div className={GLASS + " -mt-6 mb-10 rounded-2xl px-4 py-3 grid md:grid-cols-2 gap-3 text-sm"}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2"><Icon name="store" size={17} className="acc" /><b>نصب یک‌کلیکی</b></span>
+            <Select className="w-48" label="اپلیکیشن آماده" value={app} onChange={setApp} options={APPS.map((a) => ({ value: a.id, label: a.label }))} />
+          </div>
+          {billing === "m" ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2"><Icon name="timer" size={17} className="acc" /><span><b>پرداخت ساعتی</b><span className="text-white/55 hidden lg:inline"> — هر ساعت فقط به اندازه مصرف</span></span></span>
+              <Switch on={hourly} onChange={setHourly} label="پرداخت ساعتی" />
+            </div>
+          ) : <div className="text-white/55 text-xs self-center">پرداخت ساعتی فقط با دوره ماهانه.</div>}
         </div>
       )}
 
@@ -97,7 +106,7 @@ export function VpsPlans() {
                 <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)}
                   extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div>
                     : hourly && k === "cloud" ? <div className="text-[11px] text-emerald-300 mt-1">ساعتی حدود {toman(Math.max(1, Math.round(monthly(p, k) / 720)))}</div> : null}
-                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}) })} />
+                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}), ...(app && k === "cloud" ? { app } : {}) })} />
               ))}
             </div>
 

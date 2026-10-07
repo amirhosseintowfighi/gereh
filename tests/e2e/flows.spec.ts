@@ -254,3 +254,20 @@ test("referral link opens registration with the code", async ({ page }) => {
   await page.goto("/auth?ref=NOVIN24");
   await expect(page.getByRole("heading", { name: "ساخت حساب گره" })).toBeVisible();
 });
+
+test("team: the owner sees the invite listed after sending it", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/account");
+  await page.getByRole("tab", { name: "تیم" }).click();
+  await page.getByLabel("ایمیل").fill("colleague@example.com");
+  await page.getByRole("button", { name: "ارسال دعوت" }).click();
+  await expect(page.getByText("colleague@example.com")).toBeVisible();
+});
+
+test("public API: token-less requests get 401, openapi.json is public", async ({ request }) => {
+  expect((await request.get("/api/v1/servers")).status()).toBe(401);
+  const spec = await request.get("/api/v1/openapi.json");
+  expect(spec.ok()).toBe(true);
+  expect((await spec.json()).openapi).toBe("3.1.0");
+});

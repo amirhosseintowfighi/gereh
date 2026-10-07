@@ -68,5 +68,19 @@ export const isStaff = (ctx: Ctx, area: Area) => !!ctx.auth && ctx.auth.user.rol
 /** label for audit entries: the staff member, plus the customer while impersonating */
 export const actor = (ctx: Ctx) => ctx.auth ? ctx.auth.user.name + (ctx.auth.uid !== ctx.auth.user.id ? " (به‌جای " + ctx.auth.uid + ")" : "") : "سیستم";
 
+/** what a team member may do inside the owner's account (enforced for every RPC call) */
+const MEMBER_SELF = ["team.switch", "team.leave", "team.accept", "account.readAll", "account.readOne"];
+const TEAM_POLICY: Record<"admin" | "tech" | "billing", { groups: string[]; allow: string[]; deny: string[] }> = {
+  admin: { groups: ["auth", "servers", "hosting", "domains", "billing", "tickets", "contact"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey", "account.createToken", "account.revokeToken", "account.setNotif"], deny: [] },
+  tech: { groups: ["auth", "servers", "hosting", "domains", "tickets", "contact"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey"], deny: ["domains.renew", "hosting.renew"] },
+  billing: { groups: ["auth", "billing", "tickets", "contact"], allow: [...MEMBER_SELF, "domains.renew", "hosting.renew"], deny: [] },
+};
+export function teamAllows(role: "admin" | "tech" | "billing" | undefined, methodName: string) {
+  if (!role) return true;
+  const p = TEAM_POLICY[role];
+  if (p.deny.includes(methodName)) return false;
+  return p.allow.includes(methodName) || p.groups.includes(methodName.split(".")[0]);
+}
+
 export type Method<A extends z.ZodTypeAny = z.ZodTypeAny, R = unknown> = { args: A; run: (ctx: Ctx, args: z.infer<A>) => Promise<R> };
 export const method = <A extends z.ZodTypeAny, R>(args: A, run: (ctx: Ctx, args: z.infer<A>) => Promise<R>): Method<A, R> => ({ args, run });

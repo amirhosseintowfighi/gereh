@@ -5,7 +5,8 @@ import type { Plan } from "@/lib/catalog";
 import { EMAIL_RE, PHONE_RE, toEnDigits } from "@/lib/format";
 import { faDateTime, parseJalali } from "@/lib/jalali";
 import { actor, method, needStaff } from "../ctx";
-import { announcements, coupons, kv, nodes, osTemplates, planMap, plans, tlds, transactions, users, virtLog } from "../db/schema";
+import { announcements, coupons, incidents, incidentUpdates, kv, nodes, osTemplates, planMap, plans, tlds, transactions, users, virtLog } from "../db/schema";
+import { COMPONENTS } from "../status";
 import { enqueue } from "../jobs";
 import { sendEmail } from "../messaging";
 import { hashPassword } from "../password";
@@ -219,6 +220,30 @@ export const adminRpc = {
     const next = { ...cur, ...rest, ...(smsKey ? { smsKeyEnc: seal(smsKey), smsKeySet: true } : {}) };
     await ctx.db.insert(kv).values({ key: "settings", value: next }).onConflictDoUpdate({ target: kv.key, set: { value: next } });
     await logAudit(ctx.db, actor(ctx), "ویرایش تنظیمات", Object.keys(patch).join(","), ctx.ip);
+  }),
+
+  /** create an incident, or post an update (and optionally resolve) on an existing one */
+  "admin.saveIncident": method(z.tuple([z.object({ id: z.string().max(40).optional(), title: z.string().max(160), severity: z.enum(["minor", "major", "critical", "maintenance"]), status: z.enum(["investigating", "identified", "monitoring", "resolved", "scheduled"]), components: z.array(z.string().max(20)).min(1).max(20), text: z.string().max(4000) })]), async (ctx, [i]) => {
+    needStaff(ctx, "infra");
+    if (i.title.trim().length < 5) fail("عنوان رخداد را کامل بنویسید.");
+    if (i.text.trim().length < 5) fail("متن به‌روزرسانی را بنویسید.");
+    if (i.components.some((c) => !COMPONENTS.some((x) => x.id === c))) fail("بخش انتخابی نامعتبر است.");
+    const id = i.id ?? rid("inc");
+    await ctx.db.transaction(async (tx) => {
+      if (i.id) {
+        const r = await tx.update(incidents).set({ title: i.title.trim(), severity: i.severity, status: i.status, components: i.components, resolvedAt: i.status === "resolved" ? new Date() : null }).where(eq(incidents.id, i.id)).returning({ id: incidents.id });
+        if (!r.length) fail("رخداد پیدا نشد.", 404);
+      } else {
+        await tx.insert(incidents).values({ id, title: i.title.trim(), severity: i.severity, status: i.status, components: i.components, resolvedAt: i.status === "resolved" ? new Date() : null });
+      }
+      await tx.insert(incidentUpdates).values({ incidentId: id, status: i.status, text: i.text.trim() });
+    });
+    await logAudit(ctx.db, actor(ctx), i.id ? "به‌روزرسانی رخداد" : "ثبت رخداد", id, ctx.ip);
+  }),
+  "admin.deleteIncident": method(z.tuple([id]), async (ctx, [iid]) => {
+    needStaff(ctx, "infra");
+    await ctx.db.delete(incidents).where(eq(incidents.id, iid));
+    await logAudit(ctx.db, actor(ctx), "حذف رخداد", iid, ctx.ip);
   }),
 
   "admin.addStaff": method(z.tuple([z.object({ name: z.string().max(80), email: z.string().max(120), role: z.string().max(40) })]), async (ctx, [s]) => {

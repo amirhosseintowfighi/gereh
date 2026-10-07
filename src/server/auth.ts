@@ -6,7 +6,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import type { DB } from "./db/client";
-import { otpCodes, rateLimits, sessions, users } from "./db/schema";
+import { otpCodes, rateLimits, sessions, teamMembers, users } from "./db/schema";
 import { AppError, fail, sha256 } from "./util";
 
 export const COOKIE = "gereh_sid";
@@ -17,8 +17,10 @@ export type UserRow = typeof users.$inferSelect;
 export type Auth = {
   sessionId: string;
   user: UserRow;
-  /** the customer whose data the panel shows: acting_as while impersonating, else the user */
+  /** the customer whose data the panel shows: acting_as while impersonating or working in a team account */
   uid: string;
+  /** set while a team member works in someone else's account */
+  teamRole?: "admin" | "tech" | "billing";
 };
 
 export async function createSession(db: DB, userId: string, meta: { ip: string; device: string }) {
@@ -44,8 +46,13 @@ export async function readAuth(db: DB): Promise<Auth | null> {
   if (Date.now() - row.s.lastSeenAt.getTime() > TOUCH_MS) {
     await db.update(sessions).set({ lastSeenAt: new Date(), expiresAt: new Date(Date.now() + TTL_MS) }).where(eq(sessions.id, id));
   }
-  const acting = row.u.role === "admin" && row.s.actingAs ? row.s.actingAs : null;
-  return { sessionId: id, user: row.u, uid: acting || row.u.id };
+  if (row.s.actingAs && row.u.role === "admin") return { sessionId: id, user: row.u, uid: row.s.actingAs };
+  if (row.s.actingAs) {
+    // team membership is re-checked on every request, so removal takes effect immediately
+    const [m] = await db.select().from(teamMembers).where(and(eq(teamMembers.ownerId, row.s.actingAs), eq(teamMembers.memberId, row.u.id)));
+    if (m) return { sessionId: id, user: row.u, uid: m.ownerId, teamRole: m.role };
+  }
+  return { sessionId: id, user: row.u, uid: row.u.id };
 }
 
 /** fixed-window limiter in Postgres; throws a 429 AppError when exceeded */

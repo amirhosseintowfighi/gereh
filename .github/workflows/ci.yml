@@ -34,3 +34,19 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  terraform-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: integrations/terraform-provider-gereh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: integrations/terraform-provider-gereh/go.mod
+          cache-dependency-path: integrations/terraform-provider-gereh/go.sum
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build ./...

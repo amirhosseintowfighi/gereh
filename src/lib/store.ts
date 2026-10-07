@@ -23,7 +23,8 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [],
+  team: { members: [], invites: [], memberships: [] },
 };
 
 type Scope = "customer" | "admin";
@@ -200,6 +201,15 @@ export const api = {
     readAll: () => rpc("account.readAll"),
     readOne: (id: string) => rpc("account.readOne", id),
   },
+  team: {
+    invite: (email: string, role: "admin" | "tech" | "billing") => rpc("team.invite", email, role, origin()),
+    cancelInvite: (id: string) => rpc("team.cancelInvite", id),
+    accept: (token: string) => rpc<{ ownerId: string }>("team.accept", token),
+    setRole: (memberId: string, role: "admin" | "tech" | "billing") => rpc("team.setRole", memberId, role),
+    remove: (memberId: string) => rpc("team.remove", memberId),
+    switchTo: (ownerId: string | null) => rpc("team.switch", ownerId),
+    leave: (ownerId: string) => rpc("team.leave", ownerId),
+  },
   admin: {
     updateUser: (id: string, patch: { status?: string; kyc?: string }) => rpc("admin.updateUser", id, patch),
     impersonate: (id: string) => rpc("admin.impersonate", id),
@@ -222,5 +232,7 @@ export const api = {
     saveSettings: (patch: Partial<ClientDB["settings"]> & { smsKey?: string }) => rpc("admin.saveSettings", patch),
     addStaff: (s: { name: string; email: string; role: string }) => rpc("admin.addStaff", s),
     removeStaff: (id: string) => rpc("admin.removeStaff", id),
+    saveIncident: (i: { id?: string; title: string; severity: string; status: string; components: string[]; text: string }) => rpc("admin.saveIncident", i),
+    deleteIncident: (id: string) => rpc("admin.deleteIncident", id),
   },
 };

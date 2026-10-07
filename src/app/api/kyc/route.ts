@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   try {
     const ctx = await context();
     const a = needUser(ctx);
+    if (a.teamRole) fail("احراز هویت فقط توسط صاحب حساب انجام می‌شود.", 403);
     await rateLimit(ctx.db, "kyc:" + a.uid, 10, 3600);
     const form = await req.formData();
     const file = form.get("file");

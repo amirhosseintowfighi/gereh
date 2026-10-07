@@ -328,3 +328,39 @@ export const usageSamples = pgTable("usage_samples", {
   netIn: real("net_in").notNull(), netOut: real("net_out").notNull(), bwUsed: real("bw_used").notNull(),
   createdAt: created(),
 }, (t) => [index("usage_server_time_ix").on(t.serverId, t.createdAt)]);
+
+/** public status page: incidents with timestamped updates */
+export const incidents = pgTable("incidents", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  severity: text("severity", { enum: ["minor", "major", "critical", "maintenance"] }).notNull(),
+  status: text("status", { enum: ["investigating", "identified", "monitoring", "resolved", "scheduled"] }).notNull(),
+  components: text("components").array().notNull(),
+  createdAt: created(),
+  resolvedAt: ts("resolved_at"),
+});
+export const incidentUpdates = pgTable("incident_updates", {
+  id: serial("id").primaryKey(),
+  incidentId: text("incident_id").notNull().references(() => incidents.id, { onDelete: "cascade" }),
+  status: text("status").notNull(),
+  text: text("text").notNull(),
+  createdAt: created(),
+});
+
+/** shared accounts: members work in the owner's panel with a limited role */
+export const teamMembers = pgTable("team_members", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["admin", "tech", "billing"] }).notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("team_pair_uq").on(t.ownerId, t.memberId), index("team_member_ix").on(t.memberId)]);
+export const teamInvites = pgTable("team_invites", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["admin", "tech", "billing"] }).notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: ts("expires_at").notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("invite_token_uq").on(t.tokenHash)]);

@@ -32,9 +32,11 @@ export type Coupon = { id: string; code: string; type: "percent" | "fixed"; valu
 export type Announcement = { id: string; title: string; body: string; level: "info" | "warning" | "critical"; at: string };
 export type Node = { id: string; loc: string; cpu: number; ram: number; disk: number; vms: number; status: Status; model: string };
 /** the cart keeps the SKU (what the server prices) plus a display copy of the price */
+export type Incident = { id: string; title: string; severity: "minor" | "major" | "critical" | "maintenance"; status: "investigating" | "identified" | "monitoring" | "resolved" | "scheduled"; components: string[]; at: string; resolvedAt: string; updates: { status: string; text: string; at: string }[] };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
-export type Session = { userId: string; role: Role; name: string; actorId?: string; staffRole?: StaffRole };
+export type TeamRole = "admin" | "tech" | "billing";
+export type Session = { userId: string; role: Role; name: string; actorId?: string; staffRole?: StaffRole; teamRole?: TeamRole };
 
 export type Settings = {
   siteName: string; supportEmail: string; supportPhone: string; registration: boolean; maintenance: boolean; tax: number;
@@ -67,6 +69,9 @@ export type ClientDB = {
   planMap: { id: string; name: string; plid: number; group: string }[];
   osTemplates: { osid: number; name: string; distro: string; on: boolean }[];
   isos: string[];
+  incidents: Incident[];
+  /** team: members of the owner's account (owner view) and accounts the user belongs to */
+  team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */
   affiliate: { code: string; referred: number; earned: number };
 };

@@ -43,7 +43,7 @@ const ago = (d: Date) => {
 
 export function clientSession(auth: Auth | null): Session | null {
   if (!auth) return null;
-  return { userId: auth.uid, role: auth.user.role, name: auth.user.name, actorId: auth.user.id, staffRole: auth.user.staffRole ?? undefined };
+  return { userId: auth.uid, role: auth.user.role, name: auth.user.name, actorId: auth.user.id, staffRole: auth.user.staffRole ?? undefined, teamRole: auth.teamRole };
 }
 
 /** scope "admin" only for staff on /admin; customers and impersonation get "customer" */
@@ -59,7 +59,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -142,6 +142,14 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     osTemplates: osT, isos: isoRows.map((x) => x.filename),
     settings: { ...settings, smsKeySet: admin ? settings.smsKeySet : false },
   };
+  {
+    const [mem, inv, ships] = await Promise.all([
+      auth.uid === auth.user.id ? db.select({ id: t.users.id, name: t.users.name, email: t.users.email, role: t.teamMembers.role, since: t.teamMembers.createdAt }).from(t.teamMembers).innerJoin(t.users, eq(t.users.id, t.teamMembers.memberId)).where(eq(t.teamMembers.ownerId, auth.uid)) : [],
+      auth.uid === auth.user.id ? db.select().from(t.teamInvites).where(eq(t.teamInvites.ownerId, auth.uid)) : [],
+      db.select({ ownerId: t.teamMembers.ownerId, ownerName: t.users.name, role: t.teamMembers.role }).from(t.teamMembers).innerJoin(t.users, eq(t.users.id, t.teamMembers.ownerId)).where(eq(t.teamMembers.memberId, auth.user.id)),
+    ]);
+    out.team = { members: mem.map((m) => ({ ...m, since: faDate(m.since) })), invites: inv.map((i) => ({ id: i.id, email: i.email, role: i.role, expires: faDate(i.expiresAt) })), memberships: ships };
+  }
   if (me) {
     const [[ref], [earned]] = await Promise.all([
       db.select({ n: count() }).from(t.users).where(eq(t.users.referredBy, me.id)),
@@ -163,6 +171,10 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.inbox).orderBy(desc(t.inbox.createdAt)).limit(200),
   ]);
   const virt = await getVirt(db);
+  const incs = await db.select().from(t.incidents).orderBy(desc(t.incidents.createdAt)).limit(100);
+  const incUpd = incs.length ? await db.select().from(t.incidentUpdates).where(inArray(t.incidentUpdates.incidentId, incs.map((i) => i.id))).orderBy(desc(t.incidentUpdates.createdAt)) : [];
+  out.incidents = incs.map((i) => ({ id: i.id, title: i.title, severity: i.severity, status: i.status, components: i.components, at: faDateTime(i.createdAt), resolvedAt: i.resolvedAt ? faDateTime(i.resolvedAt) : "",
+    updates: incUpd.filter((u) => u.incidentId === i.id).map((u) => ({ status: u.status, text: u.text, at: faDateTime(u.createdAt) })) }));
   out.nodes = nodes;
   out.coupons = coupons.map((c) => ({ id: c.id, code: c.code, type: c.type, value: c.value, used: c.used, limit: c.limit, expires: c.expiresAt ? faDate(c.expiresAt) : "—", active: c.active }));
   out.audit = audit.map((a) => ({ id: a.id, actor: a.actor, action: a.action, target: a.target, ip: a.ip, at: faDateTime(a.createdAt) }));

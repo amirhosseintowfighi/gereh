@@ -10,6 +10,7 @@ import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
+import { TeamTab } from "./team";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs } from "../ui-client";
@@ -644,7 +645,7 @@ function AccountView() {
   return (
     <div>
       <PageTitle title="تنظیمات حساب" />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های حساب" options={[{ id: "profile", label: "پروفایل", icon: "user-round" }, { id: "security", label: "امنیت", icon: "shield-check" }, { id: "notif", label: "اعلان‌ها", icon: "bell" }, { id: "kyc", label: "احراز هویت", icon: "fingerprint" }]} /></div>
+      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های حساب" options={[{ id: "profile", label: "پروفایل", icon: "user-round" }, { id: "security", label: "امنیت", icon: "shield-check" }, { id: "notif", label: "اعلان‌ها", icon: "bell" }, { id: "kyc", label: "احراز هویت", icon: "fingerprint" }, { id: "team", label: "تیم", icon: "users-round" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "profile" && (
           <Card title="اطلاعات شخصی" icon="user-round">
@@ -702,6 +703,7 @@ function AccountView() {
             </div>
           </Card>
         )}
+        {tab === "team" && <TeamTab />}
         {tab === "kyc" && (
           <Card title="احراز هویت" icon="fingerprint" action={<StatusBadge s={me.kyc} />}>
             <p className="text-sm text-white/55 leading-7 max-w-2xl">طبق مقررات، ثبت دامنه ملی و خرید سرور اختصاصی نیاز به احراز هویت دارد.</p>

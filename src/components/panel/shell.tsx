@@ -7,6 +7,7 @@ import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
 import { useApp } from "../app-context";
 import { VirguleLink, VirguleMark, Wordmark } from "../brand";
+import { AccountSwitcher, roleLabel } from "./team";
 import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { Menu } from "../ui-client";
@@ -30,6 +31,7 @@ const ADMIN_NAV = [
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/admin/products", label: "محصولات و قیمت", icon: "tag" },
   { href: "/admin/infra", label: "زیرساخت", icon: "radio-tower" },
+  { href: "/admin/status", label: "وضعیت و رخدادها", icon: "activity" },
   { href: "/admin/virtualizor", label: "اتصال Virtualizor", icon: "network" },
   { href: "/admin/coupons", label: "کدهای تخفیف", icon: "badge-percent" },
   { href: "/admin/announcements", label: "اطلاعیه‌ها", icon: "megaphone" },
@@ -61,7 +63,9 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const router = useRouter();
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
-  const nav = kind === "admin" ? ADMIN_NAV : USER_NAV;
+  // team members only see the sections their role can use
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/hosting", "/panel/domains", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;
   const me = kind === "admin" ? { name: session?.name || "مدیر سیستم" } : user;
@@ -120,6 +124,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             </button>
           </div>
           <div className="flex items-center gap-1.5">
+            {kind === "user" && <AccountSwitcher />}
             {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs hidden sm:inline-flex"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
@@ -138,6 +143,12 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="eye" size={16} />در حال مشاهده پنل <b>{user.name}</b> به‌عنوان مدیر؛ همه اقدامات در گزارش فعالیت ثبت می‌شود.</span>
             <button type="button" onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + " px-3 h-8 text-xs"}>پایان و بازگشت به مدیریت</button>
+          </div>
+        )}
+        {kind === "user" && session?.teamRole && (
+          <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-sky-300/25 bg-sky-400/[0.07] px-4 py-3 text-sm text-sky-100 flex flex-wrap items-center justify-between gap-3">
+            <span className="flex items-center gap-2"><Icon name="users-round" size={16} />در حساب <b>{user?.name}</b> با نقش «{roleLabel(session.teamRole)}» کار می‌کنید.</span>
+            <button type="button" onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }} className={BTN_G + " px-3 h-8 text-xs"}>بازگشت به حساب خودم</button>
           </div>
         )}
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>
