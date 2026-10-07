@@ -1,57 +1,87 @@
 # گره — Gereh Cloud
 
-Website, customer panel and admin panel for **Gereh**, a Persian (RTL) cloud-server, web-hosting and domain provider.
+Website, customer panel, admin panel and backend for **Gereh**, a Persian (RTL) cloud-server, web-hosting and domain provider. The public site also has an English version at `/en`.
 
-**Stack:** Next.js 16 (App Router, Turbopack, React Compiler) · React 19 · TypeScript · Tailwind CSS 4 · Vitest · Playwright
+**Stack:** Next.js 16 (App Router, Turbopack, React Compiler) · React 19 · TypeScript · Tailwind CSS 4 · Drizzle ORM (PostgreSQL or embedded PGlite) · Zod · Vitest · Playwright · a Go Terraform provider
 
 ## Getting started
 
 ```bash
 npm ci
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3000 — embedded in-memory database seeded with demo data
 ```
 
-The demo login works with any password. An email containing `admin` signs in to the admin panel. The auth page also has one-click demo buttons.
+Demo logins use the password `Demo1234!`:
+
+| Account | Role |
+|---|---|
+| `demo@gereh.cloud` | Customer with servers, hosting, domains, invoices and tickets |
+| `admin@gereh.cloud` | Staff, owner role |
+| `kaveh@gereh.cloud` / `shima@gereh.cloud` | Staff with the support / finance roles |
+
+For production, copy `.env.example` to `.env` and set at least `DATABASE_URL`, `APP_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Any integration without credentials falls back to a simulator: Virtualizor, Zarinpal/IDPay, Kavenegar SMS, SMTP, WHM/cPanel, PowerDNS and ResellerClub. Payments use a test gateway, which is disabled in production. Messages go to an in-memory outbox.
 
 | Script | What it does |
 |---|---|
-| `npm run build` / `npm start` | Production build and server |
+| `npm run build` / `npm start` | Production build and server (the background worker starts with the server) |
 | `npm run typecheck` | Generates route types (`next typegen`) and runs `tsc` |
 | `npm run lint` | ESLint, including the React Compiler rules |
-| `npm test` | Vitest unit tests (`tests/unit`) |
-| `npm run coverage` | Unit tests with V8 coverage for `src/lib` |
-| `npm run test:e2e` | Playwright end-to-end tests (`tests/e2e`) against the production build (run `npm run build` first) |
-| `npm run bench` | Lighthouse and HTTP load benchmark against a running server (`BASE_URL`, `RUNS`); writes `benchmarks/RESULTS.md` |
-| `npm run assets` | Regenerates the PNG icons and `og.png` in `public/` from `public/icon.svg` |
+| `npm test` | Vitest: `unit` (happy-dom) and `server` (Node + PGlite per file) projects |
+| `npm run test:e2e` | Playwright against the production build (run `npm run build` first; `CHROMIUM_PATH` for a preinstalled browser) |
+| `npm run bench` | Lighthouse and HTTP load benchmark; writes `benchmarks/RESULTS.md` |
+| `npm run assets` | Regenerates icons and `og.png` from `public/icon.svg` |
 
-To use a preinstalled Chromium instead of `npx playwright install`, set `CHROMIUM_PATH` for `test:e2e`, `bench` and `assets`.
-
-Set `NEXT_PUBLIC_SITE_URL` (default `https://gereh.cloud`) so canonical URLs, the sitemap and JSON-LD point at the real domain.
-
-## Layout
+## Architecture
 
 ```
-src/app/(site)      public pages: /, /vps, /hosting, /domains, /about, /contact, /terms, /privacy, /sla
-src/app/(auth)      /auth (login, OTP, register, forgot password)
-src/app/panel       customer panel: servers (Virtualizor features), hosting, domains/DNS, billing, tickets, keys, account/2FA
-src/app/admin       admin panel: users, services, billing, tickets, products, coupons, infra, Virtualizor, audit, settings
-src/components      UI (site/, panel/, home/) and shared primitives (ui.tsx, ui-client.tsx)
-src/lib/store.ts    data layer: the only seam between UI and backend (see below)
-src/lib/cart.ts     cart store (localStorage, cross-tab sync)
-src/lib/totp.ts     RFC 6238 TOTP on WebCrypto
-src/lib/seo.ts      metadata helpers and JSON-LD builders
-docs/               HANDOFF.md (requirements), VIRTUALIZOR.md (API notes), prototype.html
+src/app/(site)          public pages (fa): home, vps, hosting, domains (+ /domains/[tld]), about, contact,
+                        status, kb (+ articles), docs/api, blog (+ posts, tags, rss.xml), compare, legal pages
+src/app/(en)/en         English public site (lang=en, dir=ltr, hreflang pairs with the Persian pages)
+src/app/(auth)          /auth: password, SMS OTP, 2FA, registration, password reset
+src/app/panel           customer panel: servers, hosting, domains/DNS, billing, tickets, keys/API, affiliate, account/team
+src/app/admin           staff panel: users, services, billing, reports, tickets, live chat, products, infra, status,
+                        Virtualizor, coupons, announcements, blog, audit, settings
+src/app/api             rpc/[method], state, pay/callback, kyc, chat, admin/reports, v1 (public REST), test (e2e only)
+src/server              backend (server-only): db/, rpc/, worker/, auth, providers, payments, messaging, reports …
+src/lib                 code shared by client and server: catalogue/pricing, money, Jalali dates, Markdown, store
+src/content             knowledge-base articles, API docs, TLD copy, English copy, demo blog posts
+drizzle/                SQL migrations (applied automatically on first database use)
+integrations/           terraform-provider-gereh (Go)
 ```
 
-## Backend integration
+**Data flow.** The client store (`src/lib/store.ts`) loads `GET /api/state?scope=customer|admin` and calls `POST /api/rpc/<group.method>`. Every method validates its input with Zod and checks authorization on the server. After each mutation the client reloads state. The server re-prices every SKU, so amounts sent by the browser are never trusted.
 
-`src/lib/store.ts` is currently an in-browser mock database. Every mutation goes through `api.*`, and each method is async and mirrors one backend endpoint. To connect the real backend (Virtualizor, payment gateways, IRNIC, cPanel, SMS), replace each method body with a `fetch()` call and keep the signature. The UI doesn't need to change. Auth is a client-side mock: the panel guards in `PanelGate` are UX only, so the real API must enforce authorization.
+**Auth.** Passwords are hashed with scrypt. Sessions use a random 256-bit token in an HttpOnly, SameSite=Lax cookie, and only its SHA-256 is stored. OTP codes are also stored hashed. Logins support TOTP 2FA. Rate limits are kept in Postgres.
+
+**Staff roles.** Staff permissions are grouped by area. `owner` can do everything. `support` covers tickets, services and users. `finance` covers billing, coupons, users and reports. `sales` covers products, coupons, announcements, tickets, reports and content. `viewer` is read-only. Staff can impersonate a customer, and the audit log records both identities.
+
+**Teams.** Customers invite colleagues with the role `admin`, `tech` or `billing`. Members work in the owner's account, and their role is enforced on every RPC call.
+
+**Worker** (`src/server/worker`). The worker runs inside each server process, started from `src/instrumentation.ts`; set `WORKER=0` to disable it. Jobs live in a Postgres queue and are claimed with `FOR UPDATE SKIP LOCKED`. Provisioning is idempotent. Periodic jobs:
+- every 5 minutes: usage collection and alerts, ticket SLA checks;
+- hourly: hourly billing;
+- daily: renewals with wallet auto-pay, overdue → suspend → terminate, reminders, Virtualizor reconciliation and cleanup.
+
+**Payments.** Zarinpal v4 and IDPay are supported, and verification is idempotent. VAT is frozen on each invoice. Official invoices are generated from the buyer's legal details.
+
+## Public API and Terraform
+
+- REST API at `/api/v1` with bearer tokens from the panel (read or read/write scope, 120 requests per minute). The OpenAPI 3.1 spec is at `/api/v1/openapi.json`, and the docs page is `/docs/api`.
+- `integrations/terraform-provider-gereh` provides the `gereh_dns_record` resource and the `gereh_server` data source. CI runs `go vet`, `go test` and `go build`.
+
+## Content and support
+
+- **Knowledge base** (`src/content/kb.ts`): searchable, with TechArticle JSON-LD.
+- **Blog:** staff write posts in Markdown with a live preview at `/admin/blog`. Posts get BlogPosting JSON-LD and an RSS feed. All Markdown is rendered to React elements, never raw HTML, and links are restricted to safe schemes.
+- **Live chat:** a widget on public pages and a staff inbox at `/admin/chats`. Visitors are identified by a token (only its hash is stored). The chat suggests relevant KB articles and emails a transcript when it closes.
+- **Status page** `/status`: incidents are managed in the admin panel and the page shows 90-day uptime.
+- **Reports** `/admin/reports`: finance by Jalali month (net, VAT, refunds, top-ups, product mix, top customers, gateways, outstanding) and SLA per support agent, with an `.xlsx` export.
 
 ## Quality gates
 
-- **SEO:** every public page has a title, description, canonical, Open Graph/Twitter tags and valid JSON-LD (Organization, WebSite, Product/AggregateOffer, FAQ, Breadcrumb). The repo also includes `sitemap.xml`, `robots.txt` (panel/admin/auth disallowed and `noindex`) and a web manifest. Pages are statically prerendered.
-- **Accessibility:** axe (WCAG 2.1 A/AA, colour contrast included) passes on all public pages at desktop and mobile sizes, and Lighthouse accessibility is 100.
-- **Tests:** 90 unit and 78 end-to-end tests. CI (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, build and e2e on every push and PR.
+- **SEO:** every public page has a title, description, canonical URL, Open Graph and Twitter tags and valid JSON-LD. The sitemap includes KB articles, TLD pages, blog posts and hreflang alternates. `robots.txt` disallows the panel, admin and auth pages.
+- **Accessibility:** axe (WCAG 2.1 A/AA) passes on every public page in both languages, at desktop and mobile sizes.
+- **Tests:** 179 Vitest tests (unit + server) and 155 Playwright tests. CI runs typecheck, lint, tests, build, e2e and the Terraform provider checks on every push.
 - **Performance:** see [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
 
 Design and development: [Virgule](https://virgule.studio)
