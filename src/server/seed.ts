@@ -4,6 +4,7 @@
    - With demo=true (dev, staging, e2e): the demo customer, sample services, invoices and tickets.
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
+import { DEMO_POSTS } from "@/content/demo-posts";
 import { HOSTING, LOCS, OSES, TLDS, VPS } from "@/lib/catalog";
 import { fa, hashStr } from "@/lib/format";
 import { parseJalali } from "@/lib/jalali";
@@ -185,6 +186,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     { id: "cp-3", code: "MIGRATE50", type: "fixed", value: 500000, used: 37, limit: 100, expiresAt: J("۱۴۰۴/۰۸/۳۰"), active: false },
   ]).onConflictDoNothing();
   await db.insert(t.announcements).values({ id: "an-1", title: "نگهداری برنامه‌ریزی‌شده آمستردام", body: "نود ams-hv-01 روز جمعه از ساعت ۲ تا ۴ بامداد به‌روزرسانی می‌شود. سرویس‌های شما خودکار جابه‌جا می‌شوند.", level: "info", createdAt: J("۱۴۰۴/۰۷/۱۲") }).onConflictDoNothing();
+  await db.insert(t.posts).values(DEMO_POSTS.map((p, i) => ({ id: "post-" + (i + 1), slug: p.slug, title: p.title, excerpt: p.excerpt, body: p.body, tags: p.tags, status: "published" as const, author: "تیم گره", publishedAt: J(p.date), updatedAt: J(p.date), createdAt: J(p.date) }))).onConflictDoNothing();
   await db.insert(t.audit).values([
     { id: "au1", actor: "مدیر سیستم", action: "تغییر قیمت پلن حرفه‌ای", target: "products/c3", createdAt: J("۱۴۰۴/۰۷/۱۰ ۱۶:۲۲"), ip: "10.0.0.4" },
     { id: "au2", actor: "کاوه نوری", action: "پاسخ به تیکت", target: "TK-3021", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۹:۲۰"), ip: "10.0.0.7" },

@@ -23,7 +23,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [],
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [],
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -209,6 +209,10 @@ export const api = {
     remove: (memberId: string) => rpc("team.remove", memberId),
     switchTo: (ownerId: string | null) => rpc("team.switch", ownerId),
     leave: (ownerId: string) => rpc("team.leave", ownerId),
+  },
+  blog: {
+    save: (p: { id?: string; slug: string; title: string; excerpt: string; body: string; tags: string[]; status: "draft" | "published" }) => rpc<string>("blog.save", p),
+    remove: (id: string) => rpc("blog.delete", id),
   },
   chat: {
     reply: (id: string, text: string) => rpc("chat.reply", id, text),

@@ -37,6 +37,7 @@ const ADMIN_NAV = [
   { href: "/admin/virtualizor", label: "اتصال Virtualizor", icon: "network" },
   { href: "/admin/coupons", label: "کدهای تخفیف", icon: "badge-percent" },
   { href: "/admin/announcements", label: "اطلاعیه‌ها", icon: "megaphone" },
+  { href: "/admin/blog", label: "بلاگ", icon: "newspaper" },
   { href: "/admin/audit", label: "گزارش فعالیت", icon: "scroll-text" },
   { href: "/admin/settings", label: "تنظیمات سیستم", icon: "settings-2" },
 ];

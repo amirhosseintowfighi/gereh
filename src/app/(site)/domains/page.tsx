@@ -1,9 +1,12 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { JsonLd } from "@/components/json-ld";
 import { DomainSearch, DomainSearchView } from "@/components/site/domains";
 import { PageHeader } from "@/components/site/page-header";
 import { IconTile } from "@/components/ui";
+import { tldSlug } from "@/content/tlds";
 import { TLDS } from "@/lib/catalog";
+import { toman } from "@/lib/format";
 import { GLASS_SOFT } from "@/lib/cls";
 import { breadcrumbLd, offerLd, pageMeta } from "@/lib/seo";
 
@@ -31,6 +34,16 @@ export default function DomainsPage() {
           </li>
         ))}
       </ul>
+      <nav aria-label="راهنمای پسوندها" className="max-w-6xl mx-auto px-4 sm:px-6 mt-16">
+        <h2 className="text-xl font-black mb-5 text-center">قیمت و شرایط هر پسوند</h2>
+        <ul className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {TLDS.map((t) => (
+            <li key={t.tld}><Link href={("/domains/" + tldSlug(t.tld)) as never} className={"block rounded-xl p-3 text-center hover:bg-white/[0.08] transition " + GLASS_SOFT}>
+              <b dir="ltr" className="block">{t.tld}</b><span className="text-[11px] text-white/55">{toman(t.reg)}</span>
+            </Link></li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 }

@@ -311,3 +311,28 @@ test("admin reports: monthly table renders and the Excel export downloads", asyn
   await page.getByRole("link", { name: "خروجی اکسل" }).click();
   expect((await download).suggestedFilename()).toMatch(/^gereh-finance-\d{4}-\d{2}\.xlsx$/);
 });
+
+test("blog: staff publish a post and it appears publicly with RSS", async ({ page, request }) => {
+  await login(page, "admin@gereh.cloud");
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto("/admin/blog");
+  await page.getByRole("button", { name: "نوشته جدید" }).click();
+  await page.getByLabel("عنوان").fill("راهنمای آزمایشی بکاپ");
+  await page.getByLabel("نشانی (slug)").fill("backup-guide-test");
+  await page.getByLabel(/^خلاصه/).fill("این نوشته برای آزمون انتشار در بلاگ نوشته شده است و کمی طولانی است.");
+  await page.getByLabel("برچسب‌ها").fill("پشتیبان‌گیری");
+  await page.getByLabel("متن").fill("## چرا بکاپ\n\nبدون بکاپ هر خطا می‌تواند همه داده‌ها را از بین ببرد. " + "متن ".repeat(20));
+  await page.getByRole("button", { name: "انتشار" }).click();
+  await expect(page.getByText("نوشته منتشر شد").first()).toBeVisible();
+
+  await page.goto("/blog/backup-guide-test");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("راهنمای آزمایشی بکاپ");
+  await expect(page.getByRole("heading", { name: "چرا بکاپ" })).toBeVisible();
+  const rss = await request.get("/blog/rss.xml");
+  expect(await rss.text()).toContain("/blog/backup-guide-test");
+});
+
+test("unknown TLD and blog slugs are real 404s", async ({ request }) => {
+  expect((await request.get("/domains/nope")).status()).toBe(404);
+  expect((await request.get("/blog/does-not-exist")).status()).toBe(404);
+});

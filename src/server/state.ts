@@ -59,7 +59,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -183,6 +183,8 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const chatMsgs = chatRows.length ? await db.select().from(t.chatMessages).where(inArray(t.chatMessages.chatId, chatRows.map((c) => c.id))).orderBy(asc(t.chatMessages.id)) : [];
   out.chats = chatRows.map((c) => ({ id: c.id, name: c.name, email: c.email, userId: c.userId, status: c.status, unread: c.unread, agent: c.agent, page: c.page, at: faDateTime(c.createdAt), lastAt: faDateTime(c.lastAt),
     messages: chatMsgs.filter((m) => m.chatId === c.id).map((m) => ({ id: m.id, from: m.from, author: m.author, text: m.text, at: faDateTime(m.createdAt) })) }));
+  const postRows = await db.select().from(t.posts).orderBy(desc(t.posts.updatedAt)).limit(500);
+  out.posts = postRows.map((p) => ({ id: p.id, slug: p.slug, title: p.title, excerpt: p.excerpt, body: p.body, tags: p.tags, status: p.status, author: p.author, publishedAt: p.publishedAt ? faDate(p.publishedAt) : "", updatedAt: faDateTime(p.updatedAt) }));
   out.nodes = nodes;
   out.coupons = coupons.map((c) => ({ id: c.id, code: c.code, type: c.type, value: c.value, used: c.used, limit: c.limit, expires: c.expiresAt ? faDate(c.expiresAt) : "—", active: c.active }));
   out.audit = audit.map((a) => ({ id: a.id, actor: a.actor, action: a.action, target: a.target, ip: a.ip, at: faDateTime(a.createdAt) }));

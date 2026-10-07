@@ -46,12 +46,12 @@ export function needUser(ctx: Ctx): Auth {
   return ctx.auth;
 }
 
-export type Area = "users" | "services" | "billing" | "tickets" | "products" | "coupons" | "announcements" | "infra" | "virtualizor" | "settings" | "staff" | "reports";
+export type Area = "users" | "services" | "billing" | "tickets" | "products" | "coupons" | "announcements" | "infra" | "virtualizor" | "settings" | "staff" | "reports" | "content";
 const PERMS: Record<StaffRole, Area[] | "*"> = {
   owner: "*",
   support: ["tickets", "services", "users"],
   finance: ["billing", "coupons", "users", "reports"],
-  sales: ["products", "coupons", "announcements", "tickets", "reports"],
+  sales: ["products", "coupons", "announcements", "tickets", "reports", "content"],
   viewer: [],
 };
 export const can = (role: StaffRole | null | undefined, area: Area) => { const p = PERMS[role || "viewer"]; return p === "*" || p.includes(area); };

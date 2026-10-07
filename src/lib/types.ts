@@ -35,6 +35,7 @@ export type Node = { id: string; loc: string; cpu: number; ram: number; disk: nu
 export type Incident = { id: string; title: string; severity: "minor" | "major" | "critical" | "maintenance"; status: "investigating" | "identified" | "monitoring" | "resolved" | "scheduled"; components: string[]; at: string; resolvedAt: string; updates: { status: string; text: string; at: string }[] };
 export type ChatMsg = { id: number; from: "visitor" | "staff" | "system"; author: string; text: string; at: string };
 export type ChatThread = { id: string; name: string; email: string; userId: string | null; status: "open" | "closed"; unread: boolean; agent: string | null; page: string; at: string; lastAt: string; messages: ChatMsg[] };
+export type Post = { id: string; slug: string; title: string; excerpt: string; body: string; tags: string[]; status: "draft" | "published"; author: string; publishedAt: string; updatedAt: string };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
 export type TeamRole = "admin" | "tech" | "billing";
@@ -74,6 +75,8 @@ export type ClientDB = {
   incidents: Incident[];
   /** live chats (staff only): open ones plus the latest closed */
   chats: ChatThread[];
+  /** blog posts incl. drafts (staff only) */
+  posts: Post[];
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */
