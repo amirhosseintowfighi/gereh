@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status"];
+const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api"];
 
 /** fail the test on uncaught errors and console errors (hydration mismatches included) */
 function watchErrors(page: Page) {

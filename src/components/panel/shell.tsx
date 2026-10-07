@@ -29,6 +29,7 @@ const ADMIN_NAV = [
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
+  { href: "/admin/chats", label: "گفتگوی آنلاین", icon: "headset" },
   { href: "/admin/products", label: "محصولات و قیمت", icon: "tag" },
   { href: "/admin/infra", label: "زیرساخت", icon: "radio-tower" },
   { href: "/admin/status", label: "وضعیت و رخدادها", icon: "activity" },
@@ -71,7 +72,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const me = kind === "admin" ? { name: session?.name || "مدیر سیستم" } : user;
   const unread = db.notifications.filter((n) => !n.read).length;
   const badges: Record<string, number> = kind === "admin"
-    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length }
+    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length, "/admin/chats": db.chats.filter((c) => c.status === "open" && c.unread).length }
     : { "/panel/billing": db.invoices.filter((i) => i.userId === myId && (i.status === "unpaid" || i.status === "overdue")).length, "/panel/tickets": db.tickets.filter((t) => t.userId === myId && t.status === "answered").length };
   const logout = async () => { await api.auth.logout(); notify("از حساب خارج شدید", "log-out"); router.push("/"); };
   const [navPath, setNavPath] = useState(path);

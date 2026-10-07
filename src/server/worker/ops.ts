@@ -3,7 +3,7 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { activity, notifications, servers, ticketMessages, tickets, usageSamples, users, virtLog } from "../db/schema";
+import { activity, chats, notifications, servers, ticketMessages, tickets, usageSamples, users, virtLog } from "../db/schema";
 import { sendEmail, sendSms } from "../messaging";
 import { virt } from "../virt/driver";
 import { rid } from "../util";
@@ -97,4 +97,5 @@ export async function notifySend(db: DB, p: NotifyPayload) {
 export const purgeOld = async (db: DB) => {
   await db.delete(activity).where(lt(activity.createdAt, new Date(Date.now() - 365 * 86400_000)));
   await db.delete(notifications).where(and(eq(notifications.read, true), lt(notifications.createdAt, new Date(Date.now() - 90 * 86400_000))));
+  await db.delete(chats).where(and(eq(chats.status, "closed"), lt(chats.lastAt, new Date(Date.now() - 180 * 86400_000))));
 };

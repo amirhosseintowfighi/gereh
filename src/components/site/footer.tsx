@@ -6,14 +6,15 @@ import { Icon } from "../icon";
 
 const COLS: [string, [string, string, string][]][] = [
   ["سرویس‌ها", [["server", "سرور ابری", "/vps"], ["server-cog", "سرور اختصاصی", "/vps#dedicated"], ["layers", "هاست وب", "/hosting"], ["globe", "ثبت دامنه", "/domains"]]],
-  ["گره", [["building-2", "درباره ما", "/about"], ["message-circle", "تماس با ما", "/contact"], ["file-text", "قوانین استفاده", "/terms"], ["shield-check", "حریم خصوصی", "/privacy"], ["gauge", "توافق سطح خدمات", "/sla"], ["activity", "وضعیت سرویس‌ها", "/status"]]],
+  ["گره", [["building-2", "درباره ما", "/about"], ["message-circle", "تماس با ما", "/contact"], ["file-text", "قوانین استفاده", "/terms"], ["shield-check", "حریم خصوصی", "/privacy"], ["gauge", "توافق سطح خدمات", "/sla"]]],
+  ["منابع", [["book-open", "راهنما و آموزش", "/kb"], ["code-xml", "مستندات API", "/docs/api"], ["activity", "وضعیت سرویس‌ها", "/status"]]],
 ];
 
 export function Footer() {
   return (
     <footer className="px-3 sm:px-6 pb-6">
       <div className={GLASS + " max-w-6xl mx-auto rounded-[1.75rem] p-6 sm:p-10"}>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr] gap-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr] gap-10">
           <div>
             <Wordmark size={36} />
             <p className="text-white/55 text-sm leading-7 mt-4 max-w-xs">زیرساخت ابری برای محصولاتی که نباید کند شوند؛ از اولین وب‌سایت تا کلاستر سرورهای اختصاصی.</p>

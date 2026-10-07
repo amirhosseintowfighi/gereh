@@ -59,7 +59,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -175,6 +175,14 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const incUpd = incs.length ? await db.select().from(t.incidentUpdates).where(inArray(t.incidentUpdates.incidentId, incs.map((i) => i.id))).orderBy(desc(t.incidentUpdates.createdAt)) : [];
   out.incidents = incs.map((i) => ({ id: i.id, title: i.title, severity: i.severity, status: i.status, components: i.components, at: faDateTime(i.createdAt), resolvedAt: i.resolvedAt ? faDateTime(i.resolvedAt) : "",
     updates: incUpd.filter((u) => u.incidentId === i.id).map((u) => ({ status: u.status, text: u.text, at: faDateTime(u.createdAt) })) }));
+  const [openChats, closedChats] = await Promise.all([
+    db.select().from(t.chats).where(eq(t.chats.status, "open")).orderBy(desc(t.chats.lastAt)).limit(200),
+    db.select().from(t.chats).where(eq(t.chats.status, "closed")).orderBy(desc(t.chats.lastAt)).limit(30),
+  ]);
+  const chatRows = [...openChats, ...closedChats];
+  const chatMsgs = chatRows.length ? await db.select().from(t.chatMessages).where(inArray(t.chatMessages.chatId, chatRows.map((c) => c.id))).orderBy(asc(t.chatMessages.id)) : [];
+  out.chats = chatRows.map((c) => ({ id: c.id, name: c.name, email: c.email, userId: c.userId, status: c.status, unread: c.unread, agent: c.agent, page: c.page, at: faDateTime(c.createdAt), lastAt: faDateTime(c.lastAt),
+    messages: chatMsgs.filter((m) => m.chatId === c.id).map((m) => ({ id: m.id, from: m.from, author: m.author, text: m.text, at: faDateTime(m.createdAt) })) }));
   out.nodes = nodes;
   out.coupons = coupons.map((c) => ({ id: c.id, code: c.code, type: c.type, value: c.value, used: c.used, limit: c.limit, expires: c.expiresAt ? faDate(c.expiresAt) : "—", active: c.active }));
   out.audit = audit.map((a) => ({ id: a.id, actor: a.actor, action: a.action, target: a.target, ip: a.ip, at: faDateTime(a.createdAt) }));

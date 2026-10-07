@@ -364,3 +364,43 @@ export const teamInvites = pgTable("team_invites", {
   expiresAt: ts("expires_at").notNull(),
   createdAt: created(),
 }, (t) => [uniqueIndex("invite_token_uq").on(t.tokenHash)]);
+
+/** live chat from the site widget: visitors hold a random token (only its hash is stored) */
+export const chats = pgTable("chats", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  email: text("email").notNull().default(""),
+  status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+  /** staff member who answered last (shown to the visitor) */
+  agent: text("agent"),
+  unread: boolean("unread").notNull().default(true),
+  page: text("page").notNull().default(""),
+  ip: text("ip").notNull().default(""),
+  lastAt: ts("last_at").notNull().defaultNow(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("chat_token_uq").on(t.tokenHash), index("chat_status_ix").on(t.status, t.lastAt)]);
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  chatId: text("chat_id").notNull().references(() => chats.id, { onDelete: "cascade" }),
+  from: text("from", { enum: ["visitor", "staff", "system"] }).notNull(),
+  author: text("author").notNull().default(""),
+  text: text("text").notNull(),
+  createdAt: created(),
+}, (t) => [index("chat_msg_ix").on(t.chatId, t.id)]);
+
+/** blog posts written by staff (Markdown subset) */
+export const posts = pgTable("posts", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  body: text("body").notNull(),
+  tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+  status: text("status", { enum: ["draft", "published"] }).notNull().default("draft"),
+  author: text("author").notNull(),
+  publishedAt: ts("published_at"),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("post_slug_uq").on(t.slug), index("post_pub_ix").on(t.status, t.publishedAt)]);

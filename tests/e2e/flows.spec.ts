@@ -271,3 +271,33 @@ test("public API: token-less requests get 401, openapi.json is public", async ({
   expect(spec.ok()).toBe(true);
   expect((await spec.json()).openapi).toBe("3.1.0");
 });
+
+test("knowledge base search filters articles", async ({ page }) => {
+  await page.goto("/kb");
+  await page.getByLabel("جستجو در راهنما").fill("UFW");
+  await expect(page.getByRole("link", { name: /دیواره آتش UFW/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /فاکتور رسمی|کیف پول/ })).toHaveCount(0);
+  await page.getByRole("link", { name: /دیواره آتش UFW/ }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/UFW/);
+});
+
+test("live chat: visitor asks, staff replies, visitor sees the answer", async ({ page, browser }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "گفتگو با پشتیبانی" }).click();
+  const w = page.getByRole("dialog", { name: "گفتگو با پشتیبانی" });
+  await w.getByLabel("نام").fill("مهمان تست");
+  await w.getByLabel("پیام").fill("سلام، سرور من بالا نمی‌آید");
+  await w.getByRole("button", { name: "شروع گفتگو" }).click();
+  await expect(w.getByText("سلام، سرور من بالا نمی‌آید")).toBeVisible();
+
+  const staff = await (await browser.newContext()).newPage();
+  await login(staff, "admin@gereh.cloud");
+  await expect(staff).toHaveURL(/\/admin$/);
+  await staff.goto("/admin/chats");
+  await staff.getByRole("button", { name: /مهمان تست/ }).click();
+  await staff.getByLabel("پاسخ").fill("از کنسول VNC وارد شوید.");
+  await staff.getByRole("button", { name: "ارسال", exact: true }).click();
+  await expect(staff.getByText("از کنسول VNC وارد شوید.")).toBeVisible();
+
+  await expect(w.getByText("از کنسول VNC وارد شوید.")).toBeVisible({ timeout: 10_000 });
+});

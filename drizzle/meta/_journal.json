@@ -29,6 +29,13 @@
       "when": 1791363334558,
       "tag": "0003_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791364741895,
+      "tag": "0004_chat_blog",
+      "breakpoints": true
     }
   ]
 }
