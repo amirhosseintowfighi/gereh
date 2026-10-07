@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { DEVOPS_SERVICES } from "@/content/devops";
+import { STACK_GUIDES } from "@/content/paas";
 import { KB } from "@/content/kb";
 import { tldSlug } from "@/content/tlds";
 import { TLDS } from "@/lib/catalog";
@@ -14,6 +15,7 @@ const PAGES: [path: string, priority: number, freq: MetadataRoute.Sitemap[number
   ["/", 1, "weekly"], ["/vps", 0.9, "weekly"], ["/hosting", 0.9, "weekly"], ["/domains", 0.9, "weekly"],
   ["/about", 0.6, "monthly"], ["/contact", 0.6, "monthly"], ["/terms", 0.3, "yearly"], ["/privacy", 0.3, "yearly"], ["/sla", 0.3, "yearly"], ["/status", 0.4, "daily"],
   ["/kb", 0.7, "weekly"], ["/blog", 0.7, "daily"], ["/docs/api", 0.6, "monthly"], ["/compare", 0.6, "monthly"], ["/devops", 0.9, "weekly"],
+  ["/paas", 0.9, "weekly"], ["/paas/databases", 0.8, "weekly"], ["/docs/paas", 0.6, "monthly"],
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -27,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...EN_PAGES.map(([en, fa]) => ({ url: SITE_URL + en, lastModified, changeFrequency: "monthly" as const, priority: 0.5, alternates: { languages: { "fa-IR": SITE_URL + fa, en: SITE_URL + en } } })),
     ...KB.map((a) => ({ url: SITE_URL + "/kb/" + a.slug, lastModified: new Date(a.updated), changeFrequency: "monthly" as const, priority: 0.5 })),
     ...DEVOPS_SERVICES.map((s) => ({ url: SITE_URL + "/devops/" + s.slug, lastModified, changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...STACK_GUIDES.map((g) => ({ url: SITE_URL + "/paas/" + g.slug, lastModified, changeFrequency: "monthly" as const, priority: 0.7 })),
     ...TLDS.map((t) => ({ url: SITE_URL + "/domains/" + tldSlug(t.tld), lastModified, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...posts.map((p) => ({ url: SITE_URL + "/blog/" + encodeURIComponent(p.slug), lastModified: p.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
   ];

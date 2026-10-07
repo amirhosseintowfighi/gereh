@@ -456,3 +456,133 @@ export const devopsProjects = pgTable("devops_projects", {
   startedAt: ts("started_at"),
   createdAt: created(),
 }, (t) => [index("devops_project_user_ix").on(t.userId)]);
+
+/* ---------- Gereh Apps (PaaS) ---------- */
+/** sellable sizes for apps and managed databases (staff edit prices in /admin/paas) */
+export const paasPlans = pgTable("paas_plans", {
+  id: text("id").primaryKey(),
+  kind: text("kind", { enum: ["app", "db"] }).notNull(),
+  name: text("name").notNull(),
+  cpu: real("cpu").notNull(),
+  ramMb: integer("ram_mb").notNull(),
+  diskGb: integer("disk_gb").notNull().default(0),
+  price: bigint("price", { mode: "number" }).notNull(), // Toman per month, billed hourly
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+export const paasApps = pgTable("paas_apps", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  stack: text("stack").notNull(),
+  source: text("source", { enum: ["git", "zip", "image", "compose"] }).notNull(),
+  gitUrl: text("git_url").notNull().default(""),
+  gitBranch: text("git_branch").notNull().default("main"),
+  image: text("image").notNull().default(""),
+  rootDir: text("root_dir").notNull().default(""),
+  buildCommand: text("build_command").notNull().default(""),
+  startCommand: text("start_command").notNull().default(""),
+  port: integer("port").notNull(),
+  healthPath: text("health_path").notNull().default("/"),
+  planId: text("plan_id").notNull().references(() => paasPlans.id),
+  instances: integer("instances").notNull().default(1),
+  autoscale: boolean("autoscale").notNull().default(false),
+  maxInstances: integer("max_instances").notNull().default(3),
+  diskGb: integer("disk_gb").notNull().default(0),
+  diskMount: text("disk_mount").notNull().default("/data"),
+  region: text("region").notNull().default("thr"),
+  status: text("status", { enum: ["creating", "building", "running", "stopped", "failed", "suspended"] }).notNull().default("creating"),
+  /** secret for the git push webhook */
+  hookToken: text("hook_token").notNull(),
+  autoDeploy: boolean("auto_deploy").notNull().default(true),
+  liveDeployment: text("live_deployment"),
+  suspendedAt: ts("suspended_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_app_name_uq").on(t.name), index("paas_app_user_ix").on(t.userId)]);
+
+export const paasEnv = pgTable("paas_env", {
+  id: serial("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  /** AES-GCM sealed (secrets.ts) */
+  valueEnc: text("value_enc").notNull(),
+  secret: boolean("secret").notNull().default(false),
+  /** set by the platform (e.g. DATABASE_URL from an attached database) */
+  managedBy: text("managed_by"),
+}, (t) => [uniqueIndex("paas_env_uq").on(t.appId, t.key)]);
+
+export const paasDeployments = pgTable("paas_deployments", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["queued", "building", "deploying", "live", "failed", "superseded", "cancelled"] }).notNull().default("queued"),
+  trigger: text("trigger", { enum: ["create", "manual", "git", "cli", "api", "rollback", "config"] }).notNull(),
+  /** commit sha, uploaded file name or image tag */
+  ref: text("ref").notNull().default(""),
+  message: text("message").notNull().default(""),
+  /** artifact to roll back to: built image reference */
+  image: text("image").notNull().default(""),
+  uploadPath: text("upload_path"),
+  log: text("log").notNull().default(""),
+  createdAt: created(),
+  startedAt: ts("started_at"),
+  finishedAt: ts("finished_at"),
+}, (t) => [index("paas_dep_app_ix").on(t.appId, t.createdAt)]);
+
+export const paasDomains = pgTable("paas_domains", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  host: text("host").notNull(),
+  status: text("status", { enum: ["pending", "active", "failed"] }).notNull().default("pending"),
+  ssl: text("ssl", { enum: ["pending", "issued", "failed"] }).notNull().default("pending"),
+  checkedAt: ts("checked_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_domain_uq").on(t.host)]);
+
+export const paasDbs = pgTable("paas_dbs", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  engine: text("engine", { enum: ["postgres", "mysql", "mariadb", "mongodb", "redis"] }).notNull(),
+  version: text("version").notNull(),
+  planId: text("plan_id").notNull().references(() => paasPlans.id),
+  status: text("status", { enum: ["creating", "running", "stopped", "failed", "suspended"] }).notNull().default("creating"),
+  host: text("host").notNull().default(""),
+  port: integer("port").notNull(),
+  username: text("username").notNull(),
+  passwordEnc: text("password_enc").notNull(),
+  dbName: text("db_name").notNull(),
+  publicAccess: boolean("public_access").notNull().default(false),
+  publicPort: integer("public_port"),
+  backups: boolean("backups").notNull().default(true),
+  suspendedAt: ts("suspended_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_db_name_uq").on(t.userId, t.name), index("paas_db_user_ix").on(t.userId)]);
+
+export const paasDbBackups = pgTable("paas_db_backups", {
+  id: text("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["auto", "manual"] }).notNull(),
+  status: text("status", { enum: ["running", "done", "failed"] }).notNull().default("running"),
+  sizeMb: real("size_mb").notNull().default(0),
+  location: text("location").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("paas_backup_db_ix").on(t.dbId, t.createdAt)]);
+
+/** which database is wired into which app (its URL is injected as an env var) */
+export const paasLinks = pgTable("paas_links", {
+  id: serial("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  envKey: text("env_key").notNull(),
+}, (t) => [uniqueIndex("paas_link_uq").on(t.appId, t.dbId)]);
+
+/** 5-minute samples for app and database charts (kept 8 days) */
+export const paasMetrics = pgTable("paas_metrics", {
+  id: serial("id").primaryKey(),
+  target: text("target").notNull(), // app or database id
+  cpu: real("cpu").notNull(), // % of the plan
+  ramMb: real("ram_mb").notNull(),
+  rpm: real("rpm").notNull().default(0), // requests per minute (apps)
+  createdAt: created(),
+}, (t) => [index("paas_metric_ix").on(t.target, t.createdAt)]);

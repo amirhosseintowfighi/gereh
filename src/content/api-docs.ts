@@ -81,6 +81,27 @@ curl -s -X POST https://gereh.net/api/v1/domains/dom-501/records \\
 
 نوع رکورد یکی از \`A\`، \`AAAA\`، \`CNAME\`، \`MX\`، \`TXT\`، \`NS\`، \`SRV\` یا \`CAA\` است؛ برای ریشه دامنه نام را \`@\` بگذارید و \`priority\` فقط برای MX و SRV لازم است.
 
+## اپ‌ها (گره اپ)
+
+اپ‌ها را می‌توان با شناسه (\`app-…\`) یا نام صدا زد.
+
+| متد | مسیر | توضیح |
+|---|---|---|
+| GET | \`/apps\` | فهرست اپ‌ها |
+| GET | \`/apps/{app}\` | جزئیات اپ |
+| POST | \`/apps/{app}/deployments\` | شروع استقرار |
+| GET | \`/apps/{app}/deployments/{id}\` | وضعیت و لاگ بیلد |
+| GET | \`/apps/{app}/logs\` | لاگ اجرا |
+| PUT | \`/apps/{app}/env\` | تنظیم یا حذف متغیرها |
+| POST | \`/apps/{app}/actions\` | start، stop یا restart |
+
+\`\`\`bash
+curl -s -X POST https://gereh.net/api/v1/apps/my-shop/deployments \\
+  -H "Authorization: Bearer $GEREH_TOKEN" -H "Content-Type: application/json" -d '{"message":"v1.4"}'
+\`\`\`
+
+راهنمای کامل، CLI و نمونه GitHub Actions در [مستندات گره اپ](/docs/paas) آمده است.
+
 ## حساب و صورتحساب‌ها
 
 | متد | مسیر | توضیح |

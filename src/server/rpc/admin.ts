@@ -209,10 +209,16 @@ export const adminRpc = {
     affiliateRate: z.number().int().min(0).max(50).optional(),
     legalName: z.string().max(120).optional(), sellerNationalId: z.string().regex(/^(\d{11})?$/).optional(), sellerEconomicCode: z.string().regex(/^(\d{12}|\d{14})?$/).optional(),
     sellerAddress: z.string().max(300).optional(), sellerPostalCode: z.string().regex(/^(\d{10})?$/).optional(),
+    paasDomain: z.string().regex(/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/).max(100).optional(),
   })]), async (ctx, [patch]) => {
     needStaff(ctx, patch.tax !== undefined || patch.gateways ? "billing" : "settings");
     if (patch.supportEmail !== undefined && !EMAIL_RE.test(patch.supportEmail)) fail("ایمیل پشتیبانی معتبر نیست.");
     if (patch.gateways && !Object.values(patch.gateways).some(Boolean)) fail("حداقل یک روش پرداخت باید فعال باشد.");
+    if (patch.paasDomain) {
+      // apps run customer code: sharing the site's cookie scope would expose sessions
+      const site = new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").hostname.replace(/^www\./, "");
+      if (patch.paasDomain === site || patch.paasDomain.endsWith("." + site)) fail("دامنه اپ‌ها باید جدا از دامنه سایت باشد (مثلاً gereh.app).");
+    }
     const { smsKey, smsKeySet: _ignored, ...rest } = patch;
     const [row] = await ctx.db.select().from(kv).where(eq(kv.key, "settings"));
     const cur = { ...(await getSettings(ctx.db)), ...((row?.value as object) || {}) } as Record<string, unknown>;

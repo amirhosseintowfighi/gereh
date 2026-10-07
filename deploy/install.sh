@@ -184,8 +184,8 @@ NODE_BIN=$(command -v node)
 # ---------------- 4. user, folders ----------------
 step "کاربر سرویس و پوشه‌ها"
 id "$APP_USER" &>/dev/null || useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
-mkdir -p "$APP_DIR"/{releases,shared/kyc,.npm}
-chown "$APP_USER:$APP_USER" "$APP_DIR" "$APP_DIR"/{releases,shared,shared/kyc,.npm}
+mkdir -p "$APP_DIR"/{releases,shared/kyc,shared/paas-uploads,.npm}
+chown "$APP_USER:$APP_USER" "$APP_DIR" "$APP_DIR"/{releases,shared,shared/kyc,shared/paas-uploads,.npm}
 chmod 750 "$APP_DIR/shared"
 say "$APP_DIR (کاربر $APP_USER)"
 
@@ -260,6 +260,18 @@ DEVOPS_INBOX=$ADMIN_EMAIL
 # PDNS_API_KEY=
 # RC_USER_ID=
 # RC_API_KEY=
+
+# ---- Gereh Apps (PaaS): without PAAS_K8S_API/TOKEN apps run on the simulator (see deploy/paas/README.md) ----
+PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
+# PAAS_APPS_DOMAIN=gereh.app
+# PAAS_K8S_API=https://K8S_IP:6443
+# PAAS_K8S_TOKEN=
+# PAAS_K8S_CA=/etc/gereh/k8s-ca.crt
+# PAAS_REGISTRY=registry.gereh.app
+# PAAS_REGISTRY_PULL_SECRET=
+# PAAS_BUILDER_IMAGE=registry.gereh.app/gereh/builder:1
+# PAAS_INGRESS_IP=
+# PAAS_SOURCE_BASE_URL=https://$DOMAIN
 EOF
   umask 022
   say "فایل تنظیمات ساخته شد: $ENV_FILE"
@@ -268,6 +280,7 @@ else
   sed -i -E "s#^NEXT_PUBLIC_SITE_URL=.*#NEXT_PUBLIC_SITE_URL=$SITE_URL#; s#^COOKIE_SECURE=.*#COOKIE_SECURE=$COOKIE_SECURE#" "$ENV_FILE"
   grep -q '^COOKIE_SECURE=' "$ENV_FILE" || echo "COOKIE_SECURE=$COOKIE_SECURE" >> "$ENV_FILE"
   grep -q '^KYC_DIR=' "$ENV_FILE" || echo "KYC_DIR=$APP_DIR/shared/kyc" >> "$ENV_FILE"
+  grep -q '^PAAS_UPLOAD_DIR=' "$ENV_FILE" || echo "PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads" >> "$ENV_FILE"
   say "تنظیمات قبلی حفظ شد ($ENV_FILE)"
 fi
 chown "$APP_USER:$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
@@ -372,6 +385,20 @@ $(listen6 "$DEFAULT_SERVER")
         proxy_set_header Host \$host;
         proxy_set_header Connection "";
         access_log off;
+    }
+
+    # project ZIP uploads for Gereh Apps (the app itself caps them at 200 MB)
+    location = /api/paas/upload {
+        client_max_body_size 210m;
+        proxy_request_buffering off;
+        proxy_pass http://gereh_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For \$remote_addr;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 300s;
     }
 
     location / {

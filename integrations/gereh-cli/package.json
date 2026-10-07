@@ -1,0 +1,11 @@
+{
+  "name": "@gereh/cli",
+  "version": "1.0.0",
+  "description": "Deploy and manage Gereh Apps (PaaS) from your terminal or CI",
+  "type": "module",
+  "bin": { "gereh": "bin/gereh.mjs" },
+  "files": ["bin", "README.md"],
+  "engines": { "node": ">=20" },
+  "license": "MIT",
+  "keywords": ["gereh", "paas", "deploy", "cli"]
+}

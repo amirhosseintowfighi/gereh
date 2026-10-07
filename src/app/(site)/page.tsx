@@ -142,6 +142,29 @@ function Features() {
   );
 }
 
+const PAAS_TEASER: [string, string][] = [["code-xml", "git push = استقرار"], ["shield-check", "SSL و دامنه خودکار"], ["database", "PostgreSQL، MySQL، Redis"], ["gauge", "مقیاس خودکار"]];
+function PaasTeaser() {
+  return (
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16" aria-labelledby="paas-teaser">
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] p-8 sm:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center"
+        style={{ background: "radial-gradient(ellipse 70% 100% at 0% 0%, rgba(120,230,200,.13), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015))" }}>
+        <div>
+          <p className="text-xs text-white/60 flex items-center gap-1.5"><Icon name="sparkles" size={14} className="acc" />جدید: گره اپ (PaaS)</p>
+          <h2 id="paas-teaser" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">کد را بفرستید، بقیه با ما</h2>
+          <p className="mt-4 text-white/70 leading-8">اپ Node.js، Python، PHP، Go یا Docker را از Git یا ZIP در چند دقیقه آنلاین کنید؛ بدون مدیریت سرور و با پرداخت ساعتی.</p>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <Link href={"/paas" as never} className={BTN_P + " px-6 py-3"}><Icon name="rocket" size={18} />آشنایی با گره اپ</Link>
+            <Link href={"/panel/apps/new" as never} className={BTN_G + " px-6 py-3"}>ساخت اولین اپ</Link>
+          </div>
+        </div>
+        <ul className="grid grid-cols-2 gap-3">
+          {PAAS_TEASER.map(([ic, t]) => <li key={t} className={GLASS_SOFT + " rounded-2xl p-4 flex items-center gap-3 text-sm font-bold"}><Icon name={ic} size={19} className="acc shrink-0" />{t}</li>)}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 const DEVOPS_TEASER: [string, string][] = [["rocket", "CI/CD و استقرار خودکار"], ["box", "کوبرنتیز"], ["activity", "مانیتورینگ و هشدار"], ["shield-check", "امنیت زیرساخت"], ["headset", "پشتیبانی ۲۴/۷ با SLA"], ["code-xml", "Terraform و Ansible"]];
 function DevopsTeaser() {
   return (
@@ -199,6 +222,7 @@ export default function HomePage() {
       <Performance />
       <Steps />
       <Features />
+      <PaasTeaser />
       <DevopsTeaser />
       <Testimonials />
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-24">

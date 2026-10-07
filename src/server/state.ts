@@ -10,6 +10,8 @@ import type { ClientDB, Session, Settings } from "@/lib/types";
 import type { DB } from "./db/client";
 import * as t from "./db/schema";
 import type { Auth } from "./auth";
+import { paas } from "./paas/driver";
+import { paasState } from "./paas/state";
 import { gatewaysFor } from "./pay/gateways";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
 
@@ -59,7 +61,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -160,6 +162,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const projRows = await db.select().from(t.devopsProjects).where(own(t.devopsProjects.userId)).orderBy(desc(t.devopsProjects.createdAt));
   out.devopsProjects = projRows.map((p) => ({ id: p.id, userId: p.userId, leadId: admin ? p.leadId : null, title: p.title, plan: p.plan, status: p.status, services: p.services, monthlyFee: p.monthlyFee, hoursIncluded: p.hoursIncluded, hoursUsed: p.hoursUsed, engineer: p.engineer, milestones: p.milestones,
     updates: [...p.updates].reverse().map((u) => ({ ...u, at: faDateTime(new Date(u.at)) })), nextBill: p.nextBillAt && p.status === "active" ? faDate(p.nextBillAt) : "", started: p.startedAt ? faDate(p.startedAt) : "" }));
+  Object.assign(out, await paasState(db, { uid, admin, domain: settings.paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.app", siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "") }));
   if (!admin) {
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
     return { session: clientSession(auth), db: out };
@@ -174,6 +177,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.inbox).orderBy(desc(t.inbox.createdAt)).limit(200),
   ]);
   const virt = await getVirt(db);
+  out.paasDriver = (await paas()).name;
   const incs = await db.select().from(t.incidents).orderBy(desc(t.incidents.createdAt)).limit(100);
   const incUpd = incs.length ? await db.select().from(t.incidentUpdates).where(inArray(t.incidentUpdates.incidentId, incs.map((i) => i.id))).orderBy(desc(t.incidentUpdates.createdAt)) : [];
   out.incidents = incs.map((i) => ({ id: i.id, title: i.title, severity: i.severity, status: i.status, components: i.components, at: faDateTime(i.createdAt), resolvedAt: i.resolvedAt ? faDateTime(i.resolvedAt) : "",

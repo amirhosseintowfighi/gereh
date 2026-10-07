@@ -5,6 +5,8 @@
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
 import { DEMO_POSTS } from "@/content/demo-posts";
+import { seedPlans } from "./paas/service";
+import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS } from "@/lib/catalog";
 import { fa, hashStr } from "@/lib/format";
 import { faDate, parseJalali } from "@/lib/jalali";
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS = {
   /** % of a referred customer's paid invoices credited to the referrer during their first year */
   affiliateRate: 10,
   legalName: "شرکت گره ابر پارس (سهامی خاص)", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "تهران، خیابان ولیعصر", sellerPostalCode: "",
+  paasDomain: process.env.PAAS_APPS_DOMAIN || "gereh.app",
 };
 export const DEFAULT_VIRT = { host: "panel.gereh.net", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 
@@ -39,6 +42,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   };
 
   await db.insert(t.kv).values([{ key: "settings", value: DEFAULT_SETTINGS }, { key: "virt", value: DEFAULT_VIRT }]).onConflictDoNothing();
+  await seedPlans(db);
   await db.insert(t.plans).values([
     ...VPS.cloud.map((p, i) => ({ id: p.id, kind: "cloud" as const, data: p, position: i })),
     ...VPS.metal.map((p, i) => ({ id: p.id, kind: "metal" as const, data: p, position: i })),
@@ -197,6 +201,20 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     updates: [{ at: J("۱۴۰۴/۰۶/۲۵ ۱۱:۰۰").toISOString(), by: "کاوه نوری", text: "گزارش ممیزی در تیکت TK-3021 ارسال شد. اولویت اول: پشتیبان‌گیری خارج از سرور اصلی." }, { at: J("۱۴۰۴/۰۷/۱۰ ۱۶:۳۰").toISOString(), by: "کاوه نوری", text: "پایپ‌لاین هر سه پروژه فعال شد؛ از این به بعد هر merge به main ظرف چهار دقیقه روی سرور است و بازگشت با یک کلیک ممکن است." }],
     startedAt: J("۱۴۰۴/۰۶/۲۰"), nextBillAt: J("۱۴۰۴/۰۷/۲۰"),
   }).onConflictDoNothing();
+  // Gereh Apps demo: a live Next.js app with history, a Postgres database wired into it
+  await db.insert(t.paasApps).values({ id: "app-demo1", userId: "u1", name: "novin-shop", stack: "nextjs", source: "git", gitUrl: "https://github.com/novin-studio/shop.git", gitBranch: "main", port: 3000, planId: "app-small", instances: 2, status: "running", hookToken: "demo-hook-token-novin-shop-000000", liveDeployment: "dep-demo3", createdAt: J("۱۴۰۴/۰۶/۲۰") }).onConflictDoNothing();
+  await db.insert(t.paasDeployments).values([
+    { id: "dep-demo1", appId: "app-demo1", status: "superseded", trigger: "create", ref: "a1c9e2f", message: "اولین استقرار", image: "registry.gereh.net/u1/novin-shop:dep-demo1", log: "==> Cloning https://github.com/novin-studio/shop.git (main)\n==> Detected Next.js (node 22)\n==> Live", createdAt: J("۱۴۰۴/۰۶/۲۰ ۱۰:۱۲"), startedAt: J("۱۴۰۴/۰۶/۲۰ ۱۰:۱۲"), finishedAt: J("۱۴۰۴/۰۶/۲۰ ۱۰:۱۴") },
+    { id: "dep-demo2", appId: "app-demo1", status: "failed", trigger: "git", ref: "4be0d17", message: "Add checkout page", log: "==> Cloning https://github.com/novin-studio/shop.git (main)\n$ npm run build\nType error: Property 'total' does not exist on type 'Cart'.\nERROR: build step exited with code 1", createdAt: J("۱۴۰۴/۰۷/۰۸ ۱۵:۴۰"), startedAt: J("۱۴۰۴/۰۷/۰۸ ۱۵:۴۰"), finishedAt: J("۱۴۰۴/۰۷/۰۸ ۱۵:۴۲") },
+    { id: "dep-demo3", appId: "app-demo1", status: "live", trigger: "git", ref: "9d2f6aa", message: "Fix cart total type", image: "registry.gereh.net/u1/novin-shop:dep-demo3", log: "==> Cloning https://github.com/novin-studio/shop.git (main)\n==> Detected Next.js (node 22)\n$ npm ci\n$ npm run build\n   ✓ Compiled successfully\n==> Releasing 2 instance(s)\n==> Live", createdAt: J("۱۴۰۴/۰۷/۰۸ ۱۶:۰۵"), startedAt: J("۱۴۰۴/۰۷/۰۸ ۱۶:۰۵"), finishedAt: J("۱۴۰۴/۰۷/۰۸ ۱۶:۰۸") },
+  ]).onConflictDoNothing();
+  await db.insert(t.paasEnv).values([{ appId: "app-demo1", key: "NODE_ENV", valueEnc: seal("production"), secret: false }, { appId: "app-demo1", key: "ZARINPAL_MERCHANT", valueEnc: seal("demo-merchant-id"), secret: true }]).onConflictDoNothing();
+  await db.insert(t.paasDbs).values({ id: "pdb-demo1", userId: "u1", name: "shop-db", engine: "postgres", version: "16", planId: "db-small", status: "running", host: "shop-db.u1.db.gereh.internal", port: 5432, username: "u_shop_db", passwordEnc: seal("demo-db-password"), dbName: "shop_db", createdAt: J("۱۴۰۴/۰۶/۲۰") }).onConflictDoNothing();
+  await db.insert(t.paasLinks).values({ appId: "app-demo1", dbId: "pdb-demo1", envKey: "DATABASE_URL" }).onConflictDoNothing();
+  await db.insert(t.paasDbBackups).values([
+    { id: "bk-demo1", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.2, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo1.dump", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۳:۳۰") },
+    { id: "bk-demo2", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.9, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo2.dump", createdAt: J("۱۴۰۴/۰۷/۱۴ ۰۳:۳۰") },
+  ]).onConflictDoNothing();
   await db.insert(t.audit).values([
     { id: "au1", actor: "مدیر سیستم", action: "تغییر قیمت پلن حرفه‌ای", target: "products/c3", createdAt: J("۱۴۰۴/۰۷/۱۰ ۱۶:۲۲"), ip: "10.0.0.4" },
     { id: "au2", actor: "کاوه نوری", action: "پاسخ به تیکت", target: "TK-3021", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۹:۲۰"), ip: "10.0.0.7" },

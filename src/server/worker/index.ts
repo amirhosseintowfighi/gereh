@@ -10,6 +10,7 @@ import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
 import { devopsBilling } from "../rpc/devops";
+import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasPoll } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
@@ -28,12 +29,19 @@ const handlers: Record<JobType, Handler> = {
   "tickets.sla": (db, p) => ticketSla(db, p),
   "notify.send": (db, p) => notifySend(db, p as never),
   "devops.billing": (db) => devopsBilling(db),
+  "paas.build": (db, p) => paasBuild(db, p as never),
+  "paas.poll": (db, p) => paasPoll(db, p as never),
+  "paas.db": (db, p) => paasDbCreate(db, p as never),
+  "paas.backup": (db, p) => paasBackup(db, p as never),
+  "paas.billing": (db) => paasBilling(db),
+  "paas.collect": (db) => paasCollect(db),
+  "paas.daily": (db) => paasDaily(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
 export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
-  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60],
+  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */

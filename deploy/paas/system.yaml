@@ -1,0 +1,62 @@
+# Platform namespace + the service account the Gereh site uses to drive the cluster.
+# kubectl apply -f system.yaml
+# then: kubectl -n gereh-system create token gereh-controller --duration=8760h   (→ PAAS_K8S_TOKEN)
+# or use the long-lived token Secret below:  kubectl -n gereh-system get secret gereh-controller-token -o jsonpath='{.data.token}' | base64 -d
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gereh-system
+  labels: { app.kubernetes.io/managed-by: gereh }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: gereh-controller, namespace: gereh-system }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gereh-controller-token
+  namespace: gereh-system
+  annotations: { kubernetes.io/service-account.name: gereh-controller }
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: { name: gereh-controller }
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, secrets, services, persistentvolumeclaims, limitranges, resourcequotas]
+    verbs: [get, list, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, create, update, patch, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, create, update, patch, delete]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, create, update, patch, delete]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: { name: gereh-controller }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: gereh-controller }
+subjects: [{ kind: ServiceAccount, name: gereh-controller, namespace: gereh-system }]
+---
+# build pods (Kaniko) and backup jobs run here; nothing else may reach them
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: no-ingress, namespace: gereh-system }
+spec: { podSelector: {}, policyTypes: [Ingress] }
+# Secrets you create yourself (see README):
+#   registry-push  — type kubernetes.io/dockerconfigjson, push access to PAAS_REGISTRY (used by Kaniko)
+#   backup-s3      — keys S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY (used by backup/restore jobs)

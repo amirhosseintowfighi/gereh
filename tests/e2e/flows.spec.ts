@@ -381,3 +381,46 @@ test.describe("devops", () => {
     await expect(page.getByText("پایپ‌لاین هر سه پروژه فعال شد", { exact: false })).toBeVisible();
   });
 });
+
+test.describe("gereh apps (paas)", () => {
+  test("public page shows prices from the database and links to stack guides", async ({ page }) => {
+    await page.goto("/paas");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("کد را بفرستید");
+    const pricing = page.getByRole("region", { name: "جدول قیمت اپ" });
+    await expect(pricing.getByRole("row", { name: /^کوچک/ })).toContainText("۲۲۹٬۰۰۰");
+    await page.getByRole("link", { name: /Django/ }).first().click();
+    await expect(page).toHaveURL(/\/paas\/django$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("هاست Django");
+  });
+
+  test("customer manages the demo app and creates a database", async ({ page }) => {
+    await login(page);
+    await expect(page).toHaveURL(/\/panel$/);
+    await page.goto("/panel/apps");
+    await page.getByRole("link", { name: /novin-shop/ }).click();
+    await expect(page.getByText("novin-shop.gereh.app").first()).toBeVisible();
+    await page.getByRole("tab", { name: "متغیرها" }).click();
+    await expect(page.getByLabel("نام متغیر").first()).toHaveValue(/NODE_ENV|ZARINPAL_MERCHANT/);
+    await expect(page.getByText("DATABASE_URL")).toBeVisible(); // locked: managed by the shop-db link
+    await page.getByRole("tab", { name: "استقرارها" }).click();
+    await expect(page.getByText("فعال").first()).toBeVisible();
+
+    await page.goto("/panel/databases?new=1");
+    const modal = page.getByRole("dialog", { name: "پایگاه داده جدید" });
+    await modal.getByRole("radio", { name: /Redis/ }).click();
+    await modal.getByLabel("نام").fill("cache-e2e");
+    await modal.getByRole("button", { name: "ساخت" }).click();
+    await expect(page).toHaveURL(/\/panel\/databases\/pdb-/);
+    await expect(page.getByRole("heading", { name: "cache-e2e" })).toBeVisible();
+  });
+
+  test("staff see every app, edit plan prices and test the platform", async ({ page }) => {
+    await login(page, "admin@gereh.net");
+    await expect(page).toHaveURL(/\/admin$/);
+    await page.goto("/admin/paas");
+    await expect(page.getByRole("link", { name: "novin-shop" })).toBeVisible();
+    await page.getByRole("tab", { name: "زیرساخت" }).click();
+    await page.getByRole("button", { name: "تست اتصال" }).click();
+    await expect(page.getByText("اتصال برقرار است")).toContainText("simulator");
+  });
+});

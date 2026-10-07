@@ -6,7 +6,8 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { Auth } from "./auth";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
-import { apiTokens, dnsRecords, domains, invoiceItems, invoices, servers, users } from "./db/schema";
+import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDeployments, paasDomains, servers, users } from "./db/schema";
+import { appHourly, appsDomain, defaultHost, loadPlans } from "./paas/service";
 import { registry } from "./rpc";
 import { AppError, sha256 } from "./util";
 import { invGross } from "@/lib/money";
@@ -34,6 +35,25 @@ async function rpc(ctx: Ctx, name: string, ...args: unknown[]) {
   return m.run(ctx, m.args.parse(args));
 }
 const notFound = () => { throw new AppError("Not found", 404); };
+
+/* apps are addressed by id (app-…) or by name, so the CLI can use the name from gereh.json */
+async function ownAppBy(ctx: Ctx, key: string) {
+  const [app] = await ctx.db.select().from(paasApps).where(and(eq(paasApps.userId, ctx.auth!.uid), key.startsWith("app-") ? eq(paasApps.id, key) : eq(paasApps.name, key)));
+  return app ?? notFound();
+}
+async function appOut(ctx: Ctx, app: typeof paasApps.$inferSelect) {
+  const [plans, deps, hosts, domain] = await Promise.all([
+    loadPlans(ctx.db), ctx.db.select().from(paasDeployments).where(eq(paasDeployments.appId, app.id)), ctx.db.select().from(paasDomains).where(eq(paasDomains.appId, app.id)), appsDomain(ctx.db),
+  ]);
+  const plan = plans.find((p) => p.id === app.planId);
+  const last = deps.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())[0];
+  return {
+    id: app.id, name: app.name, status: app.status, stack: app.stack, source: app.source, url: "https://" + defaultHost(app.name, domain),
+    domains: hosts.map((d) => ({ host: d.host, status: d.status })), plan: app.planId, instances: app.instances, autoscale: app.autoscale, max_instances: app.maxInstances,
+    disk_gb: app.diskGb, hourly_price_toman: plan ? appHourly(app, plan) : null, live_deployment: app.liveDeployment,
+    latest_deployment: last ? { id: last.id, status: last.status, trigger: last.trigger, created_at: iso(last.createdAt) } : null, created_at: iso(app.createdAt),
+  };
+}
 
 type Route = { method: string; pattern: RegExp; write?: boolean; run: (ctx: Ctx, m: RegExpExecArray, body: Record<string, unknown>) => Promise<unknown> };
 export const ROUTES: Route[] = [
@@ -70,6 +90,38 @@ export const ROUTES: Route[] = [
   } },
   { method: "DELETE", pattern: /^domains\/([\w-]+)\/records\/([\w-]+)$/, write: true, run: async (ctx, m) => {
     await rpc(ctx, "domains.removeRecord", m[1], m[2]);
+    return { ok: true };
+  } },
+  { method: "GET", pattern: /^apps$/, run: async (ctx) => ({ data: await Promise.all((await ctx.db.select().from(paasApps).where(eq(paasApps.userId, ctx.auth!.uid))).map((a) => appOut(ctx, a))) }) },
+  { method: "GET", pattern: /^apps\/([\w-]+)$/, run: async (ctx, m) => appOut(ctx, await ownAppBy(ctx, m[1])) },
+  { method: "POST", pattern: /^apps\/([\w-]+)\/deployments$/, write: true, run: async (ctx, m, b) => {
+    const app = await ownAppBy(ctx, m[1]);
+    const id = await rpc(ctx, "paas.deploy", app.id, { uploadId: b.upload_id ?? undefined, message: b.message ?? undefined, via: b.via === "cli" ? "cli" : "api" });
+    return { id, status: "queued" };
+  } },
+  { method: "GET", pattern: /^apps\/([\w-]+)\/deployments\/([\w-]+)$/, run: async (ctx, m) => {
+    const app = await ownAppBy(ctx, m[1]);
+    const [d] = await ctx.db.select().from(paasDeployments).where(and(eq(paasDeployments.id, m[2]), eq(paasDeployments.appId, app.id)));
+    if (!d) notFound();
+    return { id: d!.id, status: d!.status, trigger: d!.trigger, ref: d!.ref || null, message: d!.message, log: d!.log, created_at: iso(d!.createdAt), finished_at: iso(d!.finishedAt) };
+  } },
+  { method: "GET", pattern: /^apps\/([\w-]+)\/logs$/, run: async (ctx, m) => {
+    const app = await ownAppBy(ctx, m[1]);
+    return { lines: await rpc(ctx, "paas.logs", app.id, 300) };
+  } },
+  { method: "PUT", pattern: /^apps\/([\w-]+)\/env$/, write: true, run: async (ctx, m, b) => {
+    const app = await ownAppBy(ctx, m[1]);
+    const vars = (b.vars && typeof b.vars === "object" ? b.vars : {}) as Record<string, unknown>;
+    const secret = new Set(Array.isArray(b.secret) ? b.secret.map(String) : []);
+    const set = Object.entries(vars).filter(([, v]) => v !== null).map(([key, value]) => ({ key, value: String(value), secret: secret.has(key) }));
+    const remove = Object.entries(vars).filter(([, v]) => v === null).map(([k]) => k);
+    await rpc(ctx, "paas.setEnv", app.id, set, remove);
+    return { ok: true, set: set.map((v) => v.key), removed: remove };
+  } },
+  { method: "POST", pattern: /^apps\/([\w-]+)\/actions$/, write: true, run: async (ctx, m, b) => {
+    const action = String(b.action || "");
+    if (!["start", "stop", "restart"].includes(action)) throw new AppError("action must be start, stop or restart", 422);
+    await rpc(ctx, "paas.power", (await ownAppBy(ctx, m[1])).id, action);
     return { ok: true };
   } },
   { method: "GET", pattern: /^invoices$/, run: async (ctx) => {

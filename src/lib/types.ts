@@ -38,6 +38,26 @@ export type ChatThread = { id: string; name: string; email: string; userId: stri
 export type Post = { id: string; slug: string; title: string; excerpt: string; body: string; tags: string[]; status: "draft" | "published"; author: string; publishedAt: string; updatedAt: string };
 export type DevopsLead = { id: string; name: string; company: string; role: string; email: string; phone: string; website: string; size: string; stage: string; infra: string[]; services: string[]; pkg: string; budget: string; urgency: string; needsNda: boolean; message: string; status: "new" | "contacted" | "meeting" | "proposal" | "won" | "lost"; assignee: string; value: number; notes: { at: string; by: string; text: string }[]; userId: string | null; source: string; at: string; updatedAt: string };
 export type DevopsProject = { id: string; userId: string; leadId: string | null; title: string; plan: "startup" | "growth" | "enterprise" | "project" | "audit"; status: "planning" | "active" | "paused" | "done"; services: string[]; monthlyFee: number; hoursIncluded: number; hoursUsed: number; engineer: string; milestones: { id: string; title: string; due: string; done: boolean }[]; updates: { at: string; by: string; text: string }[]; nextBill: string; started: string };
+export type PaasMetric = { at: string; cpu: number; ramMb: number; rpm: number };
+export type PaasApp = {
+  id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose"; gitUrl: string; gitBranch: string; image: string; rootDir: string;
+  buildCommand: string; startCommand: string; port: number; healthPath: string; planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number; diskMount: string;
+  status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; liveDeployment: string | null; at: string; hourly: number;
+  deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean }[];
+  domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
+  /** value is null for secrets (and for staff, who never see values) */
+  env: { key: string; value: string | null; secret: boolean }[];
+  links: { dbId: string; envKey: string }[];
+  metrics: PaasMetric[];
+};
+export type PaasDb = {
+  id: string; userId: string; name: string; engine: string; version: string; planId: string; status: "creating" | "running" | "stopped" | "failed" | "suspended";
+  host: string; port: number; username: string; dbName: string; publicAccess: boolean; publicPort: number | null; backups: boolean; at: string; hourly: number;
+  backupList: { id: string; kind: "auto" | "manual"; status: string; sizeMb: number; at: string }[];
+  links: { appId: string; appName: string; envKey: string }[];
+  metrics: PaasMetric[];
+};
+export type PaasPlanRow = { id: string; kind: "app" | "db"; name: string; cpu: number; ramMb: number; diskGb: number; price: number; active: boolean };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
 export type TeamRole = "admin" | "tech" | "billing";
@@ -49,6 +69,8 @@ export type Settings = {
   affiliateRate: number;
   /** seller details printed on official invoices */
   legalName: string; sellerNationalId: string; sellerEconomicCode: string; sellerAddress: string; sellerPostalCode: string;
+  /** domain for default app URLs (<app>.<paasDomain>); must not be a subdomain of the main site */
+  paasDomain: string;
   /** label of the gateway that will actually take online payments ("" = none available) */
   payGateway?: string;
 };
@@ -82,6 +104,12 @@ export type ClientDB = {
   /** DevOps: sales pipeline (staff) and engagements (customer: own; staff: all) */
   devopsLeads: DevopsLead[];
   devopsProjects: DevopsProject[];
+  /** Gereh Apps (PaaS): own resources (staff: all, without env values) */
+  paasApps: PaasApp[];
+  paasDbs: PaasDb[];
+  paasPlans: PaasPlanRow[];
+  /** staff only: "kubernetes" or "simulator" */
+  paasDriver: string;
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */

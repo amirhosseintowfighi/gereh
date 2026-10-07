@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api", "/blog", "/blog/nvme-vs-ssd", "/domains/ir", "/domains/com", "/compare", "/devops", "/devops/kubernetes", "/devops/managed-devops"];
+const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api", "/blog", "/blog/nvme-vs-ssd", "/domains/ir", "/domains/com", "/compare", "/devops", "/devops/kubernetes", "/devops/managed-devops", "/paas", "/paas/databases", "/paas/nextjs", "/paas/django", "/docs/paas"];
 
 /** fail the test on uncaught errors and console errors (hydration mismatches included) */
 function watchErrors(page: Page) {
@@ -96,7 +96,7 @@ test("security headers are set", async ({ request }) => {
   expect(h["x-powered-by"]).toBeUndefined();
 });
 
-for (const path of ["/en", "/en/vps", "/en/hosting", "/en/domains", "/en/about", "/en/devops"]) {
+for (const path of ["/en", "/en/vps", "/en/hosting", "/en/domains", "/en/about", "/en/devops", "/en/paas"]) {
   test(`English page ${path}: LTR, hreflang pair, no errors, accessible`, async ({ page }) => {
     const errors = watchErrors(page);
     expect((await page.goto(path))?.status()).toBe(200);

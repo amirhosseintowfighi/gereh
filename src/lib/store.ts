@@ -21,9 +21,9 @@ export const EMPTY_DB: ClientDB = {
   users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
   notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
-    legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "" },
+    legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.app" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [],
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "",
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -81,7 +81,7 @@ export const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(16)), (x) => abc[x % abc.length]).join("");
 };
 
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -209,6 +209,53 @@ export const api = {
     remove: (memberId: string) => rpc("team.remove", memberId),
     switchTo: (ownerId: string | null) => rpc("team.switch", ownerId),
     leave: (ownerId: string) => rpc("team.leave", ownerId),
+  },
+  paas: {
+    createApp: (a: { name: string; stack: string; source: string; gitUrl?: string; gitBranch?: string; image?: string; uploadId?: string; rootDir?: string; buildCommand?: string; startCommand?: string; port: number; planId: string; instances?: number; diskGb?: number; env?: { key: string; value: string; secret: boolean }[] }) => rpc<string>("paas.createApp", a),
+    deploy: (appId: string, o: { uploadId?: string; message?: string } = {}) => rpc<string>("paas.deploy", appId, o),
+    rollback: (appId: string, depId: string) => rpc<string>("paas.rollback", appId, depId),
+    deployment: (depId: string) => rpc<{ status: string; log: string }>("paas.deployment", depId),
+    logs: (appId: string, tail = 200) => rpc<string[]>("paas.logs", appId, tail),
+    updateApp: (appId: string, patch: Record<string, string | number | boolean>) => rpc("paas.updateApp", appId, patch),
+    setEnv: (appId: string, set: { key: string; value: string; secret: boolean }[], remove: string[]) => rpc("paas.setEnv", appId, set, remove),
+    scale: (appId: string, s: { planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number }) => rpc("paas.scale", appId, s),
+    power: (appId: string, action: "start" | "stop" | "restart") => rpc("paas.power", appId, action),
+    deleteApp: (appId: string, confirm: string) => rpc("paas.deleteApp", appId, confirm),
+    regenHook: (appId: string) => rpc("paas.regenHook", appId),
+    addDomain: (appId: string, host: string) => rpc<string>("paas.addDomain", appId, host),
+    checkDomain: (id: string) => rpc("paas.checkDomain", id),
+    removeDomain: (id: string) => rpc("paas.removeDomain", id),
+    createDb: (d: { name: string; engine: string; version: string; planId: string; publicAccess: boolean; backups: boolean }) => rpc<string>("paas.createDb", d),
+    dbCredentials: (dbId: string) => rpc<{ password: string; url: string; publicUrl: string }>("paas.dbCredentials", dbId),
+    resetDbPassword: (dbId: string) => rpc("paas.resetDbPassword", dbId),
+    updateDb: (dbId: string, patch: { planId?: string; publicAccess?: boolean; backups?: boolean }) => rpc("paas.updateDb", dbId, patch),
+    dbPower: (dbId: string, action: "start" | "stop") => rpc("paas.dbPower", dbId, action),
+    deleteDb: (dbId: string, confirm: string) => rpc("paas.deleteDb", dbId, confirm),
+    backupDb: (dbId: string) => rpc<string>("paas.backupDb", dbId),
+    deleteBackup: (id: string) => rpc("paas.deleteBackup", id),
+    restoreDb: (id: string) => rpc("paas.restoreDb", id),
+    link: (appId: string, dbId: string, envKey?: string) => rpc("paas.link", appId, dbId, envKey),
+    unlink: (appId: string, dbId: string) => rpc("paas.unlink", appId, dbId),
+    adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("paas.adminPlan", id, patch),
+    adminSuspend: (kind: "app" | "db", id: string, on: boolean) => rpc("paas.adminSuspend", kind, id, on),
+    adminTest: () => rpc<{ driver: string; version: string }>("paas.adminTest"),
+    /** uploads a project ZIP; resolves with the detected stack */
+    upload: async (file: File, rootDir = "", onProgress?: (pct: number) => void) => new Promise<{ uploadId: string; stack: string | null; files: number; bytes: number }>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      const form = new FormData();
+      form.set("file", file);
+      if (rootDir) form.set("rootDir", rootDir);
+      x.open("POST", "/api/paas/upload");
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+      x.onload = () => {
+        let j: { result?: { uploadId: string; stack: string | null; files: number; bytes: number }; error?: string } = {};
+        try { j = JSON.parse(x.responseText); } catch { /* not JSON */ }
+        if (x.status >= 200 && x.status < 300 && j.result) resolve(j.result);
+        else reject(new Error(j.error || (x.status === 413 ? "حجم فایل زیاد است." : "بارگذاری ناموفق بود.")));
+      };
+      x.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
+      x.send(form);
+    }),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),

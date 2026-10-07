@@ -1,0 +1,67 @@
+# Minimal private registry for built images (single node, stored on a PVC). For production at scale
+# prefer Harbor (helm repo add harbor https://helm.goharbor.io) with S3/MinIO storage.
+# Create the htpasswd secret first (user "gereh"):
+#   htpasswd -Bbn gereh 'STRONG-PASSWORD' > htpasswd
+#   kubectl -n gereh-system create secret generic registry-auth --from-file=htpasswd
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: registry-data, namespace: gereh-system }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 200Gi } } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: registry, namespace: gereh-system }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: registry } }
+  template:
+    metadata: { labels: { app: registry } }
+    spec:
+      containers:
+        - name: registry
+          image: registry:2.8
+          env:
+            - { name: REGISTRY_AUTH, value: htpasswd }
+            - { name: REGISTRY_AUTH_HTPASSWD_REALM, value: gereh }
+            - { name: REGISTRY_AUTH_HTPASSWD_PATH, value: /auth/htpasswd }
+            - { name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true" }
+          ports: [{ containerPort: 5000 }]
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/registry }
+            - { name: auth, mountPath: /auth, readOnly: true }
+      volumes:
+        - { name: data, persistentVolumeClaim: { claimName: registry-data } }
+        - { name: auth, secret: { secretName: registry-auth } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: registry, namespace: gereh-system }
+spec: { selector: { app: registry }, ports: [{ port: 5000 }] }
+---
+# the registry must be reachable by the nodes (image pulls) and by Kaniko; expose it on the apps domain
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: registry
+  namespace: gereh-system
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    # its own Let's Encrypt certificate (HTTP-01), so it works before the wildcard is set up
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls: [{ hosts: [registry.gereh.app], secretName: registry-tls }]
+  rules:
+    - host: registry.gereh.app
+      http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: registry, port: { number: 5000 } } } }] }
+---
+# the registry is reached through the ingress, so the platform namespace must accept ingress traffic for it
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: registry-from-ingress, namespace: gereh-system }
+spec:
+  podSelector: { matchLabels: { app: registry } }
+  policyTypes: [Ingress]
+  ingress: [{ from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } } }] }]

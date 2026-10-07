@@ -16,8 +16,10 @@ const USER_NAV = [
   { href: "/panel", label: "داشبورد", icon: "layout-dashboard" },
   { href: "/panel/servers", label: "سرورهای ابری", icon: "server" },
   { href: "/panel/hosting", label: "هاست‌ها", icon: "layers" },
+  { href: "/panel/apps", label: "اپ‌ها", icon: "rocket" },
+  { href: "/panel/databases", label: "پایگاه داده", icon: "database" },
   { href: "/panel/domains", label: "دامنه‌ها", icon: "globe" },
-  { href: "/panel/devops", label: "خدمات دواپس", icon: "rocket" },
+  { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow" },
   { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet" },
   { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/panel/keys", label: "SSH و API", icon: "key-round" },
@@ -30,7 +32,8 @@ const ADMIN_NAV = [
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
   { href: "/admin/reports", label: "گزارش‌ها", icon: "chart-column" },
-  { href: "/admin/devops", label: "خدمات دواپس", icon: "rocket" },
+  { href: "/admin/paas", label: "گره اپ (PaaS)", icon: "rocket" },
+  { href: "/admin/devops", label: "خدمات دواپس", icon: "workflow" },
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/admin/chats", label: "گفتگوی آنلاین", icon: "headset" },
   { href: "/admin/products", label: "محصولات و قیمت", icon: "tag" },
@@ -69,7 +72,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;
