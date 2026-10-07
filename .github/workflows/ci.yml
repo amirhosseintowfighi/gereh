@@ -50,3 +50,11 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: go build ./...
+
+  deploy-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck -S warning deploy/install.sh deploy/gereh
+      - run: bash -n deploy/install.sh && bash -n deploy/gereh && bash deploy/install.sh --help >/dev/null

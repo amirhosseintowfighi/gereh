@@ -1,15 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Vazirmatn } from "next/font/google";
+import { preload } from "react-dom";
 import { MeshBackground } from "@/components/brand";
 import { JsonLd } from "@/components/json-ld";
 import { AppProvider } from "@/components/providers";
 import { orgLd, SITE_DESC, SITE_NAME, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
-// Only the Arabic-script subset is preloaded (it carries the first paint); the Latin subset and the
-// mono face are still declared via @font-face and fetched on demand when such glyphs appear.
-const vazirmatn = Vazirmatn({ subsets: ["arabic"], variable: "--font-vazirmatn", display: "swap" });
-const geistMono = Geist_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-geist-mono", display: "swap", preload: false });
+// Fonts are self-hosted (public/fonts, @font-face in globals.css). Only the Arabic-script subset is
+// preloaded (it carries the first paint); the Latin subsets and the mono face load on demand.
+const FONT_PRELOAD = "/fonts/vazirmatn-arabic.v5-3.woff2";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -37,8 +36,9 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  preload(FONT_PRELOAD, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   return (
-    <html lang="fa" dir="rtl" className={`${vazirmatn.variable} ${geistMono.variable}`}>
+    <html lang="fa" dir="rtl">
       <body className="font-sans min-h-screen">
         <a href="#main" className="sr-only-focusable fixed top-2 right-2 z-[100] rounded-xl bg-white text-slate-900 px-4 py-2 font-bold">رفتن به محتوای اصلی</a>
         <JsonLd data={[orgLd, { "@type": "WebSite", "@id": SITE_URL + "/#site", url: SITE_URL, name: SITE_NAME, inLanguage: "fa-IR", publisher: { "@id": orgLd["@id"] },

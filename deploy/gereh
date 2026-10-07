@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+# gereh — manage a Gereh installation created by deploy/install.sh
+#
+#   gereh status | logs [-f] | restart | stop | start
+#   gereh update [--ref <branch|tag|commit>]   build a new release, switch, roll back on failure
+#   gereh rollback                             switch back to the previous release
+#   gereh backup | restore <file.dump>         PostgreSQL + uploads backups
+#   gereh env                                  edit settings (/opt/gereh/shared/.env) and restart
+#   gereh ssl                                  (re)issue the Let's Encrypt certificate
+#   gereh version
+#
+# Settings live in /etc/gereh.conf (written by the installer).
+set -Eeuo pipefail
+
+CONF=/etc/gereh.conf
+[[ -r $CONF ]] || { echo "گره نصب نشده است ($CONF پیدا نشد)." >&2; exit 1; }
+# shellcheck source=/dev/null
+source "$CONF"
+: "${APP_DIR:=/opt/gereh}" "${APP_USER:=gereh}" "${PORT:=3000}" "${BRANCH:=main}" "${KEEP_RELEASES:=3}" "${BACKUP_DIR:=/var/backups/gereh}" "${BACKUP_KEEP_DAYS:=14}"
+SHARED=$APP_DIR/shared
+RELEASES=$APP_DIR/releases
+CURRENT=$APP_DIR/current
+SERVICE=gereh
+
+c_ok=$'\e[32m'; c_warn=$'\e[33m'; c_err=$'\e[31m'; c_dim=$'\e[2m'; c_off=$'\e[0m'
+[[ -t 1 ]] || { c_ok=; c_warn=; c_err=; c_dim=; c_off=; }
+say()  { printf '%s==>%s %s\n' "$c_ok" "$c_off" "$*" >&2; }
+warn() { printf '%s[هشدار]%s %s\n' "$c_warn" "$c_off" "$*" >&2; }
+die()  { printf '%s[خطا]%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
+need_root() { [[ $EUID -eq 0 ]] || die "این دستور را با sudo اجرا کنید."; }
+as_app() { runuser -u "$APP_USER" -- env HOME="$APP_DIR" npm_config_cache="$APP_DIR/.npm" "$@"; }
+
+db_url() { grep -E '^DATABASE_URL=' "$SHARED/.env" | head -1 | cut -d= -f2- | tr -d '"'"'"; }
+
+health() {
+  local tries=${1:-60}
+  for ((i = 0; i < tries; i++)); do
+    if curl -fs -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/api/state"; then return 0; fi
+    sleep 2
+  done
+  return 1
+}
+
+# ---------- source & build ----------
+fetch_source() { # $1 = destination, $2 = optional ref
+  local dest=$1 ref=${2:-$BRANCH}
+  if [[ -n ${SOURCE_DIR:-} ]]; then
+    [[ -f $SOURCE_DIR/package.json ]] || die "SOURCE_DIR=$SOURCE_DIR کد برنامه را ندارد."
+    if [[ -d $SOURCE_DIR/.git ]]; then
+      # root works on a checkout owned by someone else: mark it safe for this call only
+      local g=(git -c "safe.directory=$SOURCE_DIR" -C "$SOURCE_DIR")
+      if [[ -n ${2:-} ]]; then
+        say "دریافت $ref در $SOURCE_DIR"
+        "${g[@]}" fetch --quiet origin "$ref" && "${g[@]}" checkout --quiet FETCH_HEAD || die "دریافت $ref ناموفق بود."
+      elif "${g[@]}" symbolic-ref -q HEAD >/dev/null; then
+        say "دریافت آخرین تغییرات ($("${g[@]}" rev-parse --abbrev-ref HEAD))"
+        "${g[@]}" pull --quiet --ff-only || warn "git pull انجام نشد (تغییرات محلی یا شاخه واگرا)؛ همان کد فعلی ساخته می‌شود."
+      fi
+    fi
+    say "کپی کد از $SOURCE_DIR"
+    rsync -a --delete --exclude .git --exclude node_modules --exclude .next --exclude .data --exclude test-results --exclude playwright-report --exclude '.env*' --exclude integrations "$SOURCE_DIR/" "$dest/"
+    git -c "safe.directory=$SOURCE_DIR" -C "$SOURCE_DIR" rev-parse --short HEAD 2>/dev/null > "$dest/.release-commit" || echo local > "$dest/.release-commit"
+  else
+    [[ -n ${REPO:-} ]] || die "REPO در $CONF تنظیم نشده است."
+    local cache=$APP_DIR/repo
+    if [[ ! -d $cache/.git ]]; then
+      say "دریافت کد از مخزن"
+      git clone --quiet --depth 1 --branch "$BRANCH" "$REPO" "$cache" || die "دریافت مخزن ناموفق بود. اگر مخزن خصوصی است، REPO را با توکن یا کلید deploy تنظیم کنید (راهنما: deploy/README.md)."
+    fi
+    say "به‌روزرسانی کد ($ref)"
+    git -C "$cache" remote set-url origin "$REPO"
+    git -C "$cache" fetch --quiet --depth 1 origin "$ref" || die "شاخه یا نسخه $ref پیدا نشد."
+    git -C "$cache" checkout --quiet -f FETCH_HEAD
+    rsync -a --delete --exclude .git --exclude integrations "$cache/" "$dest/"
+    git -C "$cache" rev-parse --short HEAD > "$dest/.release-commit"
+  fi
+}
+
+build_release() { # prints the new release path on success
+  local ref=${1:-} ts rel
+  ts=$(date +%Y%m%d-%H%M%S)
+  rel=$RELEASES/$ts
+  mkdir -p "$rel"
+  fetch_source "$rel" "$ref"
+  ln -sfn "$SHARED/.env" "$rel/.env.production.local"
+  chown -R "$APP_USER:$APP_USER" "$rel"
+  say "نصب وابستگی‌ها (npm ci)"
+  local npm_env=(PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 NEXT_TELEMETRY_DISABLED=1 HUSKY=0 CI=1)
+  [[ -n ${NPM_REGISTRY:-} ]] && npm_env+=("npm_config_registry=$NPM_REGISTRY")
+  if ! (cd "$rel" && as_app "${npm_env[@]}" npm ci --no-audit --no-fund --loglevel=error) >"$rel/.install.log" 2>&1; then
+    tail -30 "$rel/.install.log" >&2; rm -rf "$rel"; die "نصب وابستگی‌ها ناموفق بود (اگر دسترسی به registry.npmjs.org کند است، NPM_REGISTRY را در $CONF تنظیم کنید)."
+  fi
+  say "ساخت نسخه production (چند دقیقه طول می‌کشد)"
+  if ! (cd "$rel" && as_app "${npm_env[@]}" NODE_OPTIONS=--max-old-space-size=3072 npm run build) >"$rel/.build.log" 2>&1; then
+    tail -40 "$rel/.build.log" >&2; rm -rf "$rel"; die "ساخت برنامه ناموفق بود؛ نسخه فعلی تغییری نکرد."
+  fi
+  echo "$rel"
+}
+
+switch_to() { # atomic symlink swap, then restart
+  ln -sfn "$1" "$CURRENT.tmp" && mv -Tf "$CURRENT.tmp" "$CURRENT"
+  systemctl restart "$SERVICE"
+}
+
+prune_releases() {
+  local keep=$KEEP_RELEASES cur
+  cur=""
+  [[ -L $CURRENT ]] && cur=$(readlink -f "$CURRENT")
+  mapfile -t all < <(ls -1d "$RELEASES"/*/ 2>/dev/null | sed 's#/$##' | sort -r)
+  local n=0
+  for r in "${all[@]}"; do
+    n=$((n + 1))
+    [[ $r == "$cur" ]] && continue
+    ((n > keep)) && rm -rf "$r"
+  done
+  return 0
+}
+
+cmd_deploy() { # first release (installer) and updates
+  need_root
+  local ref="" prev new
+  while [[ $# -gt 0 ]]; do case $1 in --ref) ref=$2; shift 2 ;; *) die "گزینه ناشناخته: $1" ;; esac; done
+  prev=""
+  [[ -L $CURRENT ]] && prev=$(readlink -f "$CURRENT")
+  [[ -n $prev ]] && { say "پشتیبان‌گیری پیش از به‌روزرسانی"; cmd_backup >/dev/null || warn "پشتیبان‌گیری ناموفق بود؛ ادامه می‌دهیم."; }
+  new=$(build_release "$ref")
+  say "جابه‌جایی به نسخه جدید و راه‌اندازی مجدد"
+  switch_to "$new"
+  if health 60; then
+    prune_releases
+    say "نسخه $(cat "$new/.release-commit" 2>/dev/null) فعال شد."
+  else
+    journalctl -u "$SERVICE" -n 40 --no-pager >&2 || true
+    if [[ -n $prev && -d $prev ]]; then
+      warn "نسخه جدید بالا نیامد؛ بازگشت خودکار به نسخه قبل."
+      switch_to "$prev"; health 60 || true
+      rm -rf "$new"
+      die "به‌روزرسانی برگشت داده شد. لاگ بالا را بررسی کنید."
+    fi
+    die "برنامه بالا نیامد. با «gereh logs» خطا را ببینید."
+  fi
+}
+
+cmd_rollback() {
+  need_root
+  local cur prev
+  cur=$(readlink -f "$CURRENT")
+  prev=$(ls -1d "$RELEASES"/*/ | sed 's#/$##' | sort -r | awk -v c="$cur" 'f{print; exit} $0==c{f=1}')
+  [[ -n $prev ]] || die "نسخه قبلی برای بازگشت وجود ندارد."
+  warn "تغییرات پایگاه داده (migration) برگشت داده نمی‌شوند؛ اگر لازم است، با «gereh restore» پشتیبان پیش از به‌روزرسانی را برگردانید."
+  switch_to "$prev"
+  health 60 && say "بازگشت به $(basename "$prev") انجام شد." || die "برنامه بالا نیامد؛ «gereh logs» را ببینید."
+}
+
+# ---------- backups ----------
+cmd_backup() {
+  need_root
+  mkdir -p "$BACKUP_DIR"; chmod 700 "$BACKUP_DIR"
+  local ts file
+  ts=$(date +%Y%m%d-%H%M%S)
+  file=$BACKUP_DIR/gereh-$ts.dump
+  runuser -u postgres -- pg_dump -Fc "$(db_url | sed -E 's#.*/([^/?]+).*#\1#')" > "$file"
+  tar -C "$SHARED" -czf "$BACKUP_DIR/gereh-files-$ts.tar.gz" .env kyc 2>/dev/null || true
+  chmod 600 "$BACKUP_DIR"/gereh-*"$ts"*
+  find "$BACKUP_DIR" -name 'gereh-*' -type f -mtime +"$BACKUP_KEEP_DAYS" -delete
+  say "پشتیبان: $file"
+  echo "$file"
+}
+
+cmd_restore() {
+  need_root
+  local file=${1:-}
+  [[ -f $file ]] || die "فایل پشتیبان را بدهید: gereh restore $BACKUP_DIR/gereh-YYYYmmdd-HHMMSS.dump"
+  local db; db=$(db_url | sed -E 's#.*/([^/?]+).*#\1#')
+  read -r -p "پایگاه داده $db با $file جایگزین می‌شود. ادامه؟ (yes/no) " ok
+  [[ $ok == yes ]] || die "لغو شد."
+  systemctl stop "$SERVICE"
+  # the dump is root-only (600), so hand it to pg_restore on stdin
+  runuser -u postgres -- pg_restore --clean --if-exists --no-owner --role="$APP_USER" -d "$db" < "$file" || warn "pg_restore پیام خطا داد؛ خروجی بالا را بررسی کنید."
+  systemctl start "$SERVICE"
+  health 60 && say "بازیابی انجام شد." || die "برنامه بالا نیامد؛ «gereh logs» را ببینید."
+}
+
+cmd_ssl() {
+  need_root
+  [[ -n ${DOMAIN:-} ]] || die "دامنه‌ای تنظیم نشده است (DOMAIN در $CONF)."
+  local names=(-d "$DOMAIN")
+  [[ ${WWW:-0} == 1 ]] && names+=(-d "www.$DOMAIN")
+  certbot --nginx "${names[@]}" --non-interactive --agree-tos -m "${SSL_EMAIL:?SSL_EMAIL در $CONF تنظیم نشده}" --redirect --keep-until-expiring
+  sed -i -E 's#^COOKIE_SECURE=0#COOKIE_SECURE=1#; s#^NEXT_PUBLIC_SITE_URL=http://#NEXT_PUBLIC_SITE_URL=https://#' "$SHARED/.env"
+  say "گواهی SSL فعال شد. اگر برنامه پیش‌تر با http ساخته شده، برای اعمال نشانی https: gereh update"
+}
+
+cmd_env() {
+  need_root
+  "${EDITOR:-nano}" "$SHARED/.env"
+  systemctl restart "$SERVICE"
+  health 60 && say "تنظیمات اعمال شد. (تغییر NEXT_PUBLIC_* نیاز به «gereh update» دارد.)" || die "برنامه بالا نیامد؛ «gereh logs» را ببینید."
+}
+
+cmd_status() {
+  systemctl --no-pager status "$SERVICE" | head -5 || true
+  echo "${c_dim}نسخه:${c_off} $(basename "$(readlink -f "$CURRENT")") ($(cat "$CURRENT/.release-commit" 2>/dev/null || echo ?))"
+  if health 1; then echo "${c_ok}برنامه پاسخ می‌دهد${c_off} (127.0.0.1:$PORT)"; else echo "${c_err}برنامه پاسخ نمی‌دهد${c_off}"; fi
+  echo "${c_dim}نسخه‌های موجود:${c_off}"; ls -1 "$RELEASES"
+  echo "${c_dim}آخرین پشتیبان:${c_off} $(ls -1t "$BACKUP_DIR"/gereh-*.dump 2>/dev/null | head -1 || echo —)"
+}
+
+case ${1:-help} in
+  deploy|update) shift; cmd_deploy "$@" ;;
+  rollback) cmd_rollback ;;
+  backup) cmd_backup >/dev/null ;;
+  restore) shift; cmd_restore "$@" ;;
+  ssl) cmd_ssl ;;
+  env) cmd_env ;;
+  status) cmd_status ;;
+  logs) shift; journalctl -u "$SERVICE" --no-pager -n 200 "$@" ;;
+  restart|stop|start) need_root; systemctl "$1" "$SERVICE"; [[ $1 == stop ]] || { health 60 && say "انجام شد."; } ;;
+  version) cat "$CURRENT/.release-commit" 2>/dev/null || echo unknown ;;
+  help|-h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) die "دستور ناشناخته: $1 (gereh help)" ;;
+esac

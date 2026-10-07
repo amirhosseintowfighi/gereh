@@ -19,7 +19,9 @@ Demo logins use the password `Demo1234!`:
 | `admin@gereh.cloud` | Staff, owner role |
 | `kaveh@gereh.cloud` / `shima@gereh.cloud` | Staff with the support / finance roles |
 
-For production, copy `.env.example` to `.env` and set at least `DATABASE_URL`, `APP_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Any integration without credentials falls back to a simulator: Virtualizor, Zarinpal/IDPay, Kavenegar SMS, SMTP, WHM/cPanel, PowerDNS and ResellerClub. Payments use a test gateway, which is disabled in production. Messages go to an in-memory outbox.
+**Server install:** on a fresh Ubuntu/Debian server run `sudo bash deploy/install.sh`. It sets up Node.js, PostgreSQL, a systemd service, Nginx, SSL, the firewall and daily backups, and installs the `gereh` command for updates with automatic rollback, backups and restores. See [`deploy/README.md`](deploy/README.md).
+
+To configure manually instead, copy `.env.example` to `.env` and set at least `DATABASE_URL`, `APP_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Any integration without credentials falls back to a simulator: Virtualizor, Zarinpal/IDPay, Kavenegar SMS, SMTP, WHM/cPanel, PowerDNS and ResellerClub. Payments use a test gateway, which is disabled in production. Messages go to an in-memory outbox.
 
 | Script | What it does |
 |---|---|

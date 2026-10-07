@@ -23,10 +23,13 @@ export type Auth = {
   teamRole?: "admin" | "tech" | "billing";
 };
 
+/** Secure cookies in production; COOKIE_SECURE=0 only for a site served over plain HTTP (no domain/SSL yet) */
+const secureCookie = () => process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE !== "0" : process.env.NODE_ENV === "production";
+
 export async function createSession(db: DB, userId: string, meta: { ip: string; device: string }) {
   const token = randomBytes(32).toString("base64url");
   await db.insert(sessions).values({ id: sha256(token), userId, ip: meta.ip, device: meta.device, expiresAt: new Date(Date.now() + TTL_MS) });
-  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: TTL_MS / 1000 });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secureCookie(), path: "/", maxAge: TTL_MS / 1000 });
 }
 
 export async function destroySession(db: DB) {
