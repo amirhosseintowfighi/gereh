@@ -7,6 +7,7 @@
 #   gereh backup | restore <file.dump>         PostgreSQL + uploads backups
 #   gereh env                                  edit settings (/opt/gereh/shared/.env) and restart
 #   gereh ssl                                  (re)issue the Let's Encrypt certificate
+#   gereh doctor                               diagnose a site that does not load correctly
 #   gereh version
 #
 # Settings live in /etc/gereh.conf (written by the installer).
@@ -97,6 +98,19 @@ build_release() { # prints the new release path on success
   echo "$rel"
 }
 
+# Pages already open in a browser, or cached by a CDN, still reference the previous build's
+# CSS/JS. Keep the previous release's own files next to the new ones (one release back only,
+# so the folder does not grow forever).
+carry_static() { # $1 = previous release (may be empty), $2 = new release
+  local prev=$1 new=$2
+  (cd "$new/.next/static" && find . -type f) > "$new/.next/static-own.txt"
+  [[ -n $prev && -d $prev/.next/static ]] || return 0
+  local list=()
+  [[ -f $prev/.next/static-own.txt ]] && list=(--files-from="$prev/.next/static-own.txt")  # older releases: copy everything once
+  (cd "$prev/.next/static" && rsync -a --ignore-existing "${list[@]}" . "$new/.next/static/") || warn "کپی فایل‌های نسخه قبل انجام نشد."
+  chown -R "$APP_USER:$APP_USER" "$new/.next/static"
+}
+
 switch_to() { # atomic symlink swap, then restart
   ln -sfn "$1" "$CURRENT.tmp" && mv -Tf "$CURRENT.tmp" "$CURRENT"
   systemctl restart "$SERVICE"
@@ -124,6 +138,7 @@ cmd_deploy() { # first release (installer) and updates
   [[ -L $CURRENT ]] && prev=$(readlink -f "$CURRENT")
   [[ -n $prev ]] && { say "پشتیبان‌گیری پیش از به‌روزرسانی"; cmd_backup >/dev/null || warn "پشتیبان‌گیری ناموفق بود؛ ادامه می‌دهیم."; }
   new=$(build_release "$ref")
+  carry_static "$prev" "$new"
   say "جابه‌جایی به نسخه جدید و راه‌اندازی مجدد"
   switch_to "$new"
   if health 60; then
@@ -206,6 +221,61 @@ cmd_status() {
   echo "${c_dim}آخرین پشتیبان:${c_off} $(ls -1t "$BACKUP_DIR"/gereh-*.dump 2>/dev/null | head -1 || echo —)"
 }
 
+
+# ---------- diagnostics ----------
+cmd_doctor() {
+  local ok="${c_ok}✓${c_off}" bad="${c_err}✗${c_off}" mid="${c_warn}!${c_off}" host=${DOMAIN:-127.0.0.1}
+  echo "گره — عیب‌یابی ($(date '+%F %T'))"
+  systemctl is-active --quiet "$SERVICE" 2>/dev/null && echo "$ok سرویس gereh فعال است" || echo "$bad سرویس gereh فعال نیست — sudo gereh logs"
+  health 1 && echo "$ok برنامه و پایگاه داده پاسخ می‌دهند (127.0.0.1:$PORT)" || echo "$bad برنامه روی 127.0.0.1:$PORT پاسخ نمی‌دهد"
+  systemctl is-active --quiet nginx 2>/dev/null && echo "$ok Nginx فعال است" || echo "$bad Nginx فعال نیست"
+  nginx -t >/dev/null 2>&1 && echo "$ok پیکربندی Nginx سالم است" || echo "$bad پیکربندی Nginx خطا دارد: sudo nginx -t"
+
+  # the page as Nginx serves it on this machine, and every CSS/JS file it references
+  local html assets a code ctype miss=0
+  html=$(curl -fs --max-time 15 -H "Host: $host" http://127.0.0.1/ || true)
+  if [[ -z $html ]]; then echo "$bad صفحه اصلی از طریق Nginx باز نشد"; else
+    echo "$ok صفحه اصلی از طریق Nginx باز شد"
+    mapfile -t assets < <(grep -oE '/_next/static/[^"'"'"' ]+\.(css|js)' <<<"$html" | sort -u)
+    for a in "${assets[@]}"; do
+      read -r code ctype < <(curl -s -o /dev/null --max-time 15 -w '%{http_code} %{content_type}\n' -H "Host: $host" "http://127.0.0.1$a")
+      [[ $code == 200 ]] || { miss=$((miss + 1)); echo "$bad $a → $code"; }
+      [[ $code == 200 && $a == *.css && $ctype != text/css* ]] && echo "$bad $a نوع نادرست دارد: $ctype"
+    done
+    ((miss == 0)) && echo "$ok همه ${#assets[@]} فایل CSS/JS صفحه در دسترس‌اند"
+    curl -sI --max-time 15 -H "Host: $host" http://127.0.0.1/ | grep -qi 'cache-control:.*s-maxage=31536000' &&
+      echo "$mid Nginx هنوز کش یک‌ساله صفحه‌ها را عبور می‌دهد؛ برای پیکربندی جدید، اسکریپت نصب را دوباره اجرا کنید"
+  fi
+
+  # the same page as the outside world sees it (DNS, CDN, other proxies)
+  if [[ -n ${DOMAIN:-} ]]; then
+    local ip dns pub hdr scheme
+    ip=$(curl -fs --max-time 8 https://api.ipify.org || curl -fs --max-time 8 https://ifconfig.me || true)
+    dns=$(getent ahostsv4 "$DOMAIN" | awk '{print $1; exit}')
+    if [[ -z $dns ]]; then echo "$bad دامنه $DOMAIN رکورد A ندارد"
+    elif [[ -n $ip && $dns != "$ip" ]]; then echo "$mid $DOMAIN به $dns اشاره می‌کند، نه IP این سرور ($ip) — اگر CDN (مثل ابرآروان یا Cloudflare) جلوی سایت است طبیعی است"
+    else echo "$ok DNS دامنه به همین سرور اشاره می‌کند ($dns)"; fi
+    scheme=$(grep -E '^NEXT_PUBLIC_SITE_URL=' "$SHARED/.env" | sed -E 's#^[^=]+=(https?)://.*#\1#')
+    hdr=$(curl -sI --max-time 15 "${scheme:-http}://$DOMAIN/" || true)
+    grep -qiE '^server: *(cloudflare|arvancloud)|^(cf-cache-status|ar-cache|x-cache):' <<<"$hdr" && echo "$mid یک CDN جلوی سایت است ($(grep -iE '^(server: *(cloudflare|arvancloud)|cf-cache-status|ar-cache|x-cache)' <<<"$hdr" | head -1 | tr -d '\r'))"
+    pub=$(curl -fs --max-time 15 "${scheme:-http}://$DOMAIN/" || true)
+    if [[ -n $pub && -n $html ]]; then
+      local p1 p2
+      p1=$(grep -oE '/_next/static/[^"]+\.css' <<<"$html" | sort -u | head -1)
+      p2=$(grep -oE '/_next/static/[^"]+\.css' <<<"$pub" | sort -u | head -1)
+      if [[ $p1 == "$p2" ]]; then echo "$ok نسخه‌ای که بیرون دیده می‌شود با سرور یکی است"
+      else echo "$bad صفحه‌ای که از بیرون دیده می‌شود قدیمی است (CSS آن: ${p2:-ندارد})؛ کش CDN یا پروکسی را پاک (purge) کنید"; fi
+    elif [[ -z $pub ]]; then echo "$mid دریافت ${scheme:-http}://$DOMAIN از روی خود سرور ممکن نشد"; fi
+  fi
+
+  local disk mem
+  disk=$(df -h --output=avail "$APP_DIR" | tail -1 | tr -d ' ')
+  mem=$(free -m | awk '/Mem:/ {print $7}')
+  echo "  فضای خالی: $disk — حافظه آزاد: ${mem}MB — نسخه: $(cat "$CURRENT/.release-commit" 2>/dev/null || echo ?)"
+  echo "  آخرین خطاهای برنامه:"
+  journalctl -u "$SERVICE" --since "-2h" --no-pager -p warning -n 8 2>/dev/null | sed 's/^/    /' || true
+}
+
 case ${1:-help} in
   deploy|update) shift; cmd_deploy "$@" ;;
   rollback) cmd_rollback ;;
@@ -214,9 +284,10 @@ case ${1:-help} in
   ssl) cmd_ssl ;;
   env) cmd_env ;;
   status) cmd_status ;;
+  doctor) cmd_doctor ;;
   logs) shift; journalctl -u "$SERVICE" --no-pager -n 200 "$@" ;;
   restart|stop|start) need_root; systemctl "$1" "$SERVICE"; [[ $1 == stop ]] || { health 60 && say "انجام شد."; } ;;
   version) cat "$CURRENT/.release-commit" 2>/dev/null || echo unknown ;;
-  help|-h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+  help|-h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "دستور ناشناخته: $1 (gereh help)" ;;
 esac
