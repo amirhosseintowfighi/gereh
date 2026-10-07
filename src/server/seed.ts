@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS = {
   siteName: "گره", supportEmail: "support@gereh.cloud", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10,
   gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false } as Record<string, boolean>,
   smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.cloud", smtpPort: 587,
+  /** % of a referred customer's paid invoices credited to the referrer during their first year */
+  affiliateRate: 10,
 };
 export const DEFAULT_VIRT = { host: "panel.gereh.cloud", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 

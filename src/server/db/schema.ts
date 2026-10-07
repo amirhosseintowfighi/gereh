@@ -24,6 +24,8 @@ export const users = pgTable("users", {
   notifPrefs: jsonb("notif_prefs").$type<Record<string, boolean>>().notNull().default({}),
   referralCode: text("referral_code").notNull(),
   referredBy: text("referred_by"),
+  /** pay renewal invoices from the wallet automatically */
+  autoPay: boolean("auto_pay").notNull().default(true),
   virtUid: integer("virt_uid"),
   createdAt: created(),
 }, (t) => [uniqueIndex("users_email_uq").on(sql`lower(${t.email})`), uniqueIndex("users_ref_uq").on(t.referralCode), index("users_phone_ix").on(t.phone)]);
@@ -74,8 +76,11 @@ export const servers = pgTable("servers", {
   app: text("app").notNull().default(""),
   alerts: jsonb("alerts").$type<{ cpu: number; bw: number }>().notNull().default({ cpu: 0, bw: 0 }),
   paidUntil: ts("paid_until"),
+  /** "<invoice>:<line>" that created it — makes provisioning idempotent */
+  orderRef: text("order_ref"),
+  suspendedAt: ts("suspended_at"),
   createdAt: created(),
-}, (t) => [index("servers_user_ix").on(t.userId), uniqueIndex("servers_vpsid_uq").on(t.vpsid)]);
+}, (t) => [index("servers_user_ix").on(t.userId), uniqueIndex("servers_vpsid_uq").on(t.vpsid), uniqueIndex("servers_order_uq").on(t.orderRef)]);
 
 export const firewallRules = pgTable("firewall_rules", {
   id: text("id").primaryKey(),
@@ -119,8 +124,9 @@ export const hosting = pgTable("hosting", {
   panel: text("panel").notNull().default("cPanel"), server: text("server").notNull().default(""),
   username: text("username").notNull().default(""),
   autoRenew: boolean("auto_renew").notNull().default(true),
+  orderRef: text("order_ref"),
   createdAt: created(),
-}, (t) => [index("hosting_user_ix").on(t.userId)]);
+}, (t) => [index("hosting_user_ix").on(t.userId), uniqueIndex("hosting_order_uq").on(t.orderRef)]);
 
 export const domains = pgTable("domains", {
   id: text("id").primaryKey(),
@@ -131,6 +137,7 @@ export const domains = pgTable("domains", {
   status: text("status").notNull().default("active"),
   ns: text("ns").array().notNull(),
   authCode: text("auth_code").notNull().default(""),
+  orderRef: text("order_ref"),
 }, (t) => [uniqueIndex("domains_name_uq").on(t.name), index("domains_user_ix").on(t.userId)]);
 
 export const dnsRecords = pgTable("dns_records", {
@@ -309,3 +316,15 @@ export const jobs = pgTable("jobs", {
 
 /** monotonically increasing counters for human ids (INV-14231, TK-3101…) */
 export const counters = pgTable("counters", { name: text("name").primaryKey(), value: integer("value").notNull() });
+
+/** periodic jobs: a worker claims a run by moving next_run_at forward atomically */
+export const schedules = pgTable("schedules", { name: text("name").primaryKey(), nextRunAt: ts("next_run_at").notNull() });
+
+/** latest hypervisor readings (5-minute samples, kept 8 days) */
+export const usageSamples = pgTable("usage_samples", {
+  id: serial("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  cpu: real("cpu").notNull(), ram: real("ram").notNull(), disk: real("disk").notNull(),
+  netIn: real("net_in").notNull(), netOut: real("net_out").notNull(), bwUsed: real("bw_used").notNull(),
+  createdAt: created(),
+}, (t) => [index("usage_server_time_ix").on(t.serverId, t.createdAt)]);

@@ -36,6 +36,7 @@ export type Session = { userId: string; role: Role; name: string; actorId?: stri
 export type Settings = {
   siteName: string; supportEmail: string; supportPhone: string; registration: boolean; maintenance: boolean; tax: number;
   gateways: Record<string, boolean>; smsProvider: string; smsKeySet: boolean; smtpHost: string; smtpPort: number;
+  affiliateRate: number;
   /** label of the gateway that will actually take online payments ("" = none available) */
   payGateway?: string;
 };

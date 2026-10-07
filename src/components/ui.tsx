@@ -19,7 +19,7 @@ export const STATUS: Record<string, [Tone, string]> = {
   running: ["green", "روشن"], stopped: ["gray", "خاموش"], suspended: ["red", "معلق"], active: ["green", "فعال"], pending: ["amber", "در انتظار"],
   expiring: ["amber", "رو به انقضا"], expired: ["red", "منقضی"], paid: ["green", "پرداخت‌شده"], unpaid: ["amber", "پرداخت‌نشده"], overdue: ["red", "سررسید گذشته"],
   refunded: ["gray", "مسترد"], open: ["blue", "باز"], answered: ["green", "پاسخ داده شد"], "customer-reply": ["amber", "پاسخ مشتری"], closed: ["gray", "بسته"],
-  online: ["green", "آنلاین"], maintenance: ["amber", "در حال نگهداری"], verified: ["green", "تأییدشده"], none: ["gray", "انجام نشده"],
+  online: ["green", "آنلاین"], building: ["blue", "در حال ساخت"], maintenance: ["amber", "در حال نگهداری"], verified: ["green", "تأییدشده"], none: ["gray", "انجام نشده"],
   high: ["red", "فوری"], normal: ["blue", "معمولی"], low: ["gray", "کم"],
   topup: ["green", "شارژ"], payment: ["gray", "پرداخت"], refund: ["blue", "بازگشت وجه"],
 };

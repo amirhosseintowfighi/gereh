@@ -51,7 +51,20 @@ export async function settleInvoice(tx: Tx, invoiceId: string, method: string, o
   await tx.insert(transactions).values({ id: rid("TX"), userId: inv!.userId, type: "payment", amount: -gross, method, desc: "پرداخت " + invoiceId });
   await logActivity(tx, inv!.userId, "circle-check", "پرداخت صورتحساب " + invoiceId);
   await fulfil(tx, inv!.userId, invoiceId, (inv!.fulfil || []) as FulfilItem[]);
+  await payCommission(tx, inv!.userId, invoiceId, items.reduce((s, i) => s + i.amount, 0));
   await enqueue(tx, "notify.send", { userId: inv!.userId, kind: "billing", subject: "پرداخت " + invoiceId, text: "پرداخت صورتحساب " + invoiceId + " به مبلغ " + gross.toLocaleString("fa-IR") + " تومان ثبت شد." });
+}
+
+/** referral programme: the referrer earns affiliateRate % of the net invoice during the customer's first year */
+async function payCommission(tx: Tx, userId: string, invoiceId: string, net: number) {
+  const [u] = await tx.select({ referredBy: users.referredBy, createdAt: users.createdAt }).from(users).where(eq(users.id, userId));
+  if (!u?.referredBy || Date.now() - u.createdAt.getTime() > 365 * 86400_000) return;
+  const rate = (await getSettings(tx as unknown as DB)).affiliateRate ?? 0;
+  const amount = Math.floor((net * rate) / 100 / 1000) * 1000;
+  if (amount <= 0) return;
+  await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, u.referredBy));
+  await tx.insert(transactions).values({ id: rid("TX"), userId: u.referredBy, type: "commission", amount, method: "کیف پول", desc: "پورسانت معرفی (" + invoiceId + ")" });
+  await notify(tx, u.referredBy, "gift", "پورسانت معرفی " + amount.toLocaleString("fa-IR") + " تومان به کیف پول شما اضافه شد");
 }
 
 const amount = z.number().int().safe();

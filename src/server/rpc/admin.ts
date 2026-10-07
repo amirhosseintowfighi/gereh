@@ -205,6 +205,7 @@ export const adminRpc = {
     registration: z.boolean().optional(), maintenance: z.boolean().optional(), tax: z.number().int().min(0).max(100).optional(),
     gateways: z.record(z.string(), z.boolean()).optional(), smsProvider: z.string().max(40).optional(), smsKey: z.string().max(200).optional(),
     smtpHost: z.string().max(253).optional(), smtpPort: z.number().int().min(1).max(65535).optional(), smsKeySet: z.boolean().optional(),
+    affiliateRate: z.number().int().min(0).max(50).optional(),
   })]), async (ctx, [patch]) => {
     needStaff(ctx, patch.tax !== undefined || patch.gateways ? "billing" : "settings");
     if (patch.supportEmail !== undefined && !EMAIL_RE.test(patch.supportEmail)) fail("ایمیل پشتیبانی معتبر نیست.");
