@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
-import { fa, hashStr, toman } from "@/lib/format";
+import { fa, hashStr, toEnDigits, toman } from "@/lib/format";
 import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs, prefersReducedMotion } from "../ui-client";
+import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs } from "../ui-client";
 
 const TABS = [
   { id: "overview", label: "نمای کلی", icon: "gauge" }, { id: "traffic", label: "ترافیک", icon: "activity" }, { id: "console", label: "کنسول VNC", icon: "monitor-smartphone" },
@@ -59,31 +59,43 @@ export function ServerDetail({ id }: { id: string }) {
   );
 }
 
-/* ponytail: demo metrics. Replace with GET /servers/:id/metrics (usage_daily + Redis live). */
-function LiveMetric({ label, icon, base, unit, max = 100, seed }: { label: string; icon: string; base: number; unit: string; max?: number; seed: string }) {
-  const [vals, setVals] = useState(() => Array.from({ length: 40 }, (_, i) => Math.max(0, base + Math.sin(i / 4) * base * 0.25 + ((hashStr(seed + i) % 100) / 100) * base * 0.2)));
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    const t = setInterval(() => setVals((v) => [...v.slice(1), Math.max(base ? 1 : 0, Math.min(max, v[v.length - 1] + (Math.random() - 0.5) * base * 0.35))]), 1500);
-    return () => clearInterval(t);
-  }, [base, max]);
-  const cur = vals[vals.length - 1];
+/** real hypervisor samples (5-minute resolution, last 4 hours) collected by the worker */
+function Metric({ label, icon, values, unit }: { label: string; icon: string; values: number[]; unit: string }) {
+  const cur = values.at(-1);
   return (
     <Card pad="p-5">
-      <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
-      <AreaChart data={vals} height={90} unit={unit} />
+      <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{cur === undefined ? "—" : fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
+      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/45 text-center leading-6">نمونه‌برداری هر ۵ دقیقه انجام می‌شود؛<br />نمودار به‌زودی پر می‌شود.</div>}
+    </Card>
+  );
+}
+
+function AlertsCard({ s }: { s: Server }) {
+  const { notify } = useApp();
+  const [cpu, setCpu] = useState(String(s.alerts.cpu || ""));
+  const [bw, setBw] = useState(String(s.alerts.bw || ""));
+  const num = (v: string) => Math.min(100, Math.max(0, +toEnDigits(v).replace(/\D/g, "") || 0));
+  return (
+    <Card title="هشدار مصرف" icon="bell-ring">
+      <p className="text-xs text-white/55 leading-6 mb-4">با عبور از این آستانه‌ها، اعلان و طبق تنظیمات حساب، ایمیل یا پیامک می‌گیرید. خالی یعنی خاموش.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="CPU بالای (٪) به مدت ۱۵ دقیقه"><input value={cpu} onChange={(e) => setCpu(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلا 90" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="ترافیک ماهانه بالای (٪ سهمیه)"><input value={bw} onChange={(e) => setBw(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلا 80" className={INPUT + " text-left tabular"} /></Field>
+      </div>
+      <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { await api.servers.setAlerts(s.id, { cpu: num(cpu), bw: num(bw) }); notify("هشدارها ذخیره شد", "bell-ring"); }}>ذخیره</AsyncButton></div>
     </Card>
   );
 }
 
 function Overview({ s }: { s: Server }) {
-  const on = s.status === "running";
+  const u = s.usage;
+  const last = u.at(-1);
   return <>
     <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <LiveMetric seed={s.id + "c"} label="پردازنده" icon="cpu" base={on ? 24 : 0} unit="٪" />
-      <LiveMetric seed={s.id + "r"} label="حافظه" icon="memory-stick" base={on ? 46 : 0} unit="٪" />
-      <LiveMetric seed={s.id + "n"} label="ورودی شبکه" icon="arrow-down-up" base={on ? 140 : 0} unit="Mb/s" max={1000} />
-      <LiveMetric seed={s.id + "d"} label="I/O دیسک" icon="hard-drive" base={on ? 320 : 0} unit="IOPS" max={5000} />
+      <Metric label="پردازنده" icon="cpu" values={u.map((x) => x.cpu)} unit="٪" />
+      <Metric label="حافظه" icon="memory-stick" values={u.map((x) => x.ram)} unit="٪" />
+      <Metric label="ورودی شبکه" icon="arrow-down-up" values={u.map((x) => x.netIn)} unit="Mb/s" />
+      <Metric label="خروجی شبکه" icon="arrow-down-up" values={u.map((x) => x.netOut)} unit="Mb/s" />
     </div>
     <div className="grid lg:grid-cols-2 gap-4 mt-4">
       <Card title="مشخصات" icon="cpu">
@@ -93,12 +105,13 @@ function Overview({ s }: { s: Server }) {
       </Card>
       <Card title="مصرف منابع" icon="gauge">
         <div className="space-y-5">
-          <Meter label="فضای دیسک" value={Math.round(s.disk * 0.24)} max={s.disk} right={fa(Math.round(s.disk * 0.24)) + " از " + fa(s.disk) + " گیگ"} />
-          <Meter label="ترافیک ماهانه" value={1400} max={s.bwLimit} right={fa(1400) + " از " + fa(s.bwLimit) + " گیگ"} />
+          {last ? <Meter label="فضای دیسک" value={last.disk} right={fa(Math.round(last.disk)) + "٪ از " + fa(s.disk) + " گیگ"} /> : <Meter label="فضای دیسک" value={0} right={"— از " + fa(s.disk) + " گیگ"} />}
+          <Meter label="ترافیک ماهانه" value={last?.bwUsed ?? 0} max={s.bwLimit} right={fa(Math.round(last?.bwUsed ?? 0)) + " از " + fa(s.bwLimit) + " گیگ"} />
           <Meter label="اسنپ‌شات‌ها" value={s.snapshots.length} max={SNAP_LIMIT} right={fa(s.snapshots.length) + " از " + fa(SNAP_LIMIT)} />
         </div>
       </Card>
     </div>
+    <div className="mt-4"><AlertsCard s={s} /></div>
   </>;
 }
 

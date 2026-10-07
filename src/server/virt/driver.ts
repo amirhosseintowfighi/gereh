@@ -44,7 +44,10 @@ export class SimulatorDriver implements VirtDriver {
   }
   async buildDone() { return true; }
   async status(vpsids: number[]) {
-    return vpsids.map((vpsid) => ({ vpsid, status: "running" as const, cpu: 10 + (vpsid % 40), ram: 30 + (vpsid % 50), disk: 20 + (vpsid % 30), netIn: 5 + (vpsid % 50), netOut: 20 + (vpsid % 90), bwUsed: 400 + (vpsid % 900), bwLimit: 2000 }));
+    // smooth, deterministic-per-VPS waves so charts look like real load in demos
+    const t = Date.now() / 600_000;
+    const w = (vpsid: number, base: number, amp: number, k: number) => Math.max(0, Math.round((base + amp * Math.sin(t + vpsid * k)) * 10) / 10);
+    return vpsids.map((vpsid) => ({ vpsid, status: "running" as const, cpu: w(vpsid, 10 + (vpsid % 40), 8, 0.7), ram: w(vpsid, 30 + (vpsid % 50), 5, 1.3), disk: 20 + (vpsid % 30), netIn: w(vpsid, 5 + (vpsid % 50), 4, 2.1), netOut: w(vpsid, 20 + (vpsid % 90), 15, 0.4), bwUsed: 400 + (vpsid % 900), bwLimit: 2000 }));
   }
   async power() {}
   async hostname() {}

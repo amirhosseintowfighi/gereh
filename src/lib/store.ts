@@ -20,9 +20,10 @@ export type DB = ClientDB;
 export const EMPTY_DB: ClientDB = {
   users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
   notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-  settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "" },
+  settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
+    legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [],
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 },
 };
 
 type Scope = "customer" | "admin";
@@ -132,7 +133,6 @@ export const api = {
     setRescue: (id: string, on: boolean, pass?: string) => rpc("servers.setRescue", id, on, ...(pass ? [pass] : [])),
     installPanel: (id: string, panel: string) => rpc("servers.installPanel", id, panel),
     setAlerts: (id: string, alerts: { cpu: number; bw: number }) => rpc("servers.setAlerts", id, alerts),
-    setBilling: (id: string, billing: "monthly" | "hourly") => rpc("servers.setBilling", id, billing),
   },
   hosting: {
     resetPassword: (id: string) => rpc<string>("hosting.resetPassword", id),
@@ -192,6 +192,7 @@ export const api = {
     },
     revokeSession: (id: string) => rpc("account.revokeSession", id),
     setNotif: (key: string, val: boolean) => rpc("account.setNotif", key, val),
+    setAutoPay: (on: boolean) => rpc("account.setAutoPay", on),
     addKey: (k: { name: string; pub: string }) => rpc("account.addKey", k),
     removeKey: (id: string) => rpc("account.removeKey", id),
     createToken: (t: { name: string; scope: string; expires: string }) => rpc<string>("account.createToken", t),

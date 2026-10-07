@@ -592,12 +592,22 @@ export function AdminSettings() {
               <Field label="ایمیل پشتیبانی"><input type="email" value={s.supportEmail} onChange={(e) => setS((x) => ({ ...x, supportEmail: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /></Field>
               <Field label="تلفن پشتیبانی"><input value={s.supportPhone} onChange={(e) => setS((x) => ({ ...x, supportPhone: e.target.value }))} className={INPUT} /></Field>
             </div>
+            <h3 className="text-sm font-black mt-8 mb-3 flex items-center gap-2"><Icon name="file-check" size={16} className="acc" />مشخصات فروشنده روی فاکتور رسمی</h3>
+            <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
+              <Field className="sm:col-span-2" label="نام حقوقی"><input value={s.legalName} onChange={(e) => setS((x) => ({ ...x, legalName: e.target.value }))} className={INPUT} /></Field>
+              <Field label="شناسه ملی (۱۱ رقم)"><input value={s.sellerNationalId} onChange={(e) => setS((x) => ({ ...x, sellerNationalId: amountInput(e.target.value).slice(0, 11) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+              <Field label="کد اقتصادی (۱۲ یا ۱۴ رقم)"><input value={s.sellerEconomicCode} onChange={(e) => setS((x) => ({ ...x, sellerEconomicCode: amountInput(e.target.value).slice(0, 14) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+              <Field label="کد پستی"><input value={s.sellerPostalCode} onChange={(e) => setS((x) => ({ ...x, sellerPostalCode: amountInput(e.target.value).slice(0, 10) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+              <Field label="سهم معرف از هر پرداخت (٪)"><input value={s.affiliateRate} onChange={(e) => setS((x) => ({ ...x, affiliateRate: Math.min(50, +amountInput(e.target.value) || 0) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+              <Field className="sm:col-span-2" label="نشانی"><input value={s.sellerAddress} onChange={(e) => setS((x) => ({ ...x, sellerAddress: e.target.value }))} className={INPUT} /></Field>
+            </div>
             <div className="mt-6 space-y-1 max-w-3xl">
               {([["registration", "ثبت‌نام کاربران جدید", "با خاموش کردن، فقط کاربران فعلی وارد می‌شوند."], ["maintenance", "حالت تعمیر و نگهداری", "سایت عمومی برای بازدیدکنندگان پیام نگهداری نشان می‌دهد."]] as const).map(([k, l, h]) => (
                 <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/[0.02]"><div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/55 mt-1">{h}</div></div><Switch on={s[k]} label={l} onChange={(v) => setS((x) => ({ ...x, [k]: v }))} /></div>
               ))}
             </div>
-            <div className="mt-6 flex justify-end max-w-3xl"><AsyncButton onClick={async () => { if (!s.siteName.trim()) throw new Error("نام سایت لازم است."); if (!EMAIL_RE.test(s.supportEmail)) throw new Error("ایمیل پشتیبانی معتبر نیست."); await save({ siteName: s.siteName.trim(), supportEmail: s.supportEmail.trim(), supportPhone: s.supportPhone.trim(), registration: s.registration, maintenance: s.maintenance }); }}>ذخیره</AsyncButton></div>
+            <div className="mt-6 flex justify-end max-w-3xl"><AsyncButton onClick={async () => { if (!s.siteName.trim()) throw new Error("نام سایت لازم است."); if (!EMAIL_RE.test(s.supportEmail)) throw new Error("ایمیل پشتیبانی معتبر نیست."); await save({ siteName: s.siteName.trim(), supportEmail: s.supportEmail.trim(), supportPhone: s.supportPhone.trim(), registration: s.registration, maintenance: s.maintenance,
+              legalName: s.legalName.trim(), sellerNationalId: s.sellerNationalId, sellerEconomicCode: s.sellerEconomicCode, sellerAddress: s.sellerAddress.trim(), sellerPostalCode: s.sellerPostalCode, affiliateRate: s.affiliateRate }); }}>ذخیره</AsyncButton></div>
           </Card>
         )}
         {tab === "finance" && (

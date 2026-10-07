@@ -3,7 +3,7 @@
    staff in the admin panel get every record. Secrets (password hashes, 2FA secrets, token hashes,
    gateway keys) never leave this file. */
 import "server-only";
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, ne, sum } from "drizzle-orm";
 import type { Plan, Tld } from "@/lib/catalog";
 import { faDate, faDateTime } from "@/lib/jalali";
 import type { ClientDB, Session, Settings } from "@/lib/types";
@@ -59,7 +59,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [],
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -92,10 +92,11 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.backups).where(inArray(t.backups.serverId, sids)).orderBy(desc(t.backups.createdAt)),
     db.select().from(t.serverTasks).where(inArray(t.serverTasks.serverId, sids)).orderBy(desc(t.serverTasks.createdAt)),
   ]) : [[], [], [], []];
+  const samples = !admin && sids.length ? await db.select().from(t.usageSamples).where(and(inArray(t.usageSamples.serverId, sids), gte(t.usageSamples.createdAt, new Date(Date.now() - 4 * 3600_000)))).orderBy(asc(t.usageSamples.createdAt)) : [];
   const dids = domains.map((d) => d.id);
   const dns = dids.length ? await db.select().from(t.dnsRecords).where(inArray(t.dnsRecords.domainId, dids)).orderBy(asc(t.dnsRecords.position)) : [];
   const group = <T, K extends keyof T>(rows: T[], key: K) => { const m = new Map<T[K], T[]>(); for (const r of rows) { const a = m.get(r[key]); if (a) a.push(r); else m.set(r[key], [r]); } return m; };
-  const fwBy = group(fw, "serverId"), snapBy = group(snaps, "serverId"), bkBy = group(bks, "serverId"), taskBy = group(tasks, "serverId"), dnsBy = group(dns, "domainId");
+  const usageBy = group(samples, "serverId"), fwBy = group(fw, "serverId"), snapBy = group(snaps, "serverId"), bkBy = group(bks, "serverId"), taskBy = group(tasks, "serverId"), dnsBy = group(dns, "domainId");
   const itemsBy = group(items, "invoiceId"), msgBy = group(msgs, "ticketId");
   const servicesBy = new Map<string, number>();
   for (const r of [...servers, ...hosting, ...domains]) servicesBy.set(r.userId, (servicesBy.get(r.userId) || 0) + 1);
@@ -111,7 +112,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
 
   const out: ClientDB = {
     ...empty,
-    users: users.map((u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, company: u.company, balance: u.balance, status: u.status, kyc: u.kyc, joined: faDate(u.createdAt), services: servicesBy.get(u.id) || 0, role: u.role, referralCode: u.referralCode })),
+    users: users.map((u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, company: u.company, balance: u.balance, status: u.status, kyc: u.kyc, joined: faDate(u.createdAt), services: servicesBy.get(u.id) || 0, role: u.role, referralCode: u.referralCode, autoPay: u.autoPay })),
     servers: servers.map((s) => ({
       id: s.id, userId: s.userId, name: s.name, plan: s.plan, cpu: s.cpu, ram: s.ram, disk: s.disk, loc: s.loc, os: s.os, ip: s.ip, ipv6: s.ipv6, rdns: s.rdns,
       status: s.status, created: faDate(s.createdAt), price: s.price, backups: s.backups, billing: s.billing, app: s.app, alerts: s.alerts,
@@ -120,12 +121,13 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
       backupsList: (bkBy.get(s.id) || []).map((x) => ({ id: x.id, size: x.size, at: faDateTime(x.createdAt) })),
       vpsid: s.vpsid || 0, hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue, bwLimit: s.bwLimit,
       vnc: { host: s.vncHost, port: s.vncPort, password: s.vncPassword },
+      usage: (usageBy.get(s.id) || []).map((u) => ({ at: faDateTime(u.createdAt), cpu: u.cpu, ram: u.ram, disk: u.disk, netIn: u.netIn, netOut: u.netOut, bwUsed: u.bwUsed })),
       tasks: (taskBy.get(s.id) || []).map((x) => ({ id: x.id, action: x.action, status: x.status, progress: x.progress, at: faDateTime(x.createdAt) })),
     })),
     hosting: hosting.map((h) => ({ id: h.id, userId: h.userId, domain: h.domain, plan: h.plan, diskUsed: h.diskUsed, diskTotal: h.diskTotal, bwUsed: h.bwUsed, bwTotal: h.bwTotal, emails: h.emails, dbs: h.dbs, status: h.status, expires: faDate(h.expiresAt), price: h.price, panel: h.panel, server: h.server, autoRenew: h.autoRenew })),
     domains: domains.map((d) => ({ id: d.id, userId: d.userId, name: d.name, registered: faDate(d.registeredAt), expires: faDate(d.expiresAt), autoRenew: d.autoRenew, privacy: d.privacy, locked: d.locked, status: d.status, ns: d.ns, authCode: d.locked ? "" : d.authCode,
       dns: (dnsBy.get(d.id) || []).map((r) => ({ id: r.id, type: r.type, name: r.name, value: r.value, ttl: r.ttl, ...(r.priority !== null ? { priority: r.priority } : {}) })) })),
-    invoices: invoices.map((i) => ({ id: i.id, userId: i.userId, date: faDate(i.createdAt), due: faDate(i.dueAt), status: i.status, tax: i.taxRate, official: !!i.official, items: (itemsBy.get(i.id) || []).map((x) => ({ desc: x.desc, amount: x.amount })) })),
+    invoices: invoices.map((i) => ({ id: i.id, userId: i.userId, date: faDate(i.createdAt), due: faDate(i.dueAt), status: i.status, tax: i.taxRate, official: i.official ?? null, paidAt: i.paidAt ? faDateTime(i.paidAt) : "", items: (itemsBy.get(i.id) || []).map((x) => ({ desc: x.desc, amount: x.amount })) })),
     transactions: txs.map((x) => ({ id: x.id, userId: x.userId, date: faDate(x.createdAt), type: x.type, amount: x.amount, method: x.method, desc: x.desc })),
     tickets: tickets.map((x) => ({ id: x.id, userId: x.userId, subject: x.subject, dept: x.dept, priority: x.priority, status: x.status, service: x.service, assignee: x.assignee, updated: faDate(x.updatedAt),
       messages: (msgBy.get(x.id) || []).map((m) => ({ from: m.from, name: m.name, text: m.text, at: faDateTime(m.createdAt) })) })),
@@ -140,6 +142,13 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     osTemplates: osT, isos: isoRows.map((x) => x.filename),
     settings: { ...settings, smsKeySet: admin ? settings.smsKeySet : false },
   };
+  if (me) {
+    const [[ref], [earned]] = await Promise.all([
+      db.select({ n: count() }).from(t.users).where(eq(t.users.referredBy, me.id)),
+      db.select({ s: sum(t.transactions.amount) }).from(t.transactions).where(and(eq(t.transactions.userId, me.id), eq(t.transactions.type, "commission"))),
+    ]);
+    out.affiliate = { code: me.referralCode, referred: ref.n, earned: Number(earned.s || 0) };
+  }
   if (!admin) {
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
     return { session: clientSession(auth), db: out };

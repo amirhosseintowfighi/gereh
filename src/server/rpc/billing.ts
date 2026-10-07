@@ -55,6 +55,14 @@ export async function settleInvoice(tx: Tx, invoiceId: string, method: string, o
   await enqueue(tx, "notify.send", { userId: inv!.userId, kind: "billing", subject: "پرداخت " + invoiceId, text: "پرداخت صورتحساب " + invoiceId + " به مبلغ " + gross.toLocaleString("fa-IR") + " تومان ثبت شد." });
 }
 
+/** Iranian national code checksum */
+export function validNationalCode(code: string) {
+  if (!/^\d{10}$/.test(code) || /^(\d)\1{9}$/.test(code)) return false;
+  const sum = [...code.slice(0, 9)].reduce((s, d, i) => s + Number(d) * (10 - i), 0) % 11;
+  const check = Number(code[9]);
+  return sum < 2 ? check === sum : check === 11 - sum;
+}
+
 /** referral programme: the referrer earns affiliateRate % of the net invoice during the customer's first year */
 async function payCommission(tx: Tx, userId: string, invoiceId: string, net: number) {
   const [u] = await tx.select({ referredBy: users.referredBy, createdAt: users.createdAt }).from(users).where(eq(users.id, userId));
@@ -160,7 +168,7 @@ export const billingRpc = {
       }
       const id = await createInvoice(tx, a.uid, items, { dueDays: 3, coupon: code, fulfil: skus.map((sku) => ({ type: "order" as const, sku })) });
       const inv = await loadInvoice(tx, id);
-      return { id, userId: a.uid, date: "", due: "", status: "unpaid", items: inv!.items.map((i) => ({ desc: i.desc, amount: i.amount })), tax: inv!.taxRate, official: false };
+      return { id, userId: a.uid, date: "", due: "", status: "unpaid", items: inv!.items.map((i) => ({ desc: i.desc, amount: i.amount })), tax: inv!.taxRate, official: null, paidAt: "" };
     });
   }),
 
@@ -184,6 +192,21 @@ export const billingRpc = {
     if (amt < 100000) fail("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است.");
     if (amt > 500_000_000) fail("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است.");
     return startPayment(ctx, a.uid, amt, null, "شارژ کیف پول گره", origin || "");
+  }),
+
+  /** buyer's legal details for an official (رسمی) invoice; national id: 10 digits (person) or 11 (company) */
+  "billing.setOfficial": method(z.tuple([z.string().max(40), z.object({ name: z.string().max(120), nationalId: z.string().max(20), economicCode: z.string().max(20), address: z.string().max(300), postalCode: z.string().max(20) })]), async (ctx, [invId, raw]) => {
+    const a = needUser(ctx);
+    const en = (s: string) => s.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\D/g, "");
+    const info = { name: raw.name.trim(), nationalId: en(raw.nationalId), economicCode: en(raw.economicCode), address: raw.address.trim(), postalCode: en(raw.postalCode) };
+    if (info.name.length < 2) fail("نام شخص یا شرکت را وارد کنید.");
+    if (!/^\d{10}$|^\d{11}$/.test(info.nationalId)) fail("کد ملی ۱۰ رقم یا شناسه ملی شرکت ۱۱ رقم است.");
+    if (info.nationalId.length === 10 && !validNationalCode(info.nationalId)) fail("کد ملی معتبر نیست.");
+    if (info.economicCode && !/^\d{12}$|^\d{14}$/.test(info.economicCode)) fail("کد اقتصادی ۱۲ یا ۱۴ رقم است.");
+    if (!/^\d{10}$/.test(info.postalCode)) fail("کد پستی ۱۰ رقم است.");
+    if (info.address.length < 10) fail("نشانی کامل را وارد کنید.");
+    const r = await ctx.db.update(invoices).set({ official: info }).where(and(eq(invoices.id, invId), eq(invoices.userId, a.uid))).returning({ id: invoices.id });
+    if (!r.length) fail("صورتحساب پیدا نشد.", 404);
   }),
 
   "billing.markPaid": method(z.tuple([z.string().max(40)]), async (ctx, [invId]) => {

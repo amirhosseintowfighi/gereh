@@ -18,7 +18,7 @@ export function AuthForm() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const session = useSession();
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(params.get("ref") ? "register" : "login");
   const [f, setF] = useState({ id: "", password: "", name: "", email: "", phone: "", agree: false });
   const [show, setShow] = useState(false);
   const [otpStep, setOtpStep] = useState(0);

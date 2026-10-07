@@ -123,7 +123,7 @@ export const servicesRpc = {
     const t = all.sort((a, b) => b.tld.length - a.tld.length).find((x) => d.name.endsWith(x.tld));
     if (!t) fail("پسوند این دامنه پشتیبانی نمی‌شود.");
     const id = await createInvoice(ctx.db, d.userId, [{ desc: "تمدید دامنه " + d.name + "، " + years.toLocaleString("fa-IR") + " سال", amount: t!.renew * years }], { dueDays: 7, fulfil: [{ type: "renew", kind: "domain", id: d.id, months: years * 12 }] });
-    return { id, userId: d.userId, date: "", due: "", status: "unpaid", items: [], tax: 0, official: false };
+    return { id, userId: d.userId, date: "", due: "", status: "unpaid", items: [], tax: 0, official: null, paidAt: "" };
   }),
   /** GET /domains/check?name= — availability across all TLDs via the registrar */
   "domains.check": method(z.tuple([z.string().max(63)]), async (ctx, [name]) => {

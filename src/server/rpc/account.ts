@@ -71,6 +71,11 @@ export const accountRpc = {
     await ctx.db.update(users).set({ notifPrefs: sql`${users.notifPrefs} || ${JSON.stringify({ [key]: val })}::jsonb` }).where(eq(users.id, a.uid));
   }),
 
+  "account.setAutoPay": method(z.tuple([z.boolean()]), async (ctx, [on]) => {
+    const a = needUser(ctx);
+    await ctx.db.update(users).set({ autoPay: on }).where(eq(users.id, a.uid));
+  }),
+
   "account.addKey": method(z.tuple([z.object({ name: z.string().max(60), pub: z.string().max(16_000) })]), async (ctx, [k]) => {
     const a = needUser(ctx);
     if (!k.name.trim()) fail("یک نام برای کلید بنویسید.");

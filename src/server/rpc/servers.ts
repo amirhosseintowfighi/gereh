@@ -206,6 +206,12 @@ export const serversRpc = {
     await addTask(ctx.db, s.id, on ? "فعال‌سازی حالت ریسکیو" : "غیرفعال‌سازی حالت ریسکیو");
   }),
 
+  /** CPU % (sustained 15 min) and monthly-bandwidth % thresholds; 0 disables */
+  "servers.setAlerts": method(z.tuple([id, z.object({ cpu: z.number().int().min(0).max(100), bw: z.number().int().min(0).max(100) })]), async (ctx, [sid, alerts]) => {
+    const s = await server(ctx, sid, { write: false });
+    await ctx.db.update(servers).set({ alerts }).where(eq(servers.id, s.id));
+  }),
+
   "servers.installPanel": method(z.tuple([id, z.enum(["cPanel", "Plesk", "DirectAdmin", "Webuzo", "Virtualmin"])]), async (ctx, [sid, panel]) => {
     const s = await server(ctx, sid);
     if (s.status !== "running") fail("سرور باید روشن باشد.");

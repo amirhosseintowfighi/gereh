@@ -9,6 +9,7 @@ import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type DnsRec
 import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
+import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs } from "../ui-client";
@@ -327,12 +328,17 @@ export function UserDomains({ id }: { id?: string }) {
 
 /* ================= billing ================= */
 export function InvoiceModal({ inv, onClose, onPay }: { inv: Invoice | null; onClose: () => void; onPay?: (i: Invoice) => void }) {
-  const db = useDB();
+  const db = useDB(); const myId = useMyId();
+  const [official, setOfficial] = useState(false);
   if (!inv) return null;
+  if (official) return <OfficialInvoiceModal inv={inv} onClose={() => { setOfficial(false); onClose(); }} />;
   const sub = invTotal(inv), total = invGross(inv, db.settings.tax), tax = total - sub;
   return (
     <Modal open onClose={onClose} title={"صورتحساب " + inv.id} icon="receipt" size="max-w-2xl"
-      footer={<><button type="button" onClick={() => window.print()} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + " px-5 h-10 text-sm"}>پرداخت</button>}</>}>
+      footer={<>{inv.userId === myId && (inv.official
+        ? <Link href={("/panel/billing/" + inv.id + "/print") as never} target="_blank" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="file-check" size={16} /> فاکتور رسمی</Link>
+        : <button type="button" onClick={() => setOfficial(true)} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="file-check" size={16} /> درخواست فاکتور رسمی</button>)}
+        <button type="button" onClick={() => window.print()} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + " px-5 h-10 text-sm"}>پرداخت</button>}</>}>
       <div className="print-area">
         <div className="flex justify-between items-start">
           <div><Wordmark size={30} /><div className="text-xs text-white/55 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
@@ -405,8 +411,9 @@ export function UserBilling() {
             <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + " px-6 h-11"}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
-              <span className="text-xs text-white/55">{gw ? "پرداخت امن از طریق " + gw + " (نمایشی)" : "درگاه پرداخت آنلاین موقتا غیرفعال است."}</span>
+              <span className="text-xs text-white/55">{gw ? "پرداخت امن از طریق " + gw : "درگاه پرداخت آنلاین موقتا غیرفعال است."}</span>
             </div>
+            <AutoPaySwitch />
           </Card>
         )}
         {tab === "tx" && (

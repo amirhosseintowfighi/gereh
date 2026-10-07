@@ -8,7 +8,8 @@ export type Role = "user" | "admin";
 /** fine-grained staff permissions; "owner" implies all */
 export type StaffRole = "owner" | "support" | "finance" | "sales" | "viewer";
 
-export type User = { id: string; name: string; email: string; phone: string; company: string; balance: number; status: Status; kyc: Status; joined: string; services: number; role: Role; referralCode: string };
+export type User = { id: string; name: string; email: string; phone: string; company: string; balance: number; status: Status; kyc: Status; joined: string; services: number; role: Role; referralCode: string; autoPay: boolean };
+export type Official = { name: string; nationalId: string; economicCode: string; address: string; postalCode: string };
 export type FwRule = { id: string; proto: string; port: string; source: string; action: "allow" | "deny"; note: string };
 export type Task = { id: string; action: string; status: "done" | "running" | "failed"; at: string; progress: number };
 export type Server = {
@@ -17,11 +18,13 @@ export type Server = {
   snapshots: { id: string; name: string; size: number; at: string }[]; backupsList: { id: string; at: string; size: number }[];
   vpsid: number; hostname: string; boot: string; iso: string; rescue: boolean; bwLimit: number; vnc: { host: string; port: number; password: string }; tasks: Task[];
   billing: "monthly" | "hourly"; app: string; alerts: { cpu: number; bw: number };
+  /** recent 5-minute hypervisor samples, oldest first (customer view only) */
+  usage: { at: string; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number }[];
 };
 export type Hosting = { id: string; userId: string; domain: string; plan: string; diskUsed: number; diskTotal: number; bwUsed: number; bwTotal: number; emails: number; dbs: number; status: Status; expires: string; price: number; panel: string; server: string; autoRenew: boolean };
 export type DnsRecord = { id: string; type: string; name: string; value: string; ttl: number; priority?: number };
 export type Domain = { id: string; userId: string; name: string; registered: string; expires: string; autoRenew: boolean; privacy: boolean; locked: boolean; status: Status; ns: string[]; dns: DnsRecord[]; authCode: string };
-export type Invoice = { id: string; userId: string; date: string; due: string; status: Status; items: { desc: string; amount: number }[]; tax: number; official: boolean };
+export type Invoice = { id: string; userId: string; date: string; due: string; status: Status; items: { desc: string; amount: number }[]; tax: number; official: Official | null; paidAt: string };
 export type Transaction = { id: string; userId: string; date: string; type: "topup" | "payment" | "refund" | "commission" | "usage"; amount: number; method: string; desc: string };
 export type Message = { from: "user" | "staff"; name: string; at: string; text: string };
 export type Ticket = { id: string; userId: string; subject: string; dept: string; priority: string; status: Status; service: string; updated: string; assignee: string; messages: Message[] };
@@ -37,6 +40,8 @@ export type Settings = {
   siteName: string; supportEmail: string; supportPhone: string; registration: boolean; maintenance: boolean; tax: number;
   gateways: Record<string, boolean>; smsProvider: string; smsKeySet: boolean; smtpHost: string; smtpPort: number;
   affiliateRate: number;
+  /** seller details printed on official invoices */
+  legalName: string; sellerNationalId: string; sellerEconomicCode: string; sellerAddress: string; sellerPostalCode: string;
   /** label of the gateway that will actually take online payments ("" = none available) */
   payGateway?: string;
 };
@@ -62,4 +67,6 @@ export type ClientDB = {
   planMap: { id: string; name: string; plid: number; group: string }[];
   osTemplates: { osid: number; name: string; distro: string; on: boolean }[];
   isos: string[];
+  /** referral programme stats for the signed-in customer */
+  affiliate: { code: string; referred: number; earned: number };
 };

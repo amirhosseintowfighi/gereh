@@ -88,7 +88,7 @@ test.describe("user panel", () => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     for (const p of ["/panel", "/panel/servers", "/panel/hosting", "/panel/domains", "/panel/billing", "/panel/tickets", "/panel/keys", "/panel/account",
-      "/panel/servers/srv-1042", "/panel/domains/dom-501", "/panel/hosting/hst-221", "/panel/tickets/TK-3021"]) {
+      "/panel/servers/srv-1042", "/panel/domains/dom-501", "/panel/hosting/hst-221", "/panel/tickets/TK-3021", "/panel/affiliate", "/panel/billing/INV-14031/print"]) {
       await page.goto(p);
       await expect(page.locator("main")).toBeVisible();
       await expect(page.locator("h1").first()).toBeVisible();
@@ -224,4 +224,33 @@ test("cancelling at the bank leaves the invoice unpaid", async ({ page }) => {
   await page.getByRole("link", { name: "انصراف" }).click();
   await expect(page).toHaveURL(/\/panel\/billing\?failed=1/);
   await expect(page.getByRole("row", { name: /INV-14058/ })).not.toContainText("پرداخت‌شده");
+});
+
+test("official invoice: buyer details → printable invoice", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/billing");
+  await page.getByRole("row", { name: /INV-14031/ }).click();
+  await page.getByRole("button", { name: "درخواست فاکتور رسمی" }).click();
+  const d = page.getByRole("dialog", { name: /فاکتور رسمی/ });
+  await d.getByLabel("کد ملی / شناسه ملی شرکت").fill("0013542419");
+  await d.getByLabel("کد پستی").fill("1234567890");
+  await d.getByLabel("نشانی").fill("تهران، خیابان آزادی، پلاک ۱۰");
+  const popup = page.waitForEvent("popup");
+  await d.getByRole("button", { name: "ذخیره و چاپ" }).click();
+  const p = await popup;
+  await expect(p.getByRole("heading", { name: "صورتحساب فروش کالا و خدمات" })).toBeVisible();
+  await expect(p.getByText("0013542419")).toBeVisible();
+});
+
+test("hosting + domain bundle adds both to the cart", async ({ page }) => {
+  await page.goto("/hosting");
+  await page.getByLabel("دامنه سایت (اختیاری)").fill("mybundle-site.ir");
+  await page.getByRole("button", { name: /^افزودن نقره به سبد$/ }).first().click();
+  await expect(page.getByRole("button", { name: /سبد خرید، ۲ مورد/ })).toBeVisible();
+});
+
+test("referral link opens registration with the code", async ({ page }) => {
+  await page.goto("/auth?ref=NOVIN24");
+  await expect(page.getByRole("heading", { name: "ساخت حساب گره" })).toBeVisible();
 });

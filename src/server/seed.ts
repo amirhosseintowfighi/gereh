@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS = {
   smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.cloud", smtpPort: 587,
   /** % of a referred customer's paid invoices credited to the referrer during their first year */
   affiliateRate: 10,
+  legalName: "شرکت گره ابر پارس (سهامی خاص)", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "تهران، خیابان ولیعصر", sellerPostalCode: "",
 };
 export const DEFAULT_VIRT = { host: "panel.gereh.cloud", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 

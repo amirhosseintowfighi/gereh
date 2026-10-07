@@ -1,11 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BILLING, HOSTING, LOCS, VPS, type Plan } from "@/lib/catalog";
+import { BILLING, HOSTING, LOCS, parseDomain, type Plan } from "@/lib/catalog";
 import { BTN_G, BTN_P, GLASS } from "@/lib/cls";
 import { roundK, toman } from "@/lib/format";
+import { useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { PriceTag, Switch, Tabs } from "../ui-client";
+
+/** live catalog (admin price edits, disabled plans hidden); the static copy renders until it loads */
+const useLivePlans = () => {
+  const plans = useDB().plans;
+  return (kind: "cloud" | "metal" | "hosting", ids?: string[]) => plans[kind].filter((p) => p.active !== false && (!ids || ids.includes(p.id)));
+};
 
 type Row = [icon: string, label: string, key: keyof Plan];
 
@@ -38,6 +45,8 @@ const VPS_ALL: Row[] = [...VPS_ROWS, ["camera", "اسنپ‌شات", "snap"], ["
 
 export function VpsPlans() {
   const { addToCart } = useApp();
+  const live = useLivePlans();
+  const [hourly, setHourly] = useState(false);
   const [kind, setKindRaw] = useState<"cloud" | "metal">("cloud");
   const [billing, setBilling] = useState("m");
   const [loc, setLoc] = useState("thr");
@@ -69,19 +78,26 @@ export function VpsPlans() {
             </button>
           ))}
         </div>
-        <div className="overflow-x-auto no-scrollbar"><Tabs value={billing} onChange={setBilling} label="دوره پرداخت" options={BILLING} /></div>
+        <div className="overflow-x-auto no-scrollbar"><Tabs value={billing} onChange={(v) => { setBilling(v); if (v !== "m") setHourly(false); }} label="دوره پرداخت" options={BILLING} /></div>
       </div>
+      {kind === "cloud" && billing === "m" && (
+        <div className={GLASS + " -mt-6 mb-10 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm"}>
+          <span className="flex items-center gap-2"><Icon name="timer" size={17} className="acc" /><span><b>پرداخت ساعتی</b><span className="text-white/55"> — یک ماه پیش‌پرداخت به کیف پول می‌رود و هر ساعت فقط به اندازه مصرف کم می‌شود.</span></span></span>
+          <Switch on={hourly} onChange={setHourly} label="پرداخت ساعتی" />
+        </div>
+      )}
 
       {(["cloud", "metal"] as const).map((k) => {
-        const plans = VPS[k];
+        const plans = live(k);
         return (
           <div key={k} hidden={kind !== k}>
             <h2 className="sr-only-focusable">{k === "cloud" ? "پلن‌های سرور ابری" : "پلن‌های سرور اختصاصی"}</h2>
             <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3")}>
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)}
-                  extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div> : null}
-                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y" })} />
+                  extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div>
+                    : hourly && k === "cloud" ? <div className="text-[11px] text-emerald-300 mt-1">ساعتی حدود {toman(Math.max(1, Math.round(monthly(p, k) / 720)))}</div> : null}
+                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}) })} />
               ))}
             </div>
 
@@ -122,8 +138,19 @@ export function VpsPlans() {
 const HOST_ROWS: Row[] = [["hard-drive", "فضا", "disk"], ["globe", "سایت", "sites"], ["arrow-down-up", "ترافیک", "traffic"], ["mail", "ایمیل", "email"], ["database", "دیتابیس", "db"]];
 export function HostingPlans() {
   const { addToCart } = useApp();
+  const live = useLivePlans();
   const [kind, setKind] = useState<"linux" | "wordpress">("linux");
   const [yearly, setYearly] = useState(false);
+  const [domain, setDomain] = useState("");
+  const [register, setRegister] = useState(true);
+  const parsed = domain.trim() ? parseDomain(domain) : null;
+  const domainErr = parsed && "error" in parsed ? parsed.error : "";
+  const fullDomain = parsed && "name" in parsed && parsed.name ? parsed.name + (parsed.tld || ".ir") : "";
+  const add = (p: Plan) => {
+    if (domainErr) return;
+    addToCart({ t: "hosting", plan: p.id, yearly, ...(fullDomain ? { domain: fullDomain } : {}) });
+    if (fullDomain && register) addToCart({ t: "domain", name: fullDomain, years: 1 });
+  };
   const mPrice = (p: Plan) => (yearly ? roundK(p.price * 0.85) : p.price);
   return (
     <>
@@ -136,8 +163,18 @@ export function HostingPlans() {
           <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300">۱۵٪ کمتر</span>
         </div>
       </div>
+      <div className={GLASS + " max-w-2xl mx-auto -mt-4 mb-12 rounded-2xl p-4"}>
+        <label htmlFor="bundle-domain" className="text-sm font-bold flex items-center gap-2"><Icon name="globe" size={16} className="acc" />دامنه سایت (اختیاری)</label>
+        <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <input id="bundle-domain" value={domain} onChange={(e) => setDomain(e.target.value)} dir="ltr" placeholder="mybrand.ir" aria-invalid={!!domainErr}
+            className="flex-1 h-11 rounded-xl bg-black/20 border border-white/15 focus:border-white/40 outline-none px-3 text-left" />
+          <label className="flex items-center gap-2 text-sm text-white/75 cursor-pointer"><input type="checkbox" checked={register} onChange={(e) => setRegister(e.target.checked)} className="accent-white" />دامنه را هم ثبت کن</label>
+        </div>
+        {domainErr ? <div role="alert" className="text-xs text-rose-300 mt-2">{domainErr}</div>
+          : fullDomain ? <div className="text-xs text-white/55 mt-2">هاست برای <span className="ltr font-bold">{fullDomain}</span> ساخته می‌شود{register ? " و ثبت یک‌ساله دامنه هم به سبد اضافه می‌شود." : "؛ نام‌سرورها را روی ns1/ns2.gereh.cloud بگذارید."}</div> : null}
+      </div>
       {(["linux", "wordpress"] as const).map((k) => {
-        const plans = HOSTING[k];
+        const plans = live("hosting", HOSTING[k].map((x) => x.id));
         return (
           <div key={k} hidden={kind !== k}>
             <h2 className="sr-only-focusable">{k === "linux" ? "پلن‌های هاست لینوکس" : "پلن‌های هاست وردپرس"}</h2>
@@ -145,7 +182,7 @@ export function HostingPlans() {
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={HOST_ROWS} badge="پیشنهاد ما" priceBase={mPrice(p)}
                   extra={yearly ? <div className="text-[11px] text-emerald-300 mt-1">صورت‌حساب سالانه: {toman(mPrice(p) * 12)}</div> : null}
-                  onAdd={() => addToCart({ t: "hosting", plan: p.id, yearly })} />
+                  onAdd={() => add(p)} />
               ))}
             </div>
           </div>

@@ -19,6 +19,7 @@ const USER_NAV = [
   { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet" },
   { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/panel/keys", label: "SSH و API", icon: "key-round" },
+  { href: "/panel/affiliate", label: "کسب درآمد با معرفی", icon: "gift" },
   { href: "/panel/account", label: "تنظیمات حساب", icon: "settings-2" },
 ];
 const ADMIN_NAV = [
