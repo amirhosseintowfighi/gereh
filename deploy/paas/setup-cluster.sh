@@ -37,7 +37,16 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-ngin
   --set controller.extraArgs.default-ssl-certificate=ingress-nginx/apps-wildcard-tls \
   --set controller.allowSnippetAnnotations=false \
   --set controller.config.use-forwarded-headers=true \
-  --set controller.metrics.enabled=true
+  --set controller.metrics.enabled=true \
+  --set-string controller.podAnnotations."prometheus\.io/scrape"=true \
+  --set-string controller.podAnnotations."prometheus\.io/port"=10254
+
+say "Prometheus (requests per minute for each app)"
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
+helm repo update >/dev/null
+helm upgrade --install prometheus prometheus-community/prometheus -n monitoring --create-namespace --wait \
+  --set alertmanager.enabled=false --set prometheus-pushgateway.enabled=false --set kube-state-metrics.enabled=false \
+  --set prometheus-node-exporter.enabled=true --set server.retention=15d --set server.persistentVolume.size=20Gi
 
 say "cert-manager"
 helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --wait --set crds.enabled=true
@@ -45,6 +54,7 @@ sed "s/ops@gereh.net/$ACME_EMAIL/" "$HERE/cluster-issuer.yaml" | kubectl apply -
 
 say "platform namespace and controller account"
 kubectl apply -f "$HERE/system.yaml"
+kubectl apply -f "$HERE/monitoring-rbac.yaml"
 
 say "registry (registry.$APPS_DOMAIN)"
 REG_PASS=$(gen registry-password)
@@ -114,6 +124,7 @@ PAAS_REGISTRY=registry.$APPS_DOMAIN
 PAAS_REGISTRY_PULL_SECRET=$PULL_SECRET
 PAAS_BUILDER_IMAGE=registry.$APPS_DOMAIN/gereh/builder:1
 PAAS_INGRESS_IP=$IP
+PAAS_PROMETHEUS=monitoring/prometheus-server:80
 ${SITE_URL:+PAAS_SOURCE_BASE_URL=$SITE_URL}
 
   3) In the admin panel: گره اپ › زیرساخت › تست اتصال, and set the apps domain to $APPS_DOMAIN.

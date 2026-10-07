@@ -5,6 +5,7 @@
    Long operations are split into start + poll so the worker never blocks on a build. */
 import "server-only";
 import { stackOf } from "@/lib/paas";
+import type { ComposeService } from "./compose";
 
 export type AppSpec = {
   id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose";
@@ -18,8 +19,9 @@ export type BuildState = { state: "running" | "succeeded" | "failed"; log: strin
 export interface PaasDriver {
   readonly name: "kubernetes" | "simulator";
   test(): Promise<{ version: string }>;
-  /** starts a build for a deployment; `sourceUrl` serves an uploaded ZIP to the builder */
-  startBuild(app: AppSpec, deploymentId: string, sourceUrl?: string): Promise<string>;
+  /** starts a build for a deployment; `sourceUrl` serves an uploaded ZIP to the builder; compose apps
+      pass their parsed services and get back an image of the form "compose:<json services>" */
+  startBuild(app: AppSpec, deploymentId: string, sourceUrl?: string, compose?: ComposeService[]): Promise<string>;
   buildStatus(app: AppSpec, handle: string): Promise<BuildState>;
   /** applies the app's workload with this image (create or update) */
   release(app: AppSpec, image: string, deploymentId: string): Promise<void>;
@@ -41,6 +43,7 @@ export interface PaasDriver {
 /* ---------- simulator ---------- */
 const buildSeconds = () => Number(process.env.PAAS_SIM_BUILD_SECONDS ?? 8);
 const started = new Map<string, number>(); // handle → start time
+const composed = new Map<string, ComposeService[]>(); // handle → compose services
 
 function buildScript(app: AppSpec): string[] {
   const s = stackOf(app.stack);
@@ -79,8 +82,9 @@ const stamp = (d: Date) => d.toISOString().slice(11, 19);
 export class SimulatorDriver implements PaasDriver {
   readonly name = "simulator" as const;
   async test() { return { version: "Simulator" }; }
-  async startBuild(app: AppSpec, deploymentId: string) {
+  async startBuild(app: AppSpec, deploymentId: string, _sourceUrl?: string, compose?: ComposeService[]) {
     started.set(deploymentId, Date.now());
+    if (compose) composed.set(deploymentId, compose);
     return deploymentId;
   }
   async buildStatus(app: AppSpec, handle: string): Promise<BuildState> {
@@ -93,7 +97,12 @@ export class SimulatorDriver implements PaasDriver {
     if (frac >= 1 && failing) return { state: "failed", log: [...shown.slice(0, 3), "ERROR: build step exited with code 1"].join("\n") };
     if (frac < 1) return { state: "running", log: shown.join("\n") };
     started.delete(handle);
-    return { state: "succeeded", log: lines.join("\n"), image: "registry.gereh.net/" + app.userId + "/" + app.name + ":" + handle, ref: app.source === "git" ? fakeSha(handle) : undefined };
+    const services = composed.get(handle);
+    composed.delete(handle);
+    const tag = "registry.gereh.net/" + app.userId + "/" + app.name;
+    const image = services ? "compose:" + JSON.stringify(services.map((s) => ({ ...s, image: s.image ?? tag + "-" + s.name + ":" + handle }))) : tag + ":" + handle;
+    const log = services ? [...lines.slice(0, -2), ...services.map((s) => "   " + s.name + ": " + (s.build ? "built" : "pulled " + s.image)), ...lines.slice(-2)] : lines;
+    return { state: "succeeded", log: log.join("\n"), image, ref: app.source === "git" ? fakeSha(handle) : undefined };
   }
   async release() {}
   async rolloutReady() { return true; }

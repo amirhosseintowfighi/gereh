@@ -7,9 +7,11 @@ import { hourlyOf } from "@/lib/paas";
 import type { DB } from "../db/client";
 import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasMetrics, paasPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
+import { type ComposeService, ComposeError, composeFromZip } from "../paas/compose";
 import { paas } from "../paas/driver";
 import { appHourly, appSpec, dbHourly, dbSpec, signSource } from "../paas/service";
 import { notify, rid } from "../util";
+import { ZipError } from "../unzip";
 
 const MAX_LOG = 200_000;
 const BUILD_TIMEOUT_MS = 30 * 60_000;
@@ -47,12 +49,20 @@ export async function paasBuild(db: DB, p: { deploymentId: string }) {
     const { exp, sig } = signSource(dep.id);
     sourceUrl = (process.env.PAAS_SOURCE_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:3000") + "/api/paas/source/" + dep.id + "?exp=" + exp + "&sig=" + sig;
   }
-  const handle = await d.startBuild(spec, dep.id, sourceUrl);
-  await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "build", handle, since: Date.now() }, { runAt: later(pollMs()) });
+  let compose: ComposeService[] | undefined, notes: string[] = [];
+  if (app.source === "compose" && dep.uploadPath) {
+    try { ({ services: compose, warnings: notes } = await composeFromZip(dep.uploadPath, app.rootDir)); }
+    catch (e) { if (e instanceof ComposeError || e instanceof ZipError) return fail(db, dep.id, app.id, "ERROR: " + e.message); throw e; }
+    notes = [compose.map((s) => (s.public ? "* " : "  ") + s.name + (s.build ? " (build " + s.build.context + ")" : " (" + s.image + ")") + (s.port ? " :" + s.port : "")).join("\n"), ...notes.map((w) => "WARN " + w)];
+  }
+  let handle: string;
+  try { handle = await d.startBuild(spec, dep.id, sourceUrl, compose); }
+  catch (e) { return fail(db, dep.id, app.id, "ERROR: " + (e as Error).message); }
+  await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "build", handle, since: Date.now(), notes: notes.join("\n") }, { runAt: later(pollMs()) });
 }
 
 /** step 2: poll the build, then the rollout */
-export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build" | "rollout"; handle?: string; since: number }) {
+export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build" | "rollout"; handle?: string; since: number; notes?: string }) {
   const [dep] = await db.select().from(paasDeployments).where(eq(paasDeployments.id, p.deploymentId));
   if (!dep || !["building", "deploying"].includes(dep.status)) return;
   const [app] = await db.select().from(paasApps).where(eq(paasApps.id, dep.appId));
@@ -61,6 +71,7 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
   const spec = await appSpec(db, app);
   if (p.phase === "build") {
     const b = await d.buildStatus(spec, p.handle!);
+    if (p.notes) b.log = "==> Compose services\n" + p.notes + "\n" + b.log;
     if (b.state === "running") {
       if (Date.now() - p.since > BUILD_TIMEOUT_MS) return fail(db, dep.id, app.id, b.log + "\nERROR: build timed out after 30 minutes");
       await db.update(paasDeployments).set({ log: b.log.slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));

@@ -37,9 +37,10 @@ sudo APPS_DOMAIN=gereh.app ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net b
 3. **cert-manager** و ClusterIssuer لتس‌انکریپت برای دامنه‌های اختصاصی مشتری‌ها
 4. فضای نام **gereh-system** و حساب سرویس `gereh-controller` با کمترین دسترسی لازم (`system.yaml`)
 5. **رجیستری خصوصی** روی `registry.gereh.app` با رمز تصادفی
-6. **MinIO** برای پشتیبان پایگاه‌های داده (باکت `gereh-backups` با حذف خودکار بعد از ۳۵ روز)
-7. **ایمیج builder** (git + Nixpacks) را داخل خود کلاستر با Kaniko می‌سازد
-8. در پایان مقادیر `.env` سایت را چاپ می‌کند
+6. **Prometheus** برای نمودار تعداد درخواست هر اپ (فقط داخل کلاستر)
+7. **MinIO** برای پشتیبان پایگاه‌های داده (باکت `gereh-backups` با حذف خودکار بعد از ۳۵ روز)
+8. **ایمیج builder** (git + Nixpacks) را داخل خود کلاستر با Kaniko می‌سازد
+9. در پایان مقادیر `.env` سایت را چاپ می‌کند
 
 ### گواهی wildcard
 
@@ -69,6 +70,7 @@ kubectl -n ingress-nginx get certificate apps-wildcard   # READY=True
    PAAS_REGISTRY_PULL_SECRET=eyJhdXRocyI6...
    PAAS_BUILDER_IMAGE=registry.gereh.app/gereh/builder:1
    PAAS_INGRESS_IP=CLUSTER_IP
+   PAAS_PROMETHEUS=monitoring/prometheus-server:80
    PAAS_SOURCE_BASE_URL=https://gereh.net
    ```
 3. در **پنل ادمین › گره اپ (PaaS) › زیرساخت** دکمه «تست اتصال» را بزنید؛ باید `Kubernetes v1.3x` ببینید. دامنه اپ‌ها را همان‌جا روی `gereh.app` بگذارید.
@@ -117,11 +119,11 @@ kubectl -n gereh-system logs job/build-dep-xxxx -c kaniko
 | بیلد | نودهای جدا برای بیلد (taint) تا بیلد سنگین روی اپ‌ها اثر نگذارد |
 | ایزوله‌سازی بیشتر | gVisor یا Kata برای اجرای کد مشتری |
 
-## ۷. محدودیت‌های فعلی درایور Kubernetes
+## ۷. نکته‌های درایور Kubernetes
 
-- **Docker Compose**: در شبیه‌ساز هست، روی کلاستر هنوز نه؛ بیلد با پیام روشن رد می‌شود. مشتری می‌تواند Dockerfile یا ایمیج بدهد.
-- **بازگردانی Redis** از پنل انجام نمی‌شود (پشتیبان‌گیری می‌شود)؛ با تیکت و به‌صورت دستی.
-- **تعداد درخواست در دقیقه** در نمودار صفر است تا Prometheus را وصل کنید.
+- **Docker Compose**: هر سرویس یک Deployment جدا (`<اپ>-<سرویس>`) با Service خودش است و سرویس‌ها از طریق hostAliases با نام Compose همدیگر را پیدا می‌کنند. `volumes` و `env_file` پشتیبانی نمی‌شوند (در لاگ بیلد هشدار داده می‌شود).
+- **بازگردانی Redis**: StatefulSet برای چند ثانیه تا چند دقیقه خاموش می‌شود؛ یک Job روی همان دیسک فایل RDB را بار می‌کند و AOF را از نو می‌سازد. فایل از MinIO با لینک امضاشده ۳۰ دقیقه‌ای دانلود می‌شود، پس کلیدهای S3 هیچ‌وقت وارد فضای نام مشتری نمی‌شوند.
+- **تعداد درخواست در دقیقه** از متریک‌های ingress-nginx در Prometheus خوانده می‌شود (`PAAS_PROMETHEUS`، از طریق proxy خود API کلاستر؛ Prometheus عمومی نمی‌شود). بدون آن نمودار درخواست صفر است.
 - Kaniko بایگانی شده و نسخه Chainguard ادامه‌اش می‌دهد؛ با `PAAS_KANIKO_IMAGE` می‌توانید ایمیج دیگری بدهید.
 
 ## ۸. CLI مشتری‌ها

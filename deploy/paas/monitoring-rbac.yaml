@@ -1,0 +1,16 @@
+# Lets the site read Prometheus through the API server's service proxy (no public endpoint needed).
+# Only the Prometheus service in the monitoring namespace, read-only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: gereh-prometheus-read, namespace: monitoring }
+rules:
+  - apiGroups: [""]
+    resources: [services/proxy]
+    resourceNames: ["prometheus-server:80", "prometheus-server"]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: gereh-prometheus-read, namespace: monitoring }
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: gereh-prometheus-read }
+subjects: [{ kind: ServiceAccount, name: gereh-controller, namespace: gereh-system }]

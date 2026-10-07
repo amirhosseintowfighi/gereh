@@ -271,6 +271,7 @@ PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
 # PAAS_REGISTRY_PULL_SECRET=
 # PAAS_BUILDER_IMAGE=registry.gereh.app/gereh/builder:1
 # PAAS_INGRESS_IP=
+# PAAS_PROMETHEUS=monitoring/prometheus-server:80
 # PAAS_SOURCE_BASE_URL=https://$DOMAIN
 EOF
   umask 022

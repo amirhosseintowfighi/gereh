@@ -297,3 +297,39 @@ describe("public API and CLI flow", () => {
     expect(ok.body.result).toMatchObject({ stack: "go", files: 2 });
   });
 });
+
+describe("docker compose", () => {
+  const upload = async (files: [string, Buffer][]) => {
+    const { POST } = await import("@/app/api/paas/upload/route");
+    const { zip } = await import("@/server/xlsx");
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array(zip(files))], "stack.zip"));
+    const res = await POST(new Request("http://x/api/paas/upload", { method: "POST", body: form, headers: { origin: "http://x", host: "x" } }));
+    return (await res.json()).result as { uploadId: string; stack: string };
+  };
+
+  it("parses the stack, lists services in the build log and goes live", async () => {
+    await asUser();
+    const up = await upload([["stack/docker-compose.yml", Buffer.from("services:\n  web:\n    build: .\n    ports: ['3000']\n  cache:\n    image: redis:7-alpine\n    volumes: ['c:/data']\n")], ["stack/Dockerfile", Buffer.from("FROM node:22")]]);
+    expect(up.stack).toBe("compose");
+    const id = await call<string>("paas.createApp", gitApp({ name: "stack-app", source: "compose", gitUrl: "", stack: "compose", uploadId: up.uploadId }));
+    await settle();
+    const app = (await state()).db.paasApps.find((a) => a.id === id)!;
+    expect(app.status).toBe("running");
+    const log = (await call<{ log: string }>("paas.deployment", app.deployments[0].id)).log;
+    expect(log).toContain("* web (build .) :3000");
+    expect(log).toContain("WARN cache: volumes");
+    const [dep] = await (await db()).select().from(paasDeployments).where(eq(paasDeployments.appId, id));
+    expect(JSON.parse(dep.image.slice(8)).map((s: { name: string; image: string }) => s.image)).toEqual([expect.stringContaining("stack-app-web:"), "redis:7-alpine"]);
+  });
+
+  it("an invalid compose file fails the deployment with the reason", async () => {
+    await asUser();
+    const up = await upload([["docker-compose.yml", Buffer.from("services:\n  worker:\n    image: busybox\n")]]);
+    const id = await call<string>("paas.createApp", gitApp({ name: "bad-stack", source: "compose", gitUrl: "", stack: "compose", uploadId: up.uploadId }));
+    await settle();
+    const app = (await state()).db.paasApps.find((a) => a.id === id)!;
+    expect(app.status).toBe("failed");
+    expect((await call<{ log: string }>("paas.deployment", app.deployments[0].id)).log).toContain("ports");
+  });
+});

@@ -29,11 +29,12 @@ kind: Service
 metadata: { name: minio, namespace: gereh-system }
 spec: { selector: { app: minio }, ports: [{ name: s3, port: 9000 }, { name: console, port: 9001 }] }
 ---
-# backup jobs live in the same namespace; let them in despite the default deny
+# backup jobs (same namespace) and Redis restore pods in customer namespaces, which only hold a
+# 30-minute presigned URL, never credentials
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: minio-from-jobs, namespace: gereh-system }
 spec:
   podSelector: { matchLabels: { app: minio } }
   policyTypes: [Ingress]
-  ingress: [{ from: [{ podSelector: {} }] }]
+  ingress: [{ from: [{ podSelector: {} }, { namespaceSelector: { matchLabels: { app.kubernetes.io/managed-by: gereh } } }] }]

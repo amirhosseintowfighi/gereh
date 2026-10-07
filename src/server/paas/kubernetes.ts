@@ -17,6 +17,7 @@ import { resolve4, resolveCname } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
+import type { ComposeService } from "./compose";
 import type { AppSpec, BuildState, DbSpec, PaasDriver } from "./driver";
 
 type Obj = Record<string, unknown>;
@@ -40,6 +41,8 @@ const cfg = () => ({
   bucket: env("PAAS_BACKUP_BUCKET", "gereh-backups"),
   ingressIp: env("PAAS_INGRESS_IP"),
   appsDomain: env("PAAS_APPS_DOMAIN", "gereh.app"),
+  // "<namespace>/<service>:<port>" of Prometheus, read through the API server's service proxy
+  prometheus: env("PAAS_PROMETHEUS"),
 });
 
 const FM = "gereh";
@@ -128,41 +131,74 @@ export function namespaceObjects(userId: string): Obj[] {
   return out;
 }
 
-export function appObjects(app: AppSpec, image: string, deploymentId: string): Obj[] {
+type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[] };
+
+function deployment(app: AppSpec, w: Workload, deploymentId: string, share: number): Obj {
+  const c = cfg(), ns = nsOf(app.userId), labels = { ...appLabels(app), "app.kubernetes.io/name": w.name, "gereh.net/service": w.service };
+  const probe = w.port ? { httpGet: { path: app.healthPath || "/", port: w.port }, periodSeconds: 5, timeoutSeconds: 3, failureThreshold: 3 } : undefined;
+  const disk = w.primary && app.diskGb > 0;
+  return { apiVersion: "apps/v1", kind: "Deployment", metadata: { name: w.name, namespace: ns, labels }, spec: {
+    ...(w.primary && app.autoscale ? {} : { replicas: w.replicas }),
+    revisionHistoryLimit: 3,
+    selector: { matchLabels: { "app.kubernetes.io/name": w.name } },
+    strategy: disk ? { type: "Recreate" } : { type: "RollingUpdate", rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } },
+    template: {
+      metadata: { labels, annotations: { "gereh.net/deployment": deploymentId } },
+      spec: {
+        automountServiceAccountToken: false,
+        enableServiceLinks: false,
+        ...(c.pullSecret ? { imagePullSecrets: [{ name: "gereh-registry" }] } : {}),
+        ...(w.aliases?.length ? { hostAliases: w.aliases } : {}),
+        terminationGracePeriodSeconds: 30,
+        containers: [{
+          name: "app", image: w.image, imagePullPolicy: "IfNotPresent",
+          ...(w.command ? { command: ["/bin/sh", "-c", w.command] } : {}),
+          ...(w.port ? { ports: [{ name: "http", containerPort: w.port }] } : {}),
+          envFrom: [{ secretRef: { name: app.name + "-env" } }],
+          ...(w.env && Object.keys(w.env).length ? { env: Object.entries(w.env).map(([name, value]) => ({ name, value })) } : {}),
+          // compose services share the plan: each may burst to the full limit, requests are split
+          resources: { requests: { cpu: cpuQty(app.cpu / 2 / share), memory: memQty(Math.ceil(app.ramMb / share)) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } },
+          ...(w.primary && probe ? { readinessProbe: probe, startupProbe: { ...probe, failureThreshold: 60 } } : {}),
+          ...(w.port ? { livenessProbe: { tcpSocket: { port: w.port }, periodSeconds: 20, failureThreshold: 3, initialDelaySeconds: w.primary ? 0 : 30 } } : {}),
+          securityContext: { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" } },
+          ...(disk ? { volumeMounts: [{ name: "data", mountPath: app.diskMount || "/data" }] } : {}),
+        }],
+        ...(disk ? { volumes: [{ name: "data", persistentVolumeClaim: { claimName: app.name + "-data" } }] } : {}),
+      },
+    },
+  } };
+}
+
+/** Services first: their cluster IPs become host aliases so compose services find each other by name */
+export function serviceObjects(app: AppSpec, image: string): Obj[] {
+  const ns = nsOf(app.userId), labels = appLabels(app);
+  const svc = (name: string, service: string, ports: { name: string; port: number; targetPort: number }[]): Obj =>
+    ({ apiVersion: "v1", kind: "Service", metadata: { name, namespace: ns, labels: { ...labels, "gereh.net/service": service } }, spec: { selector: { "app.kubernetes.io/name": name }, ports } });
+  const compose = composeOf(image);
+  if (!compose) return [svc(app.name, "app", [{ name: "http", port: 80, targetPort: app.port }])];
+  return compose.filter((s) => s.port).map((s) => s.public
+    ? svc(app.name, s.name, [{ name: "http", port: 80, targetPort: s.port! }, ...(s.port !== 80 ? [{ name: "internal", port: s.port!, targetPort: s.port! }] : [])])
+    : svc(app.name + "-" + s.name, s.name, [{ name: "tcp", port: s.port!, targetPort: s.port! }]));
+}
+export const composeOf = (image: string): ComposeService[] | null => (image.startsWith("compose:") ? JSON.parse(image.slice(8)) as ComposeService[] : null);
+
+/** everything but the Services; `ips` maps compose service name → cluster IP */
+export function appObjects(app: AppSpec, image: string, deploymentId: string, ips: Record<string, string> = {}): Obj[] {
   const c = cfg(), ns = nsOf(app.userId), labels = appLabels(app);
   const custom = app.hosts.slice(1);
-  const probe = { httpGet: { path: app.healthPath || "/", port: app.port }, periodSeconds: 5, timeoutSeconds: 3, failureThreshold: 3 };
+  const compose = composeOf(image);
+  const aliases = Object.entries(ips).map(([name, ip]) => ({ ip, hostnames: [name] }));
+  const workloads: Workload[] = compose
+    ? compose.map((s) => ({
+        name: s.public ? app.name : app.name + "-" + s.name, image: s.image!, port: s.port, service: s.name, primary: s.public,
+        command: (s.public && app.startCommand) || s.command, replicas: s.public ? app.instances : 1, aliases,
+        // panel variables win over compose defaults (container env would otherwise shadow envFrom)
+        env: Object.fromEntries(Object.entries(s.env).filter(([k]) => !(k in app.env))),
+      }))
+    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app" }];
   const out: Obj[] = [
-    { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, GEREH_DEPLOYMENT: deploymentId } },
-    { apiVersion: "apps/v1", kind: "Deployment", metadata: { name: app.name, namespace: ns, labels }, spec: {
-      ...(app.autoscale ? {} : { replicas: app.instances }),
-      revisionHistoryLimit: 3,
-      selector: { matchLabels: { "app.kubernetes.io/name": app.name } },
-      strategy: app.diskGb ? { type: "Recreate" } : { type: "RollingUpdate", rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } },
-      template: {
-        metadata: { labels, annotations: { "gereh.net/deployment": deploymentId } },
-        spec: {
-          automountServiceAccountToken: false,
-          enableServiceLinks: false,
-          ...(c.pullSecret ? { imagePullSecrets: [{ name: "gereh-registry" }] } : {}),
-          terminationGracePeriodSeconds: 30,
-          containers: [{
-            name: "app", image, imagePullPolicy: "IfNotPresent",
-            ...(app.startCommand ? { command: ["/bin/sh", "-c", app.startCommand] } : {}),
-            ports: [{ name: "http", containerPort: app.port }],
-            envFrom: [{ secretRef: { name: app.name + "-env" } }],
-            resources: { requests: { cpu: cpuQty(app.cpu / 2), memory: memQty(app.ramMb) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } },
-            readinessProbe: probe,
-            startupProbe: { ...probe, failureThreshold: 60 },
-            livenessProbe: { tcpSocket: { port: app.port }, periodSeconds: 20, failureThreshold: 3 },
-            securityContext: { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" } },
-            ...(app.diskGb ? { volumeMounts: [{ name: "data", mountPath: app.diskMount || "/data" }] } : {}),
-          }],
-          ...(app.diskGb ? { volumes: [{ name: "data", persistentVolumeClaim: { claimName: app.name + "-data" } }] } : {}),
-        },
-      },
-    } },
-    { apiVersion: "v1", kind: "Service", metadata: { name: app.name, namespace: ns, labels }, spec: { selector: { "app.kubernetes.io/name": app.name }, ports: [{ name: "http", port: 80, targetPort: app.port }] } },
+    { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, ...(compose ? { PORT: String(compose.find((x) => x.public)!.port) } : {}), GEREH_DEPLOYMENT: deploymentId } },
+    ...workloads.map((w) => deployment(app, w, deploymentId, workloads.length)),
     { apiVersion: "networking.k8s.io/v1", kind: "Ingress", metadata: { name: app.name, namespace: ns, labels, annotations: {
       ...(custom.length ? { "cert-manager.io/cluster-issuer": c.issuer } : {}),
       "nginx.ingress.kubernetes.io/proxy-body-size": "50m", "nginx.ingress.kubernetes.io/proxy-read-timeout": "120",
@@ -182,21 +218,23 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string): O
 }
 
 /** the build Job: prepare (fetch + Nixpacks) → Kaniko */
-export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string): Obj {
-  const c = cfg(), image = imageFor(app, deploymentId.toLowerCase());
-  const root = (app.rootDir || ".").replace(/^\/+|\/+$/g, "") || ".";
+export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string, service?: ComposeService): Obj {
+  const c = cfg(), dep = deploymentId.toLowerCase();
+  const image = service ? imageFor({ userId: app.userId, name: app.name + "-" + service.name }, dep) : imageFor(app, dep);
+  const root = [(app.rootDir || "").replace(/^\/+|\/+$/g, ""), service?.build?.context === "." ? "" : service?.build?.context ?? ""].filter(Boolean).join("/") || ".";
+  const dockerfile = service?.build?.dockerfile ?? "Dockerfile";
   const prepare = [
     "set -eu", "cd /workspace",
     app.source === "git"
       ? `git clone --depth 1 --branch ${shq(app.gitBranch || "main")} ${shq(app.gitUrl)} src 2>&1 | sed -E 's#://[^@/]+@#://***@#g'; echo "REF=$(git -C src rev-parse --short HEAD)"`
       : `wget -q -O src.zip "$SOURCE_URL" && mkdir src && unzip -q src.zip -d src && rm src.zip && if [ "$(ls -A src | wc -l)" = 1 ] && [ -d "src/$(ls -A src)" ]; then d="src/$(ls -A src)"; mv "$d" src.tmp && rmdir src && mv src.tmp src; fi`,
     `cd src/${root}`,
-    "if [ -f Dockerfile ]; then echo '==> Using Dockerfile'; cp Dockerfile /workspace/Dockerfile.gereh; else",
-    `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
+    `if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
+    `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
   ].join("\n");
   return {
     apiVersion: "batch/v1", kind: "Job",
-    metadata: { name: "build-" + deploymentId.toLowerCase(), namespace: c.system, labels: { ...appLabels(app), "gereh.net/deployment": deploymentId, "gereh.net/kind": "build" } },
+    metadata: { name: "build-" + dep + (service ? "-" + service.name : ""), namespace: c.system, labels: { ...appLabels(app), "gereh.net/deployment": deploymentId, "gereh.net/kind": "build" } },
     spec: {
       backoffLimit: 0, activeDeadlineSeconds: 1800, ttlSecondsAfterFinished: 86_400,
       template: {
@@ -284,9 +322,26 @@ export function restoreCommand(d: DbSpec) {
     case "mysql": return `mysql -h ${h} -P ${p} -u root -p"$DB_PASSWORD" < /backup/dump`;
     case "mariadb": return `mariadb -h ${h} -P ${p} -u root -p"$DB_PASSWORD" < /backup/dump`;
     case "mongodb": return `mongorestore --uri="mongodb://${encodeURIComponent(d.username)}:$DB_PASSWORD@${h}:${p}/?authSource=admin" --archive=/backup/dump --gzip --drop`;
-    default: throw new Error("بازگردانی Redis از پنل پشتیبانی نمی‌شود؛ تیکت بزنید تا تیم فنی انجام دهد.");
+    default: throw new Error("Redis is restored by redisRestoreScript");
   }
 }
+
+/** runs on the stopped Redis volume: load the RDB with AOF off, then switch AOF on so Redis rewrites
+    it from memory (works whatever the version's rule for RDB vs AOF at startup), then shut down */
+export const redisRestoreScript = [
+  "set -e",
+  'wget -q -O /data/restore.rdb "$URL"',
+  "rm -rf /data/appendonlydir /data/appendonly.aof /data/dump.rdb && mv /data/restore.rdb /data/dump.rdb",
+  "redis-server --dir /data --appendonly no --port 6390 --daemonize yes --save ''",
+  "until redis-cli -p 6390 ping 2>/dev/null | grep -q PONG; do sleep 1; done",
+  "while redis-cli -p 6390 info persistence | grep -q 'loading:1'; do sleep 1; done",
+  'echo "KEYS=$(redis-cli -p 6390 dbsize)"',
+  "redis-cli -p 6390 config set appendonly yes >/dev/null",
+  "until redis-cli -p 6390 info persistence | grep -q 'aof_enabled:1'; do sleep 1; done",
+  "while redis-cli -p 6390 info persistence | grep -qE 'aof_rewrite_in_progress:1|aof_rewrite_scheduled:1'; do sleep 1; done",
+  "redis-cli -p 6390 shutdown nosave || true",
+  "test -d /data/appendonlydir",
+].join("\n");
 
 /* ---------- driver ---------- */
 export class KubernetesDriver implements PaasDriver {
@@ -308,9 +363,13 @@ export class KubernetesDriver implements PaasDriver {
   }
 
   /* ----- builds ----- */
-  async startBuild(app: AppSpec, deploymentId: string, sourceUrl?: string) {
+  async startBuild(app: AppSpec, deploymentId: string, sourceUrl?: string, compose?: ComposeService[]) {
     if (app.source === "image") return "image:" + app.image;
-    if (app.source === "compose") throw new Error("Docker Compose روی این کلاستر هنوز فعال نشده است؛ از Dockerfile یا ایمیج استفاده کنید.");
+    if (compose) {
+      for (const s of compose.filter((x) => x.build)) await apply(buildJob(app, deploymentId, sourceUrl, s) as never);
+      return "compose:" + JSON.stringify({ dep: deploymentId.toLowerCase(), services: compose });
+    }
+    if (app.source === "compose") throw new Error("فایل compose پروژه خوانده نشد.");
     const job = buildJob(app, deploymentId, sourceUrl);
     await apply(job as never);
     return (job.metadata as { name: string }).name;
@@ -330,6 +389,7 @@ export class KubernetesDriver implements PaasDriver {
 
   async buildStatus(app: AppSpec, handle: string): Promise<BuildState> {
     if (handle.startsWith("image:")) return { state: "succeeded", log: "==> Using image " + handle.slice(6), image: handle.slice(6) };
+    if (handle.startsWith("compose:")) return this.composeStatus(app, JSON.parse(handle.slice(8)));
     const ns = cfg().system;
     const job = await get("batch/v1", "Job", ns, handle) as { status?: { succeeded?: number; failed?: number; conditions?: { type: string; status: string; message?: string }[] } };
     const log = await this.jobLogs(ns, handle, ["prepare", "kaniko"]);
@@ -341,30 +401,67 @@ export class KubernetesDriver implements PaasDriver {
     return { state: "running", log: clean };
   }
 
+  private async composeStatus(app: AppSpec, h: { dep: string; services: ComposeService[] }): Promise<BuildState> {
+    const ns = cfg().system, logs: string[] = [];
+    let running = false;
+    for (const s of h.services.filter((x) => x.build)) {
+      const name = "build-" + h.dep + "-" + s.name;
+      const job = await get("batch/v1", "Job", ns, name) as { status?: { succeeded?: number; failed?: number; conditions?: { type: string; status: string; message?: string }[] } };
+      const log = (await this.jobLogs(ns, name, ["prepare", "kaniko"])).replace(/^REF=\w+\n?/gm, "").trim();
+      logs.push("──── " + s.name + " ────" + (log ? "\n" + log : ""));
+      if (job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True")) return { state: "failed", log: logs.join("\n") + "\nERROR: build of service " + s.name + " failed" };
+      if (!job.status?.succeeded) running = true;
+    }
+    if (running) return { state: "running", log: logs.join("\n") };
+    const services = h.services.map((s) => (s.build ? { ...s, image: imageFor({ userId: app.userId, name: app.name + "-" + s.name }, h.dep) } : s));
+    return { state: "succeeded", log: logs.join("\n") + "\n==> Images pushed", image: "compose:" + JSON.stringify(services) };
+  }
+
   /* ----- apps ----- */
+  private async owned(ns: string, kind: "Deployment" | "Service", appId: string) {
+    const r = await k8s("GET", pathOf(kind === "Deployment" ? "apps/v1" : "v1", kind, ns) + "?labelSelector=" + encodeURIComponent("gereh.net/app=" + appId));
+    return (r.items as { metadata: { name: string; labels?: Record<string, string> }; spec: { replicas?: number }; status?: Record<string, number> }[]) ?? [];
+  }
+
   async release(app: AppSpec, image: string, deploymentId: string) {
     const ns = await this.ensureNs(app.userId);
-    const objs = appObjects(app, image, deploymentId);
+    const ips: Record<string, string> = {};
+    const services = serviceObjects(app, image);
+    for (const o of services) {
+      const r = await apply(o as never) as { spec?: { clusterIP?: string } };
+      const name = (o.metadata as { labels: Record<string, string> }).labels["gereh.net/service"];
+      if (composeOf(image) && r.spec?.clusterIP && r.spec.clusterIP !== "None") ips[name] = r.spec.clusterIP;
+    }
+    const objs = appObjects(app, image, deploymentId, ips);
     for (const o of objs) await apply(o as never);
+    // services removed from docker-compose.yml since the last release
+    const keep = new Set([...services, ...objs].map((o) => o.kind + "/" + (o.metadata as { name: string }).name));
+    for (const d of await this.owned(ns, "Deployment", app.id)) if (!keep.has("Deployment/" + d.metadata.name)) await del("apps/v1", "Deployment", ns, d.metadata.name);
+    for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
     if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
   }
 
+  /** every workload of the app (one, or one per compose service) is fully rolled out */
   async rolloutReady(app: AppSpec) {
-    const d = await get("apps/v1", "Deployment", nsOf(app.userId), app.name) as { metadata: { generation: number }; spec: { replicas?: number }; status?: { observedGeneration?: number; updatedReplicas?: number; availableReplicas?: number; replicas?: number } };
-    const want = d.spec.replicas ?? 1, s = d.status ?? {};
-    return (s.observedGeneration ?? 0) >= d.metadata.generation && (s.updatedReplicas ?? 0) >= want && (s.availableReplicas ?? 0) >= want && (s.replicas ?? 0) === (s.updatedReplicas ?? 0);
+    const list = await this.owned(nsOf(app.userId), "Deployment", app.id) as unknown as { metadata: { generation: number }; spec: { replicas?: number }; status?: { observedGeneration?: number; updatedReplicas?: number; availableReplicas?: number; replicas?: number } }[];
+    return list.length > 0 && list.every((d) => {
+      const want = d.spec.replicas ?? 1, s = d.status ?? {};
+      return (s.observedGeneration ?? 0) >= d.metadata.generation && (s.updatedReplicas ?? 0) >= want && (s.availableReplicas ?? 0) >= want && (s.replicas ?? 0) === (s.updatedReplicas ?? 0);
+    });
   }
 
   async setState(app: AppSpec, action: "start" | "stop" | "restart") {
-    const ns = nsOf(app.userId), path = pathOf("apps/v1", "Deployment", ns, app.name);
-    const merge = (body: unknown) => k8s("PATCH", path, body, "application/merge-patch+json");
-    if (action === "restart") return void (await merge({ spec: { template: { metadata: { annotations: { "kubectl.kubernetes.io/restartedAt": new Date().toISOString() } } } } }));
-    if (action === "stop") {
-      await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
-      await merge({ spec: { replicas: 0 } });
-    } else {
-      await merge({ spec: { replicas: app.instances } });
+    const ns = nsOf(app.userId);
+    const merge = (name: string, body: unknown) => k8s("PATCH", pathOf("apps/v1", "Deployment", ns, name), body, "application/merge-patch+json");
+    const all = await this.owned(ns, "Deployment", app.id);
+    if (action === "stop") await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
+    for (const d of all) {
+      const primary = d.metadata.name === app.name;
+      if (action === "restart") await merge(d.metadata.name, { spec: { template: { metadata: { annotations: { "kubectl.kubernetes.io/restartedAt": new Date().toISOString() } } } } });
+      else await merge(d.metadata.name, { spec: { replicas: action === "stop" ? 0 : primary ? app.instances : 1 } });
+    }
+    if (action === "start" && app.autoscale) {
       const hpa = appObjects(app, "", "").find((o) => o.kind === "HorizontalPodAutoscaler");
       if (hpa) await apply(hpa as never);
     }
@@ -374,6 +471,8 @@ export class KubernetesDriver implements PaasDriver {
     const ns = nsOf(app.userId);
     await del("networking.k8s.io/v1", "Ingress", ns, app.name);
     await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
+    for (const d of await this.owned(ns, "Deployment", app.id)) await del("apps/v1", "Deployment", ns, d.metadata.name);
+    for (const sv of await this.owned(ns, "Service", app.id)) await del("v1", "Service", ns, sv.metadata.name);
     await del("apps/v1", "Deployment", ns, app.name);
     await del("v1", "Service", ns, app.name);
     await del("v1", "Secret", ns, app.name + "-env");
@@ -383,11 +482,12 @@ export class KubernetesDriver implements PaasDriver {
 
   async logs(app: AppSpec, tail: number) {
     const ns = nsOf(app.userId);
-    const pods = await k8s("GET", "/api/v1/namespaces/" + ns + "/pods?labelSelector=" + encodeURIComponent("app.kubernetes.io/name=" + app.name));
+    const pods = await k8s("GET", "/api/v1/namespaces/" + ns + "/pods?labelSelector=" + encodeURIComponent("gereh.net/app=" + app.id));
     const lines: [string, string][] = [];
-    for (const p of ((pods.items as { metadata: { name: string } }[]) ?? []).slice(0, 10)) {
+    for (const p of ((pods.items as { metadata: { name: string; labels?: Record<string, string> } }[]) ?? []).slice(0, 12)) {
       const r = await k8s("GET", `/api/v1/namespaces/${ns}/pods/${p.metadata.name}/log?container=app&timestamps=true&tailLines=${tail}`).catch(() => ({ text: "" }));
-      const short = p.metadata.name.slice(-5);
+      const svc = p.metadata.labels?.["gereh.net/service"];
+      const short = (svc && svc !== "app" ? svc + "/" : "") + p.metadata.name.slice(-5);
       for (const l of String(r.text || "").split("\n")) if (l) { const sp = l.indexOf(" "); lines.push([l.slice(0, sp), l.slice(11, 19) + " [" + short + "] " + l.slice(sp + 1)]); }
     }
     return lines.sort((a, b) => a[0].localeCompare(b[0])).slice(-tail).map((x) => x[1]);
@@ -402,7 +502,7 @@ export class KubernetesDriver implements PaasDriver {
       if (!r) continue;
       const pods = (r.items as { metadata: { labels?: Record<string, string> }; containers: { usage: { cpu: string; memory: string } }[] }[]) ?? [];
       for (const t of list) {
-        const mine = pods.filter((p) => p.metadata.labels?.["app.kubernetes.io/name"] === t.name);
+        const mine = pods.filter((p) => p.metadata.labels?.[t.kind === "db" ? "gereh.net/db" : "gereh.net/app"] === t.id);
         if (!mine.length) continue;
         let cores = 0, mem = 0;
         for (const p of mine) for (const ct of p.containers) { cores += parseCpu(ct.usage.cpu); mem += parseMem(ct.usage.memory); }
@@ -410,6 +510,29 @@ export class KubernetesDriver implements PaasDriver {
         const plan = targets.find((x) => x.id === t.id)!;
         out.push({ id: t.id, cpu: Math.round((cores / mine.length / planCpuGuess(plan.ramMb)) * 1000) / 10, ramMb: Math.round(mem / mine.length), rpm: 0 });
       }
+    }
+    const rpm = await this.requestRates();
+    for (const m of out) {
+      const t = targets.find((x) => x.id === m.id)!;
+      if (t.kind === "app") m.rpm = rpm.get(nsOf(t.owner) + "/" + t.name) ?? 0;
+    }
+    return out;
+  }
+
+  /** requests per minute per ingress ("<namespace>/<ingress>") from ingress-nginx metrics in Prometheus */
+  async requestRates(): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    const target = cfg().prometheus;
+    if (!target) return out;
+    const m = /^([a-z0-9-]+)\/([a-z0-9-]+)(?::(\d+))?$/.exec(target);
+    if (!m) return out;
+    // scraping renames the metric's own namespace label to exported_namespace; accept both
+    const q = "sum by (namespace, exported_namespace, ingress) (rate(nginx_ingress_controller_requests[5m])) * 60";
+    const r = await k8s("GET", `/api/v1/namespaces/${m[1]}/services/${m[2]}:${m[3] ?? "80"}/proxy/api/v1/query?query=${encodeURIComponent(q)}`).catch(() => null) as
+      { data?: { result?: { metric: Record<string, string>; value: [number, string] }[] } } | null;
+    for (const row of r?.data?.result ?? []) {
+      const ns = row.metric.exported_namespace || row.metric.namespace;
+      if (ns && row.metric.ingress) out.set(ns + "/" + row.metric.ingress, (out.get(ns + "/" + row.metric.ingress) ?? 0) + Math.round(Number(row.value[1]) || 0));
     }
     return out;
   }
@@ -476,7 +599,16 @@ export class KubernetesDriver implements PaasDriver {
   }
 
   /** runs a one-off Job in the platform namespace and waits for it; returns its log */
-  private async runJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down"; key: string }) {
+  private async waitJob(ns: string, name: string, timeoutSec: number, containers: string[]) {
+    for (const t0 = Date.now(); Date.now() - t0 < timeoutSec * 1000 + 30_000; await sleep(3000)) {
+      const j = await get("batch/v1", "Job", ns, name) as { status?: { succeeded?: number; failed?: number } };
+      if (j.status?.succeeded) return this.jobLogs(ns, name, containers);
+      if (j.status?.failed) throw new Error(name + " failed: " + (await this.jobLogs(ns, name, containers, 20)).slice(-500));
+    }
+    throw new Error(name + " timed out");
+  }
+
+  private async runJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down" | "share"; key: string }) {
     const c = cfg(), name = (kind + "-" + d.id + "-" + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
     const s3 = ["S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY"].map((k) => ({ name: k, valueFrom: { secretKeyRef: { name: "backup-s3", key: k } } }));
     const vol = [{ name: "backup", mountPath: "/backup" }];
@@ -488,17 +620,13 @@ export class KubernetesDriver implements PaasDriver {
         restartPolicy: "Never", automountServiceAccountToken: false,
         // backup: dump (init) → upload; restore: download (init) → restore
         initContainers: upload?.mode === "up" ? [main] : upload?.mode === "down" ? [mc(`mc cp "s3/${upload.key}" /backup/dump`)] : [],
-        containers: upload?.mode === "up" ? [mc(`echo "SIZE=$(stat -c %s /backup/dump)"; mc cp /backup/dump "s3/${upload.key}"`)] : [main],
+        containers: upload?.mode === "up" ? [mc(`echo "SIZE=$(stat -c %s /backup/dump)"; mc cp /backup/dump "s3/${upload.key}"`)]
+          : upload?.mode === "share" ? [mc(`mc share download --expire=30m "s3/${upload.key}" | sed -n 's/^Share: /URL=/p'`)] : [main],
         volumes: [{ name: "backup", emptyDir: {} }],
       } } },
     };
     await apply(job as never);
-    for (const t0 = Date.now(); Date.now() - t0 < timeoutSec * 1000 + 30_000; await sleep(3000)) {
-      const j = await get("batch/v1", "Job", c.system, name) as { status?: { succeeded?: number; failed?: number } };
-      if (j.status?.succeeded) return this.jobLogs(c.system, name, ["main", "s3"]);
-      if (j.status?.failed) throw new Error(kind + " job failed: " + (await this.jobLogs(c.system, name, ["s3", "main"], 20)).slice(-500));
-    }
-    throw new Error(kind + " job timed out");
+    return this.waitJob(c.system, name, timeoutSec, ["main", "s3"]);
   }
 
   async backupDb(d: DbSpec, backupId: string) {
@@ -508,8 +636,38 @@ export class KubernetesDriver implements PaasDriver {
     return { sizeMb: Math.round((bytes / 1024 / 1024) * 10) / 10, location: "s3://" + key };
   }
   async restoreDb(d: DbSpec, location: string) {
-    const cmd = restoreCommand(d);
-    await this.runJob(d, "restore", DB_IMAGES[d.engine](d.version), cmd, [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key: location.replace(/^s3:\/\//, "") });
+    const key = location.replace(/^s3:\/\//, "");
+    if (d.engine === "redis") return this.restoreRedis(d, key);
+    await this.runJob(d, "restore", DB_IMAGES[d.engine](d.version), restoreCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key });
+  }
+
+  private async restoreRedis(d: DbSpec, key: string) {
+    const ns = nsOf(d.userId), sts = dbName(d);
+    const url = /^URL=(\S+)/m.exec(await this.runJob(d, "share", cfg().mcImage, "", [], 300, { mode: "share", key }))?.[1];
+    if (!url) throw new Error("could not create a download link for the backup");
+    await this.setDbState(d, "stop");
+    try {
+      // the volume is ReadWriteOnce: wait until the Redis pod has released it
+      for (let i = 0; ; i++) {
+        const pods = await k8s("GET", "/api/v1/namespaces/" + ns + "/pods?labelSelector=" + encodeURIComponent("app.kubernetes.io/name=" + sts));
+        if (!((pods.items as unknown[]) ?? []).length) break;
+        if (i > 60) throw new Error("Redis did not stop");
+        await sleep(2000);
+      }
+      const name = ("restore-" + d.id + "-" + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
+      await apply({
+        apiVersion: "batch/v1", kind: "Job", metadata: { name, namespace: ns, labels: { "app.kubernetes.io/managed-by": FM, "gereh.net/kind": "restore" } },
+        spec: { backoffLimit: 0, activeDeadlineSeconds: 3600, ttlSecondsAfterFinished: 3600, template: { metadata: { labels: { "gereh.net/kind": "restore" } }, spec: {
+          restartPolicy: "Never", automountServiceAccountToken: false,
+          containers: [{ name: "main", image: DB_IMAGES.redis(d.version), command: ["/bin/sh", "-c", redisRestoreScript], env: [{ name: "URL", value: url }],
+            resources: { limits: { cpu: cpuQty(d.cpu), memory: memQty(d.ramMb * 2) } }, volumeMounts: [{ name: "data", mountPath: "/data" }] }],
+          volumes: [{ name: "data", persistentVolumeClaim: { claimName: "data-" + sts + "-0" } }],
+        } } },
+      } as never);
+      await this.waitJob(ns, name, 3600, ["main"]);
+    } finally {
+      await this.setDbState(d, "start");
+    }
   }
 }
 
