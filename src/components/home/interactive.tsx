@@ -166,7 +166,7 @@ export function QuickStart() {
                 </div>
                 <div className="flex gap-2">
                   <a href="#builder" className={BTN_G + " px-4 h-11 text-sm flex-1 sm:flex-none"}><Icon name="sliders-horizontal" size={16} /> سفارشی‌سازی</a>
-                  <button type="button" onClick={() => addToCart({ title: "سرور ابری " + pr.name, meta: fa(pr.cpu) + " هسته، " + fa(pr.ram) + " گیگ رم، " + fa(pr.disk) + " گیگ NVMe، تهران", base: prPrice, icon: "server" })}
+                  <button type="button" onClick={() => addToCart({ t: "custom", cpu: pr.cpu, ram: pr.ram, disk: pr.disk, loc: "thr", os: "ubuntu", ips: 0, backup: false })}
                     className={BTN_P + " px-5 h-11 text-sm flex-1 sm:flex-none"}><Icon name="plus" size={16} /> افزودن</button>
                 </div>
               </div>
@@ -183,7 +183,7 @@ export function QuickStart() {
                 </div>
                 <div className="flex items-center gap-3 justify-between">
                   <div className="font-black tabular"><Num value={rec.price} /> <span className="text-xs font-normal text-white/55">تومان / ماه</span></div>
-                  <button type="button" onClick={() => addToCart({ title: "هاست " + rec.name, meta: "لینوکس، پرداخت ماهانه", base: rec.price, icon: "layers" })} className={BTN_P + " px-5 h-11 text-sm"}><Icon name="plus" size={16} /> افزودن</button>
+                  <button type="button" onClick={() => addToCart({ t: "hosting", plan: rec.id, yearly: false })} className={BTN_P + " px-5 h-11 text-sm"}><Icon name="plus" size={16} /> افزودن</button>
                 </div>
               </div>
             </div>
@@ -393,7 +393,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
             <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
             <div className="text-[11px] text-white/55 mt-1">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
           </div>
-          <button type="button" onClick={() => addToCart({ title: "سرور ابری سفارشی", meta: fa(cfg.cpu) + " هسته، " + fa(cfg.ram) + " گیگ رم، " + fa(cfg.disk) + " گیگ NVMe، " + locObj.label + (ips ? "، " + fa(ips) + " آی‌پی اضافه" : "") + (backup ? "، بکاپ روزانه" : ""), base: final, icon: "server" })}
+          <button type="button" onClick={() => addToCart({ t: "custom", ...cfg })}
             className={BTN_P + " w-full mt-5 py-3.5"}><Icon name="rocket" size={18} /> ساخت این سرور</button>
         </aside>
       </div>

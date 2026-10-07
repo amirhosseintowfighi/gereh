@@ -62,10 +62,11 @@ export function AdminUsers() {
   const [adj, setAdj] = useState({ amount: "", reason: "" });
   const [newU, setNewU] = useState<{ name: string; email: string; phone: string } | null>(null);
   const u = sel ? byId(db.users, sel) : undefined;
+  const customers = db.users.filter((x) => x.role === "user");
   return (
     <div>
-      <PageTitle title="کاربران" sub={fa(db.users.length) + " کاربر"} action={<button type="button" onClick={() => setNewU({ name: "", email: "", phone: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="user-plus" size={16} /> کاربر جدید</button>} />
-      <DataTable rows={db.users} searchKeys={["name", "email", "phone"]} searchPlaceholder="نام، ایمیل یا موبایل" filters={[{ key: "status", label: "وضعیت", options: ["active", "pending", "suspended"] }, { key: "kyc", label: "احراز", options: ["verified", "pending", "none"] }]}
+      <PageTitle title="کاربران" sub={fa(customers.length) + " کاربر"} action={<button type="button" onClick={() => setNewU({ name: "", email: "", phone: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="user-plus" size={16} /> کاربر جدید</button>} />
+      <DataTable rows={customers} searchKeys={["name", "email", "phone"]} searchPlaceholder="نام، ایمیل یا موبایل" filters={[{ key: "status", label: "وضعیت", options: ["active", "pending", "suspended"] }, { key: "kyc", label: "احراز", options: ["verified", "pending", "none"] }]}
         onRowClick={(r) => { setSel(r.id); setAdj({ amount: "", reason: "" }); }} pageSize={10}
         columns={[
           { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/55 ltr text-right">{r.email}</div></div></div> },
@@ -193,7 +194,7 @@ export function AdminBilling() {
   const sum = (st: string) => db.invoices.filter((i) => i.status === st).reduce((s, i) => s + gross(i), 0);
   return (
     <div>
-      <PageTitle title="مالی" sub="صورتحساب‌ها، پرداخت‌ها و بازگشت وجه" action={<button type="button" onClick={() => setCreate({ userId: db.users[0].id, desc: "", amount: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> صورتحساب دستی</button>} />
+      <PageTitle title="مالی" sub="صورتحساب‌ها، پرداخت‌ها و بازگشت وجه" action={<button type="button" onClick={() => setCreate({ userId: db.users.find((u) => u.role === "user")?.id || "", desc: "", amount: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> صورتحساب دستی</button>} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
         <StatCard icon="circle-check" label="پرداخت‌شده" value={sum("paid")} suffix="تومان" />
         <StatCard icon="clock" label="در انتظار پرداخت" value={sum("unpaid")} suffix="تومان" />
@@ -226,7 +227,7 @@ export function AdminBilling() {
           await api.billing.createInvoice({ userId: create.userId, due: nowFa(), items: [{ desc: create.desc.trim(), amount: a }] }); setCreate(null); notify("صورتحساب صادر شد", "receipt");
         }}>صدور</AsyncButton></>}>
         {create && <div className="space-y-4">
-          <Field label="مشتری"><Select value={create.userId} label="مشتری" onChange={(v) => setCreate((s) => s && { ...s, userId: v })} options={db.users.map((u) => ({ value: u.id, label: u.name + " (" + u.email + ")" }))} /></Field>
+          <Field label="مشتری"><Select value={create.userId} label="مشتری" onChange={(v) => setCreate((s) => s && { ...s, userId: v })} options={db.users.filter((u) => u.role === "user").map((u) => ({ value: u.id, label: u.name + " (" + u.email + ")" }))} /></Field>
           <Field label="شرح"><input value={create.desc} onChange={(e) => setCreate((s) => s && { ...s, desc: e.target.value })} className={INPUT} /></Field>
           <Field label="مبلغ (تومان)" hint={create.amount ? toman(+amountInput(create.amount) || 0) : undefined}><input value={create.amount} inputMode="numeric" onChange={(e) => setCreate((s) => s && { ...s, amount: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
         </div>}
@@ -578,7 +579,7 @@ export function AdminSettings() {
   const [s, setS] = useState(db.settings);
   const [st, setSt] = useState<{ name: string; email: string; role: string } | null>(null);
   const [smsKey, setSmsKey] = useState("");
-  const save = async (patch: Partial<typeof s>) => { await api.admin.saveSettings(patch); notify("تنظیمات ذخیره شد"); };
+  const save = async (patch: Partial<typeof s> & { smsKey?: string }) => { await api.admin.saveSettings(patch); notify("تنظیمات ذخیره شد"); };
   return (
     <div>
       <PageTitle title="تنظیمات سیستم" />
@@ -621,8 +622,8 @@ export function AdminSettings() {
             <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await new Promise((r) => setTimeout(r, 600)); notify("ایمیل آزمایشی به " + s.supportEmail + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={async () => {
                 if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.smtpHost.trim())) throw new Error("آدرس SMTP معتبر نیست.");
                 if (!(s.smtpPort > 0 && s.smtpPort < 65536)) throw new Error("پورت SMTP معتبر نیست.");
-                // ponytail: the key goes to the backend secret store; the mock only records that one exists
-                await save({ smsProvider: s.smsProvider, smtpHost: s.smtpHost.trim(), smtpPort: s.smtpPort, ...(smsKey ? { smsKeySet: true } : {}) });
+                // the key is encrypted server-side (AES-GCM) and never sent back to the browser
+                await save({ smsProvider: s.smsProvider, smtpHost: s.smtpHost.trim(), smtpPort: s.smtpPort, ...(smsKey ? { smsKey } : {}) });
                 setSmsKey(""); if (smsKey) setS((x) => ({ ...x, smsKeySet: true }));
               }}>ذخیره</AsyncButton></div>
           </Card>

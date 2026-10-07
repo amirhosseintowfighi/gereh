@@ -4,7 +4,9 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BTN_D, BTN_G, BTN_P } from "@/lib/cls";
 import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
-import { api, quoteCoupon, useDB, useSession, type CartItem } from "@/lib/store";
+import { priceSku } from "@/lib/catalog";
+import { couponDiscount, type CouponRule } from "@/lib/money";
+import { api, useDB, useSession, type CartItem } from "@/lib/store";
 import { AppCtx, type AppApi, type ConfirmOpts } from "./app-context";
 import { Icon } from "./icon";
 import { CheckDraw } from "./ui";
@@ -22,6 +24,7 @@ export const PAGES = [
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const cart = useCart();
+  const db = useDB();
   const [toast, setToast] = useState<{ msg: string; icon: string; k: number } | null>(null);
   const [palette, setPalette] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -48,12 +51,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const ctx = useMemo<AppApi>(() => ({
     cart,
     notify,
-    addToCart: (item) => { setCart((c) => [...c, { ...item, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }]); notify(item.title + " به سبد اضافه شد", "shopping-cart"); },
+    addToCart: (sku) => {
+      const p = priceSku(sku, { plans: db.plans, tlds: db.tlds });
+      if ("error" in p) { notify(p.error, "circle-alert"); return; }
+      setCart((c) => [...c, { ...p, sku, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }]);
+      notify(p.title + " به سبد اضافه شد", "shopping-cart");
+    },
     searchDomain: (q) => router.push(("/domains?q=" + encodeURIComponent(q.trim())) as never),
     confirm: (text, opts = {}) => new Promise<boolean>((resolve) => setAsk({ text, opts, resolve })),
     openCart: () => setCartOpen(true),
     openPalette: () => setPalette(true),
-  }), [cart, notify, router]);
+  }), [cart, notify, router, db]);
 
   const answer = (v: boolean) => { ask?.resolve(v); setAsk(null); };
 
@@ -152,26 +160,25 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
   const [done, setDone] = useState<string | false>(false);
   const ref = useDialog(true, onClose);
   const [code, setCode] = useState("");
-  const [applied, setApplied] = useState("");
+  const [applied, setApplied] = useState<CouponRule | null>(null);
   const [codeErr, setCodeErr] = useState("");
   const [checking, setChecking] = useState(false);
   const subtotal = cart.reduce((s, i) => s + i.base, 0);
   // re-priced on every render so a percent code follows cart changes; an invalidated code simply drops out
-  let discount = 0;
-  if (applied) try { discount = quoteCoupon(db, applied, subtotal).discount; } catch { /* shown as error on checkout */ }
+  const discount = applied ? couponDiscount(applied, subtotal) : 0;
   const net = subtotal - discount;
   const total = roundK(net * (1 + db.settings.tax / 100)); // same rounding as invoices (invGross)
   const vat = total - net;
   const apply = async () => {
     setCodeErr(""); setChecking(true);
-    try { await api.billing.quote(code, subtotal); setApplied(code.trim().toUpperCase()); setCode(""); }
+    try { const q = await api.billing.quote(code, subtotal); setApplied({ code: q.code, type: q.type, value: q.value }); setCode(""); }
     catch (e) { setCodeErr(e instanceof Error ? e.message : "کد معتبر نیست."); }
     finally { setChecking(false); }
   };
   const checkout = async () => {
     if (!session) { onClose(); router.push("/auth?next=/panel/billing" as never); return; }
-    const inv = await api.billing.checkout(cart, applied || undefined);
-    setCart([]); setApplied(""); setDone(inv.id);
+    const inv = await api.billing.checkout(cart.map((i) => i.sku), applied?.code);
+    setCart([]); setApplied(null); setDone(inv.id);
   };
   return (
     <div className="fixed inset-0 z-[55] fade-in">
@@ -217,8 +224,8 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
             <div className="p-5 border-t border-white/10 space-y-2.5 text-sm">
               {applied ? (
                 <div className="flex items-center justify-between rounded-xl bg-emerald-400/10 border border-emerald-300/25 px-3 py-2 text-emerald-100">
-                  <span className="flex items-center gap-2"><Icon name="badge-percent" size={16} />کد <span className="mono ltr">{applied}</span></span>
-                  <button type="button" onClick={() => setApplied("")} className="text-xs text-white/60 hover:text-white">حذف</button>
+                  <span className="flex items-center gap-2"><Icon name="badge-percent" size={16} />کد <span className="mono ltr">{applied.code}</span></span>
+                  <button type="button" onClick={() => setApplied(null)} className="text-xs text-white/60 hover:text-white">حذف</button>
                 </div>
               ) : (
                 <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>

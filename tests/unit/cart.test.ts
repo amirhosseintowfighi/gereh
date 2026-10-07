@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CART_KEY, getCart, resetCartCache, setCart } from "@/lib/cart";
 
-const item = (id: string, base = 1000) => ({ id, title: "item " + id, base });
+const item = (id: string, base = 1000) => ({ id, title: "item " + id, base, sku: { t: "hosting" as const, plan: "h1", yearly: false } });
 
 describe("cart store", () => {
   beforeEach(() => { localStorage.clear(); resetCartCache(); });
@@ -29,7 +29,7 @@ describe("cart store", () => {
     localStorage.setItem(CART_KEY, "{not json");
     expect(getCart()).toEqual([]);
     resetCartCache();
-    localStorage.setItem(CART_KEY, JSON.stringify([item("ok"), { id: 1 }, null, { id: "x", title: "t", base: "NaN" }]));
+    localStorage.setItem(CART_KEY, JSON.stringify([item("ok"), { id: 1 }, null, { id: "x", title: "t", base: "NaN" }, { id: "legacy", title: "no sku", base: 5 }]));
     expect(getCart()).toEqual([item("ok")]);
   });
 

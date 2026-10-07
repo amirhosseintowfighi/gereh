@@ -1,9 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// every flow starts from the demo seed (the server runs with E2E=1)
+test.beforeEach(async ({ request }) => { expect((await request.post("/api/test")).ok()).toBe(true); });
+
 const login = async (page: Page, id = "demo@gereh.cloud") => {
   await page.goto("/auth");
   await page.getByLabel("ایمیل یا موبایل").fill(id);
-  await page.getByLabel("رمز عبور", { exact: true }).fill("secret-pass");
+  await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
   await page.getByRole("button", { name: "ورود", exact: true }).click();
 };
 
@@ -40,7 +43,7 @@ test.describe("auth", () => {
     await page.goto("/panel/billing");
     await expect(page).toHaveURL(/\/auth\?next=%2Fpanel%2Fbilling/);
     await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.cloud");
-    await page.getByLabel("رمز عبور", { exact: true }).fill("secret-pass");
+    await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
     await expect(page).toHaveURL(/\/panel\/billing$/);
   });
@@ -48,7 +51,7 @@ test.describe("auth", () => {
   test("next= cannot redirect off-site", async ({ page }) => {
     await page.goto("/auth?next=//evil.example.com");
     await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.cloud");
-    await page.getByLabel("رمز عبور", { exact: true }).fill("secret-pass");
+    await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
     await expect(page).toHaveURL(/localhost:\d+\/panel$/);
   });
@@ -93,10 +96,18 @@ test.describe("user panel", () => {
     expect(errors).toEqual([]);
   });
 
-  test("logout clears the session", async ({ page }) => {
-    await page.evaluate(() => localStorage.removeItem("gereh:session"));
+  test("logout ends the server session", async ({ page, context }) => {
+    await page.getByRole("button", { name: "حساب" }).click();
+    await page.getByRole("menuitem", { name: "خروج از حساب" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    expect((await context.cookies()).find((c) => c.name === "gereh_sid")).toBeUndefined();
     await page.goto("/panel");
     await expect(page).toHaveURL(/\/auth/);
+  });
+
+  test("the session cookie is HttpOnly and SameSite=Lax", async ({ context }) => {
+    const c = (await context.cookies()).find((x) => x.name === "gereh_sid")!;
+    expect(c).toMatchObject({ httpOnly: true, sameSite: "Lax" });
   });
 });
 
@@ -135,7 +146,6 @@ test("command palette opens with Ctrl+K and navigates", async ({ page }) => {
 });
 
 test.describe("admin ↔ customer", () => {
-  // the mock DB lives in memory, so these flows use client-side navigation only
   test("impersonation shows a banner and can be ended", async ({ page }) => {
     await login(page, "admin@gereh.cloud");
     await expect(page).toHaveURL(/\/admin$/);
@@ -158,7 +168,10 @@ test.describe("admin ↔ customer", () => {
     await page.getByRole("dialog").getByRole("button").last().click();
     await expect(page.getByRole("row", { name: /web-prod-1/ })).toContainText("معلق");
 
-    await page.getByRole("link", { name: "نمای کاربر" }).click();
+    // the suspension is stored server-side, so the customer sees it on their own login
+    await page.context().clearCookies();
+    await login(page);
+    await expect(page).toHaveURL(/\/panel$/);
     await page.getByRole("navigation", { name: "منوی پنل" }).getByRole("link", { name: /سرورها/ }).click();
     await page.getByRole("row", { name: /web-prod-1/ }).click();
     await expect(page.getByText("این سرور معلق است")).toBeVisible();
@@ -183,4 +196,32 @@ test("a discount code is applied in the cart and carried onto the invoice", asyn
   await expect(drawer.getByText("تخفیف", { exact: true })).toBeVisible();
   await drawer.getByRole("button", { name: /ثبت سفارش/ }).click();
   await expect(drawer).toContainText("سفارش ثبت شد");
+});
+
+test("online payment: bank page → callback → verified → invoice paid", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/billing");
+  await page.getByRole("row", { name: /INV-14058/ }).getByRole("button", { name: "پرداخت" }).click();
+  const dialog = page.getByRole("dialog", { name: /پرداخت INV-14058/ });
+  await dialog.getByRole("radio", { name: /درگاه/ }).click();
+  await dialog.getByRole("button", { name: /^پرداخت/ }).click();
+  await expect(page).toHaveURL(/\/pay\/sim\?/);
+  await page.getByRole("link", { name: "پرداخت موفق" }).click();
+  await expect(page).toHaveURL(/\/panel\/billing\?paid=1/);
+  await expect(page.getByRole("status").filter({ hasText: "کد پیگیری" })).toBeVisible();
+  await expect(page.getByRole("row", { name: /INV-14058/ })).toContainText("پرداخت‌شده");
+});
+
+test("cancelling at the bank leaves the invoice unpaid", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/panel/billing");
+  await page.getByRole("row", { name: /INV-14058/ }).getByRole("button", { name: "پرداخت" }).click();
+  const dialog = page.getByRole("dialog", { name: /پرداخت INV-14058/ });
+  await dialog.getByRole("radio", { name: /درگاه/ }).click();
+  await dialog.getByRole("button", { name: /^پرداخت/ }).click();
+  await page.getByRole("link", { name: "انصراف" }).click();
+  await expect(page).toHaveURL(/\/panel\/billing\?failed=1/);
+  await expect(page.getByRole("row", { name: /INV-14058/ })).not.toContainText("پرداخت‌شده");
 });

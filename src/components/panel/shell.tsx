@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
-import { api, byId, useDB, useMyId, useSession } from "@/lib/store";
+import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
 import { useApp } from "../app-context";
 import { VirguleLink, VirguleMark, Wordmark } from "../brand";
 import { Icon } from "../icon";
@@ -42,6 +42,7 @@ export function PanelGate({ kind, children }: { kind: "user" | "admin"; children
   const router = useRouter();
   const path = usePathname();
   useEffect(() => { if (session === null) router.replace(("/auth?next=" + encodeURIComponent(path)) as never); }, [session, path, router]);
+  useEffect(() => setScope(kind === "admin" ? "admin" : "customer"), [kind]);
   if (!session) return <div className="min-h-screen grid place-items-center" aria-busy="true"><Icon name="loader-circle" size={28} className="animate-spin text-white/50" /><span className="sr-only-focusable">در حال بارگذاری</span></div>;
   if (kind === "admin" && session.role !== "admin") return (
     <main id="main" className="max-w-lg mx-auto px-4 py-28 text-center">
@@ -132,10 +133,10 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
               ]} />
           </div>
         </header>
-        {kind === "user" && session?.role === "admin" && session.userId !== "a1" && (
+        {kind === "user" && session?.role === "admin" && session.actorId && session.userId !== session.actorId && (
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="eye" size={16} />در حال مشاهده پنل <b>{user.name}</b> به‌عنوان مدیر؛ همه اقدامات در گزارش فعالیت ثبت می‌شود.</span>
-            <button type="button" onClick={() => { api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + " px-3 h-8 text-xs"}>پایان و بازگشت به مدیریت</button>
+            <button type="button" onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + " px-3 h-8 text-xs"}>پایان و بازگشت به مدیریت</button>
           </div>
         )}
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>

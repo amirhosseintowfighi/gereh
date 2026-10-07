@@ -129,3 +129,64 @@ export const HOSTING_FAQ: [string, string][] = [
   ["ایمیل سازمانی هم دارید؟", "همه پلن‌ها ایمیل با دامنه شخصی دارند که از وب‌میل یا نرم‌افزارهای ایمیل در دسترس است."],
   ["هاست در کدام دیتاسنتر است؟", "همه هاست‌ها در دیتاسنتر تهران میزبانی می‌شوند و بکاپ‌ها در دیتاسنتر اصفهان نگهداری می‌شوند."],
 ];
+
+/* ---------- orderable items ----------
+   The cart stores a SKU; the browser shows a price computed from it, and the server re-prices the
+   same SKU from the database catalog at checkout. A client-supplied amount is never trusted. */
+export type Sku =
+  | { t: "plan"; kind: "cloud" | "metal"; plan: string; loc: string; cycle: "m" | "q" | "y"; os?: string; app?: string; hourly?: boolean }
+  | { t: "custom"; cpu: number; ram: number; disk: number; loc: string; os: string; ips: number; backup: boolean; app?: string; hourly?: boolean }
+  | { t: "hosting"; plan: string; yearly: boolean; domain?: string }
+  | { t: "domain"; name: string; years: number }
+  | { t: "ip"; serverId: string; serverName: string };
+
+export type PricedItem = { title: string; meta: string; base: number; icon: string; ltr?: boolean };
+export type CatalogView = { plans: Record<"cloud" | "metal" | "hosting", Plan[]>; tlds: Tld[] };
+export const IP_PRICE = 120000;
+export const MAX_DOMAIN_YEARS = 10;
+export const APPS = [
+  { id: "", label: "بدون اپلیکیشن" }, { id: "docker", label: "Docker" }, { id: "wordpress", label: "WordPress" },
+  { id: "n8n", label: "n8n" }, { id: "nextcloud", label: "Nextcloud" }, { id: "gitlab", label: "GitLab CE" }, { id: "outline-vpn", label: "Outline VPN" },
+];
+
+const locOf = (id: string) => LOCS.find((l) => l.id === id);
+/** price for one SKU, or an error message when the SKU is not orderable */
+export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: string } {
+  switch (sku.t) {
+    case "plan": {
+      const p = cat.plans[sku.kind]?.find((x) => x.id === sku.plan);
+      const l = locOf(sku.loc), b = BILLING.find((x) => x.id === sku.cycle);
+      if (!p || p.active === false) return { error: "این پلن فعلا ارائه نمی‌شود." };
+      if (!l || (sku.kind === "metal" && !l.metal)) return { error: "این موقعیت برای پلن انتخابی در دسترس نیست." };
+      if (!b) return { error: "دوره پرداخت نامعتبر است." };
+      if (sku.hourly && (sku.kind !== "cloud" || sku.cycle !== "m")) return { error: "پرداخت ساعتی فقط برای سرور ابری ماهانه است." };
+      if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
+      const monthly = roundK(p.price * (l.foreign && sku.kind === "cloud" ? 1.12 : 1) * (1 - b.disc));
+      return { title: (sku.kind === "cloud" ? "سرور ابری " : "سرور اختصاصی ") + p.name, meta: l.label + "، " + (sku.hourly ? "پرداخت ساعتی (پیش‌پرداخت یک ماه)" : "پرداخت " + b.label) + (sku.app ? "، " + APPS.find((a) => a.id === sku.app)!.label : ""), base: monthly * b.months, icon: "server" };
+    }
+    case "custom": {
+      const l = locOf(sku.loc);
+      if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk)) return { error: "منابع انتخابی نامعتبر است." };
+      if (!l || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
+      if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
+      return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + sku.disk + " گیگ NVMe، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
+    }
+    case "hosting": {
+      const p = cat.plans.hosting.find((x) => x.id === sku.plan);
+      if (!p || p.active === false) return { error: "این پلن هاست فعلا ارائه نمی‌شود." };
+      const linux = HOSTING.linux.some((x) => x.id === p.id);
+      return { title: "هاست " + p.name, meta: (linux ? "لینوکس" : "وردپرس") + "، پرداخت " + (sku.yearly ? "سالانه" : "ماهانه") + (sku.domain ? "، " + sku.domain : ""), base: sku.yearly ? roundK(p.price * 0.85) * 12 : p.price, icon: "layers" };
+    }
+    case "domain": {
+      const parsed = parseDomain(sku.name);
+      if ("error" in parsed && parsed.error) return { error: parsed.error };
+      const { name, tld } = parsed as { name: string; tld: string | null };
+      const t = tld && cat.tlds.find((x) => x.tld === tld);
+      if (!t) return { error: "پسوند دامنه پشتیبانی نمی‌شود." };
+      if (!Number.isInteger(sku.years) || sku.years < 1 || sku.years > MAX_DOMAIN_YEARS) return { error: "مدت ثبت باید ۱ تا ۱۰ سال باشد." };
+      return { title: name + t.tld, meta: "ثبت " + (sku.years === 1 ? "یک‌ساله" : sku.years + " ساله"), base: t.reg + t.renew * (sku.years - 1), icon: "globe", ltr: true };
+    }
+    case "ip":
+      return { title: "IPv4 اضافه برای " + sku.serverName, meta: "ماهانه", base: IP_PRICE, icon: "hash" };
+  }
+}

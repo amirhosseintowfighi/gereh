@@ -81,7 +81,7 @@ export function VpsPlans() {
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)}
                   extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div> : null}
-                  onAdd={() => addToCart({ title: (k === "cloud" ? "سرور ابری " : "سرور اختصاصی ") + p.name, meta: locObj.label + "، پرداخت " + b.label, base: monthly(p, k) * b.months, icon: "server" })} />
+                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y" })} />
               ))}
             </div>
 
@@ -145,7 +145,7 @@ export function HostingPlans() {
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={HOST_ROWS} badge="پیشنهاد ما" priceBase={mPrice(p)}
                   extra={yearly ? <div className="text-[11px] text-emerald-300 mt-1">صورت‌حساب سالانه: {toman(mPrice(p) * 12)}</div> : null}
-                  onAdd={() => addToCart({ title: "هاست " + p.name, meta: (k === "linux" ? "لینوکس" : "وردپرس") + "، پرداخت " + (yearly ? "سالانه" : "ماهانه"), base: yearly ? mPrice(p) * 12 : p.price, icon: "layers" })} />
+                  onAdd={() => addToCart({ t: "hosting", plan: p.id, yearly })} />
               ))}
             </div>
           </div>

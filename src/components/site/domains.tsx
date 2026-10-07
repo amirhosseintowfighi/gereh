@@ -1,9 +1,10 @@
 "use client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { TLDS, TLD_CATS, isAvailable, parseDomain, type Tld } from "@/lib/catalog";
+import { TLD_CATS, parseDomain, type Tld } from "@/lib/catalog";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
+import { api, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { DomainInput } from "../home/interactive";
 import { Icon } from "../icon";
@@ -19,6 +20,7 @@ export function DomainSearch() {
 
 export function DomainSearchView({ urlQ }: { urlQ: string }) {
   const { addToCart, cart } = useApp();
+  const tlds = useDB().tlds;
   const router = useRouter();
   const pathname = usePathname();
   const [mode, setMode] = useState("single");
@@ -44,16 +46,19 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
       if ("error" in parsed && parsed.error) { setError(parsed.error); setResult(null); setLoading(false); return; }
       setError(""); setLoading(true); setResult(null);
     }, 0);
-    // ponytail: simulated latency; real availability comes from GET /domains/check?name=
-    const t = setTimeout(() => {
-      if (!alive || !("name" in parsed)) return;
-      const ptld = parsed.tld || ".ir";
-      const list = TLDS.map((x) => ({ ...x, domain: parsed.name + x.tld, available: isAvailable(parsed.name, x.tld) }));
-      setResult({ primary: list.find((x) => x.tld === ptld)!, others: list.filter((x) => x.tld !== ptld).sort((a, b) => Number(b.available) - Number(a.available) || Number(!!b.hot) - Number(!!a.hot)) });
-      setLoading(false);
-    }, 700);
-    return () => { alive = false; clearTimeout(t0); clearTimeout(t); };
-  }, [urlQ, nonce]);
+    // availability comes from the registrar via the server (domains.check)
+    if ("name" in parsed && parsed.name) {
+      api.domains.check(parsed.name).then((avail) => {
+        if (!alive) return;
+        const ptld = parsed.tld || ".ir";
+        const free = new Map(avail.map((a) => [a.tld, a.available]));
+        const list = tlds.map((x) => ({ ...x, domain: parsed.name + x.tld, available: !!free.get(x.tld) }));
+        setResult({ primary: list.find((x) => x.tld === ptld) ?? list[0], others: list.filter((x) => x.tld !== ptld).sort((a, b) => Number(b.available) - Number(a.available) || Number(!!b.hot) - Number(!!a.hot)) });
+      }).catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : "بررسی دامنه ناموفق بود."); })
+        .finally(() => { if (alive) setLoading(false); });
+    }
+    return () => { alive = false; clearTimeout(t0); };
+  }, [urlQ, nonce, tlds]);
 
   const search = (v: string) => {
     const val = v.trim();
@@ -66,14 +71,16 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
     const names = bulk.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean).slice(0, 20);
     if (!names.length) { setError("هر نام را در یک خط بنویسید."); return; }
     setError(""); setLoading(true);
-    setTimeout(() => {
-      const t = TLDS.find((x) => x.tld === bulkTld)!;
-      setBulkRes(names.map((n) => { const p = parseDomain(n); return "name" in p ? { ...t, domain: p.name + bulkTld, available: isAvailable(p.name, bulkTld) } : { domain: n, invalid: true as const }; }));
-      setLoading(false);
-    }, 700);
+    const t = tlds.find((x) => x.tld === bulkTld)!;
+    Promise.all(names.map(async (n): Promise<BulkRes> => {
+      const p = parseDomain(n);
+      if (!("name" in p) || !p.name) return { domain: n, invalid: true as const };
+      const avail = await api.domains.check(p.name);
+      return { ...t, domain: p.name + bulkTld, available: !!avail.find((a) => a.tld === bulkTld)?.available };
+    })).then(setBulkRes).catch((e: unknown) => setError(e instanceof Error ? e.message : "بررسی دامنه ناموفق بود.")).finally(() => setLoading(false));
   };
-  const order = (d: Res) => addToCart({ title: d.domain, meta: "ثبت یک‌ساله", base: d.reg, icon: "globe", ltr: true });
-  const tldList = useMemo(() => TLDS.filter((t) => (cat === "all" || t.cat === cat) && t.tld.includes(filter.trim().toLowerCase())), [cat, filter]);
+  const order = (d: Res) => addToCart({ t: "domain", name: d.domain, years: 1 });
+  const tldList = useMemo(() => tlds.filter((t) => (cat === "all" || t.cat === cat) && t.tld.includes(filter.trim().toLowerCase())), [cat, filter, tlds]);
   const parsedQ = parseDomain(q);
   const baseName = "name" in parsedQ && parsedQ.name ? parsedQ.name : "mybrand";
 
@@ -92,7 +99,7 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
                 className="w-full rounded-2xl bg-black/20 border border-white/15 focus:border-white/40 outline-none p-4 text-left placeholder:text-white/30 resize-none" />
               <div className="mt-2 flex items-center gap-2">
                 <select value={bulkTld} onChange={(e) => setBulkTld(e.target.value)} aria-label="پسوند" className="h-11 rounded-xl bg-white/10 border border-white/20 px-3 outline-none ltr">
-                  {TLDS.map((t) => <option key={t.tld} value={t.tld} className="bg-[#0d1018]">{t.tld}</option>)}
+                  {tlds.map((t) => <option key={t.tld} value={t.tld} className="bg-[#0d1018]">{t.tld}</option>)}
                 </select>
                 <button type="submit" disabled={loading} className={BTN_P + " flex-1 h-11"}><Icon name={loading ? "loader-circle" : "search"} size={18} className={loading ? "animate-spin" : ""} /> بررسی همه</button>
               </div>

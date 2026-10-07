@@ -137,7 +137,7 @@ export function UserHosting({ id }: { id?: string }) {
   if (h) return (
     <div>
       <PageTitle back={["/panel/hosting", "هاست‌ها"]} title={<span className="ltr inline-block">{h.domain}</span>} sub={<span className="flex gap-3 items-center"><StatusBadge s={h.status} />هاست {h.plan}، سرور {h.server}</span>}
-        action={<AsyncButton onClick={async () => { notify("در حال ساخت لینک ورود یک‌بارمصرف…", "loader-circle"); /* POST /hosting/:id/sso → open returned URL */ await new Promise((r) => setTimeout(r, 600)); notify("لینک ورود به cPanel آماده است (نمایشی)", "external-link"); }}><Icon name="external-link" size={16} /> ورود به cPanel</AsyncButton>} />
+        action={<AsyncButton onClick={async () => { const url = await api.hosting.sso(h.id); window.open(url, "_blank", "noopener"); }}><Icon name="external-link" size={16} /> ورود به cPanel</AsyncButton>} />
       <div className="grid lg:grid-cols-3 gap-4">
         <Card title="مصرف" icon="gauge" className="lg:col-span-2">
           <div className="grid sm:grid-cols-2 gap-6">
@@ -158,7 +158,7 @@ export function UserHosting({ id }: { id?: string }) {
         <Card title="تمدید و ارتقا" icon="trending-up" className="lg:col-span-2">
           <div className="flex flex-wrap gap-2">
             <Link href="/hosting" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="trending-up" size={15} /> ارتقای پلن</Link>
-            <AsyncButton onClick={async () => { const inv = await api.billing.checkout([{ title: "تمدید هاست " + h.domain, meta: "یک سال", base: h.price * 12 }]); notify("صورتحساب " + inv.id + " صادر شد"); router.push("/panel/billing"); }}>تمدید یک‌ساله ({toman(h.price * 12)})</AsyncButton>
+            <AsyncButton onClick={async () => { const inv = await api.hosting.renew(h.id, 12); notify("صورتحساب " + inv.id + " صادر شد"); router.push("/panel/billing"); }}>تمدید یک‌ساله ({toman(Math.round((h.price * 0.85) / 1000) * 1000 * 12)})</AsyncButton>
           </div>
         </Card>
       </div>
@@ -374,6 +374,11 @@ export function UserBilling() {
   return (
     <div>
       <PageTitle title="صورتحساب و کیف پول" sub="پرداخت‌ها، صورتحساب‌ها و تراکنش‌های حساب" />
+      {(params.get("paid") || params.get("failed")) && (
+        <div role="status" className={"mb-6 rounded-2xl border p-4 text-sm flex gap-3 " + (params.get("paid") ? "border-emerald-300/30 bg-emerald-400/[0.08] text-emerald-100" : "border-rose-300/30 bg-rose-400/[0.08] text-rose-100")}>
+          <Icon name={params.get("paid") ? "circle-check" : "circle-alert"} size={18} />{params.get("msg") || (params.get("paid") ? "پرداخت انجام شد." : "پرداخت انجام نشد.")}
+        </div>
+      )}
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <StatCard icon="wallet" label="موجودی کیف پول" value={me.balance} suffix="تومان" />
         <StatCard icon="receipt" label="بدهی جاری" value={invs.filter((i) => i.status === "unpaid" || i.status === "overdue").reduce((s, i) => s + total(i), 0)} suffix="تومان" />

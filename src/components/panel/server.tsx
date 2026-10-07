@@ -248,7 +248,7 @@ function ServerNetwork({ s }: { s: Server }) {
           <div className="flex justify-between items-center"><dt className="text-white/50">دروازه</dt><dd className="mono ltr">{s.ip.split(".").slice(0, 3).join(".")}.1</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>۱ گیگابیت بر ثانیه</dd></div>
         </dl>
-        <button type="button" onClick={() => addToCart({ title: "IPv4 اضافه برای " + s.name, meta: "ماهانه", base: 120000, icon: "hash" })} className={BTN_G + " mt-6 px-4 h-10 text-sm"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(120000)})</button>
+        <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + " mt-6 px-4 h-10 text-sm"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(120000)})</button>
       </Card>
       <Card title="Reverse DNS" icon="globe">
         <p className="text-sm text-white/50 leading-7 mb-4">برای ارسال ایمیل از سرور، PTR را روی دامنه خودتان تنظیم کنید.</p>
@@ -413,7 +413,7 @@ function ServerResize({ s }: { s: Server }) {
           );
         })}
       </div>
-      <div className="mt-5 flex justify-end"><AsyncButton disabled={!plan} confirmText="سرور برای اعمال تغییرات ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { const p = VPS.cloud.find((x) => x.id === plan)!; const [c, r, d] = PLAN_NUMS[p.id]; await api.servers.resize(s.id, { name: p.name, cpu: c, ram: r, disk: d, price: p.price }); setPlan(""); notify("سرور به پلن " + p.name + " ارتقا یافت", "trending-up"); }}>اعمال ارتقا</AsyncButton></div>
+      <div className="mt-5 flex justify-end"><AsyncButton disabled={!plan} confirmText="سرور برای اعمال تغییرات ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { const p = VPS.cloud.find((x) => x.id === plan)!; await api.servers.resize(s.id, p.id); setPlan(""); notify("سرور به پلن " + p.name + " ارتقا یافت", "trending-up"); }}>اعمال ارتقا</AsyncButton></div>
     </Card>
   );
 }

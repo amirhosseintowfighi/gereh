@@ -7,7 +7,9 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
 
 export default defineConfig({
   testDir: "tests/e2e",
-  fullyParallel: true,
+  // one server, one in-memory database: tests that change data reset it first, so they run one at a time
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
@@ -23,6 +25,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npx next start -p ${PORT}`,
+    // E2E=1 enables POST /api/test (reset) and GET /api/test (outbox); demo seed + payment simulator
+    env: { E2E: "1", SEED_DEMO: "1", PAY_SIMULATOR: "1" },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

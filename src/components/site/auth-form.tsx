@@ -26,6 +26,8 @@ export function AuthForm() {
   const [timer, setTimer] = useState(0);
   const [error, setError] = useState("");
   const [sentForgot, setSentForgot] = useState(false);
+  const [tfa, setTfa] = useState<string | null>(null); // null = no 2FA step yet
+  const ref = params.get("ref") || "";
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((s) => ({ ...s, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
   useEffect(() => { if (!timer) return; const t = setTimeout(() => setTimer((x) => x - 1), 1000); return () => clearTimeout(t); }, [timer]);
   const dest = (s: Session) => next || (s.role === "admin" ? "/admin" : "/panel");
@@ -33,7 +35,7 @@ export function AuthForm() {
   useEffect(() => { if (session) router.replace(dest(session) as never); }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
   const done = (s: Session) => { notify("خوش آمدید، " + s.name, "user-round"); router.replace(dest(s) as never); };
   const wrap = (fn: () => Promise<void>) => async () => { setError(""); try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : "خطایی رخ داد"); } };
-  const switchMode = (m: string) => { setMode(m); setOtpStep(0); setError(""); };
+  const switchMode = (m: string) => { setMode(m); setOtpStep(0); setError(""); setTfa(null); };
   const phone = toEnDigits(f.phone.trim());
   const errorLine = error ? <div role="alert" className="text-xs text-rose-300 flex gap-1.5"><Icon name="circle-alert" size={14} />{error}</div> : null;
 
@@ -71,7 +73,17 @@ export function AuthForm() {
             <button type="button" onClick={() => switchMode("forgot")} className="text-white/60 hover:text-white">فراموشی رمز</button>
           </div>
           {errorLine}
-          <AsyncButton onClick={wrap(async () => done(await api.auth.login(toEnDigits(f.id.trim()), f.password)))} className={BTN_P + " w-full h-12"}><Icon name="log-in" size={17} /> ورود</AsyncButton>
+          {tfa !== null && (
+            <div className="fade-in space-y-2">
+              <div className="text-sm text-white/70 text-center">کد شش‌رقمی اپلیکیشن Authenticator را وارد کنید.</div>
+              <OtpInput value={tfa} onChange={setTfa} />
+            </div>
+          )}
+          <AsyncButton onClick={wrap(async () => {
+            if (tfa !== null && tfa.length !== 6) throw new Error("کد ۶ رقمی را کامل وارد کنید.");
+            try { done(await api.auth.login(toEnDigits(f.id.trim()), f.password, tfa ?? undefined)); }
+            catch (e) { if (e instanceof Error && e.message === "TWOFA_REQUIRED") { setTfa(""); return; } throw e; }
+          })} className={BTN_P + " w-full h-12"}><Icon name="log-in" size={17} /> ورود</AsyncButton>
         </>}
         {mode === "otp" && (otpStep === 0 ? <>
           <Field label="شماره موبایل" hint="کد یک‌بارمصرف پیامک می‌شود."><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-left h-12 tabular"} placeholder="09121234567" /></Field>
@@ -102,17 +114,19 @@ export function AuthForm() {
             if (!PHONE_RE.test(phone)) throw new Error("شماره موبایل معتبر نیست.");
             if (strength(f.password) < 2) throw new Error("رمز ضعیف است؛ حداقل ۸ کاراکتر با عدد یا حروف بزرگ.");
             if (!f.agree) throw new Error("برای ثبت‌نام، قوانین را بپذیرید.");
-            done(await api.auth.register({ name: f.name.trim(), email: f.email.trim(), phone, password: f.password }));
+            done(await api.auth.register({ name: f.name.trim(), email: f.email.trim(), phone, password: f.password, ...(ref ? { ref } : {}) }));
           })} className={BTN_P + " w-full h-12"}><Icon name="user-plus" size={17} /> ساخت حساب</AsyncButton>
         </>}
       </form>
-      <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-4">
-        <div className="text-[11px] text-white/55 mb-3 text-center">نسخه نمایشی: ورود سریع بدون رمز</div>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => done(api.auth.demo("user"))} className={BTN_G + " h-10 text-xs"}><Icon name="user-round" size={15} /> پنل کاربر</button>
-          <button type="button" onClick={() => done(api.auth.demo("admin"))} className={BTN_G + " h-10 text-xs"}><Icon name="shield-half" size={15} /> پنل مدیریت</button>
+      {process.env.NEXT_PUBLIC_DEMO === "1" && (
+        <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-4">
+          <div className="text-[11px] text-white/55 mb-3 text-center">نسخه نمایشی: ورود با حساب‌های آزمایشی</div>
+          <div className="grid grid-cols-2 gap-2">
+            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("demo@gereh.cloud", "Demo1234!")))}><Icon name="user-round" size={15} /> پنل کاربر</AsyncButton>
+            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("admin@gereh.cloud", "Demo1234!")))}><Icon name="shield-half" size={15} /> پنل مدیریت</AsyncButton>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

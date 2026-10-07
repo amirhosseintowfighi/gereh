@@ -11,6 +11,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
+  // native/WASM drivers load at runtime from node_modules instead of being bundled
+  serverExternalPackages: ["@electric-sql/pglite", "postgres", "undici", "nodemailer"],
   typedRoutes: true,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

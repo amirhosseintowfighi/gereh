@@ -12,8 +12,10 @@ const EMPTY: CartItem[] = [];
 const listeners = new Set<() => void>();
 let cache: CartItem[] | null = null;
 
+// items saved before SKUs existed (or tampered with) are dropped: the server could not price them anyway
 const isItem = (x: unknown): x is CartItem =>
-  !!x && typeof x === "object" && typeof (x as CartItem).id === "string" && typeof (x as CartItem).title === "string" && Number.isFinite((x as CartItem).base);
+  !!x && typeof x === "object" && typeof (x as CartItem).id === "string" && typeof (x as CartItem).title === "string" && Number.isFinite((x as CartItem).base)
+  && !!(x as CartItem).sku && typeof (x as CartItem).sku === "object" && typeof (x as CartItem).sku.t === "string";
 
 function load(): CartItem[] {
   try {
