@@ -26,6 +26,6 @@ export async function fresh() {
   outbox.length = 0;
 }
 export const login = async (email: string) => { jar.clear(); return call("auth.login", email, DEMO_PASSWORD); };
-export const asUser = () => login("demo@gereh.cloud");
-export const asAdmin = () => login("admin@gereh.cloud");
+export const asUser = () => login("demo@gereh.net");
+export const asAdmin = () => login("admin@gereh.net");
 export const db = async () => (await context()).db;

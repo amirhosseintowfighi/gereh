@@ -39,7 +39,7 @@ const og = `<!doctype html><html lang="fa" dir="rtl"><head><style>${fontFaces}
   .tags{display:flex;gap:14px;flex-wrap:wrap}
   .tag{font-size:26px;font-weight:800;padding:12px 26px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
 </style></head><body><div class="grid"></div><div class="wrap">
-  <div class="brand">${svg}<div><div class="name">گره</div><div class="domain">gereh.cloud</div></div></div>
+  <div class="brand">${svg}<div><div class="name">گره</div><div class="domain">gereh.net</div></div></div>
   <h1>سرعت ابر، استواری زمین</h1>
   <div class="tags"><span class="tag">سرور ابری NVMe</span><span class="tag">هاست پرسرعت</span><span class="tag">ثبت دامنه</span><span class="tag">آپتایم ۹۹٫۹۹٪</span></div>
 </div></body></html>`;

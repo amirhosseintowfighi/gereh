@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 // every flow starts from the demo seed (the server runs with E2E=1)
 test.beforeEach(async ({ request }) => { expect((await request.post("/api/test")).ok()).toBe(true); });
 
-const login = async (page: Page, id = "demo@gereh.cloud") => {
+const login = async (page: Page, id = "demo@gereh.net") => {
   await page.goto("/auth");
   await page.getByLabel("ایمیل یا موبایل").fill(id);
   await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
@@ -42,7 +42,7 @@ test.describe("auth", () => {
   test("panel requires login and returns to the requested page", async ({ page }) => {
     await page.goto("/panel/billing");
     await expect(page).toHaveURL(/\/auth\?next=%2Fpanel%2Fbilling/);
-    await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.cloud");
+    await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.net");
     await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
     await expect(page).toHaveURL(/\/panel\/billing$/);
@@ -50,7 +50,7 @@ test.describe("auth", () => {
 
   test("next= cannot redirect off-site", async ({ page }) => {
     await page.goto("/auth?next=//evil.example.com");
-    await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.cloud");
+    await page.getByLabel("ایمیل یا موبایل").fill("demo@gereh.net");
     await page.getByLabel("رمز عبور", { exact: true }).fill("Demo1234!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
     await expect(page).toHaveURL(/localhost:\d+\/panel$/);
@@ -115,7 +115,7 @@ test.describe("admin panel", () => {
   test("admin login lands on /admin and every section renders", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await login(page, "admin@gereh.cloud");
+    await login(page, "admin@gereh.net");
     await expect(page).toHaveURL(/\/admin$/);
     for (const p of ["/admin/users", "/admin/services", "/admin/billing", "/admin/tickets", "/admin/tickets/TK-3021", "/admin/products",
       "/admin/coupons", "/admin/announcements", "/admin/infra", "/admin/virtualizor", "/admin/audit", "/admin/settings"]) {
@@ -147,7 +147,7 @@ test("command palette opens with Ctrl+K and navigates", async ({ page }) => {
 
 test.describe("admin ↔ customer", () => {
   test("impersonation shows a banner and can be ended", async ({ page }) => {
-    await login(page, "admin@gereh.cloud");
+    await login(page, "admin@gereh.net");
     await expect(page).toHaveURL(/\/admin$/);
     await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "کاربران" }).click();
     await page.getByRole("cell", { name: /user2@mail\.ir/ }).click();
@@ -161,7 +161,7 @@ test.describe("admin ↔ customer", () => {
   });
 
   test("a suspended server is read-only for the customer", async ({ page }) => {
-    await login(page, "admin@gereh.cloud");
+    await login(page, "admin@gereh.net");
     await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "سرویس‌ها" }).click();
     await page.getByRole("row", { name: /web-prod-1/ }).getByRole("button", { name: "اقدامات" }).click();
     await page.getByRole("menuitem", { name: "تعلیق" }).click();
@@ -291,7 +291,7 @@ test("live chat: visitor asks, staff replies, visitor sees the answer", async ({
   await expect(w.getByText("سلام، سرور من بالا نمی‌آید")).toBeVisible();
 
   const staff = await (await browser.newContext()).newPage();
-  await login(staff, "admin@gereh.cloud");
+  await login(staff, "admin@gereh.net");
   await expect(staff).toHaveURL(/\/admin$/);
   await staff.goto("/admin/chats");
   await staff.getByRole("button", { name: /مهمان تست/ }).click();
@@ -303,7 +303,7 @@ test("live chat: visitor asks, staff replies, visitor sees the answer", async ({
 });
 
 test("admin reports: monthly table renders and the Excel export downloads", async ({ page }) => {
-  await login(page, "admin@gereh.cloud");
+  await login(page, "admin@gereh.net");
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto("/admin/reports");
   await expect(page.getByRole("region", { name: "جدول جزئیات ماهانه" })).toBeVisible();
@@ -313,7 +313,7 @@ test("admin reports: monthly table renders and the Excel export downloads", asyn
 });
 
 test("blog: staff publish a post and it appears publicly with RSS", async ({ page, request }) => {
-  await login(page, "admin@gereh.cloud");
+  await login(page, "admin@gereh.net");
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto("/admin/blog");
   await page.getByRole("button", { name: "نوشته جدید" }).click();
@@ -363,7 +363,7 @@ test.describe("devops", () => {
   });
 
   test("staff see the lead in the pipeline; the demo customer sees their project", async ({ page }) => {
-    await login(page, "admin@gereh.cloud");
+    await login(page, "admin@gereh.net");
     await expect(page).toHaveURL(/\/admin$/);
     await page.goto("/admin/devops");
     await page.getByRole("button", { name: /پرداخت‌یار/ }).click();

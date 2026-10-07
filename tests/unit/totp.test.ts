@@ -47,9 +47,9 @@ describe("totp", () => {
   });
 
   it("builds an otpauth URL authenticator apps accept", () => {
-    const u = new URL(otpauthUrl("ABC", "demo@gereh.cloud"));
+    const u = new URL(otpauthUrl("ABC", "demo@gereh.net"));
     expect(u.protocol).toBe("otpauth:");
-    expect(decodeURIComponent(u.pathname)).toContain("Gereh:demo@gereh.cloud");
+    expect(decodeURIComponent(u.pathname)).toContain("Gereh:demo@gereh.net");
     expect(u.searchParams.get("secret")).toBe("ABC");
     expect(u.searchParams.get("issuer")).toBe("Gereh");
     expect(u.searchParams.get("digits")).toBe("6");

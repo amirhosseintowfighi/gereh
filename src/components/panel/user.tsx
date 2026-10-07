@@ -150,7 +150,7 @@ export function UserHosting({ id }: { id?: string }) {
           </div>
         </Card>
         <Card title="اطلاعات" icon="file-text">
-          <dl className="space-y-3 text-sm">{[["کنترل‌پنل", h.panel], ["سررسید", h.expires], ["هزینه", toman(h.price) + " / ماه"], ["نام‌سرورها", "ns1/ns2.gereh.cloud"]].map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd>{v}</dd></div>)}</dl>
+          <dl className="space-y-3 text-sm">{[["کنترل‌پنل", h.panel], ["سررسید", h.expires], ["هزینه", toman(h.price) + " / ماه"], ["نام‌سرورها", "ns1/ns2.gereh.net"]].map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd>{v}</dd></div>)}</dl>
         </Card>
         <Card title="رمز cPanel" icon="key-round">
           <p className="text-sm text-white/50 leading-7">رمز جدید فقط یک بار نمایش داده می‌شود.</p>
@@ -232,7 +232,7 @@ export function UserDomains({ id }: { id?: string }) {
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "dns" && <>
           <Card title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action={d.ns[0].includes("gereh") && <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> رکورد جدید</button>}>
-            {!d.ns[0].includes("gereh") ? <Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.cloud تغییر دهید."} />
+            {!d.ns[0].includes("gereh") ? <Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.net تغییر دهید."} />
               : d.dns.length === 0 ? <Empty icon="settings-2" title="رکوردی ندارید" /> : (
               <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                 <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
@@ -279,7 +279,7 @@ export function UserDomains({ id }: { id?: string }) {
               {curNs.length < 4 && <button type="button" onClick={() => setNs([...curNs, ""])} className="text-xs text-white/55 hover:text-white flex items-center gap-1"><Icon name="plus" size={14} /> افزودن نام‌سرور</button>}
             </div>
             <div className="mt-6 flex flex-wrap gap-2 justify-end">
-              <button type="button" onClick={() => setNs(["ns1.gereh.cloud", "ns2.gereh.cloud"])} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به پیش‌فرض گره</button>
+              <button type="button" onClick={() => setNs(["ns1.gereh.net", "ns2.gereh.net"])} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به پیش‌فرض گره</button>
               <AsyncButton onClick={async () => {
                 const list = curNs.map((x) => x.trim().toLowerCase()).filter(Boolean);
                 if (list.length < 2) throw new Error("حداقل دو نام‌سرور لازم است.");
@@ -553,7 +553,7 @@ export function UserKeys() {
               <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText="توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند قطع می‌شوند." onClick={async () => { await api.account.revokeToken(x.id); notify("توکن باطل شد"); }}>ابطال</AsyncButton>
             </div>
           ))}
-          <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H &quot;Authorization: Bearer $GEREH_TOKEN&quot; https://api.gereh.cloud/v1/servers</div>
+          <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H &quot;Authorization: Bearer $GEREH_TOKEN&quot; https://api.gereh.net/v1/servers</div>
         </Card>
       </div>
       <Modal open={keyM} onClose={() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"

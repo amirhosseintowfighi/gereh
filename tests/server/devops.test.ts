@@ -54,7 +54,7 @@ describe("devops requests", () => {
     await fails("devops.updateLead", ref, { status: "contacted" });
     const s = await buildState((await context()).db, (await context()).auth, "customer");
     expect(s.db.devopsLeads).toEqual([]);
-    await login("kaveh@gereh.cloud");
+    await login("kaveh@gereh.net");
     await fails("devops.noteLead", ref, "تماس گرفتم");
     await asAdmin();
     await call("devops.updateLead", ref, { status: "meeting", value: 58_000_000 });

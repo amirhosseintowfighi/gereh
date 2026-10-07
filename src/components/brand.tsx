@@ -40,7 +40,7 @@ export function Wordmark({ size = 34, sub = true }: { size?: number; sub?: boole
       <Logo size={size} decorative />
       <span className="text-right leading-none">
         <span className="block font-black text-[1.3rem] tracking-tight">گره</span>
-        {sub && <span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.cloud</span>}
+        {sub && <span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.net</span>}
       </span>
     </span>
   );

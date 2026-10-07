@@ -180,7 +180,7 @@ export function HostingPlans() {
           <label className="flex items-center gap-2 text-sm text-white/75 cursor-pointer"><input type="checkbox" checked={register} onChange={(e) => setRegister(e.target.checked)} className="accent-white" />دامنه را هم ثبت کن</label>
         </div>
         {domainErr ? <div role="alert" className="text-xs text-rose-300 mt-2">{domainErr}</div>
-          : fullDomain ? <div className="text-xs text-white/55 mt-2">هاست برای <span className="ltr font-bold">{fullDomain}</span> ساخته می‌شود{register ? " و ثبت یک‌ساله دامنه هم به سبد اضافه می‌شود." : "؛ نام‌سرورها را روی ns1/ns2.gereh.cloud بگذارید."}</div> : null}
+          : fullDomain ? <div className="text-xs text-white/55 mt-2">هاست برای <span className="ltr font-bold">{fullDomain}</span> ساخته می‌شود{register ? " و ثبت یک‌ساله دامنه هم به سبد اضافه می‌شود." : "؛ نام‌سرورها را روی ns1/ns2.gereh.net بگذارید."}</div> : null}
       </div>
       {(["linux", "wordpress"] as const).map((k) => {
         const plans = live("hosting", HOSTING[k].map((x) => x.id));

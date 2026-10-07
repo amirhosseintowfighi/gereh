@@ -35,7 +35,7 @@ async function issueRenewal(db: DB, userId: string, f: Extract<FulfilItem, { typ
       return;
     } catch { /* balance changed meanwhile: leave the invoice for the customer */ }
   }
-  await enqueue(db, "notify.send", { userId, kind: "billing", subject: "صورتحساب تمدید " + id, text: desc + "\nمبلغ: " + gross.toLocaleString("fa-IR") + " تومان\nسررسید: " + faDate(due) + "\nپرداخت: https://gereh.cloud/panel/billing" });
+  await enqueue(db, "notify.send", { userId, kind: "billing", subject: "صورتحساب تمدید " + id, text: desc + "\nمبلغ: " + gross.toLocaleString("fa-IR") + " تومان\nسررسید: " + faDate(due) + "\nپرداخت: https://gereh.net/panel/billing" });
 }
 
 /** daily: renewal invoices 7 days ahead (domains 30), auto-paid from the wallet when possible */
@@ -92,7 +92,7 @@ export async function reminders(db: DB) {
   for (const inv of due) {
     const days = Math.round((inv.dueAt.getTime() - now) / DAY);
     if (days !== 3 && days !== 0) continue;
-    await enqueue(db, "notify.send", { userId: inv.userId, kind: "billing", subject: "یادآوری صورتحساب " + inv.id, text: "صورتحساب " + inv.id + (days ? " سه روز دیگر" : " امروز") + " سررسید می‌شود.\nپرداخت: https://gereh.cloud/panel/billing" }, { dedupe: "remind:" + inv.id + ":" + days });
+    await enqueue(db, "notify.send", { userId: inv.userId, kind: "billing", subject: "یادآوری صورتحساب " + inv.id, text: "صورتحساب " + inv.id + (days ? " سه روز دیگر" : " امروز") + " سررسید می‌شود.\nپرداخت: https://gereh.net/panel/billing" }, { dedupe: "remind:" + inv.id + ":" + days });
   }
 }
 

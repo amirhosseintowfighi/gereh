@@ -15,9 +15,9 @@ Demo logins use the password `Demo1234!`:
 
 | Account | Role |
 |---|---|
-| `demo@gereh.cloud` | Customer with servers, hosting, domains, invoices and tickets |
-| `admin@gereh.cloud` | Staff, owner role |
-| `kaveh@gereh.cloud` / `shima@gereh.cloud` | Staff with the support / finance roles |
+| `demo@gereh.net` | Customer with servers, hosting, domains, invoices and tickets |
+| `admin@gereh.net` | Staff, owner role |
+| `kaveh@gereh.net` / `shima@gereh.net` | Staff with the support / finance roles |
 
 **Server install:** on a fresh Ubuntu/Debian server run `sudo bash deploy/install.sh`. It sets up Node.js, PostgreSQL, a systemd service, Nginx, SSL, the firewall and daily backups, and installs the `gereh` command for updates with automatic rollback, backups and restores. See [`deploy/README.md`](deploy/README.md).
 

@@ -258,7 +258,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
         <${Logo} size=${size} />
         <span className="text-right leading-none">
           <span className="block font-black text-[1.3rem] tracking-tight">گره</span>
-          ${sub && html`<span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.cloud</span>`}
+          ${sub && html`<span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.net</span>`}
         </span>
       </span>`;
   }
@@ -653,7 +653,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
 
   function seed() {
     const users = [
-      { id: 'u1', name: 'امیر رضایی', email: 'demo@gereh.cloud', phone: '09121234567', company: 'استودیو نوین', balance: 2450000, status: 'active', kyc: 'verified', joined: '۱۴۰۳/۰۸/۱۲', services: 6, role: 'user' },
+      { id: 'u1', name: 'امیر رضایی', email: 'demo@gereh.net', phone: '09121234567', company: 'استودیو نوین', balance: 2450000, status: 'active', kyc: 'verified', joined: '۱۴۰۳/۰۸/۱۲', services: 6, role: 'user' },
       ...Array.from({ length: 23 }, (_, i) => ({
         id: 'u' + (i + 2), name: FIRST[(i * 5) % FIRST.length] + ' ' + LAST[(i * 7) % LAST.length],
         email: 'user' + (i + 2) + '@mail.ir', phone: '0912' + String(4000000 + i * 37171).slice(0, 7), company: i % 3 ? '' : 'شرکت ' + LAST[i % LAST.length],
@@ -681,14 +681,14 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
     const dns = () => [
       { id: uid('r'), type: 'A', name: '@', value: '185.143.232.17', ttl: 3600 },
       { id: uid('r'), type: 'A', name: 'www', value: '185.143.232.17', ttl: 3600 },
-      { id: uid('r'), type: 'MX', name: '@', value: 'mail.gereh.cloud', ttl: 3600, priority: 10 },
-      { id: uid('r'), type: 'TXT', name: '@', value: 'v=spf1 include:gereh.cloud ~all', ttl: 3600 },
+      { id: uid('r'), type: 'MX', name: '@', value: 'mail.gereh.net', ttl: 3600, priority: 10 },
+      { id: uid('r'), type: 'TXT', name: '@', value: 'v=spf1 include:gereh.net ~all', ttl: 3600 },
     ];
     const domains = [
-      { id: 'dom-501', userId: 'u1', name: 'novin.studio', registered: '۱۴۰۲/۰۴/۱۰', expires: '۱۴۰۵/۰۴/۱۰', autoRenew: true, privacy: true, locked: true, status: 'active', ns: ['ns1.gereh.cloud', 'ns2.gereh.cloud'], dns: dns(), authCode: 'Gx7#pQ2m!Lw9' },
-      { id: 'dom-502', userId: 'u1', name: 'cafeland.ir', registered: '۱۴۰۳/۰۲/۰۱', expires: '۱۴۰۴/۰۸/۰۱', autoRenew: false, privacy: false, locked: true, status: 'expiring', ns: ['ns1.gereh.cloud', 'ns2.gereh.cloud'], dns: dns(), authCode: '' },
+      { id: 'dom-501', userId: 'u1', name: 'novin.studio', registered: '۱۴۰۲/۰۴/۱۰', expires: '۱۴۰۵/۰۴/۱۰', autoRenew: true, privacy: true, locked: true, status: 'active', ns: ['ns1.gereh.net', 'ns2.gereh.net'], dns: dns(), authCode: 'Gx7#pQ2m!Lw9' },
+      { id: 'dom-502', userId: 'u1', name: 'cafeland.ir', registered: '۱۴۰۳/۰۲/۰۱', expires: '۱۴۰۴/۰۸/۰۱', autoRenew: false, privacy: false, locked: true, status: 'expiring', ns: ['ns1.gereh.net', 'ns2.gereh.net'], dns: dns(), authCode: '' },
       { id: 'dom-503', userId: 'u1', name: 'amirrezaei.com', registered: '۱۴۰۴/۰۱/۱۸', expires: '۱۴۰۵/۰۱/۱۸', autoRenew: true, privacy: true, locked: false, status: 'active', ns: ['ns1.cloudflare.com', 'ns2.cloudflare.com'], dns: [], authCode: 'kT4@zN8r$Vb1' },
-      ...Array.from({ length: 12 }, (_, i) => ({ id: 'dom-' + (600 + i), userId: 'u' + (2 + i), name: ['parsa', 'nova', 'arta', 'sahand', 'dena', 'baran'][i % 6] + (i + 1) + TLDS[i % 6].tld, registered: '۱۴۰۳/۰۱/۰۱', expires: '۱۴۰۵/۰' + (1 + i % 9) + '/۲۰', autoRenew: i % 2 === 0, privacy: i % 3 === 0, locked: true, status: i % 7 === 3 ? 'expired' : 'active', ns: ['ns1.gereh.cloud', 'ns2.gereh.cloud'], dns: [], authCode: '' })),
+      ...Array.from({ length: 12 }, (_, i) => ({ id: 'dom-' + (600 + i), userId: 'u' + (2 + i), name: ['parsa', 'nova', 'arta', 'sahand', 'dena', 'baran'][i % 6] + (i + 1) + TLDS[i % 6].tld, registered: '۱۴۰۳/۰۱/۰۱', expires: '۱۴۰۵/۰' + (1 + i % 9) + '/۲۰', autoRenew: i % 2 === 0, privacy: i % 3 === 0, locked: true, status: i % 7 === 3 ? 'expired' : 'active', ns: ['ns1.gereh.net', 'ns2.gereh.net'], dns: [], authCode: '' })),
     ];
     const invoices = [
       { id: 'INV-14062', userId: 'u1', date: '۱۴۰۴/۰۷/۰۱', due: '۱۴۰۴/۰۷/۱۰', status: 'unpaid', items: [{ desc: 'سرور ابری db-primary، مهر ۱۴۰۴', amount: 2390000 }, { desc: 'بکاپ روزانه', amount: 287000 }] },
@@ -756,11 +756,11 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
         { id: 'au3', actor: 'مدیر سیستم', action: 'تعلیق کاربر', target: 'u6', at: '۱۴۰۴/۰۷/۰۹ ۱۱:۰۵', ip: '10.0.0.4' },
       ],
       staff: [
-        { id: 'st-1', name: 'مدیر سیستم', email: 'admin@gereh.cloud', role: 'مدیر کل' },
-        { id: 'st-2', name: 'کاوه نوری', email: 'kaveh@gereh.cloud', role: 'پشتیبانی فنی' },
-        { id: 'st-3', name: 'شیما کاظمی', email: 'shima@gereh.cloud', role: 'مالی' },
+        { id: 'st-1', name: 'مدیر سیستم', email: 'admin@gereh.net', role: 'مدیر کل' },
+        { id: 'st-2', name: 'کاوه نوری', email: 'kaveh@gereh.net', role: 'پشتیبانی فنی' },
+        { id: 'st-3', name: 'شیما کاظمی', email: 'shima@gereh.net', role: 'مالی' },
       ],
-      settings: { siteName: 'گره', supportEmail: 'support@gereh.cloud', supportPhone: '۰۲۱-۹۱۰۰۰۰۰۰', registration: true, maintenance: false, tax: 10, gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false }, smsProvider: 'کاوه‌نگار', smtpHost: 'smtp.gereh.cloud' },
+      settings: { siteName: 'گره', supportEmail: 'support@gereh.net', supportPhone: '۰۲۱-۹۱۰۰۰۰۰۰', registration: true, maintenance: false, tax: 10, gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false }, smsProvider: 'کاوه‌نگار', smtpHost: 'smtp.gereh.net' },
     };
   }
 
@@ -786,7 +786,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
     { osid: 377, name: 'Windows Server 2019', distro: 'windows', on: false }, { osid: 390, name: 'FreeBSD 14', distro: 'freebsd', on: false },
   ];
   Object.assign(DB, {
-    virt: { host: 'panel.gereh.cloud', port: 4085, key: 'A3TNS71Z4OWX', connected: true, version: 'Virtualizor 3.1.x', lastSync: '۱۴۰۵/۰۷/۱۴ ۰۹:۳۰', autoSync: true, bandSuspend: true },
+    virt: { host: 'panel.gereh.net', port: 4085, key: 'A3TNS71Z4OWX', connected: true, version: 'Virtualizor 3.1.x', lastSync: '۱۴۰۵/۰۷/۱۴ ۰۹:۳۰', autoSync: true, bandSuspend: true },
     virtLog: [
       { id: 'vl1', at: '۱۴۰۵/۰۷/۱۴ ۰۹:۳۰', kind: 'همگام‌سازی سرورها', result: 'ok', detail: '۶ سرور، ۲۱۷ VPS' },
       { id: 'vl2', at: '۱۴۰۵/۰۷/۱۴ ۰۹:۲۵', kind: 'آمار ترافیک', result: 'ok', detail: '۲۱۷ VPS به‌روز شد' },
@@ -797,8 +797,8 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
     isos: ['ubuntu-24.04.1-live-server-amd64.iso', 'debian-12.7.0-amd64-netinst.iso', 'virtio-win-0.1.262.iso', 'systemrescue-11.02-amd64.iso'],
   });
   DB.servers.forEach((s, i) => Object.assign(s, {
-    vpsid: 3300 + i, hostname: s.name + '.gereh.cloud', boot: 'cda', iso: '', rescue: false, bwLimit: [2000, 4000, 6000, 10000][i % 4] * 1,
-    vnc: { host: 'vnc-' + s.loc + '.gereh.cloud', port: 5900 + i, password: 'xK9' + i + 'mQ2p' },
+    vpsid: 3300 + i, hostname: s.name + '.gereh.net', boot: 'cda', iso: '', rescue: false, bwLimit: [2000, 4000, 6000, 10000][i % 4] * 1,
+    vnc: { host: 'vnc-' + s.loc + '.gereh.net', port: 5900 + i, password: 'xK9' + i + 'mQ2p' },
     tasks: [
       { id: uid('t'), action: 'ساخت VPS', status: 'done', at: s.created + ' ۱۰:۱۲', progress: 100 },
       { id: uid('t'), action: 'نصب سیستم‌عامل ' + s.os, status: 'done', at: s.created + ' ۱۰:۱۳', progress: 100 },
@@ -2170,7 +2170,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
       await delay(700); setSent(true); notify('پیام شما ارسال شد', 'send');
     };
     const cards = [
-      ['phone', 'تلفن پشتیبانی', '۰۲۱-۹۱۰۰۰۰۰۰', 'شبانه‌روزی'], ['mail', 'ایمیل', 'support@gereh.cloud', 'پاسخ زیر یک ساعت'],
+      ['phone', 'تلفن پشتیبانی', '۰۲۱-۹۱۰۰۰۰۰۰', 'شبانه‌روزی'], ['mail', 'ایمیل', 'support@gereh.net', 'پاسخ زیر یک ساعت'],
       ['message-circle', 'تیکت', 'از پنل کاربری', 'سریع‌ترین مسیر فنی'], ['map-pin', 'دفتر مرکزی', 'تهران، خیابان ولیعصر', 'شنبه تا چهارشنبه، ۹ تا ۱۸'],
     ];
     return html`
@@ -2407,7 +2407,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
     const [mobile, setMobile] = useState(false);
     const nav = kind === 'admin' ? ADMIN_NAV : USER_NAV;
     const active = nav.slice().sort((a, b) => b.id.length - a.id.length).find(n => route === n.id || route.startsWith(n.id + '/')) || nav[0];
-    const me = kind === 'admin' ? { name: 'مدیر سیستم', email: 'admin@gereh.cloud' } : byId(db.users, 'u1');
+    const me = kind === 'admin' ? { name: 'مدیر سیستم', email: 'admin@gereh.net' } : byId(db.users, 'u1');
     const unread = db.notifications.filter(n => !n.read).length;
     const badges = kind === 'admin'
       ? { 'admin/tickets': db.tickets.filter(t => t.status === 'open' || t.status === 'customer-reply').length }
@@ -2779,7 +2779,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
             </div>
           <//>
           <${Card} title="اطلاعات" icon="file-text">
-            <dl className="space-y-3 text-sm">${[['کنترل‌پنل', h.panel], ['سررسید', h.expires], ['هزینه', toman(h.price) + ' / ماه'], ['نام‌سرورها', 'ns1/ns2.gereh.cloud']].map(([k, v]) => html`<div key=${k} className="flex justify-between"><dt className="text-white/45">${k}</dt><dd>${v}</dd></div>`)}</dl>
+            <dl className="space-y-3 text-sm">${[['کنترل‌پنل', h.panel], ['سررسید', h.expires], ['هزینه', toman(h.price) + ' / ماه'], ['نام‌سرورها', 'ns1/ns2.gereh.net']].map(([k, v]) => html`<div key=${k} className="flex justify-between"><dt className="text-white/45">${k}</dt><dd>${v}</dd></div>`)}</dl>
           <//>
           <${Card} title="رمز cPanel" icon="key-round">
             <p className="text-sm text-white/50 leading-7">رمز جدید فقط یک بار نمایش داده می‌شود.</p>
@@ -2839,7 +2839,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
         <div key=${tab} className="fade-in">
           ${tab === 'dns' && html`
             <${Card} title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action=${html`<button onClick=${() => setRec({ type: 'A', name: '', value: '', ttl: 3600 })} className=${BTN_P + ' px-3 h-9 text-xs'}><${Icon} name="plus" size=${15} /> رکورد جدید</button>`}>
-              ${!d.ns[0].includes('gereh') ? html`<${Empty} icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text=${'نام‌سرورها روی ' + d.ns[0] + ' تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.cloud تغییر دهید.'} />`
+              ${!d.ns[0].includes('gereh') ? html`<${Empty} icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text=${'نام‌سرورها روی ' + d.ns[0] + ' تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.net تغییر دهید.'} />`
                 : d.dns.length === 0 ? html`<${Empty} icon="settings-2" title="رکوردی ندارید" />` : html`
                 <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
                   <thead><tr className="text-xs text-white/40"><th className="text-right font-medium p-3">نوع</th><th className="text-right font-medium p-3">نام</th><th className="text-right font-medium p-3">مقدار</th><th className="text-right font-medium p-3">TTL</th><th></th></tr></thead>
@@ -2866,7 +2866,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
                 ${(ns || d.ns).length < 4 && html`<button onClick=${() => setNs([...(ns || d.ns), ''])} className="text-xs text-white/55 hover:text-white flex items-center gap-1"><${Icon} name="plus" size=${14} /> افزودن نام‌سرور</button>`}
               </div>
               <div className="mt-6 flex flex-wrap gap-2 justify-end">
-                <button onClick=${() => setNs(['ns1.gereh.cloud', 'ns2.gereh.cloud'])} className=${BTN_G + ' px-4 h-10 text-sm'}>بازگشت به پیش‌فرض گره</button>
+                <button onClick=${() => setNs(['ns1.gereh.net', 'ns2.gereh.net'])} className=${BTN_G + ' px-4 h-10 text-sm'}>بازگشت به پیش‌فرض گره</button>
                 <${AsyncButton} onClick=${async () => { const list = (ns || d.ns).map(x => x.trim()).filter(Boolean); if (list.length < 2) throw new Error('حداقل دو نام‌سرور لازم است.'); await api.domains.setNs(d.id, list); setNs(null); notify('نام‌سرورها به‌روز شدند؛ اعمال تا ۲۴ ساعت'); }}>ذخیره تغییرات<//>
               </div>
             <//>`}
@@ -3075,7 +3075,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
                 <div><div className="text-sm font-bold flex items-center gap-2 ltr justify-end">${x.name}</div><div className="text-[11px] text-white/40 mt-1 flex gap-3"><${Badge} tone=${x.scope === 'read' ? 'gray' : 'amber'}>${x.scope === 'read' ? 'فقط خواندن' : 'خواندن و نوشتن'}<//><span>آخرین استفاده: ${x.lastUsed}</span></div></div>
                 <${AsyncButton} className="text-xs text-rose-300 hover:text-rose-200 px-2" confirmText="توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند قطع می‌شوند." onClick=${async () => { await api.account.revokeToken(x.id); notify('توکن باطل شد'); }}>ابطال<//>
               </div>`)}
-            <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H "Authorization: Bearer $GEREH_TOKEN" https://api.gereh.cloud/v1/servers</div>
+            <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H "Authorization: Bearer $GEREH_TOKEN" https://api.gereh.net/v1/servers</div>
           <//>
         </div>
         <${Modal} open=${keyM} onClose=${() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"
@@ -4245,7 +4245,7 @@ const ICONS={"activity": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a
               <div className="font-extrabold mb-4">تماس</div>
               <ul className="space-y-3 text-sm text-white/55">
                 <li className="flex items-center gap-2"><${Icon} name="phone" size=${15} /><span className="ltr">۰۲۱-۹۱۰۰۰۰۰۰</span></li>
-                <li className="flex items-center gap-2"><${Icon} name="mail" size=${15} /><span className="ltr">hello@gereh.cloud</span></li>
+                <li className="flex items-center gap-2"><${Icon} name="mail" size=${15} /><span className="ltr">hello@gereh.net</span></li>
                 <li className="flex items-center gap-2"><${Icon} name="map-pin" size=${15} />تهران، خیابان ولیعصر</li>
                 <li className="flex items-center gap-2"><${Icon} name="clock" size=${15} />پشتیبانی ۲۴ ساعته</li>
               </ul>

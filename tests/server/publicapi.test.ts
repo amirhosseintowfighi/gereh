@@ -32,7 +32,7 @@ describe("public API v1", () => {
   it("read tokens cannot write", async () => {
     await asUser();
     const ro = await call<string>("account.createToken", { name: "ro", scope: "read", expires: "۳۰ روز" });
-    expect((await run(GET, "GET", "account", ro)).body).toMatchObject({ id: "u1", email: "demo@gereh.cloud" });
+    expect((await run(GET, "GET", "account", ro)).body).toMatchObject({ id: "u1", email: "demo@gereh.net" });
     expect((await run(POST, "POST", "servers/srv-1042/actions", ro, { action: "stop" })).status).toBe(403);
   });
 

@@ -8,13 +8,13 @@ import { breadcrumbLd, EMAIL, ORG_ID, pageMeta, SITE_URL } from "@/lib/seo";
 
 export const metadata = pageMeta({
   title: "تماس با گره",
-  description: "تماس با فروش و پشتیبانی فنی گره: تلفن شبانه‌روزی ۰۲۱-۹۱۰۰۰۰۰۰، ایمیل support@gereh.cloud، تیکت از پنل کاربری و دفتر مرکزی در خیابان ولیعصر تهران.",
+  description: "تماس با فروش و پشتیبانی فنی گره: تلفن شبانه‌روزی ۰۲۱-۹۱۰۰۰۰۰۰، ایمیل support@gereh.net، تیکت از پنل کاربری و دفتر مرکزی در خیابان ولیعصر تهران.",
   path: "/contact",
 });
 
 const CARDS: [string, string, string, string, string?][] = [
   ["phone", "تلفن پشتیبانی", "۰۲۱-۹۱۰۰۰۰۰۰", "شبانه‌روزی", "tel:+982191000000"],
-  ["mail", "ایمیل", "support@gereh.cloud", "پاسخ زیر یک ساعت", "mailto:support@gereh.cloud"],
+  ["mail", "ایمیل", "support@gereh.net", "پاسخ زیر یک ساعت", "mailto:support@gereh.net"],
   ["message-circle", "تیکت", "از پنل کاربری", "سریع‌ترین مسیر فنی", "/panel/tickets"],
   ["map-pin", "دفتر مرکزی", "تهران، خیابان ولیعصر", "شنبه تا چهارشنبه، ۹ تا ۱۸"],
 ];

@@ -20,7 +20,7 @@ describe("markdown", () => {
     expect(safeHref("//evil.example")).toBeNull();
     expect(safeHref("data:text/html,x")).toBeNull();
     expect(safeHref("/kb/ssh")).toBe("/kb/ssh");
-    expect(safeHref("https://gereh.cloud")).toBe("https://gereh.cloud");
+    expect(safeHref("https://gereh.net")).toBe("https://gereh.net");
     expect(safeHref("#s2")).toBe("#s2");
   });
   it("plain() strips inline markup", () => {

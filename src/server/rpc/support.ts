@@ -70,6 +70,6 @@ export const supportRpc = {
     if (m.name.trim().length < 2 || !EMAIL_RE.test(m.email.trim()) || m.message.trim().length < 10) fail("فرم کامل نیست.");
     await rateLimit(ctx.db, "contact:" + ctx.ip, 5, 3600);
     await ctx.db.insert(inbox).values({ id: rid("msg"), name: m.name.trim(), email: m.email.trim(), dept: m.dept.trim(), subject: m.subject.trim(), message: m.message.trim() });
-    await enqueue(ctx.db, "notify.send", { to: process.env.CONTACT_INBOX || "hello@gereh.cloud", subject: "پیام جدید: " + (m.subject.trim() || m.dept), text: m.name + " <" + m.email + ">\n\n" + m.message });
+    await enqueue(ctx.db, "notify.send", { to: process.env.CONTACT_INBOX || "hello@gereh.net", subject: "پیام جدید: " + (m.subject.trim() || m.dept), text: m.name + " <" + m.email + ">\n\n" + m.message });
   }),
 };

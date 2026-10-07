@@ -4,7 +4,7 @@ export const API_DOCS = `API گره همان کارهایی را که در پن�
 ## نشانی پایه
 
 \`\`\`
-https://gereh.cloud/api/v1
+https://gereh.net/api/v1
 \`\`\`
 
 مشخصات کامل در قالب [OpenAPI 3.1](/api/v1/openapi.json) منتشر شده است و می‌توانید آن را در Postman، Insomnia یا هر تولیدکننده SDK وارد کنید.
@@ -15,7 +15,7 @@ https://gereh.cloud/api/v1
 
 \`\`\`bash
 export GEREH_TOKEN="grh_..."
-curl -s https://gereh.cloud/api/v1/account -H "Authorization: Bearer $GEREH_TOKEN"
+curl -s https://gereh.net/api/v1/account -H "Authorization: Bearer $GEREH_TOKEN"
 \`\`\`
 
 | نوع توکن | مجاز |
@@ -54,9 +54,9 @@ curl -s https://gereh.cloud/api/v1/account -H "Authorization: Bearer $GEREH_TOKE
 | POST | \`/servers/{id}/actions\` | روشن، خاموش یا راه‌اندازی مجدد |
 
 \`\`\`bash
-curl -s https://gereh.cloud/api/v1/servers -H "Authorization: Bearer $GEREH_TOKEN"
+curl -s https://gereh.net/api/v1/servers -H "Authorization: Bearer $GEREH_TOKEN"
 
-curl -s -X POST https://gereh.cloud/api/v1/servers/srv-1042/actions \\
+curl -s -X POST https://gereh.net/api/v1/servers/srv-1042/actions \\
   -H "Authorization: Bearer $GEREH_TOKEN" -H "Content-Type: application/json" \\
   -d '{"action":"reboot"}'
 \`\`\`
@@ -74,7 +74,7 @@ curl -s -X POST https://gereh.cloud/api/v1/servers/srv-1042/actions \\
 | DELETE | \`/domains/{id}/records/{rid}\` | حذف رکورد |
 
 \`\`\`bash
-curl -s -X POST https://gereh.cloud/api/v1/domains/dom-501/records \\
+curl -s -X POST https://gereh.net/api/v1/domains/dom-501/records \\
   -H "Authorization: Bearer $GEREH_TOKEN" -H "Content-Type: application/json" \\
   -d '{"type":"A","name":"api","value":"185.143.232.17","ttl":300}'
 \`\`\`

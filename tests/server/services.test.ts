@@ -41,7 +41,7 @@ describe("servers: ownership and state", () => {
     expect(await fails("servers.reinstall", "srv-1042", "FreeBSD 14")).toContain("در دسترس نیست");
     await call("servers.reinstall", "srv-1042", "Debian 12");
     const { outbox } = await import("@/server/messaging");
-    expect(outbox[0]).toMatchObject({ channel: "email", to: "demo@gereh.cloud" });
+    expect(outbox[0]).toMatchObject({ channel: "email", to: "demo@gereh.net" });
     expect(outbox[0].text).toMatch(/رمز root جدید: \S{16}/);
   });
 
@@ -108,8 +108,8 @@ describe("account", () => {
     await asUser();
     expect(await fails("account.changePassword", "wrong", "NewPass123")).toContain("درست نیست");
     await call("account.changePassword", "Demo1234!", "NewPass123");
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!")).toContain("درست نیست");
-    expect(await call("auth.login", "demo@gereh.cloud", "NewPass123")).toMatchObject({ userId: "u1" });
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toContain("درست نیست");
+    expect(await call("auth.login", "demo@gereh.net", "NewPass123")).toMatchObject({ userId: "u1" });
   });
 });
 
@@ -132,14 +132,14 @@ describe("tickets", () => {
 
 describe("staff roles", () => {
   it("support staff can answer tickets but cannot touch billing or settings", async () => {
-    await login("kaveh@gereh.cloud");
+    await login("kaveh@gereh.net");
     await call("tickets.reply", "TK-3030", "در حال بررسی", "staff");
     expect(await fails("billing.refund", "INV-14031")).toContain("نقش شما");
     expect(await fails("admin.saveSettings", { tax: 9 })).toContain("نقش شما");
   });
 
   it("finance staff can refund but not edit products", async () => {
-    await login("shima@gereh.cloud");
+    await login("shima@gereh.net");
     await call("billing.refund", "INV-14031");
     expect(await fails("admin.updatePlan", "cloud", "c1", { price: 1 })).toContain("نقش شما");
   });

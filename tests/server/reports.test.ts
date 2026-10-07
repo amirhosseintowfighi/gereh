@@ -88,14 +88,14 @@ describe("SLA report", () => {
     await asUser();
     expect((await json(new Request("http://x/api/admin/reports"))).status).toBe(403);
     expect((await excel(new Request("http://x/api/admin/reports/export"))).status).toBe(403);
-    await login("shima@gereh.cloud"); // finance role
+    await login("shima@gereh.net"); // finance role
     const r = await json(new Request("http://x/api/admin/reports?months=6"));
     expect(r.status).toBe(200);
     expect((await r.json()).result.finance.months).toHaveLength(6);
     const x = await excel(new Request("http://x/api/admin/reports/export?months=6"));
     expect(x.headers.get("content-type")).toContain("spreadsheetml");
     expect(Buffer.from(await x.arrayBuffer()).readUInt32LE(0)).toBe(0x04034b50);
-    await login("kaveh@gereh.cloud"); // support role: no reports
+    await login("kaveh@gereh.net"); // support role: no reports
     expect((await json(new Request("http://x/api/admin/reports"))).status).toBe(403);
   });
 });

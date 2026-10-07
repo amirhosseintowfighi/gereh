@@ -58,7 +58,7 @@ describe("provisioning after payment", () => {
     expect(h).toMatchObject({ domain: "mynewsite.ir", plan: "نقره", status: "active" });
     expect(h.username).toMatch(/^[a-z0-9]{2,8}$/);
     const [dm] = await d.select().from(domains).where(eq(domains.name, "mynewsite.ir"));
-    expect(dm).toMatchObject({ userId: "u1", ns: ["ns1.gereh.cloud", "ns2.gereh.cloud"] });
+    expect(dm).toMatchObject({ userId: "u1", ns: ["ns1.gereh.net", "ns2.gereh.net"] });
   });
 });
 

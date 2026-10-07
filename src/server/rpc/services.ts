@@ -40,7 +40,7 @@ export function validateRecord(r: Rec): string {
   if (r.type === "MX" && r.priority === undefined) return "اولویت MX باید عددی بین ۰ تا ۶۵۵۳۵ باشد.";
   return "";
 }
-const managedHere = (ns: string[]) => ns.every((n) => /\.gereh\.cloud$/.test(n));
+const managedHere = (ns: string[]) => ns.every((n) => /\.gereh\.net$/.test(n));
 
 export const servicesRpc = {
   "hosting.resetPassword": method(z.tuple([id]), async (ctx, [hid]) => {

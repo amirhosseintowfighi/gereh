@@ -40,7 +40,7 @@ export class SimulatorDriver implements VirtDriver {
   async create(p: CreateVps) {
     const vpsid = ++this.seq + Math.floor(Math.random() * 100000);
     const o = (vpsid % 200) + 20;
-    return { vpsid, ip: "185.143.233." + o, ipv6: "2a01:4f8:c0c:" + vpsid.toString(16) + "::1", vncHost: "vnc-" + p.serverGroup.split("-")[0] + ".gereh.cloud", vncPort: 5900 + (vpsid % 1000), vncPassword: Math.random().toString(36).slice(2, 10) };
+    return { vpsid, ip: "185.143.233." + o, ipv6: "2a01:4f8:c0c:" + vpsid.toString(16) + "::1", vncHost: "vnc-" + p.serverGroup.split("-")[0] + ".gereh.net", vncPort: 5900 + (vpsid % 1000), vncPassword: Math.random().toString(36).slice(2, 10) };
   }
   async buildDone() { return true; }
   async status(vpsids: number[]) {

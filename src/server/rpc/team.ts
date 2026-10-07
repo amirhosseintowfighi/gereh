@@ -26,7 +26,7 @@ export const teamRpc = {
     const token = randomBytes(24).toString("base64url");
     await ctx.db.delete(teamInvites).where(and(eq(teamInvites.ownerId, a.uid), eq(teamInvites.email, email)));
     await ctx.db.insert(teamInvites).values({ id: rid("inv"), ownerId: a.uid, email, role: r, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 7 * 86400_000) });
-    const link = (origin || "https://gereh.cloud") + "/team/accept?token=" + token;
+    const link = (origin || "https://gereh.net") + "/team/accept?token=" + token;
     await sendEmail(email, "دعوت به حساب " + a.user.name + " در گره", a.user.name + " شما را با نقش «" + ROLE_LABEL[r] + "» به حساب خود در گره دعوت کرده است.\n\nبرای پذیرش (تا ۷ روز): " + link + "\n\nاگر حساب ندارید، ابتدا با همین ایمیل ثبت‌نام کنید.");
   }),
 

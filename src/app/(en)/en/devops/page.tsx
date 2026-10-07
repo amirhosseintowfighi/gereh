@@ -77,7 +77,7 @@ export default function EnDevops() {
           <ul className="grid sm:grid-cols-2 gap-3">{TRUST.map((t) => <li key={t} className={GLASS_SOFT + " rounded-xl p-4 text-sm flex gap-3"}><Icon name="shield-check" size={17} className="acc shrink-0 mt-0.5" />{t}</li>)}</ul>
         </section>
         <section aria-labelledby="faq"><h2 id="faq" className="text-2xl font-black mb-6">FAQ</h2><EnFaq items={FAQ} /></section>
-        <p className="text-sm text-white/60">The request form is in Persian; you can also email <a className="acc underline" href="mailto:hello@gereh.cloud">hello@gereh.cloud</a> in English.</p>
+        <p className="text-sm text-white/60">The request form is in Persian; you can also email <a className="acc underline" href="mailto:hello@gereh.net">hello@gereh.net</a> in English.</p>
       </div>
     </>
   );

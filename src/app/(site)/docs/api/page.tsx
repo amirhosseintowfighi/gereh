@@ -13,7 +13,7 @@ export default function ApiDocsPage() {
   return (
     <>
       <JsonLd data={[breadcrumbLd([["مستندات API", "/docs/api"]]), { "@type": "TechArticle", headline: TITLE, description: DESC, url: SITE_URL + "/docs/api", inLanguage: "fa-IR", author: { "@id": ORG_ID }, publisher: { "@id": ORG_ID }, proficiencyLevel: "Expert" }]} />
-      <ArticleView crumbs={[["مستندات API", "/docs/api"]]} title={TITLE} lead="سرورها، DNS و صورتحساب‌ها را با چند خط کد مدیریت کنید." body={API_DOCS.replaceAll("https://gereh.cloud", SITE_URL)}
+      <ArticleView crumbs={[["مستندات API", "/docs/api"]]} title={TITLE} lead="سرورها، DNS و صورتحساب‌ها را با چند خط کد مدیریت کنید." body={API_DOCS.replaceAll("https://gereh.net", SITE_URL)}
         meta={<><span className="flex items-center gap-1.5"><Icon name="code-xml" size={14} />REST · JSON</span><span className="flex items-center gap-1.5"><Icon name="tag" size={14} />نسخه ۱</span></>}
         aside={(
           <div className={GLASS_SOFT + " rounded-2xl p-4 space-y-2"}>

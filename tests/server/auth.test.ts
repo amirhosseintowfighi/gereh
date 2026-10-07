@@ -23,7 +23,7 @@ describe("password login", () => {
   });
 
   it("rejects wrong passwords with one generic message", async () => {
-    expect(await fails("auth.login", "demo@gereh.cloud", "nope")).toBe("ایمیل، موبایل یا رمز عبور درست نیست.");
+    expect(await fails("auth.login", "demo@gereh.net", "nope")).toBe("ایمیل، موبایل یا رمز عبور درست نیست.");
     expect(await fails("auth.login", "nobody@x.ir", "nope")).toBe("ایمیل، موبایل یا رمز عبور درست نیست.");
   });
 
@@ -32,8 +32,8 @@ describe("password login", () => {
   });
 
   it("locks an identifier after 8 failures in 15 minutes", async () => {
-    for (let i = 0; i < 8; i++) await fails("auth.login", "demo@gereh.cloud", "bad" + i);
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!")).toContain("تعداد تلاش‌ها زیاد است");
+    for (let i = 0; i < 8; i++) await fails("auth.login", "demo@gereh.net", "bad" + i);
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toContain("تعداد تلاش‌ها زیاد است");
   });
 
   it("requires the TOTP code when 2FA is on", async () => {
@@ -41,9 +41,9 @@ describe("password login", () => {
     const secret = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
     await call("account.setTwofa", true, secret, await totp(secret));
     jar.clear();
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!")).toBe("TWOFA_REQUIRED");
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!", "000000")).toContain("درست نیست");
-    expect(await call("auth.login", "demo@gereh.cloud", "Demo1234!", await totp(secret))).toMatchObject({ userId: "u1" });
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toBe("TWOFA_REQUIRED");
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!", "000000")).toContain("درست نیست");
+    expect(await call("auth.login", "demo@gereh.net", "Demo1234!", await totp(secret))).toMatchObject({ userId: "u1" });
   });
 
   it("logout deletes the session", async () => {
@@ -55,7 +55,7 @@ describe("password login", () => {
 
   it("suspended customers cannot sign in", async () => {
     await (await db()).update(users).set({ status: "suspended" }).where(eq(users.id, "u1"));
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!")).toContain("معلق");
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toContain("معلق");
   });
 });
 
@@ -97,10 +97,10 @@ describe("registration and recovery", () => {
   it("forgot-password answers the same for unknown emails and rotates the password for known ones", async () => {
     expect(await call("auth.forgot", "ghost@example.com")).toBe(true);
     expect(outbox).toHaveLength(0);
-    expect(await call("auth.forgot", "demo@gereh.cloud")).toBe(true);
+    expect(await call("auth.forgot", "demo@gereh.net")).toBe(true);
     const temp = /رمز موقت شما: (\S+)/.exec(outbox[0].text)![1];
-    expect(await fails("auth.login", "demo@gereh.cloud", "Demo1234!")).toContain("درست نیست");
-    expect(await call("auth.login", "demo@gereh.cloud", temp)).toMatchObject({ userId: "u1" });
+    expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toContain("درست نیست");
+    expect(await call("auth.login", "demo@gereh.net", temp)).toMatchObject({ userId: "u1" });
   });
 });
 

@@ -31,7 +31,7 @@ cd gereh
 sudo bash deploy/install.sh
 
 # یا بدون سؤال:
-sudo bash deploy/install.sh --domain gereh.cloud --email ops@gereh.cloud --yes
+sudo bash deploy/install.sh --domain gereh.net --email ops@gereh.net --yes
 ```
 
 ۳. در پایان، نشانی سایت، ایمیل و رمز مدیر اصلی نمایش داده می‌شود؛ یک نسخه از آن هم در `/root/gereh-install.txt` ذخیره می‌شود. با همین مشخصات وارد `/admin` شوید و **رمز را عوض کنید**.

@@ -36,7 +36,7 @@ func (r *dnsRecordResource) Metadata(_ context.Context, req resource.MetadataReq
 func (r *dnsRecordResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	replace := []planmodifier.String{stringplanmodifier.RequiresReplace()}
 	resp.Schema = schema.Schema{
-		Description: "A DNS record in a zone hosted on ns1/ns2.gereh.cloud.",
+		Description: "A DNS record in a zone hosted on ns1/ns2.gereh.net.",
 		Attributes: map[string]schema.Attribute{
 			"id":        schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"domain_id": schema.StringAttribute{Required: true, PlanModifiers: replace, Description: "Domain id, e.g. dom-501."},

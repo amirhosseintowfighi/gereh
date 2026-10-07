@@ -35,7 +35,7 @@ describe("blog", () => {
   it("only content staff (owner, sales) can write", async () => {
     await asUser();
     await fails("blog.save", draft);
-    await login("kaveh@gereh.cloud"); // support
+    await login("kaveh@gereh.net"); // support
     await fails("blog.save", draft);
     await asAdmin();
     const id = await call<string>("blog.save", draft);

@@ -134,7 +134,7 @@ Every admin mutation must write an audit entry. The prototype already does this 
 - **Domains:**
   - IRNIC for `.ir` domains.
   - A registrar API (for example ResellerClub or OpenSRS) for international TLDs.
-  - PowerDNS for the DNS zones served by `ns1/ns2.gereh.cloud`.
+  - PowerDNS for the DNS zones served by `ns1/ns2.gereh.net`.
 - **Payments:**
   - Zarinpal and IDPay, using the request → redirect → verify-callback flow.
   - Credit the wallet or mark the invoice paid only after verification succeeds.

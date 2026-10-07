@@ -122,8 +122,8 @@ export function AuthForm() {
         <div className="mt-8 rounded-2xl border border-dashed border-white/15 p-4">
           <div className="text-[11px] text-white/55 mb-3 text-center">نسخه نمایشی: ورود با حساب‌های آزمایشی</div>
           <div className="grid grid-cols-2 gap-2">
-            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("demo@gereh.cloud", "Demo1234!")))}><Icon name="user-round" size={15} /> پنل کاربر</AsyncButton>
-            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("admin@gereh.cloud", "Demo1234!")))}><Icon name="shield-half" size={15} /> پنل مدیریت</AsyncButton>
+            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("demo@gereh.net", "Demo1234!")))}><Icon name="user-round" size={15} /> پنل کاربر</AsyncButton>
+            <AsyncButton className={BTN_G + " h-10 text-xs"} onClick={wrap(async () => done(await api.auth.login("admin@gereh.net", "Demo1234!")))}><Icon name="shield-half" size={15} /> پنل مدیریت</AsyncButton>
           </div>
         </div>
       )}

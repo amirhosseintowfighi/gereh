@@ -5,7 +5,7 @@ Manages DNS records and reads cloud servers through the Gereh public API (`/api/
 ```hcl
 provider "gereh" {
   # token = "grh_…"            # or GEREH_TOKEN
-  # endpoint = "https://gereh.cloud"  # or GEREH_ENDPOINT
+  # endpoint = "https://gereh.net"  # or GEREH_ENDPOINT
 }
 ```
 

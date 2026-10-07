@@ -6,7 +6,7 @@
 # Safe to run again: existing secrets, database and settings are kept.
 #
 #   sudo bash deploy/install.sh                       # interactive
-#   sudo bash deploy/install.sh --domain gereh.cloud --email ops@gereh.cloud --yes
+#   sudo bash deploy/install.sh --domain gereh.net --email ops@gereh.net --yes
 #
 # Run `bash deploy/install.sh --help` for every option. Full guide: deploy/README.md
 set -Eeuo pipefail
@@ -36,7 +36,7 @@ usage() {
   cat <<'EOF'
 Usage: sudo bash deploy/install.sh [options]
 
-  --domain NAME          site domain, e.g. gereh.cloud (without it the site is served on the server IP over HTTP)
+  --domain NAME          site domain, e.g. gereh.net (without it the site is served on the server IP over HTTP)
   --email ADDRESS        email for Let's Encrypt expiry notices (needed for SSL)
   --admin-email ADDRESS  first admin account (default: admin@DOMAIN)
   --admin-password PASS  its password (default: generated and printed at the end)

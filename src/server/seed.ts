@@ -15,14 +15,14 @@ import { randomSecret } from "./util";
 
 export const DEMO_PASSWORD = "Demo1234!";
 export const DEFAULT_SETTINGS = {
-  siteName: "گره", supportEmail: "support@gereh.cloud", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10,
+  siteName: "گره", supportEmail: "support@gereh.net", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10,
   gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false } as Record<string, boolean>,
-  smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.cloud", smtpPort: 587,
+  smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.net", smtpPort: 587,
   /** % of a referred customer's paid invoices credited to the referrer during their first year */
   affiliateRate: 10,
   legalName: "شرکت گره ابر پارس (سهامی خاص)", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "تهران، خیابان ولیعصر", sellerPostalCode: "",
 };
-export const DEFAULT_VIRT = { host: "panel.gereh.cloud", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
+export const DEFAULT_VIRT = { host: "panel.gereh.net", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 
 const refCode = () => randomSecret(8, "ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 
@@ -55,7 +55,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   ]).onConflictDoNothing();
   await db.insert(t.isos).values(["ubuntu-24.04.1-live-server-amd64.iso", "debian-12.7.0-amd64-netinst.iso", "virtio-win-0.1.262.iso", "systemrescue-11.02-amd64.iso"].map((filename) => ({ filename }))).onConflictDoNothing();
 
-  const adminEmail = (opts.adminEmail || (opts.demo ? "admin@gereh.cloud" : "")).toLowerCase();
+  const adminEmail = (opts.adminEmail || (opts.demo ? "admin@gereh.net" : "")).toLowerCase();
   const adminPassword = opts.adminPassword || (opts.demo ? DEMO_PASSWORD : "");
   if (adminEmail && adminPassword) {
     await db.insert(t.users).values({ id: "a1", name: "مدیر سیستم", email: adminEmail, phone: "", passwordHash: await hashPassword(adminPassword), role: "admin", staffRole: "owner", status: "active", kyc: "verified", referralCode: refCode() }).onConflictDoNothing();
@@ -64,14 +64,14 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
 
   const pw = await hashPassword(DEMO_PASSWORD);
   await db.insert(t.users).values([
-    { id: "st-2", name: "کاوه نوری", email: "kaveh@gereh.cloud", passwordHash: pw, role: "admin", staffRole: "support", kyc: "verified", referralCode: refCode() },
-    { id: "st-3", name: "شیما کاظمی", email: "shima@gereh.cloud", passwordHash: pw, role: "admin", staffRole: "finance", kyc: "verified", referralCode: refCode() },
+    { id: "st-2", name: "کاوه نوری", email: "kaveh@gereh.net", passwordHash: pw, role: "admin", staffRole: "support", kyc: "verified", referralCode: refCode() },
+    { id: "st-3", name: "شیما کاظمی", email: "shima@gereh.net", passwordHash: pw, role: "admin", staffRole: "finance", kyc: "verified", referralCode: refCode() },
   ]).onConflictDoNothing();
 
   const FIRST = ["امیر", "سارا", "رضا", "مریم", "علی", "نگار", "حسین", "زهرا", "محمد", "الهام", "کاوه", "نازنین", "پویا", "شیما"];
   const LAST = ["رضایی", "احمدی", "کریمی", "موسوی", "حسینی", "محمدی", "جعفری", "صادقی", "نوری", "تهرانی", "کاظمی", "رحیمی"];
   await db.insert(t.users).values([
-    { id: "u1", name: "امیر رضایی", email: "demo@gereh.cloud", phone: "09121234567", company: "استودیو نوین", passwordHash: pw, balance: 2450000, status: "active", kyc: "verified", createdAt: J("۱۴۰۳/۰۸/۱۲"), referralCode: "NOVIN24", notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } },
+    { id: "u1", name: "امیر رضایی", email: "demo@gereh.net", phone: "09121234567", company: "استودیو نوین", passwordHash: pw, balance: 2450000, status: "active", kyc: "verified", createdAt: J("۱۴۰۳/۰۸/۱۲"), referralCode: "NOVIN24", notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } },
     ...Array.from({ length: 23 }, (_, i) => ({
       id: "u" + (i + 2), name: FIRST[(i * 5) % FIRST.length] + " " + LAST[(i * 7) % LAST.length],
       email: "user" + (i + 2) + "@mail.ir", phone: "0912" + String(4000000 + i * 37171).slice(0, 7), company: i % 3 ? "" : "شرکت " + LAST[i % LAST.length],
@@ -88,8 +88,8 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     ...Array.from({ length: 14 }, (_, i): S => ({ id: "srv-" + (1200 + i), userId: "u" + (2 + ((i * 3) % 20)), name: ["api", "web", "cache", "worker", "vpn", "game"][i % 6] + "-" + (i + 1), plan: VPS.cloud[i % 4].name, cpu: [1, 2, 4, 8][i % 4], ram: [2, 4, 8, 16][i % 4], disk: [40, 80, 160, 320][i % 4], loc: LOCS[i % 4].id, os: OSES[i % 3].label, ip: "185.143.23" + (i % 9) + "." + (20 + i * 7), status: i % 6 === 2 ? "stopped" : i % 11 === 5 ? "suspended" : "running", createdAt: J("۱۴۰۴/۰" + fa(1 + (i % 8)) + "/۱" + fa(i % 9)), price: VPS.cloud[i % 4].price, backups: i % 2 === 0, hostname: "" })),
   ];
   await db.insert(t.servers).values(base.map((s, i) => ({
-    ...s, vpsid: 3300 + i, hostname: s.name + ".gereh.cloud", bwLimit: [2000, 4000, 6000, 10000][i % 4],
-    vncHost: "vnc-" + s.loc + ".gereh.cloud", vncPort: 5900 + i, vncPassword: "xK9" + i + "mQ2p", paidUntil: new Date(now + (20 + i) * 86400_000),
+    ...s, vpsid: 3300 + i, hostname: s.name + ".gereh.net", bwLimit: [2000, 4000, 6000, 10000][i % 4],
+    vncHost: "vnc-" + s.loc + ".gereh.net", vncPort: 5900 + i, vncPassword: "xK9" + i + "mQ2p", paidUntil: new Date(now + (20 + i) * 86400_000),
   }))).onConflictDoNothing();
   for (const s of base.slice(0, 3)) {
     await db.insert(t.firewallRules).values([
@@ -116,10 +116,10 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   const dns = (domainId: string) => [
     { id: domainId + "-r1", domainId, type: "A", name: "@", value: "185.143.232.17", ttl: 3600 },
     { id: domainId + "-r2", domainId, type: "A", name: "www", value: "185.143.232.17", ttl: 3600 },
-    { id: domainId + "-r3", domainId, type: "MX", name: "@", value: "mail.gereh.cloud", ttl: 3600, priority: 10 },
-    { id: domainId + "-r4", domainId, type: "TXT", name: "@", value: "v=spf1 include:gereh.cloud ~all", ttl: 3600 },
+    { id: domainId + "-r3", domainId, type: "MX", name: "@", value: "mail.gereh.net", ttl: 3600, priority: 10 },
+    { id: domainId + "-r4", domainId, type: "TXT", name: "@", value: "v=spf1 include:gereh.net ~all", ttl: 3600 },
   ];
-  const NS = ["ns1.gereh.cloud", "ns2.gereh.cloud"];
+  const NS = ["ns1.gereh.net", "ns2.gereh.net"];
   await db.insert(t.domains).values([
     { id: "dom-501", userId: "u1", name: "novin.studio", registeredAt: J("۱۴۰۲/۰۴/۱۰"), expiresAt: J("۱۴۰۵/۰۴/۱۰"), autoRenew: true, privacy: true, locked: true, status: "active", ns: NS, authCode: "Gx7#pQ2m!Lw9" },
     { id: "dom-502", userId: "u1", name: "cafeland.ir", registeredAt: J("۱۴۰۳/۰۲/۰۱"), expiresAt: J("۱۴۰۴/۰۸/۰۱"), autoRenew: false, privacy: false, locked: true, status: "expiring", ns: NS },
@@ -189,7 +189,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   await db.insert(t.posts).values(DEMO_POSTS.map((p, i) => ({ id: "post-" + (i + 1), slug: p.slug, title: p.title, excerpt: p.excerpt, body: p.body, tags: p.tags, status: "published" as const, author: "تیم گره", publishedAt: J(p.date), updatedAt: J(p.date), createdAt: J(p.date) }))).onConflictDoNothing();
   await db.insert(t.devopsLeads).values([
     { id: "DO-1001", name: "سینا فرهادی", company: "پرداخت‌یار", role: "مدیر فنی", email: "sina@pardakhtyar.example", phone: "09121112233", website: "pardakhtyar.example", size: "۱۱ تا ۵۰ نفر", stage: "در حال رشد سریع", infra: ["سرویس‌دهنده ابری دیگر داخلی"], services: ["kubernetes", "monitoring", "managed-devops"], pkg: "growth", budget: "۲۵ تا ۶۰ میلیون تومان در ماه", urgency: "فوری: مشکل فعلی در production", needsNda: true, message: "در ساعات اوج تراکنش سرویس پرداخت کند می‌شود و هفته‌ای یکی دو بار قطعی داریم. مهندس دواپس نداریم.", source: "/devops", createdAt: J("۱۴۰۴/۰۷/۱۳"), updatedAt: J("۱۴۰۴/۰۷/۱۳") },
-    { id: "DO-1000", name: "امیر رضایی", company: "استودیو نوین", role: "مدیر", email: "demo@gereh.cloud", phone: "09121234567", size: "۱ تا ۱۰ نفر", stage: "محصول عرضه‌شده", infra: ["گره"], services: ["ci-cd", "managed-devops"], pkg: "startup", budget: "کمتر از ۲۵ میلیون تومان در ماه", urgency: "ظرف یک ماه", message: "می‌خواهیم استقرار پروژه‌های مشتریان خودکار شود و کسی سرورها را نگه دارد.", status: "won", assignee: "کاوه نوری", value: 24000000, userId: "u1", source: "/devops/ci-cd", createdAt: J("۱۴۰۴/۰۶/۱۰"), updatedAt: J("۱۴۰۴/۰۶/۲۰") },
+    { id: "DO-1000", name: "امیر رضایی", company: "استودیو نوین", role: "مدیر", email: "demo@gereh.net", phone: "09121234567", size: "۱ تا ۱۰ نفر", stage: "محصول عرضه‌شده", infra: ["گره"], services: ["ci-cd", "managed-devops"], pkg: "startup", budget: "کمتر از ۲۵ میلیون تومان در ماه", urgency: "ظرف یک ماه", message: "می‌خواهیم استقرار پروژه‌های مشتریان خودکار شود و کسی سرورها را نگه دارد.", status: "won", assignee: "کاوه نوری", value: 24000000, userId: "u1", source: "/devops/ci-cd", createdAt: J("۱۴۰۴/۰۶/۱۰"), updatedAt: J("۱۴۰۴/۰۶/۲۰") },
   ]).onConflictDoNothing();
   await db.insert(t.devopsProjects).values({
     id: "dvp-demo1", userId: "u1", leadId: "DO-1000", title: "استقرار خودکار و نگه‌داری زیرساخت", plan: "startup", status: "active", services: ["ci-cd", "monitoring", "managed-devops"], monthlyFee: 24000000, hoursIncluded: 20, hoursUsed: 7.5, engineer: "کاوه نوری",

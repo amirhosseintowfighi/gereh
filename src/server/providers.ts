@@ -1,6 +1,6 @@
 /* External service providers behind small interfaces, each with a simulator for dev/CI:
    - hosting:   cPanel/WHM API 1        (WHM_HOST, WHM_USER, WHM_TOKEN)
-   - dns:       PowerDNS HTTP API       (PDNS_URL, PDNS_API_KEY) — zones for domains on ns1/ns2.gereh.cloud
+   - dns:       PowerDNS HTTP API       (PDNS_URL, PDNS_API_KEY) — zones for domains on ns1/ns2.gereh.net
    - registrar: ResellerClub HTTP API   (RC_USER_ID, RC_API_KEY, RC_CUSTOMER_ID, RC_CONTACT_ID) for gTLDs.
      .ir domains go through IRNIC's EPP interface, which needs a reseller certificate; until IRNIC_EPP_*
      is configured they use the simulator so the rest of the flow (orders, invoices, DNS) still works. */
@@ -84,7 +84,7 @@ class PowerDns implements DnsProvider {
     }
     const cur = await this.req("GET", "/" + zone);
     if (cur.status === 404) {
-      await this.req("POST", "", { name: zone, kind: "Native", nameservers: ["ns1.gereh.cloud.", "ns2.gereh.cloud."], rrsets: [...want.values()] });
+      await this.req("POST", "", { name: zone, kind: "Native", nameservers: ["ns1.gereh.net.", "ns2.gereh.net."], rrsets: [...want.values()] });
       return;
     }
     const existing = ((await cur.json()) as { rrsets: { name: string; type: string }[] }).rrsets.filter((s) => s.type !== "SOA" && !(s.type === "NS" && s.name === zone));

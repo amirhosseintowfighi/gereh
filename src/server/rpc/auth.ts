@@ -78,7 +78,7 @@ export const authRpc = {
     }
     const [user] = await ctx.db.insert(users).values({ id: rid("u"), name, email, phone, passwordHash: await hashPassword(d.password), referralCode: refCode(), referredBy,
       notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: true, security_email: true, security_sms: true, news_email: false } }).returning();
-    await sendEmail(email, "به گره خوش آمدید", "سلام " + name + "،\nحساب شما در گره ساخته شد. برای خرید سرویس وارد پنل شوید: https://gereh.cloud/panel");
+    await sendEmail(email, "به گره خوش آمدید", "سلام " + name + "،\nحساب شما در گره ساخته شد. برای خرید سرویس وارد پنل شوید: https://gereh.net/panel");
     return startSession(ctx, user, "ثبت‌نام");
   }),
 

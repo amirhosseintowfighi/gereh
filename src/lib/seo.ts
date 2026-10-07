@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.cloud").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "");
 export const SITE_NAME = "گره";
 export const SITE_DESC = "سرور ابری با دیسک NVMe، سرور اختصاصی، هاست وب پرسرعت و ثبت دامنه .ir و بین‌المللی. آماده‌سازی سرور در کمتر از یک دقیقه، آپتایم ۹۹٫۹۹٪ و پشتیبانی فنی شبانه‌روزی.";
 export const PHONE = "+98-21-91000000";
-export const EMAIL = "hello@gereh.cloud";
+export const EMAIL = "hello@gereh.net";
 
 /** Per-page metadata with canonical URL + OG/Twitter that inherit the site defaults. */
 export function pageMeta({ title, description, path, en }: { title: string; description: string; path: string; en?: string }): Metadata {

@@ -42,7 +42,7 @@ export function Navbar() {
     <header className="sticky z-40 px-3 sm:px-6 pt-3" style={{ top: "env(safe-area-inset-top, 0px)" }}>
       <nav aria-label="منوی اصلی" className={"mx-auto max-w-6xl rounded-2xl pl-2 pr-3 sm:pr-4 h-16 flex items-center justify-between backdrop-blur-xl border transition-all duration-500 " +
         (scrolled ? "bg-[#05060d]/75 border-white/[0.12] shadow-2xl shadow-black/60" : "bg-white/[0.04] border-white/[0.1]")}>
-        <Link href="/" aria-label="گره gereh.cloud، صفحه اصلی"><Wordmark size={34} /></Link>
+        <Link href="/" aria-label="گره، صفحه اصلی"><Wordmark size={34} sub={false} /></Link>
 
         <div className="hidden lg:flex items-center relative h-16">
           {pill && <span className="nav-pill" style={{ left: pill.left, width: pill.width }} />}

@@ -61,14 +61,14 @@ export async function provisionServer(db: DB, p: Payload) {
   const v = await virt();
   const virtUid = u.virtUid ?? (await v.ensureUser(u.email, randomSecret(20, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789")));
   if (!u.virtUid) await db.update(users).set({ virtUid }).where(eq(users.id, u.id));
-  const created = await v.create({ uid: virtUid, plid, osid: tpl?.osid ?? 347, hostname: vmName + ".gereh.cloud", rootpass, serverGroup: group, sshKey: key?.publicKey, cloudInit: cloudInitFor((sku as { app?: string }).app) });
+  const created = await v.create({ uid: virtUid, plid, osid: tpl?.osid ?? 347, hostname: vmName + ".gereh.net", rootpass, serverGroup: group, sshKey: key?.publicKey, cloudInit: cloudInitFor((sku as { app?: string }).app) });
   if (sku.t === "custom") await v.manage(created.vpsid, { cores: cpu, ram: ram * 1024, space: disk });
 
   const hourly = !!(sku as { hourly?: boolean }).hourly;
   await db.transaction(async (tx) => {
     await tx.insert(servers).values({
       id: sid, userId: u.id, name: vmName, plan: name, cpu, ram, disk, loc: sku.loc, os: tpl?.name ?? osLabel, ip: created.ip, ipv6: created.ipv6,
-      status: "building", price, billing: hourly ? "hourly" : "monthly", backups: sku.t === "custom" && sku.backup, vpsid: created.vpsid, hostname: vmName + ".gereh.cloud",
+      status: "building", price, billing: hourly ? "hourly" : "monthly", backups: sku.t === "custom" && sku.backup, vpsid: created.vpsid, hostname: vmName + ".gereh.net",
       vncHost: created.vncHost, vncPort: created.vncPort, vncPassword: created.vncPassword, app: (sku as { app?: string }).app ?? "",
       paidUntil: hourly ? null : addMonths(new Date(), months), orderRef: ref(p),
     });
@@ -120,10 +120,10 @@ export async function provisionHosting(db: DB, p: Payload) {
   await db.insert(hosting).values({ id: hid, userId: u.id, domain, plan: plan.name, diskTotal: gb, bwTotal: 200, price: plan.price, server, username, expiresAt: addMonths(new Date(), sku.yearly ? 12 : 1), orderRef: ref(p) });
   await logActivity(db, u.id, "layers", "هاست " + domain + " فعال شد");
   await notify(db, u.id, "layers", "هاست " + domain + " آماده است");
-  await enqueue(db, "notify.send", { userId: u.id, kind: "service", subject: "هاست " + domain + " آماده است", text: "هاست شما فعال شد.\n\nدامنه: " + domain + "\nنام کاربری cPanel: " + username + "\nرمز: " + password + "\nنام‌سرورها: ns1.gereh.cloud و ns2.gereh.cloud", secret: true });
+  await enqueue(db, "notify.send", { userId: u.id, kind: "service", subject: "هاست " + domain + " آماده است", text: "هاست شما فعال شد.\n\nدامنه: " + domain + "\nنام کاربری cPanel: " + username + "\nرمز: " + password + "\nنام‌سرورها: ns1.gereh.net و ns2.gereh.net", secret: true });
 }
 
-const NS = ["ns1.gereh.cloud", "ns2.gereh.cloud"];
+const NS = ["ns1.gereh.net", "ns2.gereh.net"];
 export async function provisionDomain(db: DB, p: Payload & { renew?: string; years?: number }) {
   const reg = (await providers()).registrar;
   if (p.renew) {

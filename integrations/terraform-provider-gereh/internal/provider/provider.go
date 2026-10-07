@@ -33,7 +33,7 @@ func (p *gerehProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp
 	resp.Schema = schema.Schema{
 		Description: "Manage Gereh Cloud resources. Create an API token in Panel › SSH و API.",
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{Optional: true, Description: "Base URL (default https://gereh.cloud or GEREH_ENDPOINT)."},
+			"endpoint": schema.StringAttribute{Optional: true, Description: "Base URL (default https://gereh.net or GEREH_ENDPOINT)."},
 			"token":    schema.StringAttribute{Optional: true, Sensitive: true, Description: "API token (or GEREH_TOKEN)."},
 		},
 	}
@@ -45,7 +45,7 @@ func (p *gerehProvider) Configure(ctx context.Context, req provider.ConfigureReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	endpoint := firstNonEmpty(cfg.Endpoint.ValueString(), os.Getenv("GEREH_ENDPOINT"), "https://gereh.cloud")
+	endpoint := firstNonEmpty(cfg.Endpoint.ValueString(), os.Getenv("GEREH_ENDPOINT"), "https://gereh.net")
 	token := firstNonEmpty(cfg.Token.ValueString(), os.Getenv("GEREH_TOKEN"))
 	if token == "" {
 		resp.Diagnostics.AddError("Missing API token", "Set the provider's token attribute or the GEREH_TOKEN environment variable.")
