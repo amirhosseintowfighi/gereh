@@ -23,7 +23,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [],
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [],
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -209,6 +209,16 @@ export const api = {
     remove: (memberId: string) => rpc("team.remove", memberId),
     switchTo: (ownerId: string | null) => rpc("team.switch", ownerId),
     leave: (ownerId: string) => rpc("team.leave", ownerId),
+  },
+  devops: {
+    request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),
+    updateLead: (id: string, patch: { status?: string; assignee?: string; value?: number }) => rpc("devops.updateLead", id, patch),
+    noteLead: (id: string, text: string) => rpc("devops.noteLead", id, text),
+    createProject: (p: { userId: string; leadId?: string; title: string; plan: string; services: string[]; monthlyFee: number; hoursIncluded: number; engineer: string; start: boolean }) => rpc<string>("devops.createProject", p),
+    updateProject: (id: string, patch: { title?: string; status?: string; monthlyFee?: number; hoursIncluded?: number; hoursUsed?: number; engineer?: string }) => rpc("devops.updateProject", id, patch),
+    setMilestones: (id: string, ms: { id?: string; title: string; due: string; done: boolean }[]) => rpc("devops.setMilestones", id, ms),
+    postUpdate: (id: string, text: string) => rpc("devops.postUpdate", id, text),
+    invoice: (id: string, item: { desc: string; amount: number }) => rpc<string>("devops.invoice", id, item),
   },
   blog: {
     save: (p: { id?: string; slug: string; title: string; excerpt: string; body: string; tags: string[]; status: "draft" | "published" }) => rpc<string>("blog.save", p),

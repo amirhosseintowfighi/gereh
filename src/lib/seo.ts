@@ -64,4 +64,4 @@ export function pageMetaEn({ title, description, path, fa }: { title: string; de
   };
 }
 
-export const EN_PAGES: [en: string, fa: string][] = [["/en", "/"], ["/en/vps", "/vps"], ["/en/hosting", "/hosting"], ["/en/domains", "/domains"], ["/en/about", "/about"]];
+export const EN_PAGES: [en: string, fa: string][] = [["/en", "/"], ["/en/vps", "/vps"], ["/en/hosting", "/hosting"], ["/en/domains", "/domains"], ["/en/about", "/about"], ["/en/devops", "/devops"]];

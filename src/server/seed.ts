@@ -7,7 +7,7 @@ import "server-only";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { HOSTING, LOCS, OSES, TLDS, VPS } from "@/lib/catalog";
 import { fa, hashStr } from "@/lib/format";
-import { parseJalali } from "@/lib/jalali";
+import { faDate, parseJalali } from "@/lib/jalali";
 import type { DB } from "./db/client";
 import * as t from "./db/schema";
 import { hashPassword } from "./password";
@@ -139,7 +139,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   ];
   await db.insert(t.invoices).values(invs.map((x) => ({ id: x.id, userId: x.userId, status: x.status, createdAt: J(x.date), dueAt: J(x.due), paidAt: x.status === "paid" ? J(x.date) : null }))).onConflictDoNothing();
   await db.insert(t.invoiceItems).values(invs.flatMap((x) => x.items.map(([desc, amount]) => ({ invoiceId: x.id, desc, amount }))));
-  await db.insert(t.counters).values([{ name: "INV", value: 14200 }, { name: "TK", value: 3100 }]).onConflictDoNothing();
+  await db.insert(t.counters).values([{ name: "INV", value: 14200 }, { name: "TK", value: 3100 }, { name: "DO", value: 1010 }]).onConflictDoNothing();
 
   await db.insert(t.transactions).values([
     { id: "TX-90812", userId: "u1", createdAt: J("۱۴۰۴/۰۶/۰۲"), type: "payment", amount: -3680000, method: "کیف پول", desc: "پرداخت INV-14031" },
@@ -187,6 +187,16 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   ]).onConflictDoNothing();
   await db.insert(t.announcements).values({ id: "an-1", title: "نگهداری برنامه‌ریزی‌شده آمستردام", body: "نود ams-hv-01 روز جمعه از ساعت ۲ تا ۴ بامداد به‌روزرسانی می‌شود. سرویس‌های شما خودکار جابه‌جا می‌شوند.", level: "info", createdAt: J("۱۴۰۴/۰۷/۱۲") }).onConflictDoNothing();
   await db.insert(t.posts).values(DEMO_POSTS.map((p, i) => ({ id: "post-" + (i + 1), slug: p.slug, title: p.title, excerpt: p.excerpt, body: p.body, tags: p.tags, status: "published" as const, author: "تیم گره", publishedAt: J(p.date), updatedAt: J(p.date), createdAt: J(p.date) }))).onConflictDoNothing();
+  await db.insert(t.devopsLeads).values([
+    { id: "DO-1001", name: "سینا فرهادی", company: "پرداخت‌یار", role: "مدیر فنی", email: "sina@pardakhtyar.example", phone: "09121112233", website: "pardakhtyar.example", size: "۱۱ تا ۵۰ نفر", stage: "در حال رشد سریع", infra: ["سرویس‌دهنده ابری دیگر داخلی"], services: ["kubernetes", "monitoring", "managed-devops"], pkg: "growth", budget: "۲۵ تا ۶۰ میلیون تومان در ماه", urgency: "فوری: مشکل فعلی در production", needsNda: true, message: "در ساعات اوج تراکنش سرویس پرداخت کند می‌شود و هفته‌ای یکی دو بار قطعی داریم. مهندس دواپس نداریم.", source: "/devops", createdAt: J("۱۴۰۴/۰۷/۱۳"), updatedAt: J("۱۴۰۴/۰۷/۱۳") },
+    { id: "DO-1000", name: "امیر رضایی", company: "استودیو نوین", role: "مدیر", email: "demo@gereh.cloud", phone: "09121234567", size: "۱ تا ۱۰ نفر", stage: "محصول عرضه‌شده", infra: ["گره"], services: ["ci-cd", "managed-devops"], pkg: "startup", budget: "کمتر از ۲۵ میلیون تومان در ماه", urgency: "ظرف یک ماه", message: "می‌خواهیم استقرار پروژه‌های مشتریان خودکار شود و کسی سرورها را نگه دارد.", status: "won", assignee: "کاوه نوری", value: 24000000, userId: "u1", source: "/devops/ci-cd", createdAt: J("۱۴۰۴/۰۶/۱۰"), updatedAt: J("۱۴۰۴/۰۶/۲۰") },
+  ]).onConflictDoNothing();
+  await db.insert(t.devopsProjects).values({
+    id: "dvp-demo1", userId: "u1", leadId: "DO-1000", title: "استقرار خودکار و نگه‌داری زیرساخت", plan: "startup", status: "active", services: ["ci-cd", "monitoring", "managed-devops"], monthlyFee: 24000000, hoursIncluded: 20, hoursUsed: 7.5, engineer: "کاوه نوری",
+    milestones: [{ id: "ms1", title: "ممیزی و نقشه راه", due: faDate(J("۱۴۰۴/۰۶/۲۵")), done: true }, { id: "ms2", title: "پایپ‌لاین GitLab CI برای سه پروژه", due: faDate(J("۱۴۰۴/۰۷/۱۰")), done: true }, { id: "ms3", title: "مانیتورینگ و هشدار در تلگرام", due: faDate(J("۱۴۰۴/۰۷/۲۰")), done: false }, { id: "ms4", title: "مانور بازیابی پشتیبان", due: faDate(J("۱۴۰۴/۰۸/۰۵")), done: false }],
+    updates: [{ at: J("۱۴۰۴/۰۶/۲۵ ۱۱:۰۰").toISOString(), by: "کاوه نوری", text: "گزارش ممیزی در تیکت TK-3021 ارسال شد. اولویت اول: پشتیبان‌گیری خارج از سرور اصلی." }, { at: J("۱۴۰۴/۰۷/۱۰ ۱۶:۳۰").toISOString(), by: "کاوه نوری", text: "پایپ‌لاین هر سه پروژه فعال شد؛ از این به بعد هر merge به main ظرف چهار دقیقه روی سرور است و بازگشت با یک کلیک ممکن است." }],
+    startedAt: J("۱۴۰۴/۰۶/۲۰"), nextBillAt: J("۱۴۰۴/۰۷/۲۰"),
+  }).onConflictDoNothing();
   await db.insert(t.audit).values([
     { id: "au1", actor: "مدیر سیستم", action: "تغییر قیمت پلن حرفه‌ای", target: "products/c3", createdAt: J("۱۴۰۴/۰۷/۱۰ ۱۶:۲۲"), ip: "10.0.0.4" },
     { id: "au2", actor: "کاوه نوری", action: "پاسخ به تیکت", target: "TK-3021", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۹:۲۰"), ip: "10.0.0.7" },

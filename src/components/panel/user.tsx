@@ -514,7 +514,7 @@ export function UserTickets({ id }: { id?: string }) {
           setOpen(false); setF(EMPTY_TICKET); notify("تیکت " + nid + " ثبت شد", "send"); router.push(("/panel/tickets/" + nid) as never);
         }}><Icon name="send" size={15} /> ثبت تیکت</AsyncButton></>}>
         <div className="grid sm:grid-cols-3 gap-4">
-          <Field label="واحد"><Select value={f.dept} label="واحد" onChange={(v) => setF((s) => ({ ...s, dept: v }))} options={["فنی", "مالی", "فروش"]} /></Field>
+          <Field label="واحد"><Select value={f.dept} label="واحد" onChange={(v) => setF((s) => ({ ...s, dept: v }))} options={["فنی", "مالی", "فروش", "دواپس"]} /></Field>
           <Field label="اولویت"><Select value={f.priority} label="اولویت" onChange={(v) => setF((s) => ({ ...s, priority: v }))} options={[{ value: "low", label: "کم" }, { value: "normal", label: "معمولی" }, { value: "high", label: "فوری" }]} /></Field>
           <Field label="سرویس مرتبط"><Select value={f.service} label="سرویس مرتبط" onChange={(v) => setF((s) => ({ ...s, service: v }))} options={[{ value: "", label: "هیچ‌کدام" }, ...myServices]} /></Field>
           <Field className="sm:col-span-3" label="موضوع"><input value={f.subject} maxLength={120} onChange={(e) => setF((s) => ({ ...s, subject: e.target.value }))} className={INPUT} /></Field>

@@ -59,7 +59,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -157,6 +157,9 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     ]);
     out.affiliate = { code: me.referralCode, referred: ref.n, earned: Number(earned.s || 0) };
   }
+  const projRows = await db.select().from(t.devopsProjects).where(own(t.devopsProjects.userId)).orderBy(desc(t.devopsProjects.createdAt));
+  out.devopsProjects = projRows.map((p) => ({ id: p.id, userId: p.userId, leadId: admin ? p.leadId : null, title: p.title, plan: p.plan, status: p.status, services: p.services, monthlyFee: p.monthlyFee, hoursIncluded: p.hoursIncluded, hoursUsed: p.hoursUsed, engineer: p.engineer, milestones: p.milestones,
+    updates: [...p.updates].reverse().map((u) => ({ ...u, at: faDateTime(new Date(u.at)) })), nextBill: p.nextBillAt && p.status === "active" ? faDate(p.nextBillAt) : "", started: p.startedAt ? faDate(p.startedAt) : "" }));
   if (!admin) {
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
     return { session: clientSession(auth), db: out };
@@ -183,6 +186,9 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const chatMsgs = chatRows.length ? await db.select().from(t.chatMessages).where(inArray(t.chatMessages.chatId, chatRows.map((c) => c.id))).orderBy(asc(t.chatMessages.id)) : [];
   out.chats = chatRows.map((c) => ({ id: c.id, name: c.name, email: c.email, userId: c.userId, status: c.status, unread: c.unread, agent: c.agent, page: c.page, at: faDateTime(c.createdAt), lastAt: faDateTime(c.lastAt),
     messages: chatMsgs.filter((m) => m.chatId === c.id).map((m) => ({ id: m.id, from: m.from, author: m.author, text: m.text, at: faDateTime(m.createdAt) })) }));
+  const leadRows = await db.select().from(t.devopsLeads).orderBy(desc(t.devopsLeads.createdAt)).limit(500);
+  out.devopsLeads = leadRows.map((l) => ({ id: l.id, name: l.name, company: l.company, role: l.role, email: l.email, phone: l.phone, website: l.website, size: l.size, stage: l.stage, infra: l.infra, services: l.services, pkg: l.pkg, budget: l.budget, urgency: l.urgency, needsNda: l.needsNda, message: l.message,
+    status: l.status, assignee: l.assignee, value: l.value, notes: l.notes.map((n) => ({ ...n, at: faDateTime(new Date(n.at)) })), userId: l.userId, source: l.source, at: faDateTime(l.createdAt), updatedAt: faDateTime(l.updatedAt) }));
   const postRows = await db.select().from(t.posts).orderBy(desc(t.posts.updatedAt)).limit(500);
   out.posts = postRows.map((p) => ({ id: p.id, slug: p.slug, title: p.title, excerpt: p.excerpt, body: p.body, tags: p.tags, status: p.status, author: p.author, publishedAt: p.publishedAt ? faDate(p.publishedAt) : "", updatedAt: faDateTime(p.updatedAt) }));
   out.nodes = nodes;

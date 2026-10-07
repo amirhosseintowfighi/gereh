@@ -336,3 +336,48 @@ test("unknown TLD and blog slugs are real 404s", async ({ request }) => {
   expect((await request.get("/domains/nope")).status()).toBe(404);
   expect((await request.get("/blog/does-not-exist")).status()).toBe(404);
 });
+
+test.describe("devops", () => {
+  test("validation errors are shown, then a valid request gets a tracking number", async ({ page }) => {
+    await page.goto("/devops/kubernetes");
+    const form = page.getByRole("form", { name: "درخواست مشاوره دواپس" });
+    await expect(form.getByRole("checkbox", { name: "کوبرنتیز و کانتینرسازی" })).toHaveAttribute("aria-checked", "true");
+    await form.getByRole("button", { name: "ارسال درخواست" }).click();
+    await expect(form.getByText("نام را وارد کنید.")).toBeVisible();
+    await expect(form.getByText("حداقل یک گزینه را انتخاب کنید.")).toBeVisible();
+
+    await form.getByLabel("نام و نام خانوادگی").fill("مهسا کریمی");
+    await form.getByLabel("نام شرکت یا محصول").fill("فروشگاه نمونه");
+    await form.getByLabel("ایمیل کاری").fill("mahsa@example.com");
+    await form.getByLabel("شماره تماس").fill("09121234567");
+    await form.getByRole("combobox", { name: "اندازه تیم" }).selectOption("۱۱ تا ۵۰ نفر");
+    await form.getByRole("combobox", { name: "مرحله کسب‌وکار" }).selectOption("محصول عرضه‌شده");
+    await form.getByRole("checkbox", { name: "گره" }).click();
+    await form.getByRole("combobox", { name: "بودجه تقریبی" }).selectOption("۲۵ تا ۶۰ میلیون تومان در ماه");
+    await form.getByRole("combobox", { name: "زمان شروع" }).selectOption("ظرف یک ماه");
+    await form.getByLabel("وضعیت فعلی و هدفتان").fill("سه سرویس روی داکر داریم و می‌خواهیم به کوبرنتیز برویم.");
+    await form.getByRole("checkbox", { name: /سیاست حریم خصوصی/ }).check();
+    await form.getByRole("button", { name: "ارسال درخواست" }).click();
+    await expect(page.getByRole("heading", { name: "درخواست شما ثبت شد" })).toBeVisible();
+    await expect(page.getByText(/DO-\d+/)).toBeVisible();
+  });
+
+  test("staff see the lead in the pipeline; the demo customer sees their project", async ({ page }) => {
+    await login(page, "admin@gereh.cloud");
+    await expect(page).toHaveURL(/\/admin$/);
+    await page.goto("/admin/devops");
+    await page.getByRole("button", { name: /پرداخت‌یار/ }).click();
+    const drawer = page.getByRole("dialog", { name: /پرداخت‌یار/ });
+    await expect(drawer.getByText("sina@pardakhtyar.example")).toBeVisible();
+    await drawer.getByLabel("یادداشت").fill("تماس گرفتم؛ جلسه فردا");
+    await drawer.getByRole("button", { name: "ثبت" }).click();
+    await expect(drawer.getByText("تماس گرفتم؛ جلسه فردا")).toBeVisible();
+
+    await page.context().clearCookies();
+    await login(page);
+    await expect(page).toHaveURL(/\/panel$/);
+    await page.goto("/panel/devops");
+    await expect(page.getByText("استقرار خودکار و نگه‌داری زیرساخت")).toBeVisible();
+    await expect(page.getByText("پایپ‌لاین هر سه پروژه فعال شد", { exact: false })).toBeVisible();
+  });
+});

@@ -4,7 +4,7 @@ import { EMAIL } from "@/lib/seo";
 import { Logo, VirguleLink } from "../brand";
 import { Icon } from "../icon";
 
-export const EN_NAV: [string, string][] = [["/en/vps", "Cloud servers"], ["/en/hosting", "Web hosting"], ["/en/domains", "Domains"], ["/en/about", "About"]];
+export const EN_NAV: [string, string][] = [["/en/vps", "Cloud servers"], ["/en/hosting", "Web hosting"], ["/en/domains", "Domains"], ["/en/devops", "DevOps"], ["/en/about", "About"]];
 
 /** header for the English site (server component; links wrap on small screens) */
 export function EnHeader({ active }: { active?: string }) {

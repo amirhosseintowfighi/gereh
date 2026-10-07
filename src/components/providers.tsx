@@ -17,6 +17,7 @@ export const PAGES = [
   { href: "/vps", label: "سرور ابری", icon: "server" },
   { href: "/hosting", label: "هاست وب", icon: "layers" },
   { href: "/domains", label: "دامنه", icon: "globe" },
+  { href: "/devops", label: "خدمات دواپس", icon: "rocket" },
   { href: "/about", label: "درباره ما", icon: "building-2" },
   { href: "/contact", label: "تماس", icon: "message-circle" },
 ] as const;

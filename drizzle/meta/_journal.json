@@ -36,6 +36,13 @@
       "when": 1791364741895,
       "tag": "0004_chat_blog",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791376964793,
+      "tag": "0005_devops",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,8 @@ export type Incident = { id: string; title: string; severity: "minor" | "major" 
 export type ChatMsg = { id: number; from: "visitor" | "staff" | "system"; author: string; text: string; at: string };
 export type ChatThread = { id: string; name: string; email: string; userId: string | null; status: "open" | "closed"; unread: boolean; agent: string | null; page: string; at: string; lastAt: string; messages: ChatMsg[] };
 export type Post = { id: string; slug: string; title: string; excerpt: string; body: string; tags: string[]; status: "draft" | "published"; author: string; publishedAt: string; updatedAt: string };
+export type DevopsLead = { id: string; name: string; company: string; role: string; email: string; phone: string; website: string; size: string; stage: string; infra: string[]; services: string[]; pkg: string; budget: string; urgency: string; needsNda: boolean; message: string; status: "new" | "contacted" | "meeting" | "proposal" | "won" | "lost"; assignee: string; value: number; notes: { at: string; by: string; text: string }[]; userId: string | null; source: string; at: string; updatedAt: string };
+export type DevopsProject = { id: string; userId: string; leadId: string | null; title: string; plan: "startup" | "growth" | "enterprise" | "project" | "audit"; status: "planning" | "active" | "paused" | "done"; services: string[]; monthlyFee: number; hoursIncluded: number; hoursUsed: number; engineer: string; milestones: { id: string; title: string; due: string; done: boolean }[]; updates: { at: string; by: string; text: string }[]; nextBill: string; started: string };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
 export type TeamRole = "admin" | "tech" | "billing";
@@ -77,6 +79,9 @@ export type ClientDB = {
   chats: ChatThread[];
   /** blog posts incl. drafts (staff only) */
   posts: Post[];
+  /** DevOps: sales pipeline (staff) and engagements (customer: own; staff: all) */
+  devopsLeads: DevopsLead[];
+  devopsProjects: DevopsProject[];
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */

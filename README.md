@@ -69,6 +69,24 @@ integrations/           terraform-provider-gereh (Go)
 - REST API at `/api/v1` with bearer tokens from the panel (read or read/write scope, 120 requests per minute). The OpenAPI 3.1 spec is at `/api/v1/openapi.json`, and the docs page is `/docs/api`.
 - `integrations/terraform-provider-gereh` provides the `gereh_dns_record` resource and the `gereh_server` data source. CI runs `go vet`, `go test` and `go build`.
 
+## DevOps services
+
+- **Public pages:** `/devops` is the landing page, with:
+  - pain points, 10 services, the engagement process, packages and one-off offers, the SLA table, security commitments, typical journeys, the tool stack, FAQ and the request form;
+  - a detail page per service at `/devops/[service]`;
+  - an English version at `/en/devops`.
+  Pages carry Service, OfferCatalog and FAQ JSON-LD. Content lives in `src/content/devops.ts`; prices there are in Toman, excluding VAT.
+- **Request form:**
+  - qualifies the lead: company size and stage, current infrastructure, services, budget, urgency and NDA;
+  - protected by a honeypot field and a rate limit (3 per hour per IP);
+  - emails sales (`DEVOPS_INBOX`) and the client, and notifies owner/sales staff;
+  - requests that never become a contract are deleted after 24 months, as the privacy policy states.
+- **Admin `/admin/devops`** (permission area `devops`: owner and sales):
+  - pipeline stages, assignee, deal value and internal notes;
+  - creating a project from a won lead;
+  - editing milestones, posting progress reports the customer sees and is emailed, and issuing one-off invoices.
+- **Customer panel `/panel/devops`:** projects with milestones, monthly hours used, the next invoice date and progress reports. Retainer invoices are issued daily by the worker (`devops.billing`); each billing period is claimed atomically, so it is never billed twice.
+
 ## Content and support
 
 - **Knowledge base** (`src/content/kb.ts`): searchable, with TechArticle JSON-LD.

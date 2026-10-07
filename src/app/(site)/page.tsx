@@ -161,6 +161,29 @@ function Features() {
   );
 }
 
+const DEVOPS_TEASER: [string, string][] = [["rocket", "CI/CD و استقرار خودکار"], ["box", "کوبرنتیز"], ["activity", "مانیتورینگ و هشدار"], ["shield-check", "امنیت زیرساخت"], ["headset", "پشتیبانی ۲۴/۷ با SLA"], ["code-xml", "Terraform و Ansible"]];
+function DevopsTeaser() {
+  return (
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="devops-teaser">
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] p-8 sm:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center"
+        style={{ background: "radial-gradient(ellipse 70% 100% at 100% 0%, rgba(125,180,255,.16), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015))" }}>
+        <div>
+          <p className="text-xs text-white/60 flex items-center gap-1.5"><Icon name="sparkles" size={14} className="acc" />خدمات دواپس برای شرکت‌ها و استارتاپ‌ها</p>
+          <h2 id="devops-teaser" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">تیم دواپس شما، بدون استخدام</h2>
+          <p className="mt-4 text-white/70 leading-8">زیرساختتان را می‌سازیم، خودکار می‌کنیم و شبانه‌روز نگه می‌داریم؛ روی گره یا هر زیرساخت دیگری. قرارداد ماهانه بدون حداقل مدت، یا پروژه با قیمت ثابت.</p>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <Link href="/devops" className={BTN_P + " px-6 py-3"}><Icon name="rocket" size={18} />آشنایی با خدمات دواپس</Link>
+            <Link href="/devops#request" className={BTN_G + " px-6 py-3"}>جلسه آشنایی رایگان</Link>
+          </div>
+        </div>
+        <ul className="grid grid-cols-2 gap-3">
+          {DEVOPS_TEASER.map(([ic, t]) => <li key={t} className={GLASS_SOFT + " rounded-2xl p-4 flex items-center gap-3 text-sm font-bold"}><Icon name={ic} size={19} className="acc shrink-0" />{t}</li>)}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function Cta() {
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
@@ -196,6 +219,7 @@ export default function HomePage() {
       <Performance />
       <Steps />
       <Features />
+      <DevopsTeaser />
       <Testimonials />
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-24">
         <SectionHead title="پرسش‌های رایج" />

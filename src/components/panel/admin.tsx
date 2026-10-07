@@ -254,7 +254,7 @@ export function AdminTickets({ id }: { id?: string }) {
             <div className="space-y-4">
               <Field label="وضعیت"><Select value={t.status} label="وضعیت" onChange={async (v) => { await api.tickets.update(t.id, { status: v }); notify("وضعیت تغییر کرد"); }} options={["open", "answered", "customer-reply", "closed"].map((s) => ({ value: s, label: STATUS[s][1] }))} /></Field>
               <Field label="اولویت"><Select value={t.priority} label="اولویت" onChange={async (v) => { await api.tickets.update(t.id, { priority: v }); notify("اولویت تغییر کرد"); }} options={["low", "normal", "high"].map((s) => ({ value: s, label: STATUS[s][1] }))} /></Field>
-              <Field label="واحد"><Select value={t.dept} label="واحد" onChange={async (v) => { await api.tickets.update(t.id, { dept: v }); notify("واحد تغییر کرد"); }} options={["فنی", "مالی", "فروش"]} /></Field>
+              <Field label="واحد"><Select value={t.dept} label="واحد" onChange={async (v) => { await api.tickets.update(t.id, { dept: v }); notify("واحد تغییر کرد"); }} options={["فنی", "مالی", "فروش", "دواپس"]} /></Field>
               <Field label="کارشناس"><Select value={t.assignee} label="کارشناس" onChange={async (v) => { await api.tickets.update(t.id, { assignee: v }); notify("تیکت ارجاع شد"); }} options={[{ value: "", label: "تخصیص نیافته" }, ...db.staff.map((s) => ({ value: s.name, label: s.name }))]} /></Field>
             </div>
           </Card>

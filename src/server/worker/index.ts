@@ -9,6 +9,7 @@ import { claim, complete, enqueue, retry, type JobType } from "../jobs";
 import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
+import { devopsBilling } from "../rpc/devops";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
@@ -26,12 +27,13 @@ const handlers: Record<JobType, Handler> = {
   "virt.reconcile": async (db) => { await reconcile(db); await purgeOld(db); await sweepRateLimits(db); },
   "tickets.sla": (db, p) => ticketSla(db, p),
   "notify.send": (db, p) => notifySend(db, p as never),
+  "devops.billing": (db) => devopsBilling(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
 export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
-  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60],
+  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */

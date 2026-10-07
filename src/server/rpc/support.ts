@@ -8,7 +8,7 @@ import { domains, inbox, servers, ticketMessages, tickets, users } from "../db/s
 import { enqueue } from "../jobs";
 import { fail, logAudit, nextId, notify, rid } from "../util";
 
-const DEPTS = ["فنی", "مالی", "فروش"] as const;
+const DEPTS = ["فنی", "مالی", "فروش", "دواپس"] as const;
 const PRIOS = ["low", "normal", "high"] as const;
 const STATUSES = ["open", "answered", "customer-reply", "closed"] as const;
 

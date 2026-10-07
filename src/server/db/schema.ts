@@ -404,3 +404,55 @@ export const posts = pgTable("posts", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
   createdAt: created(),
 }, (t) => [uniqueIndex("post_slug_uq").on(t.slug), index("post_pub_ix").on(t.status, t.publishedAt)]);
+
+/** DevOps consultation requests from /devops (sales pipeline) */
+export const devopsLeads = pgTable("devops_leads", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  company: text("company").notNull(),
+  role: text("role").notNull().default(""),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  website: text("website").notNull().default(""),
+  size: text("size").notNull(),
+  stage: text("stage").notNull(),
+  infra: text("infra").array().notNull(),
+  services: text("services").array().notNull(),
+  pkg: text("pkg").notNull().default(""),
+  budget: text("budget").notNull(),
+  urgency: text("urgency").notNull(),
+  needsNda: boolean("needs_nda").notNull().default(false),
+  message: text("message").notNull(),
+  /** pipeline */
+  status: text("status", { enum: ["new", "contacted", "meeting", "proposal", "won", "lost"] }).notNull().default("new"),
+  assignee: text("assignee").notNull().default(""),
+  value: bigint("value", { mode: "number" }).notNull().default(0),
+  notes: jsonb("notes").$type<{ at: string; by: string; text: string }[]>().notNull().default([]),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  source: text("source").notNull().default(""),
+  ip: text("ip").notNull().default(""),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("devops_lead_status_ix").on(t.status, t.createdAt)]);
+
+/** signed DevOps engagements, visible to the customer in /panel/devops */
+export const devopsProjects = pgTable("devops_projects", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  leadId: text("lead_id").references(() => devopsLeads.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  plan: text("plan", { enum: ["startup", "growth", "enterprise", "project", "audit"] }).notNull(),
+  status: text("status", { enum: ["planning", "active", "paused", "done"] }).notNull().default("planning"),
+  services: text("services").array().notNull().default(sql`'{}'::text[]`),
+  /** retainer fee per month (Toman, excl. VAT); 0 for fixed-price work */
+  monthlyFee: bigint("monthly_fee", { mode: "number" }).notNull().default(0),
+  hoursIncluded: integer("hours_included").notNull().default(0),
+  hoursUsed: real("hours_used").notNull().default(0),
+  engineer: text("engineer").notNull().default(""),
+  milestones: jsonb("milestones").$type<{ id: string; title: string; due: string; done: boolean }[]>().notNull().default([]),
+  /** progress notes the customer can read */
+  updates: jsonb("updates").$type<{ at: string; by: string; text: string }[]>().notNull().default([]),
+  nextBillAt: ts("next_bill_at"),
+  startedAt: ts("started_at"),
+  createdAt: created(),
+}, (t) => [index("devops_project_user_ix").on(t.userId)]);
