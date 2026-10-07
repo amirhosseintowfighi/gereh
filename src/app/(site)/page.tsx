@@ -60,25 +60,6 @@ function Hero() {
   );
 }
 
-const CLIENTS = [["store", "نوین‌شاپ"], ["wallet", "آرتاپی"], ["building-2", "سپهر هلدینگ"], ["code-xml", "داده‌پرداز"], ["monitor-smartphone", "رهنما اپ"], ["radio-tower", "سیگنال مدیا"], ["gem", "گوهرسرا"], ["trending-up", "بورس‌یار"]];
-function Clients() {
-  const mask = "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)";
-  return (
-    <section className="pb-16" aria-label="مشتریان گره">
-      <p className="text-center text-sm text-white/55 mb-6">بیش از ۱۲ هزار کسب‌وکار زیرساختشان را به گره سپرده‌اند</p>
-      <div className="marquee-wrap relative overflow-hidden" dir="ltr" style={{ maskImage: mask, WebkitMaskImage: mask }}>
-        <ul className="marquee gap-4 pr-4">
-          {CLIENTS.concat(CLIENTS).map(([ic, n], i) => (
-            <li key={i} aria-hidden={i >= CLIENTS.length} className={GLASS_SOFT + " flex items-center gap-2.5 rounded-2xl px-5 h-14 text-white/60 hover:text-white transition"} dir="rtl">
-              <Icon name={ic} size={20} /><span className="font-extrabold whitespace-nowrap">{n}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
 function Bento() {
   const card = "spot min-w-0 rounded-[1.75rem] p-6 sm:p-7 " + GLASS + " hover:border-white/30 transition-colors duration-300";
   const more = "mt-5 text-sm font-bold inline-flex items-center gap-1.5 acc hover:gap-2.5 transition-all";
@@ -211,7 +192,6 @@ export default function HomePage() {
       <JsonLd data={faqLd(HOME_FAQ)} />
       <Hero />
       <QuickStart />
-      <Clients />
       <Bento />
       <Hardware />
       <Builder />

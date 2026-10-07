@@ -93,9 +93,6 @@ button:disabled { cursor: not-allowed; }
 @keyframes heroIn { from { transform: translateY(14px); } to { transform: none; } }
 .fade-page { animation: fadePage .35s cubic-bezier(.16,1,.3,1); }
 @keyframes fadePage { from { transform: translateY(8px); } to { transform: none; } }
-.marquee { display: flex; width: max-content; animation: marq 50s linear infinite; }
-.marquee-wrap:hover .marquee { animation-play-state: paused; }
-@keyframes marq { to { transform: translateX(-50%); } }
 .toast-in { animation: toastIn .3s cubic-bezier(.16,1,.3,1); }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 12px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 .drawer-in { animation: drawerIn .3s cubic-bezier(.16,1,.3,1); }
@@ -126,7 +123,7 @@ button:disabled { cursor: not-allowed; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .blob, .marquee, .hero-in, .fade-page, .toast-in, .drawer-in, .drawer-in-r, .pop-in, .scan, .caret, .line-in, .fade-in { animation: none !important; }
+  .blob, .hero-in, .fade-page, .toast-in, .drawer-in, .drawer-in-r, .pop-in, .scan, .caret, .line-in, .fade-in { animation: none !important; }
 }
 
 @media print {
