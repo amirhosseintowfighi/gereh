@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan, type Tld } from "./catalog";
 import { verifyTotp } from "./totp";
-import { hashStr, nowFa, nowTime, roundK, strength, toman, fa, EMAIL_RE, PHONE_RE } from "./format";
+import { hashStr, nowFa, nowTime, roundK, strength, toEnDigits, toman, fa, EMAIL_RE, PHONE_RE } from "./format";
 
 export type Status = string;
 export type User = { id: string; name: string; email: string; phone: string; company: string; balance: number; status: Status; kyc: Status; joined: string; services: number; role: "user" | "admin" };
@@ -126,6 +126,7 @@ function seed() {
       { id: "ses-3", device: "Firefox، Windows", ip: "91.98.12.4", place: "اصفهان", last: "۳ روز پیش", current: false },
     ],
     notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } as Record<string, boolean>,
+    inbox: [] as { id: string; at: string; name: string; email: string; dept: string; subject: string; message: string }[],
     twofa: false,
     /** server-side only in production; kept here so disabling 2FA can demand a valid code */
     twofaSecret: "",
@@ -237,6 +238,23 @@ const randomSecret = (n: number, abc: string) => {
   const a = new Uint32Array(n); crypto.getRandomValues(a);
   return Array.from(a, (x) => abc[x % abc.length]).join("");
 };
+/** Jalali "YYYY/MM/DD" in any digits → comparable ASCII string, or "" when not a date */
+const jdate = (v: string) => { const x = toEnDigits(v.trim()); return /^\d{4}\/\d{2}\/\d{2}$/.test(x) ? x : ""; };
+export type Quote = { code: string; discount: number };
+/** validates a coupon against the current DB and prices the discount for a subtotal (Toman) */
+export function quoteCoupon(d: DB, raw: string, subtotal: number): Quote {
+  const code = raw.trim().toUpperCase();
+  const c = d.coupons.find((x) => x.code === code);
+  if (!c || !c.active) throw new Error("کد تخفیف معتبر نیست.");
+  if (c.limit && c.used >= c.limit) throw new Error("ظرفیت این کد تخفیف تمام شده است.");
+  const exp = jdate(c.expires);
+  if (exp && exp < jdate(nowFa())) throw new Error("این کد تخفیف منقضی شده است.");
+  const discount = Math.min(subtotal, c.type === "percent" ? Math.round((subtotal * c.value) / 100) : c.value);
+  return { code, discount };
+}
+const gatewayOn = (d: DB) => !!(d.settings.gateways.zarinpal || d.settings.gateways.idpay);
+export const gatewayName = (d: DB) => (d.settings.gateways.zarinpal ? "درگاه زرین‌پال" : d.settings.gateways.idpay ? "درگاه آیدی‌پی" : "");
+
 export const genPassword = () => randomSecret(16, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%");
 
 export const api = {
@@ -250,7 +268,7 @@ export const api = {
     },
     async sendOtp(phone: string) { await delay(500); if (!PHONE_RE.test(phone)) throw new Error("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود."); return true; },
     async verifyOtp(_phone: string, code: string) { await delay(500); if (code.length !== 6) throw new Error("کد ۶ رقمی را کامل وارد کنید."); setSession({ userId: "u1", role: "user", name: "امیر رضایی" }); return readSession()!; },
-    async register(data: { name: string; email: string; phone: string; password: string }) { await delay(700); setSession({ userId: "u1", role: "user", name: data.name || "کاربر جدید" }); return readSession()!; },
+    async register(data: { name: string; email: string; phone: string; password: string }) { await delay(700); if (!getDB().settings.registration) throw new Error("ثبت‌نام کاربران جدید موقتا بسته است."); setSession({ userId: "u1", role: "user", name: data.name || "کاربر جدید" }); return readSession()!; },
     async forgot(email: string) { await delay(500); if (!EMAIL_RE.test(email)) throw new Error("یک ایمیل معتبر وارد کنید."); return true; },
     async logout() { await delay(150); setSession(null); },
     /** demo-only quick login; remove with the mock adapter */
@@ -318,28 +336,40 @@ export const api = {
   billing: {
     async topup(amount: number) {
       await delay(900);
-      mutate((d) => { byId(d.users, me())!.balance += amount; d.transactions.unshift({ id: uid("TX"), userId: me(), date: nowFa(), type: "topup", amount, method: "درگاه زرین‌پال", desc: "شارژ کیف پول" }); logActivity(d, "wallet", "شارژ کیف پول به مبلغ " + toman(amount)); });
+      if (!gatewayOn(getDB())) throw new Error("درگاه پرداخت آنلاین موقتا غیرفعال است.");
+      mutate((d) => { byId(d.users, me())!.balance += amount; d.transactions.unshift({ id: uid("TX"), userId: me(), date: nowFa(), type: "topup", amount, method: gatewayName(d), desc: "شارژ کیف پول" }); logActivity(d, "wallet", "شارژ کیف پول به مبلغ " + toman(amount)); });
     },
     async pay(invId: string, method: "wallet" | "gateway") {
       await delay(900);
       const db = getDB();
       const inv = byId(db.invoices, invId);
       if (!inv) throw new Error("صورتحساب پیدا نشد.");
-      if (inv.status === "paid") throw new Error("این صورتحساب قبلا پرداخت شده است.");
+      if (inv.status === "paid" || inv.status === "refunded") throw new Error("این صورتحساب قبلا پرداخت شده است.");
+      if (method === "wallet" && !db.settings.gateways.wallet) throw new Error("پرداخت با کیف پول موقتا غیرفعال است.");
+      if (method === "gateway" && !gatewayOn(db)) throw new Error("درگاه پرداخت آنلاین موقتا غیرفعال است.");
       const total = invGross(inv, db.settings.tax);
       if (method === "wallet" && byId(db.users, me())!.balance < total) throw new Error("موجودی کیف پول کافی نیست. ابتدا کیف پول را شارژ کنید.");
       mutate((d) => {
         byId(d.invoices, invId)!.status = "paid";
         if (method === "wallet") byId(d.users, me())!.balance -= total;
-        d.transactions.unshift({ id: uid("TX"), userId: me(), date: nowFa(), type: "payment", amount: -total, method: method === "wallet" ? "کیف پول" : "درگاه زرین‌پال", desc: "پرداخت " + invId });
+        d.transactions.unshift({ id: uid("TX"), userId: me(), date: nowFa(), type: "payment", amount: -total, method: method === "wallet" ? "کیف پول" : gatewayName(d), desc: "پرداخت " + invId });
         logActivity(d, "circle-check", "پرداخت صورتحساب " + invId);
       });
     },
-    async checkout(cart: Pick<CartItem, "title" | "meta" | "base">[]) {
+    /** POST /checkout/quote — price a coupon without consuming it */
+    async quote(code: string, subtotal: number) { await delay(400); return quoteCoupon(getDB(), code, subtotal); },
+    async checkout(cart: Pick<CartItem, "title" | "meta" | "base">[], coupon?: string) {
       await delay(800);
       if (!cart.length) throw new Error("سبد خرید خالی است.");
+      const subtotal = cart.reduce((s, c) => s + c.base, 0);
+      const q = coupon ? quoteCoupon(getDB(), coupon, subtotal) : null; // re-validated server-side at checkout time
       let inv!: Invoice;
-      mutate((d) => { inv = { id: nextNum(d.invoices, "INV", 14200), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items: cart.map((c) => ({ desc: c.title + (c.meta ? "، " + c.meta : ""), amount: c.base })) }; d.invoices.unshift(inv); });
+      mutate((d) => {
+        const items = cart.map((c) => ({ desc: c.title + (c.meta ? "، " + c.meta : ""), amount: c.base }));
+        if (q && q.discount) { items.push({ desc: "کد تخفیف " + q.code, amount: -q.discount }); d.coupons.find((c) => c.code === q.code)!.used++; }
+        inv = { id: nextNum(d.invoices, "INV", 14200), userId: me(), date: nowFa(), due: nowFa(), status: "unpaid", items };
+        d.invoices.unshift(inv);
+      });
       return inv;
     },
     async markPaid(id: string) { await delay(); mutate((d) => { byId(d.invoices, id)!.status = "paid"; logAudit(d, "علامت‌گذاری پرداخت‌شده", id); }); },
@@ -354,6 +384,14 @@ export const api = {
       });
     },
     async createInvoice(inv: Pick<Invoice, "userId" | "due" | "items">) { await delay(); mutate((d) => { d.invoices.unshift({ id: nextNum(d.invoices, "INV", 14200), date: nowFa(), status: "unpaid", ...inv }); logAudit(d, "صدور صورتحساب دستی", inv.userId); }); },
+  },
+  /** POST /contact — public form; the backend opens a ticket in the chosen department and emails a receipt */
+  contact: {
+    async send(m: { name: string; email: string; dept: string; subject: string; message: string }) {
+      await delay(700);
+      if (m.name.trim().length < 2 || !EMAIL_RE.test(m.email.trim()) || m.message.trim().length < 10) throw new Error("فرم کامل نیست.");
+      mutate((d) => { d.inbox.unshift({ id: uid("msg"), at: at(), ...m }); });
+    },
   },
   tickets: {
     async create(t: { subject: string; dept: string; priority: string; service: string; message: string }) {
@@ -409,6 +447,7 @@ export const api = {
     },
     async revokeToken(id: string) { await delay(); mutate((d) => { d.apiTokens = d.apiTokens.filter((k) => k.id !== id); }); },
     readAll() { mutate((d) => { d.notifications = d.notifications.map((n) => ({ ...n, read: true })); }); },
+    readOne(id: string) { mutate((d) => { const n = byId(d.notifications, id); if (n) n.read = true; }); },
   },
   admin: {
     async updateUser(id: string, patch: Partial<User>) { await delay(); mutate((d) => { Object.assign(byId(d.users, id)!, patch); logAudit(d, "ویرایش کاربر", id); }); },
@@ -443,6 +482,7 @@ export const api = {
     async saveCoupon(c: Partial<Coupon> & { code: string }) {
       await delay();
       if (getDB().coupons.some((x) => x.code === c.code && x.id !== c.id)) throw new Error("این کد قبلا تعریف شده است.");
+      if (c.expires && c.expires !== "—" && !jdate(c.expires)) throw new Error("تاریخ انقضا باید به شکل ۱۴۰۵/۰۱/۳۰ باشد.");
       mutate((d) => { if (c.id) Object.assign(byId(d.coupons, c.id)!, c); else d.coupons.unshift({ id: uid("cp"), used: 0, active: true, type: "percent", value: 0, limit: 0, expires: "—", ...c }); logAudit(d, "ذخیره کد تخفیف", c.code); });
     },
     async deleteCoupon(id: string) { await delay(); mutate((d) => { const c = byId(d.coupons, id); d.coupons = d.coupons.filter((x) => x.id !== id); logAudit(d, "حذف کد تخفیف", c?.code || id); }); },

@@ -167,3 +167,20 @@ test.describe("admin ↔ customer", () => {
     await expect(page.getByRole("tab", { name: "نصب مجدد" })).toHaveCount(0);
   });
 });
+
+test("a discount code is applied in the cart and carried onto the invoice", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel$/);
+  await page.goto("/vps");
+  await page.getByRole("button", { name: /^افزودن .* به سبد$/ }).first().click();
+  await page.getByRole("button", { name: /سبد خرید، ۱ مورد/ }).click();
+  const drawer = page.getByRole("dialog", { name: "سبد خرید" });
+  await drawer.getByLabel("کد تخفیف").fill("NOPE");
+  await drawer.getByRole("button", { name: "اعمال" }).click();
+  await expect(drawer.getByRole("alert")).toContainText("معتبر نیست");
+  await drawer.getByLabel("کد تخفیف").fill("welcome");
+  await drawer.getByRole("button", { name: "اعمال" }).click();
+  await expect(drawer.getByText("تخفیف", { exact: true })).toBeVisible();
+  await drawer.getByRole("button", { name: /ثبت سفارش/ }).click();
+  await expect(drawer).toContainText("سفارش ثبت شد");
+});

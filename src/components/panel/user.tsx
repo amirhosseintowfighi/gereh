@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { TLDS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
-import { api, byId, invGross, invTotal, useDB, useMyId, type DnsRecord, type Invoice, type Server, type Ticket } from "@/lib/store";
+import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type DnsRecord, type Invoice, type Server, type Ticket } from "@/lib/store";
 import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
@@ -38,8 +38,8 @@ export function UserDashboard() {
       <PageTitle title={"سلام، " + me.name.split(" ")[0]} sub={"امروز " + nowFa() + "؛ " + health} action={newBtn("/vps", "سرویس جدید")} />
       {ann && (
         <div className={"mb-6 rounded-2xl border p-4 flex gap-3 text-sm " + (ann.level === "critical" ? "border-rose-300/25 bg-rose-400/[0.07]" : ann.level === "warning" ? "border-amber-300/25 bg-amber-400/[0.07]" : "border-sky-300/20 bg-sky-400/[0.07]")} role="note">
-          <Icon name="megaphone" size={19} className="text-sky-200 mt-0.5" />
-          <div><div className="font-bold text-sky-100">{ann.title}</div><div className="text-white/60 leading-7 mt-0.5">{ann.body}</div></div>
+          <Icon name="megaphone" size={19} className={"mt-0.5 " + (ann.level === "critical" ? "text-rose-200" : ann.level === "warning" ? "text-amber-200" : "text-sky-200")} />
+          <div><div className={"font-bold " + (ann.level === "critical" ? "text-rose-100" : ann.level === "warning" ? "text-amber-100" : "text-sky-100")}>{ann.title}</div><div className="text-white/60 leading-7 mt-0.5">{ann.body}</div></div>
         </div>
       )}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
@@ -366,7 +366,11 @@ export function UserBilling() {
   const invs = db.invoices.filter((i) => i.userId === myId);
   const txs = db.transactions.filter((t) => t.userId === myId);
   const total = (inv: Invoice) => invGross(inv, db.settings.tax);
-  const openPay = (i: Invoice) => { setMethod(me.balance >= total(i) ? "wallet" : "gateway"); setPay(i); };
+  const gw = gatewayName(db);
+  const walletOn = !!db.settings.gateways.wallet;
+  const methods = ([["wallet", "wallet", "کیف پول", "موجودی: " + toman(me.balance)], ["gateway", "lock", gw || "درگاه بانکی", "همه کارت‌های عضو شتاب"]] as const)
+    .filter(([k]) => (k === "wallet" ? walletOn : !!gw));
+  const openPay = (i: Invoice) => { setMethod(walletOn && (me.balance >= total(i) || !gw) ? "wallet" : "gateway"); setPay(i); };
   return (
     <div>
       <PageTitle title="صورتحساب و کیف پول" sub="پرداخت‌ها، صورتحساب‌ها و تراکنش‌های حساب" />
@@ -396,7 +400,7 @@ export function UserBilling() {
             <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + " px-6 h-11"}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
-              <span className="text-xs text-white/55">پرداخت امن از طریق درگاه زرین‌پال (نمایشی)</span>
+              <span className="text-xs text-white/55">{gw ? "پرداخت امن از طریق " + gw + " (نمایشی)" : "درگاه پرداخت آنلاین موقتا غیرفعال است."}</span>
             </div>
           </Card>
         )}
@@ -415,10 +419,11 @@ export function UserBilling() {
         {pay && <>
           <div className="text-center mb-6"><div className="text-xs text-white/55">مبلغ قابل پرداخت</div><div className="text-3xl font-black silver mt-2 tabular">{toman(total(pay))}</div></div>
           <div className="space-y-2" role="radiogroup" aria-label="روش پرداخت">
-            {([["wallet", "wallet", "کیف پول", "موجودی: " + toman(me.balance) + (me.balance < total(pay) ? " (کافی نیست)" : "")], ["gateway", "lock", "درگاه بانکی", "همه کارت‌های عضو شتاب"]] as const).map(([k, ic, l, hint]) => (
+            {methods.length === 0 && <div role="alert" className="text-sm text-amber-100 rounded-xl bg-amber-400/[0.08] border border-amber-300/25 p-4">هیچ روش پرداختی فعال نیست؛ با پشتیبانی تماس بگیرید.</div>}
+            {methods.map(([k, ic, l, hint]) => (
               <button type="button" role="radio" aria-checked={method === k} key={k} onClick={() => setMethod(k)} className={"w-full flex items-center gap-3 p-4 rounded-xl border text-right transition " + (method === k ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
                 <span className={"w-4 h-4 rounded-full border-2 " + (method === k ? "border-white bg-white shadow-[inset_0_0_0_3px_#0b0d16]" : "border-white/30")} />
-                <Icon name={ic} size={18} className="acc" /><div className="flex-1"><div className="text-sm font-bold">{l}</div><div className="text-[11px] text-white/55">{hint}</div></div>
+                <Icon name={ic} size={18} className="acc" /><div className="flex-1"><div className="text-sm font-bold">{l}</div><div className="text-[11px] text-white/55">{hint}{k === "wallet" && me.balance < total(pay) ? " (کافی نیست)" : ""}</div></div>
               </button>
             ))}
           </div>

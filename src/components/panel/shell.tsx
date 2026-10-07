@@ -121,7 +121,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs hidden sm:inline-flex"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
-              items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => {} })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />
+              items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => api.account.readOne(n.id) })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />
             <Menu label="حساب" triggerClass="flex items-center gap-2.5 h-10 pr-1 pl-3 rounded-xl hover:bg-white/[0.06]"
               trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{me.name[0]}</span><span className="hidden sm:block text-sm">{me.name}</span><Icon name="chevron-down" size={14} className="text-white/55" /></>}
               items={[

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { __getDB as snapshot, __resetDB, api, byId, genPassword, invGross, invTotal } from "@/lib/store";
+import { __getDB as snapshot, __resetDB, api, byId, genPassword, invGross, invTotal, quoteCoupon } from "@/lib/store";
 import { totp } from "@/lib/totp";
 
 /** run an api call to completion with fake timers; resolves to { v } or { e } */
@@ -90,6 +90,72 @@ describe("billing", () => {
     const u2 = byId(snapshot().users, "u2")!.balance;
     await ok(api.billing.refund(inv.id));
     expect(byId(snapshot().users, "u2")!.balance).toBe(u2 + invGross(inv, snapshot().settings.tax));
+  });
+});
+
+describe("coupons", () => {
+  beforeEach(() => api.auth.demo("user"));
+
+  it("prices percent and fixed codes, capped at the subtotal", () => {
+    const db = snapshot();
+    expect(quoteCoupon(db, " welcome ", 1_000_000)).toEqual({ code: "WELCOME", discount: 100_000 });
+    expect(() => quoteCoupon(db, "NOPE", 1)).toThrow("معتبر نیست");
+  });
+
+  it("rejects inactive, expired and exhausted codes", async () => {
+    expect(() => quoteCoupon(snapshot(), "MIGRATE50", 1_000_000)).toThrow("معتبر نیست"); // inactive
+    expect(() => quoteCoupon(snapshot(), "YALDA1404", 1_000_000)).toThrow("منقضی"); // expired 1404/10/01
+    api.auth.demo("admin");
+    await ok(api.admin.saveCoupon({ code: "ONCE", type: "fixed", value: 5_000_000, limit: 1 }));
+    expect(quoteCoupon(snapshot(), "ONCE", 1_000_000).discount).toBe(1_000_000);
+    await ok(api.billing.checkout([{ title: "x", base: 1_000_000 }], "ONCE"));
+    expect(() => quoteCoupon(snapshot(), "ONCE", 1_000_000)).toThrow("ظرفیت");
+  });
+
+  it("checkout adds a discount line and counts the use", async () => {
+    const used = snapshot().coupons.find((c) => c.code === "WELCOME")!.used;
+    const inv = await ok(api.billing.checkout([{ title: "VPS", base: 690_000 }], "welcome"));
+    expect(inv.items.at(-1)).toEqual({ desc: "کد تخفیف WELCOME", amount: -69_000 });
+    expect(invTotal(inv)).toBe(621_000);
+    expect(snapshot().coupons.find((c) => c.code === "WELCOME")!.used).toBe(used + 1);
+    await fail(api.billing.checkout([{ title: "VPS", base: 1 }], "BOGUS"));
+  });
+
+  it("admin cannot save a malformed expiry date", async () => {
+    api.auth.demo("admin");
+    expect(await fail(api.admin.saveCoupon({ code: "BADDATE", expires: "next year" }))).toContain("تاریخ");
+    await ok(api.admin.saveCoupon({ code: "GOODDATE", expires: "۱۴۰۹/۰۱/۰۱" }));
+  });
+});
+
+describe("settings take effect", () => {
+  it("disabled payment methods are refused", async () => {
+    api.auth.demo("admin");
+    await ok(api.admin.saveSettings({ gateways: { zarinpal: false, idpay: false, wallet: false, crypto: false } }));
+    api.auth.demo("user");
+    expect(await fail(api.billing.pay("INV-14062", "wallet"))).toContain("کیف پول");
+    expect(await fail(api.billing.pay("INV-14062", "gateway"))).toContain("درگاه");
+    await fail(api.billing.topup(500_000));
+  });
+
+  it("gateway payments are attributed to the enabled gateway", async () => {
+    api.auth.demo("admin");
+    await ok(api.admin.saveSettings({ gateways: { zarinpal: false, idpay: true, wallet: true, crypto: false } }));
+    api.auth.demo("user");
+    await ok(api.billing.pay("INV-14062", "gateway"));
+    expect(snapshot().transactions[0].method).toBe("درگاه آیدی‌پی");
+  });
+
+  it("closing registration blocks sign-up", async () => {
+    api.auth.demo("admin");
+    await ok(api.admin.saveSettings({ registration: false }));
+    expect(await fail(api.auth.register({ name: "x", email: "a@b.co", phone: "09120000000", password: "Abcdefg1" }))).toContain("بسته");
+  });
+
+  it("contact messages are validated and stored", async () => {
+    await fail(api.contact.send({ name: "", email: "x", dept: "فروش", subject: "", message: "" }));
+    await ok(api.contact.send({ name: "سارا", email: "s@example.com", dept: "فروش", subject: "پلن", message: "سلام، درباره پلن سازمانی سؤال دارم." }));
+    expect(snapshot().inbox[0]).toMatchObject({ name: "سارا", dept: "فروش" });
   });
 });
 

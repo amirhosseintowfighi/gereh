@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { EMAIL_RE } from "@/lib/format";
+import { api } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { CheckDraw, Field } from "../ui";
@@ -25,9 +26,12 @@ export function ContactForm() {
     setErr(x);
     if (Object.keys(x).length) return;
     setBusy(true);
-    // ponytail: no contact endpoint yet — POST /contact (or open a sales ticket) when the backend exists.
-    await new Promise((r) => setTimeout(r, 700));
-    setBusy(false); setSent(true); notify("پیام شما ارسال شد", "send");
+    try {
+      await api.contact.send({ name: f.name.trim(), email: f.email.trim(), dept: f.dept, subject: f.subject.trim(), message: f.message.trim() });
+      setSent(true); notify("پیام شما ارسال شد", "send");
+    } catch (e2) {
+      setErr({ form: e2 instanceof Error ? e2.message : "ارسال نشد؛ دوباره تلاش کنید." });
+    } finally { setBusy(false); }
   };
   if (sent) return (
     <div className="py-10 text-center" role="status">
@@ -46,6 +50,7 @@ export function ContactForm() {
         <Field label="موضوع"><input name="subject" value={f.subject} onChange={(e) => set("subject")(e.target.value)} className={INPUT} /></Field>
         <Field className="sm:col-span-2" label="پیام" error={err.message}><textarea name="message" value={f.message} onChange={(e) => set("message")(e.target.value)} aria-invalid={!!err.message} rows={5} className={TEXTAREA} /></Field>
       </div>
+      {err.form && <div role="alert" className="mt-4 text-sm text-rose-300 flex gap-1.5"><Icon name="circle-alert" size={16} />{err.form}</div>}
       <div className="mt-5 flex justify-end">
         <button type="submit" disabled={busy} className={BTN_P + " px-6 h-11"}>{busy ? <Icon name="loader-circle" size={16} className="animate-spin" /> : <Icon name="send" size={16} />} ارسال پیام</button>
       </div>

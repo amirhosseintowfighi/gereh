@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BTN_D, BTN_G, BTN_P } from "@/lib/cls";
 import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
-import { api, useDB, useSession, type CartItem } from "@/lib/store";
+import { api, quoteCoupon, useDB, useSession, type CartItem } from "@/lib/store";
 import { AppCtx, type AppApi, type ConfirmOpts } from "./app-context";
 import { Icon } from "./icon";
 import { CheckDraw } from "./ui";
@@ -151,13 +151,27 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
   const db = useDB();
   const [done, setDone] = useState<string | false>(false);
   const ref = useDialog(true, onClose);
+  const [code, setCode] = useState("");
+  const [applied, setApplied] = useState("");
+  const [codeErr, setCodeErr] = useState("");
+  const [checking, setChecking] = useState(false);
   const subtotal = cart.reduce((s, i) => s + i.base, 0);
-  const vat = roundK((subtotal * db.settings.tax) / 100);
-  const total = subtotal + vat;
+  // re-priced on every render so a percent code follows cart changes; an invalidated code simply drops out
+  let discount = 0;
+  if (applied) try { discount = quoteCoupon(db, applied, subtotal).discount; } catch { /* shown as error on checkout */ }
+  const net = subtotal - discount;
+  const total = roundK(net * (1 + db.settings.tax / 100)); // same rounding as invoices (invGross)
+  const vat = total - net;
+  const apply = async () => {
+    setCodeErr(""); setChecking(true);
+    try { await api.billing.quote(code, subtotal); setApplied(code.trim().toUpperCase()); setCode(""); }
+    catch (e) { setCodeErr(e instanceof Error ? e.message : "کد معتبر نیست."); }
+    finally { setChecking(false); }
+  };
   const checkout = async () => {
     if (!session) { onClose(); router.push("/auth?next=/panel/billing" as never); return; }
-    const inv = await api.billing.checkout(cart);
-    setCart([]); setDone(inv.id);
+    const inv = await api.billing.checkout(cart, applied || undefined);
+    setCart([]); setApplied(""); setDone(inv.id);
   };
   return (
     <div className="fixed inset-0 z-[55] fade-in">
@@ -201,7 +215,21 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
               ))}
             </ul>
             <div className="p-5 border-t border-white/10 space-y-2.5 text-sm">
+              {applied ? (
+                <div className="flex items-center justify-between rounded-xl bg-emerald-400/10 border border-emerald-300/25 px-3 py-2 text-emerald-100">
+                  <span className="flex items-center gap-2"><Icon name="badge-percent" size={16} />کد <span className="mono ltr">{applied}</span></span>
+                  <button type="button" onClick={() => setApplied("")} className="text-xs text-white/60 hover:text-white">حذف</button>
+                </div>
+              ) : (
+                <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>
+                  <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} dir="ltr" aria-label="کد تخفیف" placeholder="کد تخفیف" aria-invalid={!!codeErr}
+                    className="flex-1 min-w-0 h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3 outline-none focus:border-white/40 mono text-left" />
+                  <button type="submit" disabled={!code.trim() || checking} className={BTN_G + " px-4 h-10 text-xs"}>{checking ? <Icon name="loader-circle" size={14} className="animate-spin" /> : "اعمال"}</button>
+                </form>
+              )}
+              {codeErr && <div role="alert" className="text-xs text-rose-300">{codeErr}</div>}
               <div className="flex justify-between text-white/65"><span>جمع سفارش</span><span>{toman(subtotal)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-emerald-300"><span>تخفیف</span><span>−{toman(discount)}</span></div>}
               <div className="flex justify-between text-white/65"><span>مالیات بر ارزش افزوده ({fa(db.settings.tax)}٪)</span><span>{toman(vat)}</span></div>
               <div className="flex justify-between font-black text-base pt-2 border-t border-white/10"><span>مبلغ قابل پرداخت</span><span><Num value={total} /> تومان</span></div>
               <AsyncButton onClick={checkout} className={BTN_P + " w-full py-3.5 mt-1"}><Icon name="lock" size={17} /> {session ? "ثبت سفارش" : "ورود و ثبت سفارش"}</AsyncButton>
