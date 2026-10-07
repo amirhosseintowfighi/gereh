@@ -401,13 +401,14 @@ if [[ $WITH_FIREWALL == 1 ]]; then
   step "دیواره آتش (ufw)"
   # never lock ourselves out: the port of this SSH session, sshd's effective config, its config files,
   # the systemd socket (socket-activated ssh on Ubuntu 24.04) and whatever sshd listens on now
-  ssh_ports=$( {
+  # each source may legitimately find nothing, so this probe runs without errexit/pipefail/ERR trap
+  ssh_ports=$( set +eo pipefail; trap - ERR; {
     [[ -n ${SSH_CONNECTION:-} ]] && awk '{print $4}' <<<"$SSH_CONNECTION"
     sshd -T 2>/dev/null | awk '$1=="port" {print $2}'
     grep -hiE '^[[:space:]]*Port[[:space:]]+[0-9]+' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | awk '{print $2}'
     systemctl show ssh.socket -p Listen 2>/dev/null | grep -oE ':[0-9]+ ' | tr -d ': '
     ss -Hltnp 2>/dev/null | awk '/sshd/ {n=split($4,a,":"); print a[n]}'
-  } | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ')
+  } 2>/dev/null | awk '/^[0-9]+$/' | sort -un | tr '\n' ' ')
   ssh_ports=${ssh_ports% }
   for p in ${ssh_ports:-22}; do ufw allow "$p/tcp" comment ssh >/dev/null; done
   ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null
@@ -444,14 +445,15 @@ EOF
 fi
 
 # ---------------- done ----------------
-URL=$(grep -E '^NEXT_PUBLIC_SITE_URL=' "$ENV_FILE" | cut -d= -f2-)
+envval() { sed -nE "s/^$1=(.*)/\1/p" "$ENV_FILE" | head -1; }  # empty (not an error) when the key is missing
+URL=$(envval NEXT_PUBLIC_SITE_URL)
 SUMMARY=/root/gereh-install.txt
 {
   echo "Gereh — $(date '+%Y-%m-%d %H:%M')"
   echo "Site:        $URL"
   echo "Admin panel: $URL/admin"
-  echo "Admin email: $(grep -E '^ADMIN_EMAIL=' "$ENV_FILE" | cut -d= -f2-)"
-  echo "Admin pass:  $(grep -E '^ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)   (initial password; change it after the first login)"
+  echo "Admin email: $(envval ADMIN_EMAIL)"
+  [[ -n $(envval ADMIN_PASSWORD) ]] && echo "Admin pass:  $(envval ADMIN_PASSWORD)   (initial password; change it after the first login)"
   echo "Settings:    $ENV_FILE   (sudo gereh env)"
   echo "Logs:        sudo gereh logs -f"
   echo "Update:      sudo gereh update"
