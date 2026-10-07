@@ -8,7 +8,7 @@ import { breadcrumbLd, offerLd, pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
   title: "خرید سرور ابری و سرور اختصاصی",
   description: "سرور ابری (VPS) با دیسک NVMe، دسترسی root و آماده‌سازی زیر یک دقیقه از ۳۹۰ هزار تومان؛ سرور اختصاصی AMD EPYC و Intel Xeon در دیتاسنتر تهران، اصفهان، فرانکفورت و آمستردام.",
-  path: "/vps",
+  path: "/vps", en: "/en/vps",
 });
 
 export default function VpsPage() {

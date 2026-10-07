@@ -53,6 +53,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          <Link href="/en" hrefLang="en" lang="en" aria-label="English version" className="hidden md:grid h-10 px-3 place-items-center rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-xs font-bold">EN</Link>
           <button type="button" onClick={openPalette} aria-keyshortcuts="Control+K"
             className="hidden md:flex items-center gap-2 h-10 pr-3 pl-2 rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-sm">
             <Icon name="search" size={16} /> جست‌وجو

@@ -11,7 +11,7 @@ import { breadcrumbLd, faqLd, offerLd, pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
   title: "خرید هاست وردپرس و هاست لینوکس پرسرعت",
   description: "هاست لینوکس و وردپرس روی NVMe با وب‌سرور LiteSpeed، SSL رایگان، بکاپ روزانه و کنترل‌پنل cPanel از ۸۹ هزار تومان در ماه؛ میزبانی در دیتاسنتر تهران و انتقال رایگان.",
-  path: "/hosting",
+  path: "/hosting", en: "/en/hosting",
 });
 
 const FEATURES = [

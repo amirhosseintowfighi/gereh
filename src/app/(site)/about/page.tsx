@@ -11,7 +11,7 @@ import { breadcrumbLd, ORG_ID, pageMeta, SITE_URL } from "@/lib/seo";
 export const metadata = pageMeta({
   title: "درباره گره؛ زیرساخت ابری از خانواده ویرگول",
   description: "گره از دل استودیوی طراحی و توسعه ویرگول بیرون آمد تا محصولات دیجیتال روی زیرساختی سریع، شفاف و قابل اعتماد اجرا شوند. داستان، ارزش‌ها و تیم گره را بشناسید.",
-  path: "/about",
+  path: "/about", en: "/en/about",
 });
 
 const VALUES = [

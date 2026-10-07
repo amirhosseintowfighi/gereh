@@ -95,3 +95,25 @@ test("security headers are set", async ({ request }) => {
   expect(h["strict-transport-security"]).toContain("max-age=");
   expect(h["x-powered-by"]).toBeUndefined();
 });
+
+for (const path of ["/en", "/en/vps", "/en/hosting", "/en/domains", "/en/about"]) {
+  test(`English page ${path}: LTR, hreflang pair, no errors, accessible`, async ({ page }) => {
+    const errors = watchErrors(page);
+    expect((await page.goto(path))?.status()).toBe(200);
+    const root = page.locator('div[lang="en"][dir="ltr"]');
+    await expect(root).toHaveCount(1);
+    await expect(root.locator("h1")).toHaveCount(1);
+    await expect(page).toHaveTitle(/Gereh Cloud$/);
+    expect(new URL((await page.locator('link[rel="canonical"]').getAttribute("href"))!).pathname).toBe(path);
+    const fa = await page.locator('link[rel="alternate"][hreflang="fa-IR"]').getAttribute("href");
+    expect(fa).toBeTruthy();
+    // the Persian page links back
+    await page.goto(new URL(fa!).pathname);
+    expect(new URL((await page.locator('link[rel="alternate"][hreflang="en"]').getAttribute("href"))!).pathname).toBe(path);
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}

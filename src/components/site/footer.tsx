@@ -7,7 +7,7 @@ import { Icon } from "../icon";
 const COLS: [string, [string, string, string][]][] = [
   ["سرویس‌ها", [["server", "سرور ابری", "/vps"], ["server-cog", "سرور اختصاصی", "/vps#dedicated"], ["layers", "هاست وب", "/hosting"], ["globe", "ثبت دامنه", "/domains"]]],
   ["گره", [["building-2", "درباره ما", "/about"], ["scale", "مقایسه با دیگران", "/compare"], ["message-circle", "تماس با ما", "/contact"], ["file-text", "قوانین استفاده", "/terms"], ["shield-check", "حریم خصوصی", "/privacy"], ["gauge", "توافق سطح خدمات", "/sla"]]],
-  ["منابع", [["book-open", "راهنما و آموزش", "/kb"], ["newspaper", "بلاگ", "/blog"], ["code-xml", "مستندات API", "/docs/api"], ["activity", "وضعیت سرویس‌ها", "/status"]]],
+  ["منابع", [["book-open", "راهنما و آموزش", "/kb"], ["newspaper", "بلاگ", "/blog"], ["code-xml", "مستندات API", "/docs/api"], ["activity", "وضعیت سرویس‌ها", "/status"], ["languages", "English", "/en"]]],
 ];
 
 export function Footer() {

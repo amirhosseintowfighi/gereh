@@ -13,7 +13,7 @@ import { breadcrumbLd, offerLd, pageMeta } from "@/lib/seo";
 export const metadata = pageMeta({
   title: "ثبت دامنه ir و دامنه بین‌المللی",
   description: "جست‌وجو و ثبت آنی دامنه .ir، .com، .io، .cloud و ۱۶ پسوند دیگر؛ ثبت دامنه ملی از ۹۵ هزار تومان، انتقال رایگان دامنه‌های ملی، مدیریت DNS و محافظت از اطلاعات مالک.",
-  path: "/domains",
+  path: "/domains", en: "/en/domains",
 });
 
 export default function DomainsPage() {

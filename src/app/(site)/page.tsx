@@ -14,7 +14,7 @@ import { faqLd, pageMeta } from "@/lib/seo";
 const meta = pageMeta({
   title: "گره | سرور ابری، هاست و دامنه",
   description: "خرید سرور ابری با دیسک NVMe و آماده‌سازی زیر یک دقیقه، سرور اختصاصی EPYC و Xeon، هاست وب LiteSpeed و ثبت دامنه .ir و بین‌المللی؛ دیتاسنتر تهران، اصفهان و اروپا.",
-  path: "/",
+  path: "/", en: "/en",
 });
 // absolute so the "%s | گره" template doesn't repeat the brand
 export const metadata = { ...meta, title: { absolute: "گره | سرور ابری، هاست و دامنه" } };

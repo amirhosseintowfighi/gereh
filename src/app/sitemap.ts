@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { KB } from "@/content/kb";
 import { tldSlug } from "@/content/tlds";
 import { TLDS } from "@/lib/catalog";
-import { SITE_URL } from "@/lib/seo";
+import { EN_PAGES, SITE_URL } from "@/lib/seo";
 import { publishedPosts } from "@/server/blog";
 import { db } from "@/server/ctx";
 
@@ -19,7 +19,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date(process.env.BUILD_TIME || Date.now());
   const posts = await publishedPosts(await db(), 1000).catch((e) => { console.error("[sitemap] posts", e); return []; });
   return [
-    ...PAGES.map(([p, priority, changeFrequency]) => ({ url: SITE_URL + p, lastModified, changeFrequency, priority })),
+    ...PAGES.map(([p, priority, changeFrequency]) => {
+      const en = EN_PAGES.find(([, fa]) => fa === p)?.[0];
+      return { url: SITE_URL + p, lastModified, changeFrequency, priority, ...(en ? { alternates: { languages: { "fa-IR": SITE_URL + p, en: SITE_URL + en } } } : {}) };
+    }),
+    ...EN_PAGES.map(([en, fa]) => ({ url: SITE_URL + en, lastModified, changeFrequency: "monthly" as const, priority: 0.5, alternates: { languages: { "fa-IR": SITE_URL + fa, en: SITE_URL + en } } })),
     ...KB.map((a) => ({ url: SITE_URL + "/kb/" + a.slug, lastModified: new Date(a.updated), changeFrequency: "monthly" as const, priority: 0.5 })),
     ...TLDS.map((t) => ({ url: SITE_URL + "/domains/" + tldSlug(t.tld), lastModified, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...posts.map((p) => ({ url: SITE_URL + "/blog/" + encodeURIComponent(p.slug), lastModified: p.updatedAt, changeFrequency: "monthly" as const, priority: 0.6 })),
