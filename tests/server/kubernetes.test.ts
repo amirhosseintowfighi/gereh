@@ -41,7 +41,7 @@ beforeEach(() => { hits = []; answers = {}; });
 const app = (over: Partial<AppSpec> = {}): AppSpec => ({
   id: "app-1", userId: "u1", name: "shop", stack: "nextjs", source: "git", gitUrl: "https://tok@github.com/acme/shop.git", gitBranch: "main", image: "", rootDir: "", buildCommand: "", startCommand: "",
   port: 3000, healthPath: "/health", cpu: 1, ramMb: 1024, instances: 2, autoscale: false, maxInstances: 2, diskGb: 0, diskMount: "/data",
-  env: { PORT: "3000", API_KEY: "s3cret" }, hosts: ["shop.gereh.app"], ...over,
+  env: { PORT: "3000", API_KEY: "s3cret" }, hosts: ["shop.gereh.dev"], cdn: false, cacheVersion: 1, ...over,
 });
 const db = (over: Partial<DbSpec> = {}): DbSpec => ({ id: "pdb-1", userId: "u1", name: "shop", engine: "postgres", version: "16", cpu: 1, ramMb: 1024, diskGb: 10, username: "shop", password: "pw", dbName: "shop", publicAccess: false, ...over });
 const kinds = (objs: Record<string, unknown>[]) => objs.map((o) => o.kind);
@@ -61,19 +61,27 @@ describe("kubernetes manifests", () => {
     expect(dep.spec.template.spec.automountServiceAccountToken).toBe(false);
     expect(dep.spec.strategy.rollingUpdate.maxUnavailable).toBe(0);
     // default host relies on the controller's wildcard cert; no cert-manager without custom domains
-    expect(ing.spec.tls).toEqual([{ hosts: ["shop.gereh.app"] }]);
+    expect(ing.spec.tls).toEqual([{ hosts: ["shop.gereh.dev"] }]);
     expect(ing.metadata.annotations["cert-manager.io/cluster-issuer"]).toBeUndefined();
   });
 
+  it("CDN adds the edge-cache snippet with a versioned key; off by default", () => {
+    const ing = (a: Partial<AppSpec>) => (appObjects(app(a), "img", "d").find((o) => o.kind === "Ingress") as Record<string, any>).metadata.annotations;
+    expect(ing({})["nginx.ingress.kubernetes.io/configuration-snippet"]).toBeUndefined();
+    const snip = ing({ cdn: true, cacheVersion: 4 })["nginx.ingress.kubernetes.io/configuration-snippet"];
+    expect(snip).toContain("proxy_cache gereh_cdn;");
+    expect(snip).toContain('$request_uri|v4"');
+  });
+
   it("custom domains, disk and autoscale add TLS, PVC and HPA", () => {
-    const objs = appObjects(app({ hosts: ["shop.gereh.app", "www.shop.ir"], autoscale: true, maxInstances: 6, diskGb: 5, instances: 1 }), "img", "dep-2") as never as Record<string, any>[];
+    const objs = appObjects(app({ hosts: ["shop.gereh.dev", "www.shop.ir"], autoscale: true, maxInstances: 6, diskGb: 5, instances: 1 }), "img", "dep-2") as never as Record<string, any>[];
     expect(kinds(objs)).toEqual(["Secret", "Deployment", "Ingress", "PersistentVolumeClaim", "HorizontalPodAutoscaler"]);
     const dep = objs[1], ing = objs[2], hpa = objs[4];
     expect(dep.spec.replicas).toBeUndefined(); // the HPA owns replicas
     expect(dep.spec.strategy).toEqual({ type: "Recreate" }); // RWO disk
     expect(ing.spec.tls[1]).toEqual({ hosts: ["www.shop.ir"], secretName: "shop-tls" });
     expect(ing.metadata.annotations["cert-manager.io/cluster-issuer"]).toBe("letsencrypt");
-    expect(ing.spec.rules.map((r: { host: string }) => r.host)).toEqual(["shop.gereh.app", "www.shop.ir"]);
+    expect(ing.spec.rules.map((r: { host: string }) => r.host)).toEqual(["shop.gereh.dev", "www.shop.ir"]);
     expect(hpa.spec).toMatchObject({ minReplicas: 1, maxReplicas: 6 });
   });
 

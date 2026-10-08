@@ -115,6 +115,9 @@ button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid #9cc9ff; outline-offset: 3px; border-radius: 10px; }
 .ltr { direction: ltr; unicode-bidi: isolate; }
 .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { scrollbar-width: none; }
+/* scroll containers must contain their absolutely positioned descendants (sr-only labels in tables),
+   otherwise those escape the clip and widen the whole page on phones */
+@layer base { .overflow-x-auto, .overflow-auto, .overflow-x-scroll { position: relative; } }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 10px; }
 ::selection { background: rgba(156,201,255,.35); }

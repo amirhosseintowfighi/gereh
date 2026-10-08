@@ -3,7 +3,7 @@
 سایت گره (پنل، API، صورتحساب) روی سرور خودش می‌ماند و فقط **دستور** می‌دهد. اپ‌ها و پایگاه‌های داده مشتری‌ها روی یک **کلاستر Kubernetes** جدا اجرا می‌شوند. تا وقتی کلاستر را وصل نکنید، همه چیز با **شبیه‌ساز** کار می‌کند: پنل کامل است، بیلد و لاگ و نمودارها ساختگی‌اند و چیزی واقعاً اجرا نمی‌شود.
 
 ```
-           مشتری ─ https://shop.gereh.app ─┐
+           مشتری ─ https://shop.gereh.dev ─┐
                                           ▼
  ┌─ سرور سایت (gereh.net) ─┐      ┌──────── کلاستر k3s ────────────────────────────┐
  │ Next.js + worker         │ API  │ ingress-nginx ── cert-manager                    │
@@ -17,8 +17,8 @@
 | مورد | حداقل برای شروع | توضیح |
 |---|---|---|
 | سرور کلاستر | ۸ هسته، ۳۲ گیگ رم، ۵۰۰ گیگ NVMe، اوبونتو ۲۴.۰۴ | جدا از سرور سایت. بعداً نود اضافه می‌کنید |
-| دامنه اپ‌ها | مثلاً `gereh.app` | **نباید** زیردامنه `gereh.net` باشد (کوکی‌های پنل از کد مشتری جدا بمانند) |
-| DNS | رکورد `A` برای `gereh.app` و `*.gereh.app` → IP کلاستر | |
+| دامنه اپ‌ها | مثلاً `gereh.dev` | **نباید** زیردامنه `gereh.net` باشد (کوکی‌های پنل از کد مشتری جدا بمانند) |
+| DNS | رکورد `A` برای `gereh.dev` و `*.gereh.dev` → IP کلاستر | |
 | پورت‌ها | 80 و 443 برای همه؛ 6443 فقط برای IP سرور سایت | 30000-32767 فقط اگر دسترسی عمومی پایگاه داده می‌دهید |
 
 ## ۲. نصب کلاستر (یک دستور)
@@ -27,16 +27,16 @@
 
 ```bash
 git clone https://github.com/amirhosseintowfighi/gereh.git && cd gereh/deploy/paas
-sudo APPS_DOMAIN=gereh.app ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net bash setup-cluster.sh
+sudo APPS_DOMAIN=gereh.dev ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net bash setup-cluster.sh
 ```
 
 اسکریپت این کارها را انجام می‌دهد (اجرای دوباره بی‌خطر است):
 
 1. **k3s** (Kubernetes سبک، با metrics-server و local-path storage) بدون Traefik
-2. **ingress-nginx** با گواهی پیش‌فرض `*.gereh.app`
+2. **ingress-nginx** با گواهی پیش‌فرض `*.gereh.dev`
 3. **cert-manager** و ClusterIssuer لتس‌انکریپت برای دامنه‌های اختصاصی مشتری‌ها
 4. فضای نام **gereh-system** و حساب سرویس `gereh-controller` با کمترین دسترسی لازم (`system.yaml`)
-5. **رجیستری خصوصی** روی `registry.gereh.app` با رمز تصادفی
+5. **رجیستری خصوصی** روی `registry.gereh.dev` با رمز تصادفی
 6. **Prometheus** برای نمودار تعداد درخواست هر اپ (فقط داخل کلاستر)
 7. **MinIO** برای پشتیبان پایگاه‌های داده (باکت `gereh-backups` با حذف خودکار بعد از ۳۵ روز)
 8. **ایمیج builder** (git + Nixpacks) را داخل خود کلاستر با Kaniko می‌سازد
@@ -44,7 +44,7 @@ sudo APPS_DOMAIN=gereh.app ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net b
 
 ### گواهی wildcard
 
-برای اینکه هر اپ از لحظه ساخت HTTPS معتبر داشته باشد، گواهی `*.gereh.app` لازم است. صدور wildcard فقط با **DNS-01** ممکن است؛ فایل `wildcard-cert.yaml` را برای سرویس DNS خودتان (مثال Cloudflare؛ برای PowerDNS از webhook solver) ویرایش و اعمال کنید:
+برای اینکه هر اپ از لحظه ساخت HTTPS معتبر داشته باشد، گواهی `*.gereh.dev` لازم است. صدور wildcard فقط با **DNS-01** ممکن است؛ فایل `wildcard-cert.yaml` را برای سرویس DNS خودتان (مثال Cloudflare؛ برای PowerDNS از webhook solver) ویرایش و اعمال کنید:
 
 ```bash
 kubectl -n ingress-nginx create secret generic cloudflare-token --from-literal=token=XXXX
@@ -62,18 +62,18 @@ kubectl -n ingress-nginx get certificate apps-wildcard   # READY=True
    ```
 2. خط‌هایی که اسکریپت چاپ کرد را به `.env` سایت اضافه کنید (`gereh env edit`) و `gereh restart` بزنید:
    ```env
-   PAAS_APPS_DOMAIN=gereh.app
+   PAAS_APPS_DOMAIN=gereh.dev
    PAAS_K8S_API=https://CLUSTER_IP:6443
    PAAS_K8S_TOKEN=eyJhbGciOi...
    PAAS_K8S_CA=/etc/gereh/k8s-ca.crt
-   PAAS_REGISTRY=registry.gereh.app
+   PAAS_REGISTRY=registry.gereh.dev
    PAAS_REGISTRY_PULL_SECRET=eyJhdXRocyI6...
-   PAAS_BUILDER_IMAGE=registry.gereh.app/gereh/builder:1
+   PAAS_BUILDER_IMAGE=registry.gereh.dev/gereh/builder:1
    PAAS_INGRESS_IP=CLUSTER_IP
    PAAS_PROMETHEUS=monitoring/prometheus-server:80
    PAAS_SOURCE_BASE_URL=https://gereh.net
    ```
-3. در **پنل ادمین › گره اپ (PaaS) › زیرساخت** دکمه «تست اتصال» را بزنید؛ باید `Kubernetes v1.3x` ببینید. دامنه اپ‌ها را همان‌جا روی `gereh.app` بگذارید.
+3. در **پنل ادمین › گره اپ (PaaS) › زیرساخت** دکمه «تست اتصال» را بزنید؛ باید `Kubernetes v1.3x` ببینید. دامنه اپ‌ها را همان‌جا روی `gereh.dev` بگذارید.
 4. یک اپ آزمایشی کوچک (مثلاً یک سرور Express ساده) بسازید و لاگ بیلد را دنبال کنید.
 
 > `PAAS_SOURCE_BASE_URL` آدرسی است که Jobهای بیلد فایل ZIP مشتری را از آن دانلود می‌کنند (لینک امضاشده و یک‌ساعته). کلاستر باید بتواند به آن دسترسی داشته باشد.

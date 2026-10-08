@@ -78,15 +78,17 @@ export function Tabs({ options, value, onChange, full = false, size = "md", labe
     if (!d) return;
     e.preventDefault();
     const next = options[(i + d + options.length) % options.length];
-    onChange(next.id); refs.current[next.id]?.focus();
+    onChange(next.id); refs.current[next.id]?.focus(); refs.current[next.id]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
+  // the strip scrolls sideways when it is wider than the screen (phones) instead of widening the page
   return (
+    <div className={"max-w-full overflow-x-auto no-scrollbar " + (full ? "w-full" : "inline-block align-top")}>
     <div role="tablist" aria-label={label} onKeyDown={onKey} className={"relative inline-flex p-1 rounded-2xl bg-white/[0.07] border border-white/15 " + (full ? "w-full" : "")}>
       {pill && <span className="tab-pill" style={{ left: pill.left, width: pill.width }} />}
       {options.map((o) => {
         const on = value === o.id;
         return (
-          <button key={o.id} type="button" ref={(el) => { refs.current[o.id] = el; }} role="tab" aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => onChange(o.id)}
+          <button key={o.id} type="button" ref={(el) => { refs.current[o.id] = el; }} role="tab" aria-selected={on} tabIndex={on ? 0 : -1} onClick={(e) => { onChange(o.id); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" }); }}
             className={"relative z-10 " + (full ? "flex-1 " : "") + pad + " rounded-xl flex items-center justify-center gap-2 whitespace-nowrap transition-colors duration-300 " +
               (on ? "text-slate-900 font-bold" + (pill ? "" : " bg-[#f5f7fb]") : "text-white/70 hover:text-white")}>
             {o.icon && <Icon name={o.icon} size={16} />}
@@ -95,6 +97,7 @@ export function Tabs({ options, value, onChange, full = false, size = "md", labe
           </button>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -228,14 +231,14 @@ export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon
   const inner = (
     <>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50">{label}</span>
-        <span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name={icon} size={17} /></span>
+        <span className="text-xs text-white/50 min-w-0">{label}</span>
+        <span className="w-9 h-9 rounded-xl tile grid place-items-center shrink-0"><Icon name={icon} size={17} /></span>
       </div>
-      <div className="mt-4 flex items-baseline gap-1.5"><span className="text-[1.75rem] font-black tracking-tight silver tabular">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-xs text-white/55">{suffix}</span>}</div>
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5 min-w-0"><span className="text-[1.3rem] sm:text-[1.75rem] font-black tracking-tight silver tabular break-all">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-xs text-white/55">{suffix}</span>}</div>
       {sub && <div className={"text-[11px] mt-1.5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/55")}>{sub}</div>}
     </>
   );
-  const cls = "spot block text-right rounded-[1.4rem] p-5 " + GLASS;
+  const cls = "spot block min-w-0 text-right rounded-[1.4rem] p-4 sm:p-5 " + GLASS;
   return href ? <Link href={href as never} className={cls + " hover:border-white/20 transition-colors"}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
 
@@ -270,13 +273,15 @@ export function AreaChart({ data, labels, height = 200, unit = "", fmt = (v: num
 
 export function Bars({ data, labels, height = 160, fmt = (v: number) => fa(v) }: { data: number[]; labels: string[]; height?: number; fmt?: (v: number) => string }) {
   const max = Math.max(...data) || 1;
+  // many bars (e.g. 30 days) → thinner gaps and only every n-th label, so the chart never outgrows a phone screen
+  const dense = data.length > 12, every = dense ? Math.ceil(data.length / 6) : 1;
   return (
-    <div className="flex items-end gap-2" style={{ height }}>
+    <div className={"flex items-end min-w-0 " + (dense ? "gap-0.5 sm:gap-1 overflow-hidden" :"gap-1.5 sm:gap-2")} style={{ height }}>
       {data.map((v, i) => (
-        <div key={i} className="group flex-1 flex flex-col items-center gap-2 h-full justify-end">
-          <div className="text-[10px] text-white/0 group-hover:text-white/70 transition tabular">{fmt(v)}</div>
-          <div className="w-full rounded-lg bg-white/[0.1] group-hover:bg-[#9cc9ff] transition-colors" style={{ height: Math.max(4, (v / max) * (height - 40)) }} />
-          <div className="text-[10px] text-white/50">{labels[i]}</div>
+        <div key={i} title={labels[i] + " — " + fmt(v)} className="group flex-1 min-w-0 flex flex-col items-center gap-2 h-full justify-end">
+          <div className={"text-[10px] text-white/0 group-hover:text-white/70 transition tabular whitespace-nowrap" + (dense ? " hidden sm:block" : "")}>{dense ? "" : fmt(v)}</div>
+          <div className={(dense ? "rounded-sm sm:rounded-md" : "rounded-lg") + " w-full bg-white/[0.1] group-hover:bg-[#9cc9ff] transition-colors"} style={{ height: Math.max(4, (v / max) * (height - 40)) }} />
+          <div className="text-[10px] text-white/50 whitespace-nowrap h-4 overflow-visible">{(data.length - 1 - i) % every === 0 ? labels[i] : ""}</div>
         </div>
       ))}
     </div>

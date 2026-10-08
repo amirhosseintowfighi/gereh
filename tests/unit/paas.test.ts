@@ -23,6 +23,16 @@ describe("detectStack", () => {
     [{ "docker-compose.yml": null, "Dockerfile": null }, "compose"],
     [{ "README.md": null }, null],
   ])("%j → %s", (f, want) => expect(detectStack(files(f as Record<string, string | null>))).toBe(want));
+  it.each([
+    [{ "package.json": JSON.stringify({ dependencies: { "@nestjs/core": "11", express: "5" } }) }, "nestjs"],
+    [{ "package.json": JSON.stringify({ devDependencies: { "@sveltejs/kit": "2", vite: "6" } }) }, "sveltekit"],
+    [{ "package.json": JSON.stringify({ dependencies: { astro: "5" } }) }, "astro"],
+    [{ "package.json": JSON.stringify({ dependencies: { "@react-router/node": "7" } }) }, "remix"],
+    [{ "package.json": JSON.stringify({ dependencies: { "@angular/core": "19" } }) }, "angular"],
+    [{ "package.json": JSON.stringify({ dependencies: { hono: "4" } }), "bun.lock": null }, "bun"],
+    [{ "deno.json": null, "main.ts": null }, "deno"],
+    [{ "Cargo.toml": null, "src/main.rs": null }, "rust"],
+  ])("newer stacks: %j → %s", (f, want) => expect(detectStack(files(f as Record<string, string | null>))).toBe(want));
   it("tolerates broken package.json", () => expect(detectStack(files({ "package.json": "{oops" }))).toBe("node"));
 });
 

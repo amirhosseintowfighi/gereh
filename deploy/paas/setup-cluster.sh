@@ -3,11 +3,11 @@
 # k3s, ingress-nginx, cert-manager, private registry, MinIO (backups), the platform namespace and the
 # builder image; prints the values to paste into the site's .env. Re-running is safe.
 #
-#   sudo APPS_DOMAIN=gereh.app ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net bash setup-cluster.sh
+#   sudo APPS_DOMAIN=gereh.dev ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net bash setup-cluster.sh
 #
 # Before running: point  *.APPS_DOMAIN  and  APPS_DOMAIN  (A records) to this server's public IP.
 set -Eeuo pipefail
-APPS_DOMAIN=${APPS_DOMAIN:?set APPS_DOMAIN, e.g. gereh.app}
+APPS_DOMAIN=${APPS_DOMAIN:?set APPS_DOMAIN, e.g. gereh.dev}
 ACME_EMAIL=${ACME_EMAIL:?set ACME_EMAIL}
 SITE_URL=${SITE_URL:-}
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -22,7 +22,7 @@ SITE_HOST=${SITE_URL#*://}; SITE_HOST=${SITE_HOST%%/*}; SITE_HOST=${SITE_HOST%%:
 if [ -n "$SITE_HOST" ]; then
   case "$APPS_DOMAIN" in
     "$SITE_HOST"|*."$SITE_HOST") die "APPS_DOMAIN ($APPS_DOMAIN) must not be the site's domain or under it ($SITE_HOST):
-   customer code on it could set cookies for the panel. Use a separate domain, e.g. gereh.app
+   customer code on it could set cookies for the panel. Use a separate domain, e.g. gereh.dev
    (for a test setup at least a sibling such as apps-${SITE_HOST%%.*}.${SITE_HOST#*.})." ;;
   esac
 fi
@@ -47,13 +47,18 @@ until kubectl get nodes 2>/dev/null | grep -q ' Ready'; do sleep 3; done
 say "helm"
 command -v helm >/dev/null || curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-say "ingress-nginx (default certificate = *.$APPS_DOMAIN)"
+# snippets are enabled for the app CDN (proxy_cache); only the Gereh driver can write Ingresses
+say "ingress-nginx (default certificate = *.$APPS_DOMAIN, edge cache, compression)"
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
 helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
 helm repo update >/dev/null
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace --wait \
   --set controller.extraArgs.default-ssl-certificate=ingress-nginx/apps-wildcard-tls \
-  --set controller.allowSnippetAnnotations=false \
+  --set controller.allowSnippetAnnotations=true \
+  --set-string controller.config.annotations-risk-level=Critical \
+  --set-string controller.config.http-snippet="proxy_cache_path /tmp/nginx-cache levels=1:2 keys_zone=gereh_cdn:100m max_size=10g inactive=7d use_temp_path=off;" \
+  --set-string controller.config.use-gzip=true \
+  --set-string controller.config.enable-brotli=true \
   --set controller.config.use-forwarded-headers=true \
   --set controller.metrics.enabled=true \
   --set-string controller.podAnnotations."prometheus\.io/scrape"=true \
@@ -78,7 +83,7 @@ say "registry (registry.$APPS_DOMAIN)"
 REG_PASS=$(gen registry-password)
 htpasswd -Bbn gereh "$REG_PASS" > "$STATE/htpasswd"
 kubectl -n gereh-system create secret generic registry-auth --from-file=htpasswd="$STATE/htpasswd" --dry-run=client -o yaml | kubectl apply -f -
-sed "s/registry.gereh.app/registry.$APPS_DOMAIN/g" "$HERE/registry.yaml" | kubectl apply -f -
+sed "s/registry.gereh.dev/registry.$APPS_DOMAIN/g" "$HERE/registry.yaml" | kubectl apply -f -
 kubectl -n gereh-system create secret docker-registry registry-push --docker-server="registry.$APPS_DOMAIN" --docker-username=gereh --docker-password="$REG_PASS" --dry-run=client -o yaml | kubectl apply -f -
 PULL_SECRET=$(kubectl -n gereh-system get secret registry-push -o jsonpath='{.data.\.dockerconfigjson}')
 echo "  waiting for the registry certificate (DNS for registry.$APPS_DOMAIN must point here)…"

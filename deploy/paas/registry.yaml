@@ -52,9 +52,9 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: nginx
-  tls: [{ hosts: [registry.gereh.app], secretName: registry-tls }]
+  tls: [{ hosts: [registry.gereh.dev], secretName: registry-tls }]
   rules:
-    - host: registry.gereh.app
+    - host: registry.gereh.dev
       http: { paths: [{ path: /, pathType: Prefix, backend: { service: { name: registry, port: { number: 5000 } } } }] }
 ---
 # the registry is reached through the ingress, so the platform namespace must accept ingress traffic for it

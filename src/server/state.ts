@@ -12,6 +12,8 @@ import * as t from "./db/schema";
 import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
 import { paasState } from "./paas/state";
+import { EMPTY_GEO, geoState } from "./geo/state";
+import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
 
@@ -21,7 +23,10 @@ export const STAFF_ROLE_BY_LABEL = Object.fromEntries(Object.entries(STAFF_LABEL
 
 export async function getSettings(db: DB): Promise<Settings> {
   const [row] = await db.select().from(t.kv).where(eq(t.kv.key, "settings"));
-  const { smsKeyEnc: _secret, payGateway: _derived, ...v } = { ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings> & { smsKeyEnc?: string }) || {}) };
+  const stored = { ...((row?.value as Partial<Settings> & { smsKeyEnc?: string }) || {}) };
+  // the old default apps domain was written back on every settings save; it never went live
+  if (stored.paasDomain === "gereh.app") delete stored.paasDomain;
+  const { smsKeyEnc: _secret, payGateway: _derived, ...v } = { ...DEFAULT_SETTINGS, ...stored };
   return { ...v, payGateway: gatewaysFor(v)[0]?.label ?? "" };
 }
 /** the stored (encrypted) SMS API key, server-side only */
@@ -61,7 +66,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -162,7 +167,9 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const projRows = await db.select().from(t.devopsProjects).where(own(t.devopsProjects.userId)).orderBy(desc(t.devopsProjects.createdAt));
   out.devopsProjects = projRows.map((p) => ({ id: p.id, userId: p.userId, leadId: admin ? p.leadId : null, title: p.title, plan: p.plan, status: p.status, services: p.services, monthlyFee: p.monthlyFee, hoursIncluded: p.hoursIncluded, hoursUsed: p.hoursUsed, engineer: p.engineer, milestones: p.milestones,
     updates: [...p.updates].reverse().map((u) => ({ ...u, at: faDateTime(new Date(u.at)) })), nextBill: p.nextBillAt && p.status === "active" ? faDate(p.nextBillAt) : "", started: p.startedAt ? faDate(p.startedAt) : "" }));
-  Object.assign(out, await paasState(db, { uid, admin, domain: settings.paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.app", siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "") }));
+  Object.assign(out, await paasState(db, { uid, admin, domain: settings.paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.dev", siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "") }));
+  out.inquiry = await inquiryState(db, { uid, admin });
+  out.geo = await geoState(db, { uid, admin });
   if (!admin) {
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
     return { session: clientSession(auth), db: out };

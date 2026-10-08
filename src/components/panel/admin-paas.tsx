@@ -161,10 +161,10 @@ function Platform() {
       </Card>
       <Card title="دامنه اپ‌ها" icon="globe">
         <Field label="دامنه" hint="آدرس پیش‌فرض اپ‌ها <نام>.<این دامنه> می‌شود. باید دامنه‌ای جدا از سایت اصلی باشد (برای جدا ماندن کوکی‌ها) و رکورد wildcard آن به ingress کلاستر اشاره کند.">
-          <input value={domain} onChange={(e) => setDomain(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="gereh.app" className={INPUT + " text-left"} />
+          <input value={domain} onChange={(e) => setDomain(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="gereh.dev" className={INPUT + " text-left"} />
         </Field>
         <AsyncButton disabled={!domain || domain === db.settings.paasDomain} className="mt-3" confirmText="آدرس پیش‌فرض همه اپ‌ها عوض می‌شود. ادامه؟" onClick={async () => { await api.admin.saveSettings({ paasDomain: domain }); notify("دامنه اپ‌ها ذخیره شد", "globe"); }}>ذخیره</AsyncButton>
-        <div className="mt-4 text-[11px] text-white/55 leading-6" dir="ltr">*.{domain || "gereh.app"} → A → INGRESS_IP</div>
+        <div className="mt-4 text-[11px] text-white/55 leading-6" dir="ltr">*.{domain || "gereh.dev"} → A → INGRESS_IP</div>
       </Card>
     </div>
   );

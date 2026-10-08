@@ -263,13 +263,13 @@ DEVOPS_INBOX=$ADMIN_EMAIL
 
 # ---- Gereh Apps (PaaS): without PAAS_K8S_API/TOKEN apps run on the simulator (see deploy/paas/README.md) ----
 PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
-# PAAS_APPS_DOMAIN=gereh.app
+# PAAS_APPS_DOMAIN=gereh.dev
 # PAAS_K8S_API=https://K8S_IP:6443
 # PAAS_K8S_TOKEN=
 # PAAS_K8S_CA=/etc/gereh/k8s-ca.crt
-# PAAS_REGISTRY=registry.gereh.app
+# PAAS_REGISTRY=registry.gereh.dev
 # PAAS_REGISTRY_PULL_SECRET=
-# PAAS_BUILDER_IMAGE=registry.gereh.app/gereh/builder:1
+# PAAS_BUILDER_IMAGE=registry.gereh.dev/gereh/builder:1
 # PAAS_INGRESS_IP=
 # PAAS_PROMETHEUS=monitoring/prometheus-server:80
 # PAAS_SOURCE_BASE_URL=https://$DOMAIN

@@ -496,6 +496,9 @@ export const paasApps = pgTable("paas_apps", {
   /** secret for the git push webhook */
   hookToken: text("hook_token").notNull(),
   autoDeploy: boolean("auto_deploy").notNull().default(true),
+  /** edge cache in front of the app; bumping cacheVersion invalidates everything cached */
+  cdn: boolean("cdn").notNull().default(false),
+  cacheVersion: integer("cache_version").notNull().default(1),
   liveDeployment: text("live_deployment"),
   suspendedAt: ts("suspended_at"),
   createdAt: created(),
@@ -586,3 +589,105 @@ export const paasMetrics = pgTable("paas_metrics", {
   rpm: real("rpm").notNull().default(0), // requests per minute (apps)
   createdAt: created(),
 }, (t) => [index("paas_metric_ix").on(t.target, t.createdAt)]);
+
+/* ---------- Inquiry API (استعلام) ---------- */
+/** the sellable catalog; definitions (inputs, sample output) live in src/lib/inquiry.ts */
+export const inquiryServices = pgTable("inquiry_services", {
+  id: text("id").primaryKey(), // technical id used in the API path, e.g. identity_v2
+  name: text("name").notNull(),
+  price: money("price").notNull(), // Toman per billable request
+  active: boolean("active").notNull().default(true),
+  /** customers must request access and staff approve (personal-data services) */
+  approval: boolean("approval").notNull().default(false),
+  /** path at the upstream provider; empty = same as id */
+  upstream: text("upstream").notNull().default(""),
+  position: integer("position").notNull().default(0),
+});
+
+export const inquiryAccounts = pgTable("inquiry_accounts", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  accountNo: integer("account_no").notNull(),
+  apiKey: text("api_key").notNull(),
+  secretEnc: text("secret_enc").notNull(),
+  secretHash: text("secret_hash").notNull(),
+  status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
+  ipAllow: jsonb("ip_allow").$type<string[]>().notNull().default([]),
+  createdAt: created(),
+}, (t) => [uniqueIndex("inquiry_key_uq").on(t.apiKey), uniqueIndex("inquiry_acct_uq").on(t.accountNo)]);
+
+export const inquiryGrants = pgTable("inquiry_grants", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceId: text("service_id").notNull().references(() => inquiryServices.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  useCase: text("use_case").notNull().default(""),
+  note: text("note").notNull().default(""),
+  createdAt: created(),
+  decidedAt: ts("decided_at"),
+}, (t) => [uniqueIndex("inquiry_grant_uq").on(t.userId, t.serviceId)]);
+
+export const inquiryCalls = pgTable("inquiry_calls", {
+  id: text("id").primaryKey(), // tracking id returned to the caller
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceId: text("service_id").notNull(),
+  status: text("status", { enum: ["success", "not_found", "invalid", "error", "denied"] }).notNull(),
+  charged: money("charged").notNull().default(0),
+  billed: boolean("billed").notNull().default(false),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  sandbox: boolean("sandbox").notNull().default(false),
+  source: text("source", { enum: ["api", "panel"] }).notNull().default("api"),
+  /** masked inputs only (last digits); full personal data is never stored */
+  input: text("input").notNull().default(""),
+  ip: text("ip").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("inquiry_call_user_ix").on(t.userId, t.createdAt), index("inquiry_call_bill_ix").on(t.billed)]);
+
+/* ---------- Geo DNS (دسترسی دوطرفه) ---------- */
+export const geoPlans = pgTable("geo_plans", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  price: money("price").notNull(), // Toman per month, billed monthly from the wallet
+  records: integer("records").notNull(), // max records per zone
+  healthChecks: boolean("health_checks").notNull().default(false), // automatic failover
+  sync: text("sync", { enum: ["none", "files", "full"] }).notNull().default("none"), // managed mirror sync
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+export const geoZones = pgTable("geo_zones", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(),
+  planId: text("plan_id").notNull(),
+  /** pending: nameservers not delegated yet; suspended: unpaid (served without geo rules) */
+  status: text("status", { enum: ["pending", "active", "suspended"] }).notNull().default("pending"),
+  nsOk: boolean("ns_ok").notNull().default(false),
+  nsSeen: jsonb("ns_seen").$type<string[]>().notNull().default([]),
+  nsCheckedAt: ts("ns_checked_at"),
+  /** path PowerDNS requests over HTTPS on each server to decide whether it is up */
+  healthPath: text("health_path").notNull().default("/"),
+  /** managed mirror sync, run by Gereh's team; their agent reports through /api/geo/sync */
+  syncStatus: text("sync_status", { enum: ["none", "setup", "ok", "lagging", "failed"] }).notNull().default("none"),
+  syncLagSec: integer("sync_lag_sec"),
+  lastSyncAt: ts("last_sync_at"),
+  syncToken: text("sync_token").notNull(),
+  paidUntil: ts("paid_until").notNull(),
+  autoRenew: boolean("auto_renew").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("geo_zone_domain_uq").on(t.domain), index("geo_zone_user_ix").on(t.userId)]);
+
+export const geoRecords = pgTable("geo_records", {
+  id: serial("id").primaryKey(),
+  zoneId: text("zone_id").notNull().references(() => geoZones.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // "@", "www", "api"…
+  type: text("type", { enum: ["A", "AAAA", "CNAME", "TXT", "MX"] }).notNull(),
+  /** answer for visitors inside Iran */
+  iran: text("iran").notNull(),
+  /** answer for everyone else (search engine bots included); empty = same as iran */
+  world: text("world").notNull().default(""),
+  ttl: integer("ttl").notNull().default(60),
+  priority: integer("priority"),
+  iranUp: boolean("iran_up"),
+  worldUp: boolean("world_up"),
+  checkedAt: ts("checked_at"),
+}, (t) => [index("geo_record_zone_ix").on(t.zoneId)]);

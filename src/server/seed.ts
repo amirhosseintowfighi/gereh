@@ -5,6 +5,8 @@
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
 import { DEMO_POSTS } from "@/content/demo-posts";
+import { seedGeoPlans } from "./geo/service";
+import { seedInquiry } from "./inquiry/service";
 import { seedPlans } from "./paas/service";
 import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS } from "@/lib/catalog";
@@ -13,7 +15,7 @@ import { faDate, parseJalali } from "@/lib/jalali";
 import type { DB } from "./db/client";
 import * as t from "./db/schema";
 import { hashPassword } from "./password";
-import { randomSecret } from "./util";
+import { randomSecret, sha256 } from "./util";
 
 export const DEMO_PASSWORD = "Demo1234!";
 export const DEFAULT_SETTINGS = {
@@ -23,7 +25,7 @@ export const DEFAULT_SETTINGS = {
   /** % of a referred customer's paid invoices credited to the referrer during their first year */
   affiliateRate: 10,
   legalName: "شرکت گره ابر پارس (سهامی خاص)", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "تهران، خیابان ولیعصر", sellerPostalCode: "",
-  paasDomain: process.env.PAAS_APPS_DOMAIN || "gereh.app",
+  paasDomain: process.env.PAAS_APPS_DOMAIN || "gereh.dev",
 };
 export const DEFAULT_VIRT = { host: "panel.gereh.net", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 
@@ -43,6 +45,8 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
 
   await db.insert(t.kv).values([{ key: "settings", value: DEFAULT_SETTINGS }, { key: "virt", value: DEFAULT_VIRT }]).onConflictDoNothing();
   await seedPlans(db);
+  await seedInquiry(db);
+  await seedGeoPlans(db);
   await db.insert(t.plans).values([
     ...VPS.cloud.map((p, i) => ({ id: p.id, kind: "cloud" as const, data: p, position: i })),
     ...VPS.metal.map((p, i) => ({ id: p.id, kind: "metal" as const, data: p, position: i })),
@@ -214,6 +218,35 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   await db.insert(t.paasDbBackups).values([
     { id: "bk-demo1", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.2, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo1.dump", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۳:۳۰") },
     { id: "bk-demo2", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.9, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo2.dump", createdAt: J("۱۴۰۴/۰۷/۱۴ ۰۳:۳۰") },
+  ]).onConflictDoNothing();
+  // inquiry API demo: an account with history; one personal-data service approved, one pending
+  await db.insert(t.inquiryAccounts).values({ userId: "u1", accountNo: 512752, apiKey: "GerehDemoKey2024", secretEnc: seal("demo-inquiry-secret-0001"), secretHash: sha256("demo-inquiry-secret-0001"), createdAt: J("۱۴۰۴/۰۶/۰۱") }).onConflictDoNothing();
+  await db.insert(t.counters).values({ name: "inquiry", value: 512752 }).onConflictDoNothing();
+  await db.insert(t.inquiryGrants).values([
+    { userId: "u1", serviceId: "identity_v2", status: "approved", useCase: "احراز هویت خریداران فروشگاه آنلاین هنگام ثبت‌نام", decidedAt: J("۱۴۰۴/۰۶/۰۲"), createdAt: J("۱۴۰۴/۰۶/۰۱") },
+    { userId: "u1", serviceId: "shahkar_lite", status: "pending", useCase: "تطبیق موبایل و کد ملی برای جلوگیری از حساب‌های جعلی در ثبت‌نام", createdAt: J("۱۴۰۴/۰۷/۱۲") },
+  ]).onConflictDoNothing();
+  {
+    const svc: [string, number, string][] = [["cards", 572, "card=…7893"], ["ibans", 572, "iban=…9002"], ["identity_v2", 6950, "nationalCode=…5679 birthDate=…5/12"], ["cards_iban", 644, "card=…7893"], ["postal_code", 990, "postalCode=…3111"]];
+    const calls = Array.from({ length: 40 }, (_, i) => {
+      const [serviceId, price, input] = svc[i % svc.length];
+      const status = i % 13 === 5 ? "invalid" : i % 17 === 3 ? "not_found" : "success";
+      return { id: "INQ-DEMO" + String(i).padStart(3, "0"), userId: "u1", serviceId, status: status as "success", charged: status === "invalid" ? 0 : price, billed: true, latencyMs: 180 + ((i * 97) % 600), input: status === "invalid" ? "" : input, ip: "185.10.20.30", createdAt: new Date(now - (i * 7 + 1) * 3600_000) };
+    });
+    await db.insert(t.inquiryCalls).values(calls).onConflictDoNothing();
+  }
+  // Geo DNS demo: an active zone with health data and one waiting for the nameserver change
+  await db.insert(t.geoZones).values([
+    { id: "geo-demo1", userId: "u1", domain: "novinshop.ir", planId: "geo-pro", status: "active", nsOk: true, nsSeen: ["ns1.gereh.net", "ns2.gereh.net"], nsCheckedAt: new Date(now - 1800_000), syncToken: "demo-sync-token-novinshop-0000000000", paidUntil: new Date(now + 18 * 86400_000), createdAt: J("۱۴۰۴/۰۵/۱۰") },
+    { id: "geo-demo2", userId: "u1", domain: "novin-blog.ir", planId: "geo-basic", status: "pending", nsSeen: ["ns1.example-host.ir", "ns2.example-host.ir"], nsCheckedAt: new Date(now - 3600_000), syncToken: "demo-sync-token-novinblog-0000000000", paidUntil: new Date(now + 27 * 86400_000), createdAt: J("۱۴۰۴/۰۷/۱۲") },
+  ]).onConflictDoNothing();
+  await db.insert(t.geoRecords).values([
+    { zoneId: "geo-demo1", name: "@", type: "A", iran: "185.120.220.14", world: "94.130.88.21", iranUp: true, worldUp: true, checkedAt: new Date(now - 300_000) },
+    { zoneId: "geo-demo1", name: "www", type: "A", iran: "185.120.220.14", world: "94.130.88.21", iranUp: true, worldUp: true, checkedAt: new Date(now - 300_000) },
+    { zoneId: "geo-demo1", name: "@", type: "MX", iran: "mail.novinshop.ir", priority: 10, ttl: 3600 },
+    { zoneId: "geo-demo1", name: "@", type: "TXT", iran: "v=spf1 mx ~all", ttl: 3600 },
+    { zoneId: "geo-demo2", name: "@", type: "A", iran: "185.120.220.30", world: "94.130.88.40" },
+    { zoneId: "geo-demo2", name: "www", type: "A", iran: "185.120.220.30", world: "94.130.88.40" },
   ]).onConflictDoNothing();
   await db.insert(t.audit).values([
     { id: "au1", actor: "مدیر سیستم", action: "تغییر قیمت پلن حرفه‌ای", target: "products/c3", createdAt: J("۱۴۰۴/۰۷/۱۰ ۱۶:۲۲"), ip: "10.0.0.4" },

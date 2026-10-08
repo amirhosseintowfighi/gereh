@@ -54,7 +54,7 @@ export function PaasTerminal() {
         <span className="text-white/45">==&gt;</span> Detected Next.js (node 22){"\n"}
         <span className="text-white/45">==&gt;</span> Building… <span className="text-emerald-300">done in 41s</span>{"\n"}
         <span className="text-white/45">==&gt;</span> Rolling out 2 instances… <span className="text-emerald-300">healthy</span>{"\n"}
-        <span className="text-emerald-300">✓</span> Live at <span className="acc">https://my-shop.gereh.app</span>
+        <span className="text-emerald-300">✓</span> Live at <span className="acc">https://my-shop.gereh.dev</span>
       </pre>
     </div>
   );

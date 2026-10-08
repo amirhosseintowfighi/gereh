@@ -6,7 +6,7 @@ export const PAAS_DOCS = `گره اپ کد شما را می‌گیرد، بیل�
 1. در [پنل › اپ‌ها](/panel/apps/new) «اپ جدید» را بزنید.
 2. منبع را انتخاب کنید: مخزن Git، فایل ZIP، ایمیج Docker یا Docker Compose.
 3. پلن، تعداد نمونه و متغیرهای محیطی را تنظیم کنید و «ساخت و استقرار» را بزنید.
-4. چند دقیقه بعد اپ روی \`https://<نام-اپ>.gereh.app\` در دسترس است.
+4. چند دقیقه بعد اپ روی \`https://<نام-اپ>.gereh.dev\` در دسترس است.
 
 ## قراردادهای اجرا
 
@@ -42,9 +42,9 @@ https://<TOKEN>@github.com/acme/shop.git
 
 فقط push روی شاخه تنظیم‌شده استقرار را شروع می‌کند. اگر آدرس Webhook لو رفت، از همان صفحه «ساخت توکن جدید» را بزنید.
 
-### فایل ZIP
+### پوشه یا فایل ZIP
 
-پوشه پروژه را فشرده کنید (حداکثر ۲۰۰ مگابایت). پوشه‌های \`node_modules\`، \`.git\`، \`vendor\` و خروجی‌های بیلد را داخل ZIP نگذارید؛ هنگام بیلد دوباره ساخته می‌شوند. اگر همه فایل‌ها داخل یک پوشه باشند، همان پوشه ریشه در نظر گرفته می‌شود.
+در پنل «انتخاب پوشه پروژه» را بزنید تا مرورگر پوشه را خودش فشرده و بارگذاری کند، یا فایل ZIP پروژه را بفرستید (حداکثر ۲۰۰ مگابایت). هنگام انتخاب پوشه، \`node_modules\`، \`.git\` و فایل‌های \`.env\` خودکار کنار گذاشته می‌شوند. پوشه‌های \`node_modules\`، \`.git\`، \`vendor\` و خروجی‌های بیلد را داخل ZIP نگذارید؛ هنگام بیلد دوباره ساخته می‌شوند. اگر همه فایل‌ها داخل یک پوشه باشند، همان پوشه ریشه در نظر گرفته می‌شود.
 
 ### ایمیج Docker
 
@@ -78,7 +78,13 @@ services:
 | پشته | از روی | دستور بیلد پیش‌فرض | دستور اجرای پیش‌فرض |
 |---|---|---|---|
 | Next.js | next در package.json | npm run build | npm start |
+| NestJS | @nestjs/core | npm run build | node dist/main.js |
+| SvelteKit / Astro / Remix / Nuxt | پکیج فریم‌ورک | npm run build | سرور Node فریم‌ورک |
+| Angular / React / Vite | پکیج فریم‌ورک | npm run build | Nginx (استاتیک) |
 | Node.js | package.json | — | npm start |
+| Bun | bun.lock | bun install | bun run start |
+| Deno | deno.json | — | deno task start |
+| Rust | Cargo.toml | cargo build --release | باینری خروجی |
 | Python / Django / FastAPI / Flask | requirements.txt، pyproject.toml | pip install | gunicorn / uvicorn |
 | Laravel / PHP | composer.json، artisan | composer install | PHP-FPM + Nginx |
 | Go | go.mod | go build | باینری خروجی |
@@ -114,10 +120,14 @@ services:
 در تب «دامنه‌ها» دامنه را اضافه کنید و یک رکورد CNAME به آدرس پیش‌فرض اپ بسازید:
 
 \`\`\`
-www.example.ir.  CNAME  my-shop.gereh.app.
+www.example.ir.  CNAME  my-shop.gereh.dev.
 \`\`\`
 
 برای ریشه دامنه از ALIAS/ANAME استفاده کنید. بعد از تأیید DNS، گواهی SSL خودکار صادر و تمدید می‌شود. اگر دامنه را در گره ثبت کرده‌اید، رکورد را از بخش DNS همان دامنه بسازید.
+
+## CDN و کش لبه
+
+از تب «دامنه‌ها» CDN را روشن کنید. پاسخ‌هایی که اپ با \`Cache-Control\` قابل کش اعلام کند (مثلاً \`public, max-age=3600\`) در لبه شبکه نگه داشته می‌شوند و بدون رسیدن به اپ سرو می‌شوند. پاسخ‌های دارای \`Set-Cookie\` یا \`private\` هرگز کش نمی‌شوند. وضعیت هر پاسخ در سربرگ \`X-Cache-Status\` (\`HIT\`، \`MISS\`…) دیده می‌شود و «پاک کردن کش» همه نسخه‌های ذخیره‌شده را بی‌اعتبار می‌کند. فشرده‌سازی Gzip و Brotli برای همه اپ‌ها روشن است.
 
 ## مقیاس و منابع
 

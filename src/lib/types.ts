@@ -42,7 +42,7 @@ export type PaasMetric = { at: string; cpu: number; ramMb: number; rpm: number }
 export type PaasApp = {
   id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose"; gitUrl: string; gitBranch: string; image: string; rootDir: string;
   buildCommand: string; startCommand: string; port: number; healthPath: string; planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number; diskMount: string;
-  status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; liveDeployment: string | null; at: string; hourly: number;
+  status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; cdn: boolean; liveDeployment: string | null; at: string; hourly: number;
   deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean }[];
   domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
   /** value is null for secrets (and for staff, who never see values) */
@@ -57,6 +57,25 @@ export type PaasDb = {
   links: { appId: string; appName: string; envKey: string }[];
   metrics: PaasMetric[];
 };
+export type InquiryAccess = "open" | "none" | "pending" | "approved" | "rejected";
+export type InquiryState = {
+  services: { id: string; name: string; price: number; active: boolean; approval: boolean; upstream: string; access: InquiryAccess; note: string }[];
+  /** the customer's API account (no secret: revealed on demand) */
+  account: { accountNo: number; apiKey: string; status: "active" | "suspended"; ipAllow: string[]; since: string } | null;
+  calls: { id: string; userId: string; serviceId: string; status: string; charged: number; latencyMs: number; sandbox: boolean; source: string; input: string; at: string }[];
+  stats: { todayCount: number; todaySpend: number; monthCount: number; monthSpend: number; daily: { day: string; count: number; spend: number }[] };
+  /** staff only */
+  grants: { id: number; userId: string; userName: string; serviceId: string; status: "pending" | "approved" | "rejected"; useCase: string; note: string; at: string }[];
+  accounts: { userId: string; name: string; email: string; accountNo: number; status: "active" | "suspended"; calls30: number; spend30: number }[];
+  provider: string;
+};
+export type GeoRecord = { id: number; name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null; iranUp: boolean | null; worldUp: boolean | null; checked: string };
+export type GeoZone = {
+  id: string; userId: string; domain: string; planId: string; status: "pending" | "active" | "suspended"; nsOk: boolean; nsSeen: string[]; nsChecked: string;
+  healthPath: string; syncStatus: "none" | "setup" | "ok" | "lagging" | "failed"; syncLagSec: number | null; lastSync: string; paidUntil: string; autoRenew: boolean; at: string;
+  records: GeoRecord[]; /** staff only: token for the sync agent */ syncToken: string;
+};
+export type GeoState = { plans: { id: string; name: string; price: number; records: number; healthChecks: boolean; sync: "none" | "files" | "full"; active: boolean }[]; zones: GeoZone[]; nameservers: string[]; driver: string };
 export type PaasPlanRow = { id: string; kind: "app" | "db"; name: string; cpu: number; ramMb: number; diskGb: number; price: number; active: boolean };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
@@ -110,6 +129,8 @@ export type ClientDB = {
   paasPlans: PaasPlanRow[];
   /** staff only: "kubernetes" or "simulator" */
   paasDriver: string;
+  inquiry: InquiryState;
+  geo: GeoState;
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */

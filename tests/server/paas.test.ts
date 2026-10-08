@@ -22,7 +22,7 @@ describe("apps", () => {
     await settle();
     const s = await state();
     const app = s.db.paasApps.find((a) => a.id === id)!;
-    expect(app).toMatchObject({ status: "running", url: "https://my-api.gereh.app" });
+    expect(app).toMatchObject({ status: "running", url: "https://my-api.gereh.dev" });
     expect(app.deployments[0]).toMatchObject({ status: "live", trigger: "create", image: true });
     expect(app.env).toEqual([{ key: "API_KEY", secret: true, value: null }, { key: "LOG_LEVEL", secret: false, value: "info" }]);
     const log = await call<{ log: string }>("paas.deployment", app.deployments[0].id);
@@ -107,7 +107,7 @@ describe("apps", () => {
     await asUser();
     const id = await call<string>("paas.createApp", gitApp());
     await settle();
-    expect(await fails("paas.addDomain", id, "evil.gereh.app")).toContain("پلتفرم");
+    expect(await fails("paas.addDomain", id, "evil.gereh.dev")).toContain("پلتفرم");
     expect(await fails("paas.addDomain", id, "not a domain")).toContain("معتبر");
     await call("paas.addDomain", id, "api.acme.ir");
     await call("paas.addDomain", id, "api.example.com"); // simulator: never resolves
@@ -263,7 +263,7 @@ describe("public API and CLI flow", () => {
     const rw = await call<string>("account.createToken", { name: "cli", scope: "read-write", expires: "۹۰ روز" });
     const list = await v1("GET", "apps", rw);
     expect(list.body.data.map((a: { name: string }) => a.name)).toEqual(["novin-shop"]);
-    expect(list.body.data[0]).toMatchObject({ url: "https://novin-shop.gereh.app", status: "running", instances: 2 });
+    expect(list.body.data[0]).toMatchObject({ url: "https://novin-shop.gereh.dev", status: "running", instances: 2 });
     const dep = await v1("POST", "apps/novin-shop/deployments", rw, { message: "from ci", via: "cli" });
     expect(dep.body).toMatchObject({ status: "queued" });
     await settle();
@@ -331,5 +331,18 @@ describe("docker compose", () => {
     const app = (await state()).db.paasApps.find((a) => a.id === id)!;
     expect(app.status).toBe("failed");
     expect((await call<{ log: string }>("paas.deployment", app.deployments[0].id)).log).toContain("ports");
+  });
+});
+
+describe("cdn", () => {
+  it("toggles the edge cache and purges by bumping the cache version", async () => {
+    await asUser();
+    expect(await fails("paas.purgeCache", "app-demo1")).toContain("خاموش");
+    await call("paas.updateApp", "app-demo1", { cdn: true });
+    await call("paas.purgeCache", "app-demo1");
+    const [row] = await (await db()).select().from(paasApps).where(eq(paasApps.id, "app-demo1"));
+    expect(row).toMatchObject({ cdn: true, cacheVersion: 2 });
+    expect((await appSpec(await db(), row)).cdn).toBe(true);
+    expect((await state()).db.paasApps.find((a) => a.id === "app-demo1")!.cdn).toBe(true);
   });
 });

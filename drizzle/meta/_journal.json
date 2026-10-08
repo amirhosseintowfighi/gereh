@@ -50,6 +50,13 @@
       "when": 1791387040486,
       "tag": "0006_paas",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791419452182,
+      "tag": "0007_inquiry_geo_cdn",
+      "breakpoints": true
     }
   ]
 }

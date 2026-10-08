@@ -2,8 +2,9 @@
    and the server. Plans and prices live in the database (paas_plans) so staff can change them. */
 
 export type StackId =
-  | "node" | "nextjs" | "nuxt" | "react" | "python" | "django" | "fastapi" | "flask"
-  | "php" | "laravel" | "wordpress" | "go" | "java" | "dotnet" | "ruby" | "static" | "docker" | "compose";
+  | "node" | "nextjs" | "nuxt" | "react" | "nestjs" | "sveltekit" | "astro" | "remix" | "angular" | "bun" | "deno"
+  | "python" | "django" | "fastapi" | "flask"
+  | "php" | "laravel" | "wordpress" | "go" | "rust" | "java" | "dotnet" | "ruby" | "static" | "docker" | "compose";
 
 export type Stack = { id: StackId; label: string; group: string; port: number; build?: string; start?: string; hint: string };
 
@@ -11,6 +12,13 @@ export const STACKS: Stack[] = [
   { id: "nextjs", label: "Next.js", group: "جاوااسکریپت", port: 3000, build: "npm run build", start: "npm start", hint: "SSR، ISR و App Router" },
   { id: "node", label: "Node.js", group: "جاوااسکریپت", port: 3000, start: "npm start", hint: "Express، NestJS، Fastify و…" },
   { id: "nuxt", label: "Nuxt", group: "جاوااسکریپت", port: 3000, build: "npm run build", start: "node .output/server/index.mjs", hint: "Vue با رندر سمت سرور" },
+  { id: "nestjs", label: "NestJS", group: "جاوااسکریپت", port: 3000, build: "npm run build", start: "node dist/main.js", hint: "API ساخت‌یافته با TypeScript" },
+  { id: "sveltekit", label: "SvelteKit", group: "جاوااسکریپت", port: 3000, build: "npm run build", start: "node build", hint: "با adapter-node" },
+  { id: "astro", label: "Astro", group: "جاوااسکریپت", port: 4321, build: "npm run build", hint: "سایت محتوایی سریع؛ استاتیک یا SSR" },
+  { id: "remix", label: "Remix / React Router", group: "جاوااسکریپت", port: 3000, build: "npm run build", start: "npm start", hint: "فول‌استک React" },
+  { id: "angular", label: "Angular", group: "جاوااسکریپت", port: 80, build: "npm run build", hint: "SPA پشت Nginx" },
+  { id: "bun", label: "Bun", group: "جاوااسکریپت", port: 3000, start: "bun run start", hint: "رانتایم سریع جاوااسکریپت" },
+  { id: "deno", label: "Deno", group: "جاوااسکریپت", port: 8000, start: "deno task start", hint: "TypeScript بدون تنظیمات" },
   { id: "react", label: "React / Vite", group: "جاوااسکریپت", port: 80, build: "npm run build", hint: "خروجی استاتیک پشت CDN" },
   { id: "django", label: "Django", group: "پایتون", port: 8000, start: "gunicorn config.wsgi", hint: "با collectstatic و migrate خودکار" },
   { id: "fastapi", label: "FastAPI", group: "پایتون", port: 8000, start: "uvicorn main:app --host 0.0.0.0", hint: "ASGI با uvicorn" },
@@ -20,6 +28,7 @@ export const STACKS: Stack[] = [
   { id: "php", label: "PHP", group: "PHP", port: 80, hint: "PHP 8 با Nginx" },
   { id: "wordpress", label: "WordPress", group: "PHP", port: 80, hint: "با دیسک دائمی برای uploads" },
   { id: "go", label: "Go", group: "کامپایلی", port: 8080, hint: "باینری سبک و سریع" },
+  { id: "rust", label: "Rust", group: "کامپایلی", port: 8080, hint: "Axum، Actix و…؛ cargo build --release" },
   { id: "java", label: "Java / Spring", group: "کامپایلی", port: 8080, hint: "Maven یا Gradle" },
   { id: "dotnet", label: ".NET", group: "کامپایلی", port: 8080, hint: "ASP.NET Core" },
   { id: "ruby", label: "Ruby on Rails", group: "سایر", port: 3000, hint: "با Puma" },
@@ -66,11 +75,18 @@ const deps = (pkg: Record<string, unknown> | null) => ({ ...(pkg?.dependencies a
 export function detectStack(files: Files): StackId | null {
   if (has(files, "docker-compose.yml") || has(files, "docker-compose.yaml") || has(files, "compose.yml") || has(files, "compose.yaml")) return "compose";
   if (has(files, "Dockerfile")) return "docker";
+  if (has(files, "deno.json") || has(files, "deno.jsonc")) return "deno";
   if (has(files, "package.json")) {
     const d = deps(json(files, "package.json"));
     if (d.next) return "nextjs";
     if (d.nuxt) return "nuxt";
-    if (d.vite || d["react-scripts"]) return d.express || d.fastify || d["@nestjs/core"] ? "node" : "react";
+    if (d["@nestjs/core"]) return "nestjs";
+    if (d["@sveltejs/kit"]) return "sveltekit";
+    if (d.astro) return "astro";
+    if (d["@remix-run/node"] || d["@react-router/node"] || d["@react-router/serve"]) return "remix";
+    if (d["@angular/core"]) return "angular";
+    if (has(files, "bun.lockb") || has(files, "bun.lock")) return "bun";
+    if (d.vite || d["react-scripts"]) return d.express || d.fastify ? "node" : "react";
     return "node";
   }
   const py = [files.get("requirements.txt"), files.get("pyproject.toml"), files.get("Pipfile")].filter(Boolean).join("\n").toLowerCase();
@@ -86,6 +102,7 @@ export function detectStack(files: Files): StackId | null {
   }
   if (has(files, "wp-config.php") || has(files, "wp-config-sample.php")) return "wordpress";
   if (has(files, "go.mod")) return "go";
+  if (has(files, "Cargo.toml")) return "rust";
   if (has(files, "pom.xml") || has(files, "build.gradle") || has(files, "build.gradle.kts")) return "java";
   if ([...files.keys()].some((p) => /\.(csproj|fsproj|sln)$/.test(p))) return "dotnet";
   if (has(files, "Gemfile")) return "ruby";

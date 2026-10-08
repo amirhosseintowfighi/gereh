@@ -21,9 +21,9 @@ export const EMPTY_DB: ClientDB = {
   users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
   notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
-    legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.app" },
+    legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "",
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -81,7 +81,8 @@ export const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(16)), (x) => abc[x % abc.length]).join("");
 };
 
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest"]);
+export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -221,6 +222,7 @@ export const api = {
     scale: (appId: string, s: { planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number }) => rpc("paas.scale", appId, s),
     power: (appId: string, action: "start" | "stop" | "restart") => rpc("paas.power", appId, action),
     deleteApp: (appId: string, confirm: string) => rpc("paas.deleteApp", appId, confirm),
+    purgeCache: (appId: string) => rpc("paas.purgeCache", appId),
     regenHook: (appId: string) => rpc("paas.regenHook", appId),
     addDomain: (appId: string, host: string) => rpc<string>("paas.addDomain", appId, host),
     checkDomain: (id: string) => rpc("paas.checkDomain", id),
@@ -256,6 +258,31 @@ export const api = {
       x.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
       x.send(form);
     }),
+  },
+  inquiry: {
+    activate: () => rpc("inquiry.activate"),
+    reveal: () => rpc<string>("inquiry.reveal"),
+    rotate: () => rpc("inquiry.rotate"),
+    setIps: (ips: string[]) => rpc("inquiry.setIps", ips),
+    requestAccess: (serviceId: string, useCase: string) => rpc("inquiry.requestAccess", serviceId, useCase),
+    test: (serviceId: string, body: Record<string, string>, sandbox: boolean) => rpc<{ http: number; body: Record<string, unknown> }>("inquiry.test", serviceId, body, sandbox),
+    adminService: (id: string, patch: { name?: string; price?: number; active?: boolean; approval?: boolean; upstream?: string }) => rpc("inquiry.adminService", id, patch),
+    decide: (grantId: number, approve: boolean, note: string) => rpc("inquiry.decide", grantId, approve, note),
+    adminAccount: (userId: string, status: "active" | "suspended") => rpc("inquiry.adminAccount", userId, status),
+    adminProvider: () => rpc<{ provider: string }>("inquiry.adminProvider"),
+  },
+  geo: {
+    create: (z: { domain: string; planId: string; iran: string; world: string }) => rpc<string>("geo.create", z),
+    addRecord: (zoneId: string, r: GeoRecordInput) => rpc("geo.addRecord", zoneId, r),
+    updateRecord: (zoneId: string, id: number, r: GeoRecordInput) => rpc("geo.updateRecord", zoneId, id, r),
+    removeRecord: (zoneId: string, id: number) => rpc("geo.removeRecord", zoneId, id),
+    checkNs: (zoneId: string) => rpc<{ ok: boolean; seen: string[] }>("geo.checkNs", zoneId),
+    settings: (zoneId: string, patch: { autoRenew?: boolean; healthPath?: string }) => rpc("geo.settings", zoneId, patch),
+    changePlan: (zoneId: string, planId: string) => rpc("geo.changePlan", zoneId, planId),
+    remove: (zoneId: string, confirm: string) => rpc("geo.delete", zoneId, confirm),
+    adminPlan: (id: string, patch: { name?: string; price?: number; records?: number; active?: boolean }) => rpc("geo.adminPlan", id, patch),
+    adminZone: (id: string, patch: { status?: "pending" | "active" | "suspended"; syncStatus?: "none" | "setup" | "ok" | "lagging" | "failed"; extendDays?: number }) => rpc("geo.adminZone", id, patch),
+    adminTest: () => rpc<{ driver: string; detail: string }>("geo.adminTest"),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),

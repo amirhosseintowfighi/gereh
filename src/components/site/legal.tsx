@@ -32,12 +32,12 @@ export function LegalPage({ doc }: { doc: keyof typeof LEGAL }) {
       <PageHeader icon="file-text" crumb={d.title} title="قوانین و تعهدات" sub="آخرین به‌روزرسانی: مهر ۱۴۰۴" />
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <nav aria-label="اسناد حقوقی" className="flex justify-center mb-8">
-          <div className="inline-flex p-1 rounded-2xl bg-white/[0.07] border border-white/15">
+          <div className="max-w-full overflow-x-auto no-scrollbar"><div className="inline-flex p-1 rounded-2xl bg-white/[0.07] border border-white/15">
             {(Object.keys(LEGAL) as (keyof typeof LEGAL)[]).map((k) => (
               <Link key={k} href={LEGAL[k].path} aria-current={k === doc ? "page" : undefined}
                 className={"px-4 py-2 text-sm rounded-xl whitespace-nowrap transition-colors " + (k === doc ? "bg-[#f5f7fb] text-slate-900 font-bold" : "text-white/70 hover:text-white")}>{LEGAL[k].title}</Link>
             ))}
-          </div>
+          </div></div>
         </nav>
         <article className={GLASS + " fade-in rounded-[1.6rem] p-6 sm:p-10 space-y-8"}>
           <h2 className="text-2xl font-black">{d.title}</h2>

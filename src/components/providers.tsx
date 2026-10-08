@@ -12,16 +12,34 @@ import { Icon } from "./icon";
 import { CheckDraw } from "./ui";
 import { AsyncButton, Modal, Num, useDialog } from "./ui-client";
 
+/** every product, grouped; the header's mega menu, the mobile menu, the footer and the command palette use it */
+export const PRODUCTS: { group: string; items: { href: string; label: string; icon: string; desc: string; badge?: string }[] }[] = [
+  { group: "زیرساخت", items: [
+    { href: "/vps", label: "سرور ابری", icon: "server", desc: "NVMe و root کامل؛ آماده در کمتر از یک دقیقه" },
+    { href: "/vps#dedicated", label: "سرور اختصاصی", icon: "server-cog", desc: "EPYC و Xeon با پورت تا ۱۰ گیگابیت" },
+    { href: "/hosting", label: "هاست وب", icon: "layers", desc: "LiteSpeed، SSL رایگان و بکاپ روزانه" },
+    { href: "/domains", label: "ثبت دامنه", icon: "globe", desc: ".ir و بیش از ۱۵ پسوند بین‌المللی" },
+  ] },
+  { group: "پلتفرم ابری", items: [
+    { href: "/paas", label: "گره اپ (PaaS)", icon: "rocket", desc: "کد را بفرستید؛ بیلد، SSL و مقیاس با ما" },
+    { href: "/paas/databases", label: "پایگاه داده مدیریت‌شده", icon: "database", desc: "PostgreSQL، MySQL، Redis با پشتیبان روزانه" },
+    { href: "/geo-dns", label: "Geo DNS", icon: "radar", desc: "حفظ رتبه گوگل در قطعی اینترنت", badge: "جدید" },
+  ] },
+  { group: "API و خدمات", items: [
+    { href: "/inquiry", label: "API استعلام", icon: "fingerprint", desc: "ثبت احوال، شاهکار، کارت و شبا؛ پرداخت به ازای مصرف", badge: "جدید" },
+    { href: "/devops", label: "خدمات دواپس", icon: "workflow", desc: "تیم دواپس شما، بدون استخدام" },
+  ] },
+];
+
+/** top-level pages (command palette, header links) */
 export const PAGES = [
   { href: "/", label: "خانه", icon: "house" },
-  { href: "/vps", label: "سرور ابری", icon: "server" },
-  { href: "/hosting", label: "هاست وب", icon: "layers" },
-  { href: "/domains", label: "دامنه", icon: "globe" },
-  { href: "/paas", label: "گره اپ", icon: "rocket" },
-  { href: "/devops", label: "دواپس", icon: "workflow" },
+  ...PRODUCTS.flatMap((g) => g.items.filter((i) => !i.href.includes("#"))),
+  { href: "/blog", label: "بلاگ", icon: "newspaper" },
+  { href: "/kb", label: "راهنما", icon: "book-open" },
   { href: "/about", label: "درباره ما", icon: "building-2" },
   { href: "/contact", label: "تماس", icon: "message-circle" },
-] as const;
+];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();

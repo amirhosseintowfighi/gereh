@@ -101,7 +101,7 @@ export function VpsPlans() {
         return (
           <div key={k} hidden={kind !== k}>
             <h2 className="sr-only-focusable">{k === "cloud" ? "پلن‌های سرور ابری" : "پلن‌های سرور اختصاصی"}</h2>
-            <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3")}>
+            <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3")}>
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)}
                   extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div>
@@ -187,7 +187,7 @@ export function HostingPlans() {
         return (
           <div key={k} hidden={kind !== k}>
             <h2 className="sr-only-focusable">{k === "linux" ? "پلن‌های هاست لینوکس" : "پلن‌های هاست وردپرس"}</h2>
-            <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3 max-w-5xl mx-auto")}>
+            <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto")}>
               {plans.map((p) => (
                 <PlanCard key={p.id} p={p} rows={HOST_ROWS} badge="پیشنهاد ما" priceBase={mPrice(p)}
                   extra={yearly ? <div className="text-[11px] text-emerald-300 mt-1">صورت‌حساب سالانه: {toman(mPrice(p) * 12)}</div> : null}

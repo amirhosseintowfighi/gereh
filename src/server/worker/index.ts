@@ -9,6 +9,8 @@ import { claim, complete, enqueue, retry, type JobType } from "../jobs";
 import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
+import { settleInquiry } from "../inquiry/service";
+import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
 import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasPoll } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
@@ -36,12 +38,17 @@ const handlers: Record<JobType, Handler> = {
   "paas.billing": (db) => paasBilling(db),
   "paas.collect": (db) => paasCollect(db),
   "paas.daily": (db) => paasDaily(db),
+  "inquiry.settle": (db) => settleInquiry(db),
+  "geo.billing": (db) => geoBilling(db),
+  "geo.health": (db) => geoHealth(db),
+  "geo.ns": (db, p) => geoNsCheck(db, p as never),
 };
 
 /** periodic jobs: [name, interval in minutes] */
 export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
   ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60],
+  ["inquiry.settle", 10], ["geo.billing", 24 * 60], ["geo.health", 5], ["geo.ns", 60],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */

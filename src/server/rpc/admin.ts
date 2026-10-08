@@ -217,7 +217,7 @@ export const adminRpc = {
     if (patch.paasDomain) {
       // apps run customer code: sharing the site's cookie scope would expose sessions
       const site = new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").hostname.replace(/^www\./, "");
-      if (patch.paasDomain === site || patch.paasDomain.endsWith("." + site)) fail("دامنه اپ‌ها باید جدا از دامنه سایت باشد (مثلاً gereh.app).");
+      if (patch.paasDomain === site || patch.paasDomain.endsWith("." + site)) fail("دامنه اپ‌ها باید جدا از دامنه سایت باشد (مثلاً gereh.dev).");
     }
     const { smsKey, smsKeySet: _ignored, ...rest } = patch;
     const [row] = await ctx.db.select().from(kv).where(eq(kv.key, "settings"));

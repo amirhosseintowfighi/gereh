@@ -12,12 +12,12 @@ import { fa, toman } from "@/lib/format";
 import { faqLd, pageMeta } from "@/lib/seo";
 
 const meta = pageMeta({
-  title: "گره | سرور ابری، هاست و دامنه",
-  description: "خرید سرور ابری با دیسک NVMe و آماده‌سازی زیر یک دقیقه، سرور اختصاصی EPYC و Xeon، هاست وب LiteSpeed و ثبت دامنه .ir و بین‌المللی؛ دیتاسنتر تهران، اصفهان و اروپا.",
+  title: "گره | سرور ابری، هاست، PaaS و Geo DNS",
+  description: "سرور ابری NVMe با آماده‌سازی زیر یک دقیقه، سرور اختصاصی، هاست وب، دامنه، استقرار اپ از Git (PaaS)، Geo DNS برای حفظ رتبه گوگل در قطعی اینترنت و API استعلام هویتی و بانکی؛ همه با یک حساب.",
   path: "/", en: "/en",
 });
 // absolute so the "%s | گره" template doesn't repeat the brand
-export const metadata = { ...meta, title: { absolute: "گره | سرور ابری، هاست و دامنه" } };
+export const metadata = { ...meta, title: { absolute: "گره | سرور ابری، هاست، PaaS و Geo DNS" } };
 
 function Hero() {
   const metrics = [
@@ -35,11 +35,12 @@ function Hero() {
             همه سیستم‌ها عملیاتی هستند
             <Icon name="chevron-left" size={14} className="transition group-hover:-translate-x-0.5" />
           </a>
-          <h1 className="hero-in d2 hero-title mt-6 text-[3rem] sm:text-[5.6rem] font-black leading-[1.18] sm:leading-[1.1] tracking-[-0.035em]">
-            سرعت ابر،<br />استواری زمین
+          <p className="hero-in d2 mt-6 text-sm font-bold acc">سرعت ابر، استواری زمین</p>
+          <h1 className="hero-in d2 hero-title mt-3 text-[2.35rem] sm:text-[4.4rem] font-black leading-[1.25] sm:leading-[1.15] tracking-[-0.03em]">
+            زیرساختی که کسب‌وکارتان را آنلاین نگه می‌دارد
           </h1>
-          <p className="hero-in d3 mt-7 text-white/55 max-w-md text-base sm:text-lg leading-8">
-            زیرساخت ابری برای محصولاتی که نباید کند شوند. سخت‌افزار نسل جدید، شبکه چندمسیره و سروری که در کمتر از یک دقیقه آماده است.
+          <p className="hero-in d3 mt-6 text-white/65 max-w-lg text-base sm:text-lg leading-8">
+            سرور ابری آماده در کمتر از یک دقیقه، هاست و دامنه، استقرار اپ از Git، Geo DNS برای عبور از قطعی اینترنت و API استعلام؛ همه با یک حساب، یک کیف پول و پشتیبانی شبانه‌روزی.
           </p>
           <div className="hero-in d3 mt-9 flex flex-wrap gap-3">
             <a href="#builder" className={BTN_P + " px-6 h-12"}><Icon name="rocket" size={18} /> ساخت سرور</a>
@@ -142,25 +143,27 @@ function Features() {
   );
 }
 
-const PAAS_TEASER: [string, string][] = [["code-xml", "git push = استقرار"], ["shield-check", "SSL و دامنه خودکار"], ["database", "PostgreSQL، MySQL، Redis"], ["gauge", "مقیاس خودکار"]];
-function PaasTeaser() {
+const NEW_PRODUCTS = [
+  { href: "/paas", icon: "rocket", kicker: "گره اپ · PaaS", title: "کد را بفرستید، بقیه با ما", text: "از Git، ZIP یا Docker در چند دقیقه آنلاین شوید؛ SSL، دامنه، پایگاه داده و مقیاس خودکار، با پرداخت ساعتی.", points: ["git push = استقرار", "PostgreSQL، MySQL، Redis", "مقیاس خودکار"], cta: "آشنایی با گره اپ" },
+  { href: "/geo-dns", icon: "radar", kicker: "Geo DNS", title: "قطعی اینترنت، رتبه گوگل را نبرد", text: "کاربر ایرانی به سرور ایران، گوگل و کاربران خارج به سرور خارج. همگام‌سازی فایل و پایگاه داده هم با ما.", points: ["حفظ رتبه در گوگل", "سوییچ خودکار", "همگام‌سازی دیتابیس"], cta: "حفظ سایت در قطعی" },
+  { href: "/inquiry", icon: "fingerprint", kicker: "API استعلام", title: "هویت مشتری را قبل از ریسک بشناسید", text: "ثبت احوال، شاهکار، کارت و شبا، کد پستی و چک صیادی با یک API. بدون هزینه ماهانه؛ فقط استعلام موفق.", points: ["پرداخت به ازای مصرف", "sandbox رایگان", "ورودی اشتباه رایگان"], cta: "دریافت کلید API" },
+];
+function NewProducts() {
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16" aria-labelledby="paas-teaser">
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] p-8 sm:p-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-center"
-        style={{ background: "radial-gradient(ellipse 70% 100% at 0% 0%, rgba(120,230,200,.13), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015))" }}>
-        <div>
-          <p className="text-xs text-white/60 flex items-center gap-1.5"><Icon name="sparkles" size={14} className="acc" />جدید: گره اپ (PaaS)</p>
-          <h2 id="paas-teaser" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">کد را بفرستید، بقیه با ما</h2>
-          <p className="mt-4 text-white/70 leading-8">اپ Node.js، Python، PHP، Go یا Docker را از Git یا ZIP در چند دقیقه آنلاین کنید؛ بدون مدیریت سرور و با پرداخت ساعتی.</p>
-          <div className="mt-7 flex flex-col sm:flex-row gap-3">
-            <Link href={"/paas" as never} className={BTN_P + " px-6 py-3"}><Icon name="rocket" size={18} />آشنایی با گره اپ</Link>
-            <Link href={"/panel/apps/new" as never} className={BTN_G + " px-6 py-3"}>ساخت اولین اپ</Link>
-          </div>
-        </div>
-        <ul className="grid grid-cols-2 gap-3">
-          {PAAS_TEASER.map(([ic, t]) => <li key={t} className={GLASS_SOFT + " rounded-2xl p-4 flex items-center gap-3 text-sm font-bold"}><Icon name={ic} size={19} className="acc shrink-0" />{t}</li>)}
-        </ul>
-      </div>
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="new-products">
+      <SectionHead id="new-products" title="فراتر از سرور" sub="سه سرویس تازه برای وقتی که سرعت توسعه، دسترس‌پذیری در بحران یا اعتماد به کاربر مهم است." />
+      <ul className="grid lg:grid-cols-3 gap-4">
+        {NEW_PRODUCTS.map((p) => (
+          <li key={p.href} className={"spot rounded-[1.75rem] p-6 sm:p-7 flex flex-col " + GLASS + " hover:border-white/30 transition-colors"}>
+            <span className="flex items-center justify-between gap-3"><IconTile name={p.icon} /><span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-300/25">جدید</span></span>
+            <p className="mt-5 text-xs text-white/55">{p.kicker}</p>
+            <h3 className="mt-1.5 text-xl font-black leading-8">{p.title}</h3>
+            <p className="mt-2 text-white/65 text-sm leading-7 flex-1">{p.text}</p>
+            <ul className="mt-5 flex flex-wrap gap-2">{p.points.map((t) => <li key={t} className="text-[11px] rounded-lg px-2.5 py-1.5 bg-white/[0.06] border border-white/[0.1]">{t}</li>)}</ul>
+            <Link href={p.href as never} className={BTN_G + " mt-6 h-11 text-sm"}>{p.cta} <Icon name="arrow-left" size={16} /></Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -222,7 +225,7 @@ export default function HomePage() {
       <Performance />
       <Steps />
       <Features />
-      <PaasTeaser />
+      <NewProducts />
       <DevopsTeaser />
       <Testimonials />
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-24">

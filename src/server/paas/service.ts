@@ -35,7 +35,7 @@ export const loadPlans = (db: DB | Tx) => db.select().from(paasPlans).orderBy(as
 
 /** apps live under a separate domain (never a subdomain of the main site: cookie isolation) */
 export async function appsDomain(db: DB | Tx) {
-  return (await getSettings(db as DB)).paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.app";
+  return (await getSettings(db as DB)).paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.dev";
 }
 export const defaultHost = (name: string, domain: string) => name + "." + domain;
 
@@ -76,6 +76,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     rootDir: app.rootDir, buildCommand: app.buildCommand, startCommand: app.startCommand, port: app.port, healthPath: app.healthPath,
     cpu: plan?.cpu ?? 0.25, ramMb: plan?.ramMb ?? 256, instances: app.instances, autoscale: app.autoscale, maxInstances: app.maxInstances,
     diskGb: app.diskGb, diskMount: app.diskMount, env: vars, hosts: [defaultHost(app.name, base), ...domains.map((x) => x.host)],
+    cdn: app.cdn, cacheVersion: app.cacheVersion,
   };
 }
 

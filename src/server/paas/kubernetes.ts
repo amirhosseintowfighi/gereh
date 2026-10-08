@@ -40,7 +40,7 @@ const cfg = () => ({
   mcImage: env("PAAS_MC_IMAGE", "minio/mc:RELEASE.2025-04-16T18-13-26Z"),
   bucket: env("PAAS_BACKUP_BUCKET", "gereh-backups"),
   ingressIp: env("PAAS_INGRESS_IP"),
-  appsDomain: env("PAAS_APPS_DOMAIN", "gereh.app"),
+  appsDomain: env("PAAS_APPS_DOMAIN", "gereh.dev"),
   // "<namespace>/<service>:<port>" of Prometheus, read through the API server's service proxy
   prometheus: env("PAAS_PROMETHEUS"),
 });
@@ -169,6 +169,19 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
   } };
 }
 
+/** edge cache (zone "gereh_cdn" is declared in the controller's http-snippet, see setup-cluster.sh).
+    Honours the app's Cache-Control and never stores responses that set cookies; the version in the
+    key is how "purge" works. Only this driver writes Ingresses, so the snippet is not user input. */
+export const cdnSnippet = (version: number) => [
+  "proxy_cache gereh_cdn;",
+  `proxy_cache_key "$scheme$host$request_uri|v${Math.max(1, Math.floor(version))}";`,
+  "proxy_cache_valid 200 301 302 10m;",
+  "proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;",
+  "proxy_cache_background_update on;",
+  "proxy_cache_lock on;",
+  "add_header X-Cache-Status $upstream_cache_status always;",
+].join("\n");
+
 /** Services first: their cluster IPs become host aliases so compose services find each other by name */
 export function serviceObjects(app: AppSpec, image: string): Obj[] {
   const ns = nsOf(app.userId), labels = appLabels(app);
@@ -202,6 +215,7 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
     { apiVersion: "networking.k8s.io/v1", kind: "Ingress", metadata: { name: app.name, namespace: ns, labels, annotations: {
       ...(custom.length ? { "cert-manager.io/cluster-issuer": c.issuer } : {}),
       "nginx.ingress.kubernetes.io/proxy-body-size": "50m", "nginx.ingress.kubernetes.io/proxy-read-timeout": "120",
+      ...(app.cdn ? { "nginx.ingress.kubernetes.io/configuration-snippet": cdnSnippet(app.cacheVersion) } : {}),
     } }, spec: {
       ingressClassName: c.ingressClass,
       // the default host has no secretName: the controller serves its default (wildcard) certificate
@@ -440,6 +454,12 @@ export class KubernetesDriver implements PaasDriver {
     for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
     if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
+  }
+
+  /** routing only: the Ingress (domains, TLS, CDN) */
+  async updateRouting(app: AppSpec) {
+    const ing = appObjects(app, "", "").find((o) => o.kind === "Ingress");
+    if (ing) await apply(ing as never);
   }
 
   /** every workload of the app (one, or one per compose service) is fully rolled out */

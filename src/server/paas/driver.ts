@@ -12,6 +12,8 @@ export type AppSpec = {
   gitUrl: string; gitBranch: string; image: string; rootDir: string; buildCommand: string; startCommand: string;
   port: number; healthPath: string; cpu: number; ramMb: number; instances: number; autoscale: boolean; maxInstances: number;
   diskGb: number; diskMount: string; env: Record<string, string>; hosts: string[];
+  /** edge cache; cacheVersion is part of the cache key, so bumping it empties the cache */
+  cdn: boolean; cacheVersion: number;
 };
 export type DbSpec = { id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean };
 export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string };
@@ -26,6 +28,8 @@ export interface PaasDriver {
   /** applies the app's workload with this image (create or update) */
   release(app: AppSpec, image: string, deploymentId: string): Promise<void>;
   rolloutReady(app: AppSpec): Promise<boolean>;
+  /** re-applies routing only (domains, CDN); no restart */
+  updateRouting(app: AppSpec): Promise<void>;
   setState(app: AppSpec, action: "start" | "stop" | "restart"): Promise<void>;
   remove(app: AppSpec): Promise<void>;
   logs(app: AppSpec, tail: number): Promise<string[]>;
@@ -66,6 +70,14 @@ function buildScript(app: AppSpec): string[] {
     dotnet: ["==> Detected .NET 8", "$ dotnet publish -c Release", "  app -> /app/publish/"],
     ruby: ["==> Detected Ruby 3.3 (Rails)", "$ bundle install", "$ bundle exec rails assets:precompile"],
     static: ["==> Static site: serving with nginx"],
+    nestjs: ["==> Detected NestJS (node 22)", "$ npm ci", "$ npm run build", "   nest build: done"],
+    sveltekit: ["==> Detected SvelteKit (adapter-node)", "$ npm ci", "$ npm run build", "   ✓ built in 4.2s"],
+    astro: ["==> Detected Astro", "$ npm ci", "$ npm run build", "   ✓ 38 page(s) built"],
+    remix: ["==> Detected React Router / Remix", "$ npm ci", "$ npm run build", "   ✓ built server and client"],
+    angular: ["==> Detected Angular", "$ npm ci", "$ npm run build", "   Application bundle generation complete.", "==> Serving dist/ with nginx"],
+    bun: ["==> Detected Bun 1.2", "$ bun install", "   124 packages installed"],
+    deno: ["==> Detected Deno 2", "$ deno install", "$ deno task build"],
+    rust: ["==> Detected Rust (cargo)", "$ cargo build --release", "   Compiling app v0.1.0", "    Finished `release` profile [optimized]"],
     docker: ["==> Building Dockerfile", "#1 [internal] load build definition from Dockerfile", "#7 exporting layers done"],
     compose: ["==> Building services from docker-compose.yml", "   web: build done", "   worker: build done"],
   };
@@ -106,6 +118,7 @@ export class SimulatorDriver implements PaasDriver {
   }
   async release() {}
   async rolloutReady() { return true; }
+  async updateRouting() {}
   async setState() {}
   async remove() {}
   async logs(app: AppSpec, tail: number) {

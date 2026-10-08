@@ -5,6 +5,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { TLDS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
+import { SITE_URL } from "@/lib/seo";
 import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type DnsRecord, type Invoice, type Server, type Ticket } from "@/lib/store";
 import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
@@ -553,7 +554,7 @@ export function UserKeys() {
               <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText="توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند قطع می‌شوند." onClick={async () => { await api.account.revokeToken(x.id); notify("توکن باطل شد"); }}>ابطال</AsyncButton>
             </div>
           ))}
-          <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H &quot;Authorization: Bearer $GEREH_TOKEN&quot; https://api.gereh.net/v1/servers</div>
+          <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H &quot;Authorization: Bearer $GEREH_TOKEN&quot; {SITE_URL}/api/v1/servers</div>
         </Card>
       </div>
       <Modal open={keyM} onClose={() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"

@@ -7,6 +7,7 @@ import { fa, toman } from "@/lib/format";
 import { appMonthly, DB_ENGINES, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, STACKS, stackOf } from "@/lib/paas";
 import { api, useDB, useMyId, useSession } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
+import { zipFolder } from "@/lib/zip-client";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
@@ -15,7 +16,7 @@ import { Cost, cpuLabel, DeployPill, EnvEditor, envProblems, type EnvRow, PlanPi
 
 const SOURCES = [
   { id: "git", icon: "code-xml", label: "مخزن Git", hint: "GitHub، GitLab، Gitea یا هر مخزن HTTPS؛ با هر push خودکار مستقر می‌شود" },
-  { id: "zip", icon: "upload", label: "فایل ZIP", hint: "پوشه پروژه را فشرده کنید و بارگذاری کنید (تا ۲۰۰ مگ)" },
+  { id: "zip", icon: "upload", label: "فایل ZIP یا پوشه", hint: "پوشه پروژه را مستقیم انتخاب کنید یا فایل ZIP آن را بارگذاری کنید (تا ۲۰۰ مگ)" },
   { id: "image", icon: "box", label: "ایمیج Docker", hint: "از Docker Hub، GHCR یا هر رجیستری عمومی" },
   { id: "compose", icon: "layers", label: "Docker Compose", hint: "ZIP شامل docker-compose.yml و سرویس‌ها" },
 ] as const;
@@ -67,7 +68,7 @@ export function NewApp() {
   const set = (patch: Partial<typeof f>) => setF((x) => ({ ...x, ...patch }));
   const plan = plans.find((p) => p.id === f.planId) ?? plans[0];
   const monthly = plan ? appMonthly(plan, f.instances, f.diskGb) : 0;
-  const domain = db.settings.paasDomain || "gereh.app";
+  const domain = db.settings.paasDomain || "gereh.dev";
   const nameError = f.name && (!PAAS_NAME_RE.test(f.name) ? "حروف کوچک انگلیسی، عدد و خط تیره؛ ۳ تا ۳۰ نویسه" : PAAS_RESERVED.has(f.name) ? "این نام رزرو شده است" : "");
   const pickStack = (id: string) => set({ stack: id, port: stackOf(id)?.port ?? 3000 });
 
@@ -115,12 +116,21 @@ export function NewApp() {
               </div>}
               {source === "image" && <Field label="ایمیج" hint="باید عمومی باشد؛ پورتی که اپ روی آن گوش می‌دهد را پایین وارد کنید."><input value={f.image} onChange={(e) => set({ image: e.target.value.trim() })} dir="ltr" placeholder="ghcr.io/user/app:latest" className={INPUT + " text-left"} /></Field>}
               {(source === "zip" || source === "compose") && (
-                <div>
+                <div className="space-y-2">
                   <label className="block rounded-2xl border-2 border-dashed border-white/[0.15] hover:border-white/30 p-6 text-center cursor-pointer transition">
                     <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
                     <Icon name="cloud-upload" size={28} className="mx-auto acc" />
                     <span className="block mt-2 text-sm font-bold">{upload ? upload.name : "فایل ZIP پروژه را انتخاب کنید"}</span>
                     <span className="block text-[11px] text-white/55 mt-1">{upload ? fa(upload.files) + " فایل · " + fa(Math.round(upload.bytes / 1024 / 1024 * 10) / 10, 1) + " مگابایت" + (upload.stack ? " · تشخیص: " + (stackOf(upload.stack)?.label ?? upload.stack) : "") : "node_modules، .git و فایل‌های بیلد را داخل ZIP نگذارید"}</span>
+                  </label>
+                  <label className={BTN_G + " w-full h-11 text-sm cursor-pointer"}>
+                    {/* @ts-expect-error non-standard but supported by every current browser */}
+                    <input type="file" webkitdirectory="" multiple className="sr-only" onChange={async (e) => {
+                      const list = e.target.files; if (!list?.length) return;
+                      try { setError(""); const z = await zipFolder(list); if (z.skipped) notify(fa(z.skipped) + " فایل (node_modules، .git، .env…) کنار گذاشته شد", "info"); await onFile(z.file); }
+                      catch (err) { setError((err as Error).message); }
+                    }} />
+                    <Icon name="folder-open" size={16} />انتخاب پوشه پروژه
                   </label>
                   {progress !== null && <div className="mt-2 h-1.5 rounded-full bg-white/[0.08] overflow-hidden" role="progressbar" aria-label="پیشرفت بارگذاری" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><div className="h-full acc-bg" style={{ width: progress + "%" }} /></div>}
                 </div>
@@ -422,6 +432,13 @@ function AppDomains({ app }: { app: PaasApp }) {
             <tbody><tr className="border-t border-white/[0.08]"><td className="p-2">CNAME</td><td className="p-2">www</td><td className="p-2"><CopyText text={target} className="font-mono" /></td></tr></tbody></table>
         </div>
         <p className="text-[11px] text-white/55 leading-6 mt-3">برای ریشه دامنه (بدون www) اگر سرویس DNS شما CNAME روی @ را پشتیبانی نمی‌کند، از ALIAS/ANAME استفاده کنید. گواهی SSL پس از تأیید خودکار صادر می‌شود.{db.domains.length ? " دامنه‌های شما در گره را از بخش دامنه‌ها می‌توانید تنظیم کنید." : ""}</p>
+      </Card>
+      <Card title="CDN و کش لبه" icon="zap" className="lg:col-span-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <p className="text-sm text-white/65 leading-7 max-w-2xl">پاسخ‌هایی که اپ با <code dir="ltr">Cache-Control</code> قابل کش اعلام کند (تصاویر، CSS، JS، صفحه‌های عمومی) در لبه شبکه نگه داشته می‌شوند و بدون رسیدن به اپ سرو می‌شوند؛ سریع‌تر و با مصرف کمتر. پاسخ‌هایی که کوکی تنظیم می‌کنند یا <code dir="ltr">private</code> هستند هرگز کش نمی‌شوند. فشرده‌سازی Gzip و Brotli همیشه روشن است. وضعیت هر پاسخ در سربرگ <code dir="ltr">X-Cache-Status</code> دیده می‌شود.</p>
+          <Switch on={app.cdn} onChange={async (v) => { await api.paas.updateApp(app.id, { cdn: v }); notify(v ? "CDN روشن شد" : "CDN خاموش شد", "zap"); }} label="CDN" />
+        </div>
+        {app.cdn && <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />پاک کردن کش</AsyncButton>}
       </Card>
     </div>
   );

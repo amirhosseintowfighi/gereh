@@ -1,7 +1,7 @@
 # Source preparation image for build Jobs: git, wget, unzip and Nixpacks (writes a Dockerfile for
 # projects that don't have one). Build and push it to your registry, then set PAAS_BUILDER_IMAGE:
-#   docker build -t registry.gereh.app/gereh/builder:1 deploy/paas/builder
-#   docker push registry.gereh.app/gereh/builder:1
+#   docker build -t registry.gereh.dev/gereh/builder:1 deploy/paas/builder
+#   docker push registry.gereh.dev/gereh/builder:1
 FROM debian:bookworm-slim
 ARG NIXPACKS_VERSION=1.39.0
 RUN apt-get update \

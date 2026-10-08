@@ -1,4 +1,4 @@
-# Wildcard certificate for the apps domain (*.gereh.app), served by ingress-nginx as its default
+# Wildcard certificate for the apps domain (*.gereh.dev), served by ingress-nginx as its default
 # certificate so every app gets HTTPS instantly without hitting Let's Encrypt rate limits.
 # Wildcards need DNS-01: this example uses Cloudflare; see cert-manager docs for other DNS providers
 # (PowerDNS has a webhook solver). Create the API token secret first:
@@ -22,4 +22,4 @@ metadata: { name: apps-wildcard, namespace: ingress-nginx }
 spec:
   secretName: apps-wildcard-tls
   issuerRef: { name: letsencrypt-dns, kind: ClusterIssuer }
-  dnsNames: ["gereh.app", "*.gereh.app"]
+  dnsNames: ["gereh.dev", "*.gereh.dev"]

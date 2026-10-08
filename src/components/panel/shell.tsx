@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
@@ -12,27 +12,32 @@ import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { Menu } from "../ui-client";
 
-const USER_NAV = [
+type NavItem = { href: string; label: string; icon: string; group?: string };
+const USER_NAV: NavItem[] = [
   { href: "/panel", label: "داشبورد", icon: "layout-dashboard" },
-  { href: "/panel/servers", label: "سرورهای ابری", icon: "server" },
-  { href: "/panel/hosting", label: "هاست‌ها", icon: "layers" },
-  { href: "/panel/apps", label: "اپ‌ها", icon: "rocket" },
-  { href: "/panel/databases", label: "پایگاه داده", icon: "database" },
-  { href: "/panel/domains", label: "دامنه‌ها", icon: "globe" },
-  { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow" },
-  { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet" },
-  { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle" },
-  { href: "/panel/keys", label: "SSH و API", icon: "key-round" },
-  { href: "/panel/affiliate", label: "کسب درآمد با معرفی", icon: "gift" },
-  { href: "/panel/account", label: "تنظیمات حساب", icon: "settings-2" },
+  { href: "/panel/servers", label: "سرورهای ابری", icon: "server", group: "زیرساخت" },
+  { href: "/panel/hosting", label: "هاست‌ها", icon: "layers", group: "زیرساخت" },
+  { href: "/panel/domains", label: "دامنه‌ها", icon: "globe", group: "زیرساخت" },
+  { href: "/panel/geo", label: "Geo DNS", icon: "radar", group: "زیرساخت" },
+  { href: "/panel/apps", label: "اپ‌ها", icon: "rocket", group: "گره اپ" },
+  { href: "/panel/databases", label: "پایگاه داده", icon: "database", group: "گره اپ" },
+  { href: "/panel/inquiry", label: "API استعلام", icon: "fingerprint", group: "سرویس‌ها" },
+  { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow", group: "سرویس‌ها" },
+  { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet", group: "حساب" },
+  { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle", group: "حساب" },
+  { href: "/panel/keys", label: "SSH و API", icon: "key-round", group: "حساب" },
+  { href: "/panel/affiliate", label: "کسب درآمد با معرفی", icon: "gift", group: "حساب" },
+  { href: "/panel/account", label: "تنظیمات حساب", icon: "settings-2", group: "حساب" },
 ];
-const ADMIN_NAV = [
+const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: "layout-dashboard" },
   { href: "/admin/users", label: "کاربران", icon: "users" },
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
   { href: "/admin/reports", label: "گزارش‌ها", icon: "chart-column" },
   { href: "/admin/paas", label: "گره اپ (PaaS)", icon: "rocket" },
+  { href: "/admin/inquiry", label: "API استعلام", icon: "fingerprint" },
+  { href: "/admin/geo", label: "Geo DNS", icon: "radar" },
   { href: "/admin/devops", label: "خدمات دواپس", icon: "workflow" },
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/admin/chats", label: "گفتگوی آنلاین", icon: "headset" },
@@ -72,14 +77,14 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/geo", "/panel/inquiry", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;
   const me = kind === "admin" ? { name: session?.name || "مدیر سیستم" } : user;
   const unread = db.notifications.filter((n) => !n.read).length;
   const badges: Record<string, number> = kind === "admin"
-    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length, "/admin/chats": db.chats.filter((c) => c.status === "open" && c.unread).length, "/admin/devops": db.devopsLeads.filter((l) => l.status === "new").length }
+    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length, "/admin/chats": db.chats.filter((c) => c.status === "open" && c.unread).length, "/admin/devops": db.devopsLeads.filter((l) => l.status === "new").length, "/admin/inquiry": db.inquiry.grants.filter((g) => g.status === "pending").length }
     : { "/panel/billing": db.invoices.filter((i) => i.userId === myId && (i.status === "unpaid" || i.status === "overdue")).length, "/panel/tickets": db.tickets.filter((t) => t.userId === myId && t.status === "answered").length };
   const logout = async () => { await api.auth.logout(); notify("از حساب خارج شدید", "log-out"); router.push("/"); };
   const [navPath, setNavPath] = useState(path);
@@ -92,14 +97,15 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         <Badge tone={kind === "admin" ? "violet" : "blue"}>{kind === "admin" ? "مدیریت" : "کاربری"}</Badge>
       </div>
       <nav aria-label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} className="flex-1 overflow-auto p-3 space-y-0.5">
-        {nav.map((n) => (
-          <Link key={n.href} href={n.href as never} aria-current={active.href === n.href ? "page" : undefined}
+        {nav.map((n, i) => (<Fragment key={n.href}>
+          {n.group && n.group !== nav[i - 1]?.group && <div className="px-3 pt-4 pb-1.5 text-[11px] font-bold text-white/40">{n.group}</div>}
+          <Link href={n.href as never} aria-current={active.href === n.href ? "page" : undefined}
             className={"w-full flex items-center gap-3 px-3 h-11 rounded-xl text-sm text-right transition " + (active.href === n.href ? "bg-white/[0.09] text-white font-bold shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "text-white/55 hover:text-white hover:bg-white/[0.04]")}>
             <Icon name={n.icon} size={18} className={active.href === n.href ? "acc" : ""} />
             <span className="flex-1">{n.label}</span>
             {badges[n.href] > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full acc-bg text-[10px] font-black grid place-items-center" aria-label={fa(badges[n.href]) + " مورد"}>{fa(badges[n.href])}</span>}
           </Link>
-        ))}
+        </Fragment>))}
       </nav>
       {kind === "user" && (
         <div className="mx-3 mb-3 rounded-2xl p-4 bg-white/[0.04] border border-white/[0.08]">
@@ -133,7 +139,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           </div>
           <div className="flex items-center gap-1.5">
             {kind === "user" && <AccountSwitcher />}
-            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs hidden sm:inline-flex"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
+            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs max-sm:hidden"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
               items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => api.account.readOne(n.id) })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />

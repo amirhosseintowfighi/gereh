@@ -31,10 +31,10 @@ export function StatusBadge({ s }: { s: string }) {
 
 export function Card({ title, icon, action, children, className = "", pad = "p-5 sm:p-6" }: { title?: React.ReactNode; icon?: string; action?: React.ReactNode; children?: React.ReactNode; className?: string; pad?: string }) {
   return (
-    <section className={GLASS + " rounded-[1.4rem] " + className}>
+    <section className={GLASS + " min-w-0 rounded-[1.4rem] " + className}>
       {title && (
-        <header className="flex items-center justify-between gap-3 px-5 sm:px-6 pt-5">
-          <h2 className="font-extrabold flex items-center gap-2 text-base">{icon && <Icon name={icon} size={18} className="acc" />}{title}</h2>{action}
+        <header className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 pt-5">
+          <h2 className="font-extrabold flex items-center gap-2 text-base min-w-0">{icon && <Icon name={icon} size={18} className="acc" />}{title}</h2>{action}
         </header>
       )}
       <div className={pad}>{children}</div>

@@ -65,7 +65,7 @@ export function AccountSwitcher() {
   const current = session.teamRole ? ships.find((s) => s.ownerId === session.userId) : null;
   const go = async (ownerId: string | null) => { await api.team.switchTo(ownerId); router.push("/panel"); };
   return (
-    <Menu label="انتخاب حساب" triggerClass={BTN_G + " h-10 px-3 text-xs hidden sm:inline-flex"}
+    <Menu label="انتخاب حساب" triggerClass={BTN_G + " h-10 px-3 text-xs max-sm:hidden"}
       trigger={<><Icon name="users-round" size={15} />{current ? current.ownerName : "حساب من"}<Icon name="chevron-down" size={13} /></>}
       items={[
         { icon: "user-round", label: "حساب خودم", run: () => go(null) },

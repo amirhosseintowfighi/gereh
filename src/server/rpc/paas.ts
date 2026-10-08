@@ -136,7 +136,7 @@ export const paasRpc = {
   "paas.updateApp": method(z.tuple([id, z.object({
     gitUrl: z.string().trim().max(300).optional(), gitBranch: z.string().trim().max(100).optional(), image: z.string().trim().max(300).optional(), rootDir: z.string().trim().max(200).optional(),
     buildCommand: z.string().max(500).optional(), startCommand: z.string().max(500).optional(), port: z.number().int().min(1).max(65535).optional(),
-    healthPath: z.string().max(200).regex(/^\/[\w./?=&%-]*$/).optional(), autoDeploy: z.boolean().optional(),
+    healthPath: z.string().max(200).regex(/^\/[\w./?=&%-]*$/).optional(), autoDeploy: z.boolean().optional(), cdn: z.boolean().optional(),
   })]), async (ctx, [appId, patch]) => {
     const { app } = await ownApp(ctx, appId);
     if (patch.gitUrl !== undefined && app.source === "git" && !GIT_RE.test(patch.gitUrl)) fail("نشانی مخزن گیت معتبر نیست.");
@@ -146,6 +146,16 @@ export const paasRpc = {
     // runtime settings apply to the running image; build settings apply on the next deploy
     if (patch.port !== undefined || patch.startCommand !== undefined || patch.healthPath !== undefined) await redeployConfig(ctx.db, next, "تغییر تنظیمات اجرا");
     if (app.source === "image" && patch.image && patch.image !== app.image) await queueDeployment(ctx.db, next, { trigger: "manual", message: "ایمیج جدید " + patch.image });
+    if (patch.cdn !== undefined && patch.cdn !== app.cdn && next.liveDeployment) await (await paas()).updateRouting(await appSpec(ctx.db, next));
+  }),
+
+  /** empties the edge cache (new cache-key version) */
+  "paas.purgeCache": method(z.tuple([id]), async (ctx, [appId]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    if (!app.cdn) fail("CDN این اپ خاموش است.");
+    const [next] = await ctx.db.update(paasApps).set({ cacheVersion: app.cacheVersion + 1 }).where(eq(paasApps.id, app.id)).returning();
+    await (await paas()).updateRouting(await appSpec(ctx.db, next));
+    await logActivity(ctx.db, a.uid, "refresh-cw", "پاک کردن کش CDN اپ " + app.name, ctx.ip);
   }),
 
   "paas.setEnv": method(z.tuple([id, z.array(envItem).max(100), z.array(z.string().max(128)).max(100)]), async (ctx, [appId, set, remove]) => {
