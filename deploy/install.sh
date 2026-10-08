@@ -273,6 +273,14 @@ PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
 # PAAS_INGRESS_IP=
 # PAAS_PROMETHEUS=monitoring/prometheus-server:80
 # PAAS_SOURCE_BASE_URL=https://$DOMAIN
+
+# ---- inquiry API provider (without it inquiries are simulated) ----
+# INQUIRY_PROVIDER_URL=
+# INQUIRY_PROVIDER_TOKEN=
+
+# ---- Geo DNS: PowerDNS with LUA records + GeoIP (see deploy/geo/README.md) ----
+# GEO_PDNS=http://NS1_IP:8081|API_KEY
+# GEO_NAMESERVERS=ns1.gereh.net,ns2.gereh.net
 EOF
   umask 022
   say "فایل تنظیمات ساخته شد: $ENV_FILE"

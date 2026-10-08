@@ -47,7 +47,7 @@ sudo APPS_DOMAIN=gereh.dev ACME_EMAIL=ops@gereh.net SITE_URL=https://gereh.net b
 برای اینکه هر اپ از لحظه ساخت HTTPS معتبر داشته باشد، گواهی `*.gereh.dev` لازم است. صدور wildcard فقط با **DNS-01** ممکن است؛ فایل `wildcard-cert.yaml` را برای سرویس DNS خودتان (مثال Cloudflare؛ برای PowerDNS از webhook solver) ویرایش و اعمال کنید:
 
 ```bash
-kubectl -n ingress-nginx create secret generic cloudflare-token --from-literal=token=XXXX
+kubectl -n cert-manager create secret generic cloudflare-token --from-literal=token=XXXX
 kubectl apply -f wildcard-cert.yaml
 kubectl -n ingress-nginx get certificate apps-wildcard   # READY=True
 ```
