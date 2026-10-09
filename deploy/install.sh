@@ -420,6 +420,21 @@ $(listen6 "$DEFAULT_SERVER")
         proxy_read_timeout 300s;
     }
 
+    # WordPress site backups for import (cPanel full backups; the app caps them at 4 GB)
+    location = /api/wp/upload {
+        client_max_body_size 4200m;
+        proxy_request_buffering off;
+        proxy_pass http://gereh_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For \$remote_addr;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     location / {
         proxy_pass http://gereh_app;
         proxy_http_version 1.1;

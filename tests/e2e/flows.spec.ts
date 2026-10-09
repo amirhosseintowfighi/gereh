@@ -88,7 +88,7 @@ test.describe("user panel", () => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     for (const p of ["/panel", "/panel/servers", "/panel/hosting", "/panel/domains", "/panel/billing", "/panel/tickets", "/panel/keys", "/panel/account",
-      "/panel/servers/srv-1042", "/panel/domains/dom-501", "/panel/hosting/hst-221", "/panel/tickets/TK-3021", "/panel/affiliate", "/panel/billing/INV-14031/print", "/panel/inquiry", "/panel/geo", "/panel/geo/geo-demo1", "/panel/ai", "/panel/apps/templates"]) {
+      "/panel/servers/srv-1042", "/panel/domains/dom-501", "/panel/hosting/hst-221", "/panel/tickets/TK-3021", "/panel/affiliate", "/panel/billing/INV-14031/print", "/panel/inquiry", "/panel/geo", "/panel/geo/geo-demo1", "/panel/ai", "/panel/apps/templates", "/panel/wordpress"]) {
       await page.goto(p);
       await expect(page.locator("main")).toBeVisible();
       await expect(page.locator("h1").first()).toBeVisible();

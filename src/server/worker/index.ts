@@ -13,6 +13,7 @@ import { settleAi } from "../ai/service";
 import { settleInquiry } from "../inquiry/service";
 import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
+import { wpImport } from "./wordpress";
 import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
@@ -35,6 +36,7 @@ const handlers: Record<JobType, Handler> = {
   "paas.build": (db, p) => paasBuild(db, p as never),
   "paas.poll": (db, p) => paasPoll(db, p as never),
   "paas.job": (db, p) => paasJobPoll(db, p as never),
+  "wp.import": (db, p) => wpImport(db, p as never),
   "paas.db": (db, p) => paasDbCreate(db, p as never),
   "paas.backup": (db, p) => paasBackup(db, p as never),
   "paas.billing": (db) => paasBilling(db),

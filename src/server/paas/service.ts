@@ -85,7 +85,14 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
   ]);
   const vars: Record<string, string> = {};
   for (const e of env) vars[e.key] = open(e.valueEnc) ?? "";
-  for (const { l, d } of links) if (d.host) vars[l.envKey] = connectionUrl(d, open(d.passwordEnc) ?? "");
+  for (const { l, d } of links) {
+    if (!d.host) continue;
+    // "@parts:PREFIX_" links set PREFIX_HOST/USER/PASSWORD/NAME (images that do not take a URL, e.g. WordPress)
+    if (l.envKey.startsWith("@parts:")) {
+      const p = l.envKey.slice(7);
+      Object.assign(vars, { [p + "HOST"]: d.host + ":" + d.port, [p + "USER"]: d.username, [p + "PASSWORD"]: open(d.passwordEnc) ?? "", [p + "NAME"]: d.dbName });
+    } else vars[l.envKey] = connectionUrl(d, open(d.passwordEnc) ?? "");
+  }
   vars.PORT = String(app.port);
   vars.GEREH_APP = app.name;
   return {
@@ -134,6 +141,11 @@ export async function uploadPathFor(uid: string, uploadId: string) {
   return path.join(dir, uploadId + ".zip");
 }
 export const newUploadId = () => randomBytes(18).toString("base64url");
+/** site backups for WordPress imports (.tar.gz or .zip), stored beside project uploads */
+export async function backupPathFor(uid: string, uploadId: string) {
+  const p = await uploadPathFor(uid, uploadId);
+  return p ? p.replace(/\.zip$/, ".backup") : null;
+}
 
 /** signed, expiring URL the builder uses to download an uploaded source */
 export function signSource(depId: string, ttlSec = 3600) {

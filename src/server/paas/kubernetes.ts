@@ -238,6 +238,60 @@ export function runJobObject(app: AppSpec, image: string, jobId: string, command
   } };
 }
 
+/* WordPress import: an init container (alpine: wget, tar, unzip) downloads the backup, finds the
+   WordPress root and the SQL dump, and copies the files onto the app's disk; the main container
+   (mariadb client) loads the dump and points siteurl/home at the new address. */
+export const WP_EXTRACT = String.raw`set -eu
+cd /work
+echo "==> Downloading backup"
+wget -q -O backup "$SOURCE_URL"
+mkdir x
+case "$(head -c 2 backup | od -An -tx1 | tr -d ' \n')" in
+  504b) echo "==> ZIP archive"; unzip -q backup -d x ;;
+  1f8b) echo "==> tar.gz archive (cPanel)"; tar -xzf backup -C x ;;
+  *) echo "ERROR: unsupported archive: upload a cPanel full backup (.tar.gz) or a .zip of the site and its .sql dump"; exit 1 ;;
+esac
+rm -f backup
+CONF=$(find x -name wp-config.php -not -path '*/wp-content/*' | head -1)
+[ -n "$CONF" ] || { echo "ERROR: wp-config.php not found in the backup"; exit 1; }
+ROOT=$(dirname "$CONF")
+SQL=$(find x -path '*/mysql/*.sql' | head -1); [ -n "$SQL" ] || SQL=$(find x -name '*.sql' | head -1)
+[ -n "$SQL" ] || { echo "ERROR: no .sql database dump in the backup"; exit 1; }
+sed -n "s/^[[:space:]]*\$table_prefix[[:space:]]*=[[:space:]]*['\"]\([A-Za-z0-9_]*\)['\"].*/\1/p" "$CONF" | head -1 > /work/prefix
+echo "==> WordPress root: $ROOT, database dump: $SQL, table prefix: $(cat /work/prefix)"
+mv "$SQL" /work/dump.sql
+echo "==> Copying files ($(find "$ROOT" -type f | wc -l) files)"
+find /site -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -a "$ROOT"/. /site/
+rm -f /site/wp-config.php
+# cPanel PHP handlers and php_value lines break Apache in the container
+[ -f /site/.htaccess ] && sed -i -E '/AddHandler|SetHandler.*php|php_value|php_flag|suPHP/d' /site/.htaccess
+chown -R 33:33 /site
+rm -rf x`;
+export const WP_IMPORT_SQL = String.raw`set -eu
+P=$(cat /work/prefix); [ -n "$P" ] || P=wp_; T="$P"options
+echo "==> Importing database"
+sed -E '/^(CREATE DATABASE|USE )/d' /work/dump.sql | mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
+if [ -n "$NEW_URL" ]; then
+  mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "UPDATE $T SET option_value='$NEW_URL' WHERE option_name IN ('siteurl','home')"
+  echo "==> siteurl and home → $NEW_URL"
+fi
+echo "PREFIX=$P"`;
+export function importJobObject(app: AppSpec, d: DbSpec, sourceUrl: string, jobId: string, newUrl: string): Obj {
+  const labels = { ...appLabels(app), "app.kubernetes.io/name": "job-" + jobId.toLowerCase(), "gereh.net/job": jobId.toLowerCase() };
+  const vols = [{ name: "work", mountPath: "/work" }];
+  return { apiVersion: "batch/v1", kind: "Job", metadata: { name: "job-" + jobId.toLowerCase(), namespace: nsOf(app.userId), labels }, spec: {
+    backoffLimit: 0, activeDeadlineSeconds: 7200, ttlSecondsAfterFinished: 86_400,
+    template: { metadata: { labels }, spec: {
+      restartPolicy: "Never", automountServiceAccountToken: false, enableServiceLinks: false,
+      initContainers: [{ name: "files", image: "alpine:3.20", command: ["/bin/sh", "-c", WP_EXTRACT], env: [{ name: "SOURCE_URL", value: sourceUrl }], volumeMounts: [...vols, { name: "site", mountPath: "/site" }], resources: { limits: { cpu: "1", memory: "1Gi" } } }],
+      containers: [{ name: "app", image: "mariadb:11.4", command: ["/bin/sh", "-c", WP_IMPORT_SQL], volumeMounts: vols, resources: { limits: { cpu: "1", memory: "1Gi" } },
+        env: [{ name: "DB_HOST", value: dbName(d) }, { name: "DB_PORT", value: "3306" }, { name: "DB_USER", value: d.username }, { name: "DB_PASSWORD", value: d.password }, { name: "DB_NAME", value: d.dbName }, { name: "NEW_URL", value: newUrl }] }],
+      volumes: [{ name: "work", emptyDir: { sizeLimit: "20Gi" } }, { name: "site", persistentVolumeClaim: { claimName: app.name + "-data" } }],
+    } },
+  } };
+}
+
 /** everything but the Services; `ips` maps compose service name → cluster IP */
 export function appObjects(app: AppSpec, image: string, deploymentId: string, ips: Record<string, string> = {}): Obj[] {
   const c = cfg(), ns = nsOf(app.userId), labels = appLabels(app);
@@ -583,6 +637,11 @@ export class KubernetesDriver implements PaasDriver {
     const failed = job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True");
     if (failed) return { state: "failed" as const, output: output + "\nERROR: " + (job.status?.conditions?.find((x) => x.type === "Failed")?.message || "command failed") };
     return { state: "running" as const, output };
+  }
+
+  async importSite(app: AppSpec, d: DbSpec, sourceUrl: string, jobId: string, newUrl: string) {
+    await this.ensureNs(app.userId);
+    await apply(importJobObject(app, d, sourceUrl, jobId, newUrl) as never);
   }
 
   async syncCrons(app: AppSpec, image: string) {

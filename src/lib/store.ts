@@ -280,6 +280,24 @@ export const api = {
     adminApplyRule: (discount: number) => rpc<number>("ai.adminApplyRule", discount),
     adminTest: (id: string) => rpc<{ ok: boolean; ms: number; detail: string }>("ai.adminTest", id),
   },
+  wp: {
+    create: (i: { name: string; plan: "eco" | "turbo"; uploadId?: string; keepUrl?: boolean }) => rpc<string>("wp.create", i),
+    import: (appId: string, uploadId: string, keepUrl: boolean) => rpc<string>("wp.import", appId, uploadId, keepUrl),
+    changePlan: (appId: string, plan: "eco" | "turbo") => rpc("wp.changePlan", appId, plan),
+    /** streams a site backup (.tar.gz or .zip) to the server */
+    upload: (file: File, onProgress?: (pct: number) => void) => new Promise<{ uploadId: string; bytes: number }>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", "/api/wp/upload");
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+      x.onload = () => {
+        let j: { result?: { uploadId: string; bytes: number }; error?: string } = {};
+        try { j = JSON.parse(x.responseText); } catch { /* not JSON */ }
+        if (x.status >= 200 && x.status < 300 && j.result) resolve(j.result); else reject(new Error(j.error || "بارگذاری ناموفق بود."));
+      };
+      x.onerror = () => reject(new Error("ارتباط با سرور قطع شد."));
+      x.send(file);
+    }),
+  },
   inquiry: {
     activate: () => rpc("inquiry.activate"),
     reveal: () => rpc<string>("inquiry.reveal"),

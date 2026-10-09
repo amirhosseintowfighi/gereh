@@ -144,7 +144,7 @@ function RunConsole({ app }: { app: PaasApp }) {
           <ul className="space-y-1 max-h-72 overflow-y-auto">
             {app.jobs.map((j) => (
               <li key={j.id}><button type="button" aria-pressed={open === j.id} onClick={() => { setOpen(j.id); setLive(null); }} className={"w-full text-right rounded-lg px-3 py-2 text-xs transition " + (open === j.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
-                <span className="flex items-center justify-between gap-2"><Badge tone={JOB_TONE[j.status]}>{JOB_LABEL[j.status]}</Badge><span className="text-white/45">{j.kind === "release" ? "انتشار" : j.at.split(" ")[1]}</span></span>
+                <span className="flex items-center justify-between gap-2"><Badge tone={JOB_TONE[j.status]}>{JOB_LABEL[j.status]}</Badge><span className="text-white/45">{j.kind === "release" ? "انتشار" : j.kind === "import" ? "انتقال سایت" : j.at.split(" ")[1]}</span></span>
                 <code dir="ltr" className="block truncate mt-1 text-white/70 text-right">{j.command}</code>
               </button></li>
             ))}

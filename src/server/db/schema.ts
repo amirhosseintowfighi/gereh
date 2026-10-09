@@ -505,6 +505,10 @@ export const paasApps = pgTable("paas_apps", {
   releaseCommand: text("release_command").notNull().default(""),
   /** sum of worker process instances (billed like web instances) */
   workerInstances: integer("worker_instances").notNull().default(0),
+  /** "wordpress" for managed WordPress sites (same platform, own panel) */
+  product: text("product", { enum: ["app", "wordpress"] }).notNull().default("app"),
+  /** managed WordPress package (eco, turbo) */
+  wpPlan: text("wp_plan"),
   /** pushes to other branches get a preview at <name>-preview.<apps domain> */
   previews: boolean("previews").notNull().default(false),
   /** the running preview (one per app), billed as one extra instance */
@@ -610,11 +614,13 @@ export const paasCrons = pgTable("paas_crons", {
 export const paasJobs = pgTable("paas_jobs", {
   id: text("id").primaryKey(),
   appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
-  kind: text("kind", { enum: ["release", "run"] }).notNull(),
+  kind: text("kind", { enum: ["release", "run", "import"] }).notNull(),
   command: text("command").notNull(),
   status: text("status", { enum: ["running", "succeeded", "failed"] }).notNull().default("running"),
   output: text("output").notNull().default(""),
   deploymentId: text("deployment_id"),
+  /** import jobs: the uploaded archive */
+  sourcePath: text("source_path"),
   createdAt: created(),
   finishedAt: ts("finished_at"),
 }, (t) => [index("paas_job_app_ix").on(t.appId, t.createdAt)]);

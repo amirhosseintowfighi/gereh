@@ -42,7 +42,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         hookUrl: opts.admin ? "" : opts.siteUrl + "/api/paas/hook/" + a.id + "?token=" + a.hookToken, autoDeploy: a.autoDeploy, cdn: a.cdn, liveDeployment: a.liveDeployment, at: faDateTime(a.createdAt),
         hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb))) : 0,
         deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch })),
-        previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
+        product: a.product, wpPlan: a.wpPlan, previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
         domains: domains.filter((d) => d.appId === a.id).map((d) => ({ id: d.id, host: d.host, status: d.status, ssl: d.ssl })),
         env: env.filter((e) => e.appId === a.id).map((e) => ({ key: e.key, secret: e.secret, value: opts.admin || e.secret ? null : open(e.valueEnc) })),
         links: links.filter((l) => l.appId === a.id).map((l) => ({ dbId: l.dbId, envKey: l.envKey })),

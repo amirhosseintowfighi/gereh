@@ -18,6 +18,7 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
     { href: "/vps", label: "سرور ابری", icon: "server", desc: "NVMe و root کامل؛ آماده در کمتر از یک دقیقه" },
     { href: "/vps#dedicated", label: "سرور اختصاصی", icon: "server-cog", desc: "EPYC و Xeon با پورت تا ۱۰ گیگابیت" },
     { href: "/hosting", label: "هاست وب", icon: "layers", desc: "LiteSpeed، SSL رایگان و بکاپ روزانه" },
+    { href: "/wordpress", label: "وردپرس مدیریت‌شده", icon: "layers", desc: "منابع اختصاصی و انتقال رایگان از cPanel", badge: "جدید" },
     { href: "/domains", label: "ثبت دامنه", icon: "globe", desc: ".ir و بیش از ۱۵ پسوند بین‌المللی" },
     { href: "/mirror", label: "میرور مخازن", icon: "download", desc: "npm، PyPI و Docker Hub داخل ایران؛ رایگان", badge: "رایگان" },
   ] },

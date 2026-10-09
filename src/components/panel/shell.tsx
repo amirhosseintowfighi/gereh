@@ -21,6 +21,7 @@ const USER_NAV: NavItem[] = [
   { href: "/panel/geo", label: "Geo DNS", icon: "radar", group: "زیرساخت" },
   { href: "/panel/apps", label: "اپ‌ها", icon: "rocket", group: "گره اپ" },
   { href: "/panel/databases", label: "پایگاه داده", icon: "database", group: "گره اپ" },
+  { href: "/panel/wordpress", label: "وردپرس", icon: "layers", group: "گره اپ" },
   { href: "/panel/ai", label: "API هوش مصنوعی", icon: "bot", group: "سرویس‌ها" },
   { href: "/panel/inquiry", label: "API استعلام", icon: "fingerprint", group: "سرویس‌ها" },
   { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow", group: "سرویس‌ها" },
@@ -79,7 +80,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/geo", "/panel/ai", "/panel/inquiry", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/ai", "/panel/inquiry", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;

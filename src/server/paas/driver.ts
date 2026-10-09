@@ -41,6 +41,9 @@ export interface PaasDriver {
   /** one-off container from `image` with the app's env (release commands, panel/CLI commands) */
   runJob(app: AppSpec, image: string, jobId: string, command: string): Promise<void>;
   jobStatus(app: AppSpec, jobId: string): Promise<{ state: "running" | "succeeded" | "failed"; output: string }>;
+  /** WordPress import: unpacks a cPanel/zip backup onto the app's disk and loads its SQL into `db`;
+      the app must be stopped. Status through jobStatus(); the output ends with PREFIX=<table prefix> */
+  importSite(app: AppSpec, db: DbSpec, sourceUrl: string, jobId: string, newUrl: string): Promise<void>;
   /** applies the app's cron jobs (create, update, remove) with the live image; no restart */
   syncCrons(app: AppSpec, image: string): Promise<void>;
   metrics(targets: { id: string; kind: "app" | "db"; ramMb: number; owner: string; name: string }[]): Promise<{ id: string; cpu: number; ramMb: number; rpm: number }[]>;
@@ -155,11 +158,13 @@ export class SimulatorDriver implements PaasDriver {
     });
   }
   async runJob(_app: AppSpec, _image: string, jobId: string, command: string) { jobs.set(jobId, { t0: Date.now(), command }); }
+  async importSite(_app: AppSpec, _db: DbSpec, _src: string, jobId: string) { jobs.set(jobId, { t0: Date.now(), command: "@import" }); }
   async jobStatus(_app: AppSpec, jobId: string) {
     const j = jobs.get(jobId);
     if (!j) return { state: "failed" as const, output: "job not found (the simulator forgets jobs on restart)" };
     const secs = buildSeconds() / 4;
     if (Date.now() - j.t0 < secs * 1000) return { state: "running" as const, output: "$ " + j.command };
+    if (j.command === "@import") return { state: "succeeded" as const, output: ["==> Downloading backup", "==> cPanel backup: homedir/public_html, mysql/site_wp.sql", "==> Copying files (1,284 files)", "==> Importing database", "==> siteurl → new address", "PREFIX=wp_"].join("\n") };
     const failed = /\bfail|exit [1-9]/.test(j.command);
     const out = ["$ " + j.command, ...(/migrat/.test(j.command) ? ["Operations to perform: Apply all migrations", "Running migrations:", "  Applying app.0012_orders... OK"] : ["done"]), ...(failed ? ["ERROR: command exited with code 1"] : [])];
     return { state: failed ? "failed" as const : "succeeded" as const, output: out.join("\n") };

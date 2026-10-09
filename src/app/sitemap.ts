@@ -16,7 +16,7 @@ const PAGES: [path: string, priority: number, freq: MetadataRoute.Sitemap[number
   ["/about", 0.6, "monthly"], ["/contact", 0.6, "monthly"], ["/terms", 0.3, "yearly"], ["/privacy", 0.3, "yearly"], ["/sla", 0.3, "yearly"], ["/status", 0.4, "daily"],
   ["/kb", 0.7, "weekly"], ["/blog", 0.7, "daily"], ["/docs/api", 0.6, "monthly"], ["/compare", 0.6, "monthly"], ["/devops", 0.9, "weekly"],
   ["/paas", 0.9, "weekly"], ["/paas/databases", 0.8, "weekly"], ["/docs/paas", 0.6, "monthly"],
-  ["/inquiry", 0.9, "weekly"], ["/docs/inquiry", 0.6, "monthly"], ["/ai-api", 0.9, "weekly"], ["/docs/ai-api", 0.6, "monthly"], ["/docs/mcp", 0.6, "monthly"], ["/mirror", 0.8, "weekly"], ["/geo-dns", 0.9, "weekly"], ["/docs/geo-dns", 0.6, "monthly"],
+  ["/inquiry", 0.9, "weekly"], ["/docs/inquiry", 0.6, "monthly"], ["/ai-api", 0.9, "weekly"], ["/docs/ai-api", 0.6, "monthly"], ["/docs/mcp", 0.6, "monthly"], ["/mirror", 0.8, "weekly"], ["/wordpress", 0.9, "weekly"], ["/geo-dns", 0.9, "weekly"], ["/docs/geo-dns", 0.6, "monthly"],
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

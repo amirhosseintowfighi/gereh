@@ -45,6 +45,7 @@ export type PaasApp = {
   status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; cdn: boolean; liveDeployment: string | null; at: string; hourly: number;
   deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean; target: "production" | "preview"; branch: string }[];
   previews: boolean; previewDeployment: string | null; previewUrl: string;
+  product: "app" | "wordpress"; wpPlan: string | null;
   domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
   /** value is null for secrets (and for staff, who never see values) */
   env: { key: string; value: string | null; secret: boolean }[];
@@ -54,7 +55,7 @@ export type PaasApp = {
   processes: { name: string; command: string; instances: number }[];
   crons: { id: string; name: string; schedule: string; command: string; enabled: boolean }[];
   /** latest one-off and release jobs */
-  jobs: { id: string; kind: "release" | "run"; command: string; status: "running" | "succeeded" | "failed"; output: string; at: string }[];
+  jobs: { id: string; kind: "release" | "run" | "import"; command: string; status: "running" | "succeeded" | "failed"; output: string; at: string }[];
 };
 export type PaasDb = {
   id: string; userId: string; name: string; engine: string; version: string; planId: string; status: "creating" | "running" | "stopped" | "failed" | "suspended";
