@@ -37,7 +37,7 @@ export default function MirrorPage() {
           <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">npm install<br />حتی وقتی اینترنت قطع است</h1>
           <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">میرور گره بسته‌های npm، PyPI، Docker Hub، Go، Maven و مخازن لینوکس را داخل ایران کش می‌کند تا نصب و بیلد پروژه‌ها سریع و بدون وابستگی به اینترنت بین‌الملل انجام شود.</p>
           <div className={GLASS + " rounded-2xl mt-9 p-4 text-left flex items-center gap-3 max-w-2xl mx-auto"} dir="ltr">
-            <code className="text-[12px] sm:text-sm font-mono text-white/85 overflow-x-auto whitespace-nowrap flex-1">{oneLiner}</code>
+            <code tabIndex={0} aria-label="دستور نصب" className="text-[12px] sm:text-sm font-mono text-white/85 overflow-x-auto whitespace-nowrap flex-1">{oneLiner}</code>
             <CopyText text={oneLiner} className="text-[11px] shrink-0" />
           </div>
           <p className="text-xs text-white/50 mt-3">روی سرور لینوکسی شما apt، Docker، npm، pip و Go را یکجا به میرور وصل می‌کند.</p>
