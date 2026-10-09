@@ -1,0 +1,71 @@
+{
+  "name": "gereh",
+  "displayName": "Gereh Cloud",
+  "description": "Deploy and manage Gereh Apps (PaaS), databases and servers from VS Code",
+  "version": "1.0.0",
+  "publisher": "gereh",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other", "Azure", "AI"],
+  "keywords": ["gereh", "paas", "deploy", "iran", "mcp"],
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{ "id": "gereh", "title": "Gereh", "icon": "media/gereh.svg" }]
+    },
+    "views": {
+      "gereh": [
+        { "id": "gereh.apps", "name": "Apps" },
+        { "id": "gereh.databases", "name": "Databases" },
+        { "id": "gereh.servers", "name": "Servers" }
+      ]
+    },
+    "viewsWelcome": [
+      { "view": "gereh.apps", "contents": "Sign in with a read-write API token from the Gereh panel to manage your apps.\n[Sign in](command:gereh.signIn)\n[Create a token](https://gereh.net/panel/keys)", "when": "!gereh.signedIn" }
+    ],
+    "commands": [
+      { "command": "gereh.signIn", "title": "Sign in", "category": "Gereh", "icon": "$(account)" },
+      { "command": "gereh.signOut", "title": "Sign out", "category": "Gereh" },
+      { "command": "gereh.refresh", "title": "Refresh", "category": "Gereh", "icon": "$(refresh)" },
+      { "command": "gereh.deploy", "title": "Deploy", "category": "Gereh", "icon": "$(rocket)" },
+      { "command": "gereh.deployPreview", "title": "Deploy as preview", "category": "Gereh", "icon": "$(eye)" },
+      { "command": "gereh.promote", "title": "Promote preview to production", "category": "Gereh" },
+      { "command": "gereh.logs", "title": "Show logs", "category": "Gereh", "icon": "$(output)" },
+      { "command": "gereh.run", "title": "Run command…", "category": "Gereh", "icon": "$(terminal)" },
+      { "command": "gereh.restart", "title": "Restart", "category": "Gereh", "icon": "$(debug-restart)" },
+      { "command": "gereh.open", "title": "Open in browser", "category": "Gereh", "icon": "$(globe)" },
+      { "command": "gereh.openPanel", "title": "Open in Gereh panel", "category": "Gereh", "icon": "$(link-external)" },
+      { "command": "gereh.link", "title": "Link this folder to an app", "category": "Gereh" },
+      { "command": "gereh.setupAgent", "title": "Connect AI agents (MCP)", "category": "Gereh", "icon": "$(sparkle)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "gereh.refresh", "when": "view =~ /^gereh\\./", "group": "navigation" },
+        { "command": "gereh.setupAgent", "when": "view == gereh.apps", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "gereh.deploy", "when": "viewItem =~ /^app/", "group": "inline@1" },
+        { "command": "gereh.logs", "when": "viewItem =~ /^app/", "group": "inline@2" },
+        { "command": "gereh.open", "when": "viewItem =~ /^app/", "group": "inline@3" },
+        { "command": "gereh.deployPreview", "when": "viewItem =~ /^app/", "group": "1_deploy@1" },
+        { "command": "gereh.promote", "when": "viewItem == app-preview", "group": "1_deploy@2" },
+        { "command": "gereh.run", "when": "viewItem =~ /^app/", "group": "2_ops@1" },
+        { "command": "gereh.restart", "when": "viewItem =~ /^app/", "group": "2_ops@2" },
+        { "command": "gereh.openPanel", "when": "viewItem =~ /^(app|db|server)/", "group": "3_open@1" }
+      ],
+      "commandPalette": [
+        { "command": "gereh.promote", "when": "false" }
+      ]
+    },
+    "configuration": {
+      "title": "Gereh",
+      "properties": {
+        "gereh.apiUrl": { "type": "string", "default": "https://gereh.net", "description": "Gereh site address (API at /api/v1)." },
+        "gereh.cliCommand": { "type": "string", "default": "npx -y @gereh/cli@latest", "description": "How to run the Gereh CLI (e.g. `gereh` if installed globally)." },
+        "gereh.refreshSeconds": { "type": "number", "default": 30, "minimum": 10, "description": "How often the views refresh." }
+      }
+    }
+  }
+}
