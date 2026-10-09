@@ -220,6 +220,22 @@ const commands = {
       console.log(green("✓ ") + "Removed " + rest.join(", "));
     } else die("Usage: gereh env set|unset …");
   },
+  /** gereh run -- python manage.py migrate */
+  async run({ pos, flags }) {
+    const command = pos.join(" ").trim() || die("Usage: gereh run <command>   e.g. gereh run python manage.py migrate");
+    const name = appName(flags);
+    const job = await api("POST", `apps/${name}/jobs`, { command });
+    console.log(cyan("==> ") + "Job " + job.id + dim(" (" + command + ")"));
+    let printed = 0;
+    for (;;) {
+      const j = await api("GET", `apps/${name}/jobs/${job.id}`);
+      const out = j.output || "";
+      if (out.length > printed) { process.stdout.write(out.slice(printed) + (j.status === "running" ? "" : "\n")); printed = out.length; }
+      if (j.status === "succeeded") return console.log(green("✓ ") + "Done");
+      if (j.status === "failed") die("Command failed");
+      await sleep(2000);
+    }
+  },
   async start({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "start" }); console.log(green("✓ ") + "Started"); },
   async stop({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "stop" }); console.log(green("✓ ") + "Stopped"); },
   async restart({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "restart" }); console.log(green("✓ ") + "Restarting"); },
@@ -288,6 +304,7 @@ const commands = {
   gereh logs [-f]                 runtime logs (follow with -f)
   gereh env set K=V… [--secret]   set variables (restart, no rebuild)
   gereh env unset K…              remove variables
+  gereh run <command>             run a one-off command (migrations…) from the live image
   gereh start | stop | restart
   gereh setup agent [claude|cursor|vscode|codex]
                                   connect coding agents to Gereh (MCP)

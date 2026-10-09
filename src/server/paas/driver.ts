@@ -14,6 +14,11 @@ export type AppSpec = {
   diskGb: number; diskMount: string; env: Record<string, string>; hosts: string[];
   /** edge cache; cacheVersion is part of the cache key, so bumping it empties the cache */
   cdn: boolean; cacheVersion: number;
+  /** run once per new build before traffic switches (migrations) */
+  releaseCommand: string;
+  /** background processes from the same image (no HTTP) and scheduled commands (Tehran time) */
+  processes: { name: string; command: string; instances: number }[];
+  crons: { name: string; schedule: string; command: string; enabled: boolean }[];
 };
 export type DbSpec = { id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean };
 export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string };
@@ -33,6 +38,11 @@ export interface PaasDriver {
   setState(app: AppSpec, action: "start" | "stop" | "restart"): Promise<void>;
   remove(app: AppSpec): Promise<void>;
   logs(app: AppSpec, tail: number): Promise<string[]>;
+  /** one-off container from `image` with the app's env (release commands, panel/CLI commands) */
+  runJob(app: AppSpec, image: string, jobId: string, command: string): Promise<void>;
+  jobStatus(app: AppSpec, jobId: string): Promise<{ state: "running" | "succeeded" | "failed"; output: string }>;
+  /** applies the app's cron jobs (create, update, remove) with the live image; no restart */
+  syncCrons(app: AppSpec, image: string): Promise<void>;
   metrics(targets: { id: string; kind: "app" | "db"; ramMb: number; owner: string; name: string }[]): Promise<{ id: string; cpu: number; ramMb: number; rpm: number }[]>;
   verifyDomain(host: string, appName: string): Promise<boolean>;
   createDb(db: DbSpec): Promise<{ host: string; port: number; publicPort?: number }>;
@@ -48,6 +58,7 @@ export interface PaasDriver {
 const buildSeconds = () => Number(process.env.PAAS_SIM_BUILD_SECONDS ?? 8);
 const started = new Map<string, number>(); // handle → start time
 const composed = new Map<string, ComposeService[]>(); // handle → compose services
+const jobs = new Map<string, { t0: number; command: string }>(); // one-off job id → start
 
 function buildScript(app: AppSpec): string[] {
   const s = stackOf(app.stack);
@@ -143,6 +154,17 @@ export class SimulatorDriver implements PaasDriver {
       return { id: x.id, cpu: Math.round(w(18 + (s % 30), 10, 0.7) * 10) / 10, ramMb: Math.round(x.ramMb * Math.min(0.92, w(0.35 + (s % 40) / 100, 0.08, 1.3))), rpm: x.kind === "app" ? Math.round(w(40 + (s % 200), 30, 0.4)) : 0 };
     });
   }
+  async runJob(_app: AppSpec, _image: string, jobId: string, command: string) { jobs.set(jobId, { t0: Date.now(), command }); }
+  async jobStatus(_app: AppSpec, jobId: string) {
+    const j = jobs.get(jobId);
+    if (!j) return { state: "failed" as const, output: "job not found (the simulator forgets jobs on restart)" };
+    const secs = buildSeconds() / 4;
+    if (Date.now() - j.t0 < secs * 1000) return { state: "running" as const, output: "$ " + j.command };
+    const failed = /\bfail|exit [1-9]/.test(j.command);
+    const out = ["$ " + j.command, ...(/migrat/.test(j.command) ? ["Operations to perform: Apply all migrations", "Running migrations:", "  Applying app.0012_orders... OK"] : ["done"]), ...(failed ? ["ERROR: command exited with code 1"] : [])];
+    return { state: failed ? "failed" as const : "succeeded" as const, output: out.join("\n") };
+  }
+  async syncCrons() {}
   async verifyDomain(host: string) { return !/invalid|example\.(com|org|net)$/.test(host); }
   async createDb(db: DbSpec) { return { host: db.name + "." + db.userId + ".db.gereh.internal", port: ({ postgres: 5432, mysql: 3306, mariadb: 3306, mongodb: 27017, redis: 6379 } as Record<string, number>)[db.engine], publicPort: db.publicAccess ? 30000 + (db.id.length * 97) % 2000 : undefined }; }
   async dbReady() { return true; }

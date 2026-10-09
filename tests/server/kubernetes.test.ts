@@ -41,7 +41,7 @@ beforeEach(() => { hits = []; answers = {}; });
 const app = (over: Partial<AppSpec> = {}): AppSpec => ({
   id: "app-1", userId: "u1", name: "shop", stack: "nextjs", source: "git", gitUrl: "https://tok@github.com/acme/shop.git", gitBranch: "main", image: "", rootDir: "", buildCommand: "", startCommand: "",
   port: 3000, healthPath: "/health", cpu: 1, ramMb: 1024, instances: 2, autoscale: false, maxInstances: 2, diskGb: 0, diskMount: "/data",
-  env: { PORT: "3000", API_KEY: "s3cret" }, hosts: ["shop.gereh.dev"], cdn: false, cacheVersion: 1, ...over,
+  env: { PORT: "3000", API_KEY: "s3cret" }, hosts: ["shop.gereh.dev"], cdn: false, cacheVersion: 1, releaseCommand: "", processes: [], crons: [], ...over,
 });
 const db = (over: Partial<DbSpec> = {}): DbSpec => ({ id: "pdb-1", userId: "u1", name: "shop", engine: "postgres", version: "16", cpu: 1, ramMb: 1024, diskGb: 10, username: "shop", password: "pw", dbName: "shop", publicAccess: false, ...over });
 const kinds = (objs: Record<string, unknown>[]) => objs.map((o) => o.kind);

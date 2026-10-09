@@ -499,6 +499,10 @@ export const paasApps = pgTable("paas_apps", {
   /** edge cache in front of the app; bumping cacheVersion invalidates everything cached */
   cdn: boolean("cdn").notNull().default(false),
   cacheVersion: integer("cache_version").notNull().default(1),
+  /** runs once per deployment, in a new container from the new image, before traffic switches (migrations) */
+  releaseCommand: text("release_command").notNull().default(""),
+  /** sum of worker process instances (billed like web instances) */
+  workerInstances: integer("worker_instances").notNull().default(0),
   liveDeployment: text("live_deployment"),
   suspendedAt: ts("suspended_at"),
   createdAt: created(),
@@ -571,6 +575,39 @@ export const paasDbBackups = pgTable("paas_db_backups", {
   location: text("location").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("paas_backup_db_ix").on(t.dbId, t.createdAt)]);
+
+/** background processes of an app (queue workers, bots…): same image, own command, no HTTP */
+export const paasProcesses = pgTable("paas_processes", {
+  id: serial("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  command: text("command").notNull(),
+  instances: integer("instances").notNull().default(1),
+}, (t) => [uniqueIndex("paas_process_uq").on(t.appId, t.name)]);
+
+/** scheduled commands (Kubernetes CronJobs) run from the app's live image */
+export const paasCrons = pgTable("paas_crons", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  schedule: text("schedule").notNull(), // 5-field cron, Tehran time
+  command: text("command").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_cron_uq").on(t.appId, t.name)]);
+
+/** one-off containers: release commands, commands run from the panel/CLI/agents */
+export const paasJobs = pgTable("paas_jobs", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["release", "run"] }).notNull(),
+  command: text("command").notNull(),
+  status: text("status", { enum: ["running", "succeeded", "failed"] }).notNull().default("running"),
+  output: text("output").notNull().default(""),
+  deploymentId: text("deployment_id"),
+  createdAt: created(),
+  finishedAt: ts("finished_at"),
+}, (t) => [index("paas_job_app_ix").on(t.appId, t.createdAt)]);
 
 /** which database is wired into which app (its URL is injected as an env var) */
 export const paasLinks = pgTable("paas_links", {

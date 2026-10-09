@@ -13,7 +13,7 @@ import { settleAi } from "../ai/service";
 import { settleInquiry } from "../inquiry/service";
 import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
-import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasPoll } from "./paas";
+import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
@@ -34,6 +34,7 @@ const handlers: Record<JobType, Handler> = {
   "devops.billing": (db) => devopsBilling(db),
   "paas.build": (db, p) => paasBuild(db, p as never),
   "paas.poll": (db, p) => paasPoll(db, p as never),
+  "paas.job": (db, p) => paasJobPoll(db, p as never),
   "paas.db": (db, p) => paasDbCreate(db, p as never),
   "paas.backup": (db, p) => paasBackup(db, p as never),
   "paas.billing": (db) => paasBilling(db),

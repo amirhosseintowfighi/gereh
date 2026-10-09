@@ -122,5 +122,27 @@ export const DEPLOY_STATUS: Record<string, [string, "green" | "blue" | "amber" |
   failed: ["ناموفق", "red"], superseded: ["جایگزین شد", "gray"], cancelled: ["لغو شد", "gray"],
 };
 
+/* ---------- background processes & cron ---------- */
+export const PROC_NAME_RE = /^[a-z][a-z0-9-]{0,18}[a-z0-9]$/;
+export const MAX_PROCESSES = 5;
+export const MAX_CRONS = 10;
+export const CRON_PRESETS: { value: string; label: string }[] = [
+  { value: "*/5 * * * *", label: "هر ۵ دقیقه" }, { value: "*/15 * * * *", label: "هر ۱۵ دقیقه" }, { value: "0 * * * *", label: "هر ساعت" },
+  { value: "0 3 * * *", label: "هر شب ساعت ۳" }, { value: "0 9 * * 6", label: "شنبه‌ها ساعت ۹" }, { value: "0 0 1 * *", label: "اول هر ماه" },
+];
+const CRON_FIELD = /^(\*|\d{1,2}(-\d{1,2})?)(\/\d{1,2})?(,(\*|\d{1,2}(-\d{1,2})?)(\/\d{1,2})?)*$/;
+const CRON_MAX = [59, 23, 31, 12, 7];
+/** null when valid, else a Persian error. 5 fields (Tehran time), every 5 minutes at most */
+export function cronError(expr: string): string | null {
+  const e = expr.trim();
+  if (["@hourly", "@daily", "@weekly", "@monthly", "@yearly"].includes(e)) return null;
+  const f = e.split(/\s+/);
+  if (f.length !== 5 || !f.every((x) => CRON_FIELD.test(x))) return "زمان‌بندی باید ۵ بخش cron باشد؛ مثل 0 3 * * * (هر شب ساعت ۳).";
+  for (let i = 0; i < 5; i++) for (const n of f[i].match(/\d+/g) ?? []) if (Number(n) > CRON_MAX[i] && !f[i].includes("/" + n)) return "عدد " + n + " در بخش " + (i + 1) + " زمان‌بندی خارج از محدوده است.";
+  const step = /^\*\/(\d+)$/.exec(f[0]);
+  if (f[0] === "*" || (step && Number(step[1]) < 5)) return "کمترین فاصله اجرا ۵ دقیقه است.";
+  return null;
+}
+
 /** env variable a linked database is exposed as by default */
 export const defaultEnvKeyFor = (engine: string) => (engine === "redis" ? "REDIS_URL" : engine === "mongodb" ? "MONGODB_URI" : "DATABASE_URL");

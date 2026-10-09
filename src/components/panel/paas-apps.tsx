@@ -9,6 +9,7 @@ import { api, useDB, useMyId, useSession } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
 import { zipFolder } from "@/lib/zip-client";
 import { useApp } from "../app-context";
+import { AppJobs } from "./paas-jobs";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
@@ -195,7 +196,7 @@ export function NewApp() {
 const TABS = [
   { id: "overview", label: "نمای کلی", icon: "layout-dashboard" }, { id: "deploys", label: "استقرارها", icon: "rocket" }, { id: "logs", label: "لاگ‌ها", icon: "terminal" },
   { id: "env", label: "متغیرها", icon: "sliders-horizontal" }, { id: "domains", label: "دامنه‌ها", icon: "globe" }, { id: "dbs", label: "پایگاه داده", icon: "database" },
-  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
+  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "jobs", label: "پردازش و زمان‌بندی", icon: "clock" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 
 export function AppDetail({ id }: { id: string }) {
@@ -236,6 +237,7 @@ export function AppDetail({ id }: { id: string }) {
         {tab === "domains" && <AppDomains app={app} />}
         {tab === "dbs" && <AppDbs app={app} />}
         {tab === "scale" && <AppScale app={app} />}
+        {tab === "jobs" && <AppJobs app={app} />}
         {tab === "settings" && <AppSettings app={app} />}
       </div>
       <BuildLog depId={logDep} onClose={() => setLogDep(null)} />

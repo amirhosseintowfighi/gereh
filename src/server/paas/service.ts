@@ -6,7 +6,7 @@ import path from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { appMonthly, hourlyOf, type PaasPlan } from "@/lib/paas";
 import type { DB, Tx } from "../db/client";
-import { paasApps, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans } from "../db/schema";
+import { paasApps, paasCrons, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
 import { enqueue } from "../jobs";
 import { open, seal } from "../secrets";
 import { getSettings } from "../state";
@@ -42,8 +42,8 @@ export async function appsDomain(db: DB | Tx) {
 }
 export const defaultHost = (name: string, domain: string) => name + "." + domain;
 
-export const appHourly = (a: Pick<AppRow, "instances" | "diskGb" | "status">, plan: Pick<PaasPlan, "price">) =>
-  a.status === "stopped" ? (a.diskGb ? hourlyOf(appMonthly({ price: 0 }, 1, a.diskGb)) : 0) : hourlyOf(appMonthly(plan, a.instances, a.diskGb));
+export const appHourly = (a: Pick<AppRow, "instances" | "diskGb" | "status" | "workerInstances">, plan: Pick<PaasPlan, "price">) =>
+  a.status === "stopped" ? (a.diskGb ? hourlyOf(appMonthly({ price: 0 }, 1, a.diskGb)) : 0) : hourlyOf(appMonthly(plan, a.instances + a.workerInstances, a.diskGb));
 export const dbHourly = (d: Pick<DbRow, "status">, plan: Pick<PaasPlan, "price" | "diskGb">) =>
   d.status === "stopped" ? hourlyOf(plan.diskGb * 3_000) : hourlyOf(plan.price);
 
@@ -62,12 +62,14 @@ export const defaultEnvKey = (engine: string) => (engine === "redis" ? "REDIS_UR
 
 /** everything the driver needs to run an app: plan size, decrypted env, linked database URLs, hosts */
 export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
-  const [[plan], env, links, domains, base] = await Promise.all([
+  const [[plan], env, links, domains, base, processes, crons] = await Promise.all([
     db.select().from(paasPlans).where(eq(paasPlans.id, app.planId)),
     db.select().from(paasEnv).where(eq(paasEnv.appId, app.id)),
     db.select({ l: paasLinks, d: paasDbs }).from(paasLinks).innerJoin(paasDbs, eq(paasDbs.id, paasLinks.dbId)).where(eq(paasLinks.appId, app.id)),
     db.select().from(paasDomains).where(and(eq(paasDomains.appId, app.id), eq(paasDomains.status, "active"))),
     appsDomain(db),
+    db.select().from(paasProcesses).where(eq(paasProcesses.appId, app.id)).orderBy(asc(paasProcesses.name)),
+    db.select().from(paasCrons).where(eq(paasCrons.appId, app.id)).orderBy(asc(paasCrons.name)),
   ]);
   const vars: Record<string, string> = {};
   for (const e of env) vars[e.key] = open(e.valueEnc) ?? "";
@@ -79,7 +81,9 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     rootDir: app.rootDir, buildCommand: app.buildCommand, startCommand: app.startCommand, port: app.port, healthPath: app.healthPath,
     cpu: plan?.cpu ?? 0.25, ramMb: plan?.ramMb ?? 256, instances: app.instances, autoscale: app.autoscale, maxInstances: app.maxInstances,
     diskGb: app.diskGb, diskMount: app.diskMount, env: vars, hosts: [defaultHost(app.name, base), ...domains.map((x) => x.host)],
-    cdn: app.cdn, cacheVersion: app.cacheVersion,
+    cdn: app.cdn, cacheVersion: app.cacheVersion, releaseCommand: app.releaseCommand,
+    processes: processes.map((x) => ({ name: x.name, command: x.command, instances: x.instances })),
+    crons: crons.map((x) => ({ name: x.name, schedule: x.schedule, command: x.command, enabled: x.enabled })),
   };
 }
 

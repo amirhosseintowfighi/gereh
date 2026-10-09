@@ -49,6 +49,11 @@ export type PaasApp = {
   env: { key: string; value: string | null; secret: boolean }[];
   links: { dbId: string; envKey: string }[];
   metrics: PaasMetric[];
+  releaseCommand: string;
+  processes: { name: string; command: string; instances: number }[];
+  crons: { id: string; name: string; schedule: string; command: string; enabled: boolean }[];
+  /** latest one-off and release jobs */
+  jobs: { id: string; kind: "release" | "run"; command: string; status: "running" | "succeeded" | "failed"; output: string; at: string }[];
 };
 export type PaasDb = {
   id: string; userId: string; name: string; engine: string; version: string; planId: string; status: "creating" | "running" | "stopped" | "failed" | "suspended";

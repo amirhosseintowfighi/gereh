@@ -1,11 +1,11 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { access } from "node:fs/promises";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, PAAS_NAME_RE, PAAS_RESERVED, STACKS, appMonthly, hourlyOf } from "@/lib/paas";
+import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, MAX_CRONS, MAX_PROCESSES, PAAS_NAME_RE, PAAS_RESERVED, PROC_NAME_RE, STACKS, appMonthly, cronError, hourlyOf } from "@/lib/paas";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
-import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, users } from "../db/schema";
+import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { paas } from "../paas/driver";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
@@ -54,6 +54,18 @@ function checkEnv(vars: z.infer<typeof envItem>[]) {
     if (ENV_RESERVED.has(v.key)) fail("متغیر " + v.key + " را پلتفرم تنظیم می‌کند.");
   }
   if (new Set(vars.map((v) => v.key)).size !== vars.length) fail("نام متغیرها تکراری است.");
+}
+async function liveImage(ctx: Ctx, app: typeof paasApps.$inferSelect) {
+  if (!app.liveDeployment) fail("اپ هنوز نسخه فعالی ندارد؛ اول یک استقرار موفق لازم است.");
+  const [live] = await ctx.db.select({ image: paasDeployments.image }).from(paasDeployments).where(eq(paasDeployments.id, app.liveDeployment!));
+  if (!live?.image) fail("ایمیج نسخه فعال پیدا نشد.");
+  return live!.image;
+}
+/** re-applies the app's CronJobs with the live image (no restart); nothing to do before the first deploy */
+async function syncCrons(ctx: Ctx, app: typeof paasApps.$inferSelect) {
+  if (!app.liveDeployment) return;
+  const [live] = await ctx.db.select({ image: paasDeployments.image }).from(paasDeployments).where(eq(paasDeployments.id, app.liveDeployment));
+  if (live?.image) await (await paas()).syncCrons(await appSpec(ctx.db, app), live.image);
 }
 async function uploaded(uid: string, uploadId?: string) {
   if (!uploadId) return undefined;
@@ -137,6 +149,7 @@ export const paasRpc = {
     gitUrl: z.string().trim().max(300).optional(), gitBranch: z.string().trim().max(100).optional(), image: z.string().trim().max(300).optional(), rootDir: z.string().trim().max(200).optional(),
     buildCommand: z.string().max(500).optional(), startCommand: z.string().max(500).optional(), port: z.number().int().min(1).max(65535).optional(),
     healthPath: z.string().max(200).regex(/^\/[\w./?=&%-]*$/).optional(), autoDeploy: z.boolean().optional(), cdn: z.boolean().optional(),
+    releaseCommand: z.string().max(500).optional(),
   })]), async (ctx, [appId, patch]) => {
     const { app } = await ownApp(ctx, appId);
     if (patch.gitUrl !== undefined && app.source === "git" && !GIT_RE.test(patch.gitUrl)) fail("نشانی مخزن گیت معتبر نیست.");
@@ -147,6 +160,73 @@ export const paasRpc = {
     if (patch.port !== undefined || patch.startCommand !== undefined || patch.healthPath !== undefined) await redeployConfig(ctx.db, next, "تغییر تنظیمات اجرا");
     if (app.source === "image" && patch.image && patch.image !== app.image) await queueDeployment(ctx.db, next, { trigger: "manual", message: "ایمیج جدید " + patch.image });
     if (patch.cdn !== undefined && patch.cdn !== app.cdn && next.liveDeployment) await (await paas()).updateRouting(await appSpec(ctx.db, next));
+  }),
+
+  /* ---------------- processes, cron, one-off jobs ---------------- */
+  /** replaces the app's background processes (queue workers…); each instance is billed like a web instance */
+  "paas.setProcesses": method(z.tuple([id, z.array(z.object({ name: z.string().trim().toLowerCase().max(20), command: z.string().trim().min(1).max(500), instances: z.number().int().min(0).max(10) })).max(MAX_PROCESSES)]), async (ctx, [appId, list]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    if (app.source === "compose") fail("در اپ‌های Docker Compose سرویس‌های پس‌زمینه را در خود فایل compose تعریف کنید.");
+    for (const p of list) if (!PROC_NAME_RE.test(p.name) || p.name === "cron") fail("نام پردازش «" + p.name + "» معتبر نیست (حروف کوچک انگلیسی، عدد و خط تیره).");
+    if (new Set(list.map((p) => p.name)).size !== list.length) fail("نام پردازش‌ها تکراری است.");
+    if (list.some((p) => p.instances > 0) && app.diskGb > 0) fail("پردازش‌های پس‌زمینه به دیسک دائمی اپ دسترسی ندارند؛ برای فایل‌های مشترک از فضای ابری (S3) استفاده کنید.");
+    const workers = list.reduce((s, p) => s + p.instances, 0);
+    const [p] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, app.planId));
+    if (p && workers > app.workerInstances) await needCredit(ctx, a.uid, appMonthly(p, workers - app.workerInstances, 0));
+    const next = await ctx.db.transaction(async (tx) => {
+      await tx.delete(paasProcesses).where(eq(paasProcesses.appId, app.id));
+      if (list.length) await tx.insert(paasProcesses).values(list.map((x) => ({ appId: app.id, name: x.name, command: x.command, instances: x.instances })));
+      return (await tx.update(paasApps).set({ workerInstances: workers }).where(eq(paasApps.id, app.id)).returning())[0];
+    });
+    await logActivity(ctx.db, a.uid, "cpu", "تغییر پردازش‌های پس‌زمینه " + app.name, ctx.ip);
+    return redeployConfig(ctx.db, next, "تغییر پردازش‌های پس‌زمینه");
+  }),
+
+  "paas.saveCron": method(z.tuple([id, z.object({ id: z.string().max(40).optional(), name: z.string().trim().toLowerCase().max(20), schedule: z.string().trim().max(100), command: z.string().trim().min(1).max(500), enabled: z.boolean().default(true) })]), async (ctx, [appId, c]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    if (app.source === "compose") fail("زمان‌بندی برای اپ‌های Docker Compose پشتیبانی نمی‌شود.");
+    if (!PROC_NAME_RE.test(c.name)) fail("نام معتبر نیست (حروف کوچک انگلیسی، عدد و خط تیره).");
+    const err = cronError(c.schedule);
+    if (err) fail(err);
+    const list = await ctx.db.select().from(paasCrons).where(eq(paasCrons.appId, app.id));
+    if (list.some((x) => x.name === c.name && x.id !== c.id)) fail("زمان‌بندی دیگری با این نام دارید.");
+    if (c.id) {
+      if (!list.some((x) => x.id === c.id)) fail("زمان‌بندی پیدا نشد.", 404);
+      await ctx.db.update(paasCrons).set({ name: c.name, schedule: c.schedule, command: c.command, enabled: c.enabled }).where(eq(paasCrons.id, c.id));
+    } else {
+      if (list.length >= MAX_CRONS) fail("حداکثر " + MAX_CRONS.toLocaleString("fa-IR") + " زمان‌بندی برای هر اپ.");
+      await ctx.db.insert(paasCrons).values({ id: rid("cron"), appId: app.id, name: c.name, schedule: c.schedule, command: c.command, enabled: c.enabled });
+    }
+    await syncCrons(ctx, app);
+    await logActivity(ctx.db, a.uid, "clock", "زمان‌بندی «" + c.name + "» برای " + app.name, ctx.ip);
+  }),
+  "paas.deleteCron": method(z.tuple([id]), async (ctx, [cronId]) => {
+    const a = needUser(ctx);
+    const [row] = await ctx.db.select({ c: paasCrons, app: paasApps }).from(paasCrons).innerJoin(paasApps, eq(paasApps.id, paasCrons.appId)).where(and(eq(paasCrons.id, cronId), eq(paasApps.userId, a.uid)));
+    if (!row) fail("زمان‌بندی پیدا نشد.", 404);
+    await ctx.db.delete(paasCrons).where(eq(paasCrons.id, cronId));
+    await syncCrons(ctx, row!.app);
+  }),
+
+  /** runs a command once in a new container from the live image (migrations, scripts) */
+  "paas.runJob": method(z.tuple([id, z.string().trim().min(1).max(1000)]), async (ctx, [appId, command]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    const image = await liveImage(ctx, app);
+    if (image.startsWith("compose:")) fail("اجرای دستور برای اپ‌های Docker Compose پشتیبانی نمی‌شود.");
+    const [running] = await ctx.db.select({ n: sql<number>`count(*)::int` }).from(paasJobs).where(and(eq(paasJobs.appId, app.id), eq(paasJobs.status, "running")));
+    if ((running?.n ?? 0) >= 3) fail("حداکثر ۳ دستور هم‌زمان؛ تا پایان دستورهای قبلی صبر کنید.");
+    const jobId = rid("job");
+    await ctx.db.insert(paasJobs).values({ id: jobId, appId: app.id, kind: "run", command });
+    await (await paas()).runJob(await appSpec(ctx.db, app), image, jobId, command);
+    await enqueue(ctx.db, "paas.job", { jobId, since: Date.now() }, { runAt: new Date(Date.now() + Number(process.env.PAAS_POLL_MS ?? 3000)) });
+    await logActivity(ctx.db, a.uid, "terminal", "اجرای دستور روی " + app.name + ": " + command.slice(0, 80), ctx.ip);
+    return jobId;
+  }),
+  "paas.job": method(z.tuple([id]), async (ctx, [jobId]) => {
+    const a = needUser(ctx);
+    const [row] = await ctx.db.select({ j: paasJobs, userId: paasApps.userId }).from(paasJobs).innerJoin(paasApps, eq(paasApps.id, paasJobs.appId)).where(eq(paasJobs.id, jobId));
+    if (!row || (row.userId !== a.uid && a.user.role !== "admin")) fail("دستور پیدا نشد.", 404);
+    return { id: row!.j.id, status: row!.j.status, command: row!.j.command, output: row!.j.output };
   }),
 
   /** empties the edge cache (new cache-key version) */
@@ -194,7 +274,7 @@ export const paasRpc = {
     if (!app.liveDeployment) fail("این اپ هنوز نسخه فعالی ندارد.");
     if (action === "start") {
       const [p] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, app.planId));
-      await needCredit(ctx, a.uid, appMonthly(p!, app.instances, app.diskGb));
+      await needCredit(ctx, a.uid, appMonthly(p!, app.instances + app.workerInstances, app.diskGb));
     }
     await (await paas()).setState(await appSpec(ctx.db, app), action);
     await ctx.db.update(paasApps).set({ status: action === "stop" ? "stopped" : "running" }).where(eq(paasApps.id, app.id));

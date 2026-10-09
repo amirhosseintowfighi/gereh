@@ -6,7 +6,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { Auth } from "./auth";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
-import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, servers, users } from "./db/schema";
+import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, users } from "./db/schema";
 import { appHourly, appsDomain, defaultHost, loadPlans } from "./paas/service";
 import { registry } from "./rpc";
 import { AppError, sha256 } from "./util";
@@ -123,6 +123,17 @@ export const ROUTES: Route[] = [
     if (!["start", "stop", "restart"].includes(action)) throw new AppError("action must be start, stop or restart", 422);
     await rpc(ctx, "paas.power", (await ownAppBy(ctx, m[1])).id, action);
     return { ok: true };
+  } },
+  { method: "POST", pattern: /^apps\/([\w-]+)\/jobs$/, write: true, run: async (ctx, m, b) => {
+    const app = await ownAppBy(ctx, m[1]);
+    const id = await rpc(ctx, "paas.runJob", app.id, String(b.command ?? ""));
+    return { id, status: "running" };
+  } },
+  { method: "GET", pattern: /^apps\/([\w-]+)\/jobs\/([\w-]+)$/, run: async (ctx, m) => {
+    const app = await ownAppBy(ctx, m[1]);
+    const [j] = await ctx.db.select().from(paasJobs).where(and(eq(paasJobs.id, m[2]), eq(paasJobs.appId, app.id)));
+    if (!j) notFound();
+    return { id: j!.id, kind: j!.kind, command: j!.command, status: j!.status, output: j!.output, created_at: iso(j!.createdAt), finished_at: iso(j!.finishedAt) };
   } },
   { method: "GET", pattern: /^databases$/, run: async (ctx) => ({ data: (await ctx.db.select().from(paasDbs).where(eq(paasDbs.userId, ctx.auth!.uid))).map((d) => ({
     id: d.id, name: d.name, engine: d.engine, version: d.version, status: d.status, plan: d.planId, host: d.host || null, port: d.port, database: d.dbName, username: d.username,

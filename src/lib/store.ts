@@ -83,7 +83,7 @@ export const genPassword = () => {
 
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -239,6 +239,11 @@ export const api = {
     restoreDb: (id: string) => rpc("paas.restoreDb", id),
     link: (appId: string, dbId: string, envKey?: string) => rpc("paas.link", appId, dbId, envKey),
     unlink: (appId: string, dbId: string) => rpc("paas.unlink", appId, dbId),
+    setProcesses: (appId: string, list: { name: string; command: string; instances: number }[]) => rpc("paas.setProcesses", appId, list),
+    saveCron: (appId: string, c: { id?: string; name: string; schedule: string; command: string; enabled: boolean }) => rpc("paas.saveCron", appId, c),
+    deleteCron: (id: string) => rpc("paas.deleteCron", id),
+    runJob: (appId: string, command: string) => rpc<string>("paas.runJob", appId, command),
+    job: (id: string) => rpc<{ id: string; status: "running" | "succeeded" | "failed"; command: string; output: string }>("paas.job", id),
     adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("paas.adminPlan", id, patch),
     adminSuspend: (kind: "app" | "db", id: string, on: boolean) => rpc("paas.adminSuspend", kind, id, on),
     adminTest: () => rpc<{ driver: string; version: string }>("paas.adminTest"),

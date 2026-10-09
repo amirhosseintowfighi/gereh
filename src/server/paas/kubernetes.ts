@@ -108,7 +108,7 @@ const ignore404 = (p: Promise<unknown>) => p.catch((e) => { if (!notFound(e)) th
 /** REST path for a namespaced object */
 function pathOf(apiVersion: string, kind: string, ns: string | null, name?: string) {
   const plural = ({ Namespace: "namespaces", Secret: "secrets", Service: "services", PersistentVolumeClaim: "persistentvolumeclaims", Pod: "pods", NetworkPolicy: "networkpolicies", ResourceQuota: "resourcequotas", LimitRange: "limitranges",
-    Deployment: "deployments", StatefulSet: "statefulsets", Ingress: "ingresses", Job: "jobs", HorizontalPodAutoscaler: "horizontalpodautoscalers" } as Record<string, string>)[kind];
+    Deployment: "deployments", StatefulSet: "statefulsets", Ingress: "ingresses", Job: "jobs", CronJob: "cronjobs", HorizontalPodAutoscaler: "horizontalpodautoscalers", PodDisruptionBudget: "poddisruptionbudgets" } as Record<string, string>)[kind];
   const base = apiVersion.includes("/") ? "/apis/" + apiVersion : "/api/" + apiVersion;
   return base + (ns ? "/namespaces/" + ns : "") + "/" + plural + (name ? "/" + name : "");
 }
@@ -134,7 +134,7 @@ export function namespaceObjects(userId: string): Obj[] {
   return out;
 }
 
-type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[] };
+type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[]; own?: boolean };
 
 function deployment(app: AppSpec, w: Workload, deploymentId: string, share: number): Obj {
   const c = cfg(), ns = nsOf(app.userId), labels = { ...appLabels(app), "app.kubernetes.io/name": w.name, "gereh.net/service": w.service };
@@ -198,6 +198,41 @@ export function serviceObjects(app: AppSpec, image: string): Obj[] {
 }
 export const composeOf = (image: string): ComposeService[] | null => (image.startsWith("compose:") ? JSON.parse(image.slice(8)) as ComposeService[] : null);
 
+const procName = (app: Pick<AppSpec, "name">, proc: string) => app.name + "-" + proc;
+export const cronName = (app: Pick<AppSpec, "name">, cron: string) => app.name + "-cron-" + cron;
+const runPod = (app: AppSpec, image: string, command: string, labels: Record<string, string>) => {
+  const c = cfg();
+  return {
+    metadata: { labels },
+    spec: {
+      restartPolicy: "Never", automountServiceAccountToken: false, enableServiceLinks: false,
+      ...(c.pullSecret ? { imagePullSecrets: [{ name: "gereh-registry" }] } : {}),
+      containers: [{
+        name: "app", image, imagePullPolicy: "IfNotPresent", command: ["/bin/sh", "-c", command],
+        envFrom: [{ secretRef: { name: app.name + "-env" } }],
+        resources: { requests: { cpu: cpuQty(app.cpu / 2), memory: memQty(app.ramMb) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } },
+        securityContext: { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" } },
+      }],
+    },
+  };
+};
+/** scheduled command (Tehran time); never overlaps itself */
+export function cronJobObject(app: AppSpec, cron: AppSpec["crons"][number], image: string): Obj {
+  const labels = { ...appLabels(app), "app.kubernetes.io/name": cronName(app, cron.name), "gereh.net/cron": cron.name };
+  return { apiVersion: "batch/v1", kind: "CronJob", metadata: { name: cronName(app, cron.name), namespace: nsOf(app.userId), labels }, spec: {
+    schedule: cron.schedule, timeZone: "Asia/Tehran", suspend: !cron.enabled, concurrencyPolicy: "Forbid", startingDeadlineSeconds: 300,
+    successfulJobsHistoryLimit: 1, failedJobsHistoryLimit: 3,
+    jobTemplate: { metadata: { labels }, spec: { backoffLimit: 0, activeDeadlineSeconds: 3600, ttlSecondsAfterFinished: 86_400, template: runPod(app, image, cron.command, labels) } },
+  } };
+}
+/** one-off job in the customer's namespace (release command or a command run from the panel) */
+export function runJobObject(app: AppSpec, image: string, jobId: string, command: string): Obj {
+  const labels = { ...appLabels(app), "app.kubernetes.io/name": "job-" + jobId.toLowerCase(), "gereh.net/job": jobId.toLowerCase() };
+  return { apiVersion: "batch/v1", kind: "Job", metadata: { name: "job-" + jobId.toLowerCase(), namespace: nsOf(app.userId), labels }, spec: {
+    backoffLimit: 0, activeDeadlineSeconds: 3600, ttlSecondsAfterFinished: 86_400, template: runPod(app, image, command, labels),
+  } };
+}
+
 /** everything but the Services; `ips` maps compose service name → cluster IP */
 export function appObjects(app: AppSpec, image: string, deploymentId: string, ips: Record<string, string> = {}): Obj[] {
   const c = cfg(), ns = nsOf(app.userId), labels = appLabels(app);
@@ -211,10 +246,12 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
         // panel variables win over compose defaults (container env would otherwise shadow envFrom)
         env: Object.fromEntries(Object.entries(s.env).filter(([k]) => !(k in app.env))),
       }))
-    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app" }];
+    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app" },
+        // background processes get the plan's full size each (they are billed per instance)
+        ...(app.processes ?? []).filter((p) => p.instances > 0).map((p) => ({ name: procName(app, p.name), image, command: p.command, replicas: p.instances, primary: false, service: "proc-" + p.name, own: true }))];
   const out: Obj[] = [
     { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, ...(compose ? { PORT: String(compose.find((x) => x.public)!.port) } : {}), GEREH_DEPLOYMENT: deploymentId } },
-    ...workloads.map((w) => deployment(app, w, deploymentId, workloads.length)),
+    ...workloads.map((w) => deployment(app, w, deploymentId, w.own ? 1 : workloads.filter((x) => !x.own).length)),
     { apiVersion: "networking.k8s.io/v1", kind: "Ingress", metadata: { name: app.name, namespace: ns, labels, annotations: {
       ...(custom.length ? { "cert-manager.io/cluster-issuer": c.issuer } : {}),
       "nginx.ingress.kubernetes.io/proxy-body-size": "50m", "nginx.ingress.kubernetes.io/proxy-read-timeout": "120",
@@ -226,6 +263,7 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
       rules: app.hosts.map((host) => ({ host, http: { paths: [{ path: "/", pathType: "Prefix", backend: { service: { name: app.name, port: { name: "http" } } } }] } })),
     } },
   ];
+  if (!compose && image) for (const cr of app.crons ?? []) out.push(cronJobObject(app, cr, image));
   if (app.diskGb) out.push({ apiVersion: "v1", kind: "PersistentVolumeClaim", metadata: { name: app.name + "-data", namespace: ns, labels }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: app.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } });
   if (app.autoscale) out.push({ apiVersion: "autoscaling/v2", kind: "HorizontalPodAutoscaler", metadata: { name: app.name, namespace: ns, labels }, spec: {
     scaleTargetRef: { apiVersion: "apps/v1", kind: "Deployment", name: app.name }, minReplicas: app.instances, maxReplicas: Math.max(app.instances, app.maxInstances),
@@ -438,8 +476,8 @@ export class KubernetesDriver implements PaasDriver {
   }
 
   /* ----- apps ----- */
-  private async owned(ns: string, kind: "Deployment" | "Service", appId: string) {
-    const r = await k8s("GET", pathOf(kind === "Deployment" ? "apps/v1" : "v1", kind, ns) + "?labelSelector=" + encodeURIComponent("gereh.net/app=" + appId));
+  private async owned(ns: string, kind: "Deployment" | "Service" | "CronJob", appId: string) {
+    const r = await k8s("GET", pathOf(({ Deployment: "apps/v1", Service: "v1", CronJob: "batch/v1" })[kind], kind, ns) + "?labelSelector=" + encodeURIComponent("gereh.net/app=" + appId));
     return (r.items as { metadata: { name: string; labels?: Record<string, string> }; spec: { replicas?: number }; status?: Record<string, number> }[]) ?? [];
   }
 
@@ -458,6 +496,7 @@ export class KubernetesDriver implements PaasDriver {
     const keep = new Set([...services, ...objs].map((o) => o.kind + "/" + (o.metadata as { name: string }).name));
     for (const d of await this.owned(ns, "Deployment", app.id)) if (!keep.has("Deployment/" + d.metadata.name)) await del("apps/v1", "Deployment", ns, d.metadata.name);
     for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
+    for (const cj of await this.owned(ns, "CronJob", app.id)) if (!keep.has("CronJob/" + cj.metadata.name)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
     if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
   }
@@ -485,7 +524,14 @@ export class KubernetesDriver implements PaasDriver {
     for (const d of all) {
       const primary = d.metadata.name === app.name;
       if (action === "restart") await merge(d.metadata.name, { spec: { template: { metadata: { annotations: { "kubectl.kubernetes.io/restartedAt": new Date().toISOString() } } } } });
-      else await merge(d.metadata.name, { spec: { replicas: action === "stop" ? 0 : primary ? app.instances : 1 } });
+      else {
+        const proc = (app.processes ?? []).find((p) => procName(app, p.name) === d.metadata.name);
+        await merge(d.metadata.name, { spec: { replicas: action === "stop" ? 0 : primary ? app.instances : proc ? proc.instances : 1 } });
+      }
+    }
+    if (action !== "restart") for (const cj of await this.owned(ns, "CronJob", app.id)) {
+      const cron = (app.crons ?? []).find((x) => cronName(app, x.name) === cj.metadata.name);
+      await k8s("PATCH", pathOf("batch/v1", "CronJob", ns, cj.metadata.name), { spec: { suspend: action === "stop" || !cron?.enabled } }, "application/merge-patch+json");
     }
     if (action === "start" && app.autoscale) {
       const hpa = appObjects(app, "", "").find((o) => o.kind === "HorizontalPodAutoscaler");
@@ -499,11 +545,40 @@ export class KubernetesDriver implements PaasDriver {
     await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     for (const d of await this.owned(ns, "Deployment", app.id)) await del("apps/v1", "Deployment", ns, d.metadata.name);
     for (const sv of await this.owned(ns, "Service", app.id)) await del("v1", "Service", ns, sv.metadata.name);
+    for (const cj of await this.owned(ns, "CronJob", app.id)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
     await del("apps/v1", "Deployment", ns, app.name);
     await del("v1", "Service", ns, app.name);
     await del("v1", "Secret", ns, app.name + "-env");
     await del("v1", "Secret", ns, app.name + "-tls");
     await del("v1", "PersistentVolumeClaim", ns, app.name + "-data");
+  }
+
+  async runJob(app: AppSpec, image: string, jobId: string, command: string) {
+    await this.ensureNs(app.userId);
+    // the env Secret first: a release command of the very first deployment runs before release()
+    const secret = appObjects(app, image, "job").find((o) => o.kind === "Secret");
+    if (secret) await apply(secret as never);
+    await apply(runJobObject(app, image, jobId, command) as never);
+  }
+
+  async jobStatus(app: AppSpec, jobId: string) {
+    const ns = nsOf(app.userId), name = "job-" + jobId.toLowerCase();
+    let job: { status?: { succeeded?: number; failed?: number; conditions?: { type: string; status: string; message?: string }[] } };
+    try { job = await get("batch/v1", "Job", ns, name) as typeof job; } catch (e) { if (notFound(e)) return { state: "failed" as const, output: "job not found (removed after 24 hours)" }; throw e; }
+    const output = await this.jobLogs(ns, name, ["app"], 2000);
+    if (job.status?.succeeded) return { state: "succeeded" as const, output };
+    const failed = job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True");
+    if (failed) return { state: "failed" as const, output: output + "\nERROR: " + (job.status?.conditions?.find((x) => x.type === "Failed")?.message || "command failed") };
+    return { state: "running" as const, output };
+  }
+
+  async syncCrons(app: AppSpec, image: string) {
+    const ns = await this.ensureNs(app.userId);
+    if (composeOf(image)) return;
+    const want = (app.crons ?? []).map((cr) => cronJobObject(app, cr, image));
+    for (const o of want) await apply(o as never);
+    const keep = new Set(want.map((o) => (o.metadata as { name: string }).name));
+    for (const cj of await this.owned(ns, "CronJob", app.id)) if (!keep.has(cj.metadata.name)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
   }
 
   async logs(app: AppSpec, tail: number) {
@@ -609,7 +684,7 @@ export class KubernetesDriver implements PaasDriver {
       mongodb: `mongosh "mongodb://${encodeURIComponent(d.username)}:$OLD_URL@${h}:${p}/admin" --quiet --eval 'db.changeUserPassword(${JSON.stringify(d.username)}, process.env.NEW)'`,
       redis: `redis-cli -h ${h} -p ${p} -a "$OLD" --no-auth-warning CONFIG SET requirepass "$NEW"`,
     } as Record<string, string>)[d.engine];
-    await this.runJob(d, "passwd", DB_IMAGES[d.engine](d.version), cmd, [{ name: "OLD", value: old }, { name: "OLD_URL", value: encodeURIComponent(old) }, { name: "NEW", value: d.password }], 300);
+    await this.dbJob(d, "passwd", DB_IMAGES[d.engine](d.version), cmd, [{ name: "OLD", value: old }, { name: "OLD_URL", value: encodeURIComponent(old) }, { name: "NEW", value: d.password }], 300);
   }
   async setDbState(d: DbSpec, action: "start" | "stop") {
     await k8s("PATCH", pathOf("apps/v1", "StatefulSet", nsOf(d.userId), dbName(d)), { spec: { replicas: action === "stop" ? 0 : 1 } }, "application/merge-patch+json");
@@ -634,7 +709,7 @@ export class KubernetesDriver implements PaasDriver {
     throw new Error(name + " timed out");
   }
 
-  private async runJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down" | "share"; key: string }) {
+  private async dbJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down" | "share"; key: string }) {
     const c = cfg(), name = (kind + "-" + d.id + "-" + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
     const s3 = ["S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY"].map((k) => ({ name: k, valueFrom: { secretKeyRef: { name: "backup-s3", key: k } } }));
     const vol = [{ name: "backup", mountPath: "/backup" }];
@@ -657,19 +732,19 @@ export class KubernetesDriver implements PaasDriver {
 
   async backupDb(d: DbSpec, backupId: string) {
     const key = cfg().bucket + "/" + dns1123(d.userId) + "/" + d.id + "/" + backupId + ".dump";
-    const log = await this.runJob(d, "backup", DB_IMAGES[d.engine](d.version), dumpCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "up", key });
+    const log = await this.dbJob(d, "backup", DB_IMAGES[d.engine](d.version), dumpCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "up", key });
     const bytes = Number(/SIZE=(\d+)/.exec(log)?.[1] ?? 0);
     return { sizeMb: Math.round((bytes / 1024 / 1024) * 10) / 10, location: "s3://" + key };
   }
   async restoreDb(d: DbSpec, location: string) {
     const key = location.replace(/^s3:\/\//, "");
     if (d.engine === "redis") return this.restoreRedis(d, key);
-    await this.runJob(d, "restore", DB_IMAGES[d.engine](d.version), restoreCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key });
+    await this.dbJob(d, "restore", DB_IMAGES[d.engine](d.version), restoreCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key });
   }
 
   private async restoreRedis(d: DbSpec, key: string) {
     const ns = nsOf(d.userId), sts = dbName(d);
-    const url = /^URL=(\S+)/m.exec(await this.runJob(d, "share", cfg().mcImage, "", [], 300, { mode: "share", key }))?.[1];
+    const url = /^URL=(\S+)/m.exec(await this.dbJob(d, "share", cfg().mcImage, "", [], 300, { mode: "share", key }))?.[1];
     if (!url) throw new Error("could not create a download link for the backup");
     await this.setDbState(d, "stop");
     try {
