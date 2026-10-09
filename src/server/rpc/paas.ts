@@ -8,7 +8,7 @@ import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { paas } from "../paas/driver";
-import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
+import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
 import { open, seal } from "../secrets";
 import { checkDomain } from "../worker/paas";
 import { fail, logActivity, logAudit, rid } from "../util";
@@ -47,6 +47,7 @@ async function needCredit(ctx: Ctx, uid: string, monthly: number) {
 function checkName(name: string) {
   if (!PAAS_NAME_RE.test(name)) fail("نام فقط حروف کوچک انگلیسی، عدد و خط تیره؛ ۳ تا ۳۰ نویسه و با حرف شروع شود.");
   if (PAAS_RESERVED.has(name)) fail("این نام رزرو شده است.");
+  if (name.endsWith("-preview")) fail("نام اپ نمی‌تواند با ‎-preview‎ تمام شود (برای پیش‌نمایش‌ها رزرو است).");
 }
 function checkEnv(vars: z.infer<typeof envItem>[]) {
   for (const v of vars) {
@@ -122,10 +123,47 @@ export const paasRpc = {
     return queueDeployment(ctx.db, app, { trigger: o.via ?? "manual", uploadPath, message: o.message?.trim() || (o.via === "cli" ? "استقرار از CLI" : o.via === "api" ? "استقرار از API" : "استقرار دستی") });
   }),
 
+  /** builds a branch (Git) or an upload (ZIP) into the app's preview: <name>-preview.<apps domain> */
+  "paas.deployPreview": method(z.tuple([id, z.object({ branch: z.string().trim().max(100).optional(), uploadId: z.string().max(64).optional(), message: z.string().max(200).optional(), via: z.enum(["manual", "api", "cli", "git"]).optional(), ref: z.string().max(40).optional() })]), async (ctx, [appId, o]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    if (app.source === "image" || app.source === "compose") fail("پیش‌نمایش برای اپ‌های Git و ZIP در دسترس است.");
+    if (o.branch && !/^[\w./-]{1,100}$/.test(o.branch)) fail("نام شاخه معتبر نیست.");
+    const uploadPath = await uploaded(a.uid, o.uploadId);
+    if (app.source === "zip" && !uploadPath) fail("فایل نسخه پیش‌نمایش را بارگذاری کنید.");
+    const [busy] = await ctx.db.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.target, "preview"), inArray(paasDeployments.status, ["queued", "building", "deploying"])));
+    if (busy) fail("یک پیش‌نمایش در حال ساخت است؛ تا پایان آن صبر کنید.");
+    if (!app.previewDeployment) { const [p] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, app.planId)); if (p) await needCredit(ctx, a.uid, p.price); }
+    const branch = app.source === "git" ? (o.branch || app.gitBranch) : "";
+    const trig = o.via === "git" ? "git" : o.via ?? "manual";
+    const depId = await queueDeployment(ctx.db, app, { trigger: trig, target: "preview", branch, uploadPath, ref: o.ref, message: o.message?.trim() || "پیش‌نمایش" + (branch ? " شاخه " + branch : "") });
+    if (o.via !== "git") await logActivity(ctx.db, a.uid, "eye", "پیش‌نمایش " + app.name + (branch ? " از شاخه " + branch : ""), ctx.ip);
+    return depId;
+  }),
+
+  /** releases the preview's image to production (no rebuild; the release command runs first) */
+  "paas.promote": method(z.tuple([id, id]), async (ctx, [appId, depId]) => {
+    const { a, app } = await ownApp(ctx, appId);
+    if (app.status === "stopped") fail("اپ متوقف است؛ اول آن را روشن کنید.");
+    const [dep] = await ctx.db.select().from(paasDeployments).where(and(eq(paasDeployments.id, depId), eq(paasDeployments.appId, app.id)));
+    if (!dep || dep.target !== "preview" || !dep.image || !["live", "superseded"].includes(dep.status)) fail("فقط پیش‌نمایشی که با موفقیت ساخته شده قابل انتقال به نسخه اصلی است.");
+    const [busy] = await ctx.db.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.target, "production"), inArray(paasDeployments.status, ["queued", "building", "deploying"])));
+    if (busy) fail("یک استقرار در جریان است؛ تا پایان آن صبر کنید.");
+    await logActivity(ctx.db, a.uid, "rocket", "انتقال پیش‌نمایش " + app.name + " به نسخه اصلی", ctx.ip);
+    return queueDeployment(ctx.db, app, { trigger: "promote", image: dep!.image, ref: dep!.ref, branch: dep!.branch, message: "انتقال پیش‌نمایش" + (dep!.branch ? " (" + dep!.branch + ")" : "") + " به نسخه اصلی" });
+  }),
+
+  "paas.removePreview": method(z.tuple([id]), async (ctx, [appId]) => {
+    const { app } = await ownApp(ctx, appId);
+    if (!app.previewDeployment) fail("پیش‌نمایش فعالی نیست.");
+    await (await paas()).remove(previewSpec(await appSpec(ctx.db, app)));
+    await ctx.db.update(paasDeployments).set({ status: "superseded" }).where(eq(paasDeployments.id, app.previewDeployment!));
+    await ctx.db.update(paasApps).set({ previewDeployment: null }).where(eq(paasApps.id, app.id));
+  }),
+
   "paas.rollback": method(z.tuple([id, id]), async (ctx, [appId, depId]) => {
     const { app } = await ownApp(ctx, appId);
     const [dep] = await ctx.db.select().from(paasDeployments).where(and(eq(paasDeployments.id, depId), eq(paasDeployments.appId, app.id)));
-    if (!dep?.image || !["live", "superseded"].includes(dep.status)) fail("فقط به نسخه‌ای که قبلاً موفق بوده می‌توان برگشت.");
+    if (!dep?.image || !["live", "superseded"].includes(dep.status) || dep.target !== "production") fail("فقط به نسخه‌ای که قبلاً موفق بوده می‌توان برگشت.");
     if (dep!.id === app.liveDeployment) fail("این نسخه هم‌اکنون فعال است.");
     return queueDeployment(ctx.db, app, { trigger: "rollback", image: dep!.image, ref: dep!.ref, message: "بازگشت به نسخه " + dep!.id });
   }),
@@ -149,7 +187,7 @@ export const paasRpc = {
     gitUrl: z.string().trim().max(300).optional(), gitBranch: z.string().trim().max(100).optional(), image: z.string().trim().max(300).optional(), rootDir: z.string().trim().max(200).optional(),
     buildCommand: z.string().max(500).optional(), startCommand: z.string().max(500).optional(), port: z.number().int().min(1).max(65535).optional(),
     healthPath: z.string().max(200).regex(/^\/[\w./?=&%-]*$/).optional(), autoDeploy: z.boolean().optional(), cdn: z.boolean().optional(),
-    releaseCommand: z.string().max(500).optional(),
+    releaseCommand: z.string().max(500).optional(), previews: z.boolean().optional(),
   })]), async (ctx, [appId, patch]) => {
     const { app } = await ownApp(ctx, appId);
     if (patch.gitUrl !== undefined && app.source === "git" && !GIT_RE.test(patch.gitUrl)) fail("نشانی مخزن گیت معتبر نیست.");
@@ -284,7 +322,9 @@ export const paasRpc = {
   "paas.deleteApp": method(z.tuple([id, z.string().max(30)]), async (ctx, [appId, confirm]) => {
     const { a, app } = await ownApp(ctx, appId);
     if (confirm !== app.name) fail("برای حذف، نام اپ را دقیق وارد کنید.");
-    await (await paas()).remove(await appSpec(ctx.db, app));
+    const spec = await appSpec(ctx.db, app);
+    await (await paas()).remove(spec);
+    if (app.previewDeployment) await (await paas()).remove(previewSpec(spec));
     await ctx.db.delete(paasApps).where(eq(paasApps.id, app.id));
     await logActivity(ctx.db, a.uid, "trash-2", "حذف اپ " + app.name, ctx.ip);
   }),

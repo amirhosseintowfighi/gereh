@@ -21,12 +21,21 @@ export async function POST(req: Request, { params }: RouteContext<"/api/paas/hoo
   if (event === "ping") return NextResponse.json({ ok: true, pong: true });
   const body = (await req.json().catch(() => ({}))) as { ref?: string; after?: string; checkout_sha?: string; head_commit?: { id?: string; message?: string }; commits?: { id?: string; message?: string }[] };
   const branch = (body.ref || "").replace(/^refs\/heads\//, "");
-  if (branch && branch !== app.gitBranch) return NextResponse.json({ ok: true, skipped: "branch " + branch });
-  if (!app.autoDeploy || app.source !== "git" || ["suspended", "stopped"].includes(app.status)) return NextResponse.json({ ok: true, skipped: "auto deploy is off" });
-  const [busy] = await d.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), inArray(paasDeployments.status, ["queued", "building"])));
-  if (busy) return NextResponse.json({ ok: true, skipped: "a deployment is already running" });
   const commit = body.head_commit ?? body.commits?.at(-1);
   const sha = (commit?.id || body.checkout_sha || body.after || "").slice(0, 7);
-  const id = await queueDeployment(d, app, { trigger: "git", ref: sha, message: (commit?.message || "push").split("\n")[0].slice(0, 200) });
+  const message = (commit?.message || "push").split("\n")[0].slice(0, 200);
+  if (app.source !== "git" || ["suspended", "stopped"].includes(app.status)) return NextResponse.json({ ok: true, skipped: "app is not running" });
+  // other branches: a preview when the app has previews on
+  if (branch && branch !== app.gitBranch) {
+    if (!app.previews || !/^[\w./-]{1,100}$/.test(branch)) return NextResponse.json({ ok: true, skipped: "branch " + branch });
+    const [pv] = await d.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.target, "preview"), inArray(paasDeployments.status, ["queued", "building", "deploying"])));
+    if (pv) return NextResponse.json({ ok: true, skipped: "a preview is already building" });
+    const id = await queueDeployment(d, app, { trigger: "git", target: "preview", branch, ref: sha, message: "پیش‌نمایش " + branch + ": " + message });
+    return NextResponse.json({ ok: true, preview: id });
+  }
+  if (!app.autoDeploy) return NextResponse.json({ ok: true, skipped: "auto deploy is off" });
+  const [busy] = await d.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), inArray(paasDeployments.status, ["queued", "building"])));
+  if (busy) return NextResponse.json({ ok: true, skipped: "a deployment is already running" });
+  const id = await queueDeployment(d, app, { trigger: "git", ref: sha, message });
   return NextResponse.json({ ok: true, deployment: id });
 }

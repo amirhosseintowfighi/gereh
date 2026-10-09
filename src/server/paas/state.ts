@@ -8,6 +8,7 @@ import type { ClientDB } from "@/lib/types";
 import type { DB } from "../db/client";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasMetrics, paasPlans, paasProcesses } from "../db/schema";
 import { open } from "../secrets";
+import { previewHost } from "./service";
 
 export async function paasState(db: DB, opts: { uid: string; admin: boolean; domain: string; siteUrl: string }): Promise<Pick<ClientDB, "paasApps" | "paasDbs" | "paasPlans">> {
   const plans = await db.select().from(paasPlans).orderBy(asc(paasPlans.position));
@@ -17,7 +18,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
   const appIds = apps.map((a) => a.id), dbIds = dbs.map((d) => d.id);
   const since = new Date(Date.now() - 4 * 3600_000);
   const [deps, domains, env, links, backups, metrics, procs, crons, jobs] = await Promise.all([
-    appIds.length ? db.select({ id: paasDeployments.id, appId: paasDeployments.appId, status: paasDeployments.status, trigger: paasDeployments.trigger, ref: paasDeployments.ref, message: paasDeployments.message, image: paasDeployments.image, createdAt: paasDeployments.createdAt, startedAt: paasDeployments.startedAt, finishedAt: paasDeployments.finishedAt })
+    appIds.length ? db.select({ id: paasDeployments.id, appId: paasDeployments.appId, status: paasDeployments.status, trigger: paasDeployments.trigger, ref: paasDeployments.ref, message: paasDeployments.message, image: paasDeployments.image, target: paasDeployments.target, branch: paasDeployments.branch, createdAt: paasDeployments.createdAt, startedAt: paasDeployments.startedAt, finishedAt: paasDeployments.finishedAt })
       .from(paasDeployments).where(inArray(paasDeployments.appId, appIds)).orderBy(desc(paasDeployments.createdAt)) : [],
     appIds.length ? db.select().from(paasDomains).where(inArray(paasDomains.appId, appIds)).orderBy(asc(paasDomains.createdAt)) : [],
     appIds.length ? db.select().from(paasEnv).where(inArray(paasEnv.appId, appIds)).orderBy(asc(paasEnv.key)) : [],
@@ -39,8 +40,9 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         buildCommand: a.buildCommand, startCommand: a.startCommand, port: a.port, healthPath: a.healthPath, planId: a.planId, instances: a.instances, autoscale: a.autoscale,
         maxInstances: a.maxInstances, diskGb: a.diskGb, diskMount: a.diskMount, status: a.status, url: "https://" + a.name + "." + opts.domain,
         hookUrl: opts.admin ? "" : opts.siteUrl + "/api/paas/hook/" + a.id + "?token=" + a.hookToken, autoDeploy: a.autoDeploy, cdn: a.cdn, liveDeployment: a.liveDeployment, at: faDateTime(a.createdAt),
-        hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances, a.diskGb))) : 0,
-        deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image })),
+        hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb))) : 0,
+        deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch })),
+        previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
         domains: domains.filter((d) => d.appId === a.id).map((d) => ({ id: d.id, host: d.host, status: d.status, ssl: d.ssl })),
         env: env.filter((e) => e.appId === a.id).map((e) => ({ key: e.key, secret: e.secret, value: opts.admin || e.secret ? null : open(e.valueEnc) })),
         links: links.filter((l) => l.appId === a.id).map((l) => ({ dbId: l.dbId, envKey: l.envKey })),

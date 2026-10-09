@@ -21,7 +21,7 @@ export type AppSpec = {
   crons: { name: string; schedule: string; command: string; enabled: boolean }[];
 };
 export type DbSpec = { id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean };
-export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string };
+export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string; /** gereh.json found in the source */ manifest?: string };
 
 export interface PaasDriver {
   readonly name: "kubernetes" | "simulator";

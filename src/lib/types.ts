@@ -43,7 +43,8 @@ export type PaasApp = {
   id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose"; gitUrl: string; gitBranch: string; image: string; rootDir: string;
   buildCommand: string; startCommand: string; port: number; healthPath: string; planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number; diskMount: string;
   status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; cdn: boolean; liveDeployment: string | null; at: string; hourly: number;
-  deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean }[];
+  deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean; target: "production" | "preview"; branch: string }[];
+  previews: boolean; previewDeployment: string | null; previewUrl: string;
   domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
   /** value is null for secrets (and for staff, who never see values) */
   env: { key: string; value: string | null; secret: boolean }[];

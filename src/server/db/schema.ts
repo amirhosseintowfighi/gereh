@@ -503,6 +503,10 @@ export const paasApps = pgTable("paas_apps", {
   releaseCommand: text("release_command").notNull().default(""),
   /** sum of worker process instances (billed like web instances) */
   workerInstances: integer("worker_instances").notNull().default(0),
+  /** pushes to other branches get a preview at <name>-preview.<apps domain> */
+  previews: boolean("previews").notNull().default(false),
+  /** the running preview (one per app), billed as one extra instance */
+  previewDeployment: text("preview_deployment"),
   liveDeployment: text("live_deployment"),
   suspendedAt: ts("suspended_at"),
   createdAt: created(),
@@ -523,7 +527,11 @@ export const paasDeployments = pgTable("paas_deployments", {
   id: text("id").primaryKey(),
   appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
   status: text("status", { enum: ["queued", "building", "deploying", "live", "failed", "superseded", "cancelled"] }).notNull().default("queued"),
-  trigger: text("trigger", { enum: ["create", "manual", "git", "cli", "api", "rollback", "config"] }).notNull(),
+  trigger: text("trigger", { enum: ["create", "manual", "git", "cli", "api", "rollback", "config", "promote"] }).notNull(),
+  /** previews run beside production on their own host and never touch its data or release command */
+  target: text("target", { enum: ["production", "preview"] }).notNull().default("production"),
+  /** git branch built (empty: the app's branch) */
+  branch: text("branch").notNull().default(""),
   /** commit sha, uploaded file name or image tag */
   ref: text("ref").notNull().default(""),
   message: text("message").notNull().default(""),

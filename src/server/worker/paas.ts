@@ -8,8 +8,9 @@ import type { DB } from "../db/client";
 import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasJobs, paasMetrics, paasPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { type ComposeService, ComposeError, composeFromZip } from "../paas/compose";
-import { paas } from "../paas/driver";
-import { appHourly, appSpec, dbHourly, dbSpec, signSource } from "../paas/service";
+import { paas, type AppSpec, type PaasDriver } from "../paas/driver";
+import { applyManifest, manifestFromZip, parseManifest } from "../paas/manifest";
+import { appHourly, appSpec, dbHourly, dbSpec, previewSpec, signSource } from "../paas/service";
 import { notify, rid } from "../util";
 import { ZipError } from "../unzip";
 
@@ -20,26 +21,46 @@ const pollMs = () => Number(process.env.PAAS_POLL_MS ?? 3000);
 const later = (ms: number) => new Date(Date.now() + ms);
 
 async function fail(db: DB, depId: string, appId: string, log: string) {
-  await db.update(paasDeployments).set({ status: "failed", log: log.slice(-MAX_LOG), finishedAt: new Date() }).where(eq(paasDeployments.id, depId));
+  const [dep] = await db.update(paasDeployments).set({ status: "failed", log: log.slice(-MAX_LOG), finishedAt: new Date() }).where(eq(paasDeployments.id, depId)).returning();
   const [app] = await db.select().from(paasApps).where(eq(paasApps.id, appId));
   if (!app) return;
-  // an app that was live keeps serving the previous deployment
-  await db.update(paasApps).set({ status: app.liveDeployment ? "running" : "failed" }).where(eq(paasApps.id, appId));
-  await notify(db, app.userId, "circle-alert", "استقرار " + app.name + " ناموفق بود");
-  await enqueue(db, "notify.send", { userId: app.userId, kind: "service", subject: "استقرار " + app.name + " ناموفق بود", text: "بیلد یا اجرای نسخه جدید اپ " + app.name + " با خطا متوقف شد؛ نسخه قبلی (اگر بود) همچنان فعال است. لاگ کامل در پنل گره › اپ‌ها." });
+  const preview = dep?.target === "preview";
+  // an app that was live keeps serving the previous deployment; a failed preview never touches production
+  if (!preview) await db.update(paasApps).set({ status: app.liveDeployment ? "running" : "failed" }).where(eq(paasApps.id, appId));
+  const what = preview ? "پیش‌نمایش " + app.name : "استقرار " + app.name;
+  await notify(db, app.userId, "circle-alert", what + " ناموفق بود");
+  await enqueue(db, "notify.send", { userId: app.userId, kind: "service", subject: what + " ناموفق بود", text: "بیلد یا اجرای نسخه جدید اپ " + app.name + " با خطا متوقف شد؛ نسخه قبلی (اگر بود) همچنان فعال است. لاگ کامل در پنل گره › اپ‌ها." });
 }
 
-/** step 1: start the build (or, for rollback/config, release an existing image directly) */
+/** the spec a deployment runs with: production, or the preview workload built from its branch */
+async function specFor(db: DB, app: typeof paasApps.$inferSelect, dep: typeof paasDeployments.$inferSelect) {
+  const spec = await appSpec(db, app);
+  return dep.target === "preview" ? previewSpec(spec, dep.branch) : spec;
+}
+
+/** release command as a one-off job, then the rollout (phase "release" of paasPoll) */
+async function startRelease(db: DB, d: PaasDriver, spec: AppSpec, app: typeof paasApps.$inferSelect, dep: typeof paasDeployments.$inferSelect, image: string, log: string, ref?: string) {
+  const jobId = rid("job");
+  await db.insert(paasJobs).values({ id: jobId, appId: app.id, kind: "release", command: spec.releaseCommand, deploymentId: dep.id });
+  await db.update(paasDeployments).set({ status: "deploying", image, ref: ref ?? dep.ref, log: (log + "\n==> Release command: " + spec.releaseCommand).slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
+  try { await d.runJob(spec, image, jobId, spec.releaseCommand); }
+  catch (e) { await db.update(paasJobs).set({ status: "failed", output: (e as Error).message, finishedAt: new Date() }).where(eq(paasJobs.id, jobId)); return fail(db, dep.id, app.id, log + "\nERROR: release command could not start: " + (e as Error).message); }
+  await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "release", jobId, image, since: Date.now() }, { runAt: later(pollMs()) });
+}
+
+/** step 1: start the build (or, for rollback/config/promote, release an existing image directly) */
 export async function paasBuild(db: DB, p: { deploymentId: string }) {
   const [dep] = await db.select().from(paasDeployments).where(eq(paasDeployments.id, p.deploymentId));
   if (!dep || dep.status !== "queued") return;
   const [app] = await db.select().from(paasApps).where(eq(paasApps.id, dep.appId));
   if (!app || app.status === "suspended") { await db.update(paasDeployments).set({ status: "cancelled", finishedAt: new Date() }).where(eq(paasDeployments.id, dep.id)); return; }
   const d = await paas();
-  const spec = await appSpec(db, app);
+  const spec = await specFor(db, app, dep);
   await db.update(paasDeployments).set({ status: dep.image ? "deploying" : "building", startedAt: new Date() }).where(eq(paasDeployments.id, dep.id));
-  if (!app.liveDeployment) await db.update(paasApps).set({ status: "building" }).where(eq(paasApps.id, app.id));
+  if (!app.liveDeployment && dep.target === "production") await db.update(paasApps).set({ status: "building" }).where(eq(paasApps.id, app.id));
   if (dep.image) {
+    // a promoted preview has not run the release command against production data yet
+    if (dep.trigger === "promote" && spec.releaseCommand.trim() && !dep.image.startsWith("compose:")) return startRelease(db, d, spec, app, dep, dep.image, dep.log);
     await d.release(spec, dep.image, dep.id);
     await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "rollout", since: Date.now() }, { runAt: later(pollMs()) });
     return;
@@ -61,14 +82,15 @@ export async function paasBuild(db: DB, p: { deploymentId: string }) {
   await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "build", handle, since: Date.now(), notes: notes.join("\n") }, { runAt: later(pollMs()) });
 }
 
-/** step 2: poll the build, then the rollout */
+/** step 2: poll the build, then the release command, then the rollout */
 export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build" | "release" | "rollout"; handle?: string; since: number; notes?: string; jobId?: string; image?: string }) {
   const [dep] = await db.select().from(paasDeployments).where(eq(paasDeployments.id, p.deploymentId));
   if (!dep || !["building", "deploying"].includes(dep.status)) return;
-  const [app] = await db.select().from(paasApps).where(eq(paasApps.id, dep.appId));
+  let [app] = await db.select().from(paasApps).where(eq(paasApps.id, dep.appId));
   if (!app) return;
   const d = await paas();
-  const spec = await appSpec(db, app);
+  let spec = await specFor(db, app, dep);
+  const preview = dep.target === "preview";
   if (p.phase === "build") {
     const b = await d.buildStatus(spec, p.handle!);
     if (p.notes) b.log = "==> Compose services\n" + p.notes + "\n" + b.log;
@@ -79,17 +101,19 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
       return;
     }
     if (b.state === "failed") return fail(db, dep.id, app.id, b.log);
-    // release command (migrations…): a one-off container from the new image, before any traffic moves
-    if (spec.releaseCommand.trim() && !b.image!.startsWith("compose:")) {
-      const jobId = rid("job");
-      await db.insert(paasJobs).values({ id: jobId, appId: app.id, kind: "release", command: spec.releaseCommand, deploymentId: dep.id });
-      await db.update(paasDeployments).set({ status: "deploying", image: b.image!, ref: b.ref ?? dep.ref, log: (b.log + "\n==> Release command: " + spec.releaseCommand).slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
-      try { await d.runJob(spec, b.image!, jobId, spec.releaseCommand); }
-      catch (e) { await db.update(paasJobs).set({ status: "failed", output: (e as Error).message, finishedAt: new Date() }).where(eq(paasJobs.id, jobId)); return fail(db, dep.id, app.id, b.log + "\nERROR: release command could not start: " + (e as Error).message); }
-      await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "release", jobId, image: b.image!, since: Date.now() }, { runAt: later(pollMs()) });
-      return;
+    // gereh.json in the source: the repository decides how production runs
+    const text = b.manifest ?? (dep.uploadPath ? await manifestFromZip(dep.uploadPath, app.rootDir).catch(() => undefined) : undefined);
+    if (text && !preview) {
+      const m = parseManifest(text);
+      if (m.error) return fail(db, dep.id, app.id, b.log + "\nERROR: " + m.error);
+      const changes = await applyManifest(db, app, m.manifest!);
+      b.log += "\n==> gereh.json" + (changes.length ? "\n" + changes.map((c) => "    " + c).join("\n") : " (no changes)");
+      [app] = await db.select().from(paasApps).where(eq(paasApps.id, app.id));
+      spec = await specFor(db, app, dep);
     }
-    await db.update(paasDeployments).set({ status: "deploying", image: b.image!, ref: b.ref ?? dep.ref, log: (b.log + "\n==> Releasing " + app.instances + " instance(s)").slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
+    // release command (migrations…): a one-off container from the new image, before any traffic moves
+    if (spec.releaseCommand.trim() && !b.image!.startsWith("compose:")) return startRelease(db, d, spec, app, dep, b.image!, b.log, b.ref);
+    await db.update(paasDeployments).set({ status: "deploying", image: b.image!, ref: b.ref ?? dep.ref, log: (b.log + "\n==> Releasing " + spec.instances + " instance(s)" + (preview ? " at https://" + spec.hosts[0] : "")).slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
     await d.release(spec, b.image!, dep.id);
     await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "rollout", since: Date.now() }, { runAt: later(pollMs()) });
     return;
@@ -101,7 +125,7 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     const ok = j.state === "succeeded";
     await db.update(paasJobs).set({ status: ok ? "succeeded" : "failed", output: j.output.slice(-MAX_LOG), finishedAt: new Date() }).where(eq(paasJobs.id, p.jobId!));
     if (!ok) return fail(db, dep.id, app.id, dep.log + "\n" + out + "\nERROR: release command " + (j.state === "running" ? "timed out" : "failed") + "; the previous version keeps serving");
-    await db.update(paasDeployments).set({ log: (dep.log + "\n" + out + "\n==> Releasing " + app.instances + " instance(s)").slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
+    await db.update(paasDeployments).set({ log: (dep.log + "\n" + out + "\n==> Releasing " + spec.instances + " instance(s)").slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
     await d.release(spec, p.image!, dep.id);
     await enqueue(db, "paas.poll", { deploymentId: dep.id, phase: "rollout", since: Date.now() }, { runAt: later(pollMs()) });
     return;
@@ -112,11 +136,12 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     return;
   }
   await db.transaction(async (tx) => {
-    await tx.update(paasDeployments).set({ status: "superseded" }).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.status, "live")));
+    await tx.update(paasDeployments).set({ status: "superseded" }).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.status, "live"), eq(paasDeployments.target, dep.target)));
     await tx.update(paasDeployments).set({ status: "live", finishedAt: new Date(), log: dep.log + "\n==> Live" }).where(eq(paasDeployments.id, dep.id));
-    await tx.update(paasApps).set({ status: "running", liveDeployment: dep.id }).where(eq(paasApps.id, app.id));
+    await tx.update(paasApps).set(preview ? { previewDeployment: dep.id } : { status: "running", liveDeployment: dep.id }).where(eq(paasApps.id, app.id));
   });
-  if (dep.trigger !== "config") await notify(db, app.userId, "rocket", "نسخه جدید " + app.name + " فعال شد");
+  if (preview) await notify(db, app.userId, "eye", "پیش‌نمایش " + app.name + " آماده است: " + spec.hosts[0]);
+  else if (dep.trigger !== "config") await notify(db, app.userId, "rocket", "نسخه جدید " + app.name + " فعال شد");
 }
 
 /* ---------- one-off jobs (panel, CLI, API, agents) ---------- */
@@ -214,7 +239,7 @@ export async function paasBilling(db: DB) {
     });
     if (ok) continue;
     // out of credit: stop everything this customer runs on the platform (data is kept)
-    for (const a of apps.filter((x) => x.userId === uid)) { await d.setState(await appSpec(db, a), "stop"); await db.update(paasApps).set({ status: "suspended", suspendedAt: new Date() }).where(eq(paasApps.id, a.id)); }
+    for (const a of apps.filter((x) => x.userId === uid)) { const sp = await appSpec(db, a); await d.setState(sp, "stop"); if (a.previewDeployment) await d.setState(previewSpec(sp), "stop"); await db.update(paasApps).set({ status: "suspended", suspendedAt: new Date() }).where(eq(paasApps.id, a.id)); }
     for (const x of dbs.filter((y) => y.userId === uid)) { await d.setDbState(await dbSpec(db, x), "stop"); await db.update(paasDbs).set({ status: "suspended", suspendedAt: new Date() }).where(eq(paasDbs.id, x.id)); }
     await notify(db, uid, "wallet", "موجودی کیف پول تمام شد؛ اپ‌ها و پایگاه‌های داده گره اپ متوقف شدند");
     await enqueue(db, "notify.send", { userId: uid, kind: "billing", subject: "اتمام موجودی گره اپ", text: "موجودی کیف پول برای هزینه ساعتی اپ‌ها و پایگاه‌های داده کافی نیست و آن‌ها متوقف شدند؛ داده‌ها حفظ شده‌اند. پس از شارژ کیف پول، سرویس‌ها خودکار دوباره روشن می‌شوند." });
@@ -226,7 +251,9 @@ export async function paasBilling(db: DB) {
     const need = suspended.filter((s) => s.userId === uid).reduce((sum, s) => sum + 24 * hourlyOf(plans.get(s.planId)?.price ?? 0), 0);
     if (!u || u.balance < need) continue;
     for (const a of await db.select().from(paasApps).where(and(eq(paasApps.userId, uid), eq(paasApps.status, "suspended")))) {
-      await d.setState(await appSpec(db, a), "start");
+      const sp = await appSpec(db, a);
+      await d.setState(sp, "start");
+      if (a.previewDeployment) await d.setState(previewSpec(sp), "start");
       await db.update(paasApps).set({ status: a.liveDeployment ? "running" : "failed", suspendedAt: null }).where(eq(paasApps.id, a.id));
     }
     for (const x of await db.select().from(paasDbs).where(and(eq(paasDbs.userId, uid), eq(paasDbs.status, "suspended")))) {

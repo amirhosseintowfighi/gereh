@@ -329,27 +329,61 @@ function AppOverview({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
   );
 }
 
-function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
-  const TRIG: Record<string, string> = { create: "ساخت اپ", manual: "دستی", git: "push", cli: "CLI", api: "API", rollback: "بازگشت", config: "تغییر تنظیمات" };
+function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
+  const { notify } = useApp();
+  const [branch, setBranch] = useState("");
+  const live = app.deployments.find((d) => d.id === app.previewDeployment);
+  const building = app.deployments.find((d) => d.target === "preview" && ["queued", "building", "deploying"].includes(d.status));
+  if (app.source !== "git" && app.source !== "zip") return null;
   return (
+    <Card title="پیش‌نمایش (Preview)" icon="eye" className="mb-4">
+      <p className="text-sm text-white/60 leading-7">نسخه جدید را کنار نسخه اصلی روی <span dir="ltr" className="font-mono text-xs">{app.previewUrl.replace("https://", "")}</span> بسازید و امتحان کنید؛ اگر خوب بود با یک کلیک و بدون بیلد دوباره به نسخه اصلی منتقل کنید. پیش‌نمایش به دیسک، پردازش‌ها و زمان‌بندی‌های اپ دسترسی ندارد و دستور انتشار در آن اجرا نمی‌شود.</p>
+      {live && (
+        <div className="mt-4 rounded-xl bg-emerald-400/[0.06] border border-emerald-300/20 p-4 flex flex-wrap items-center justify-between gap-3">
+          <span className="min-w-0"><span className="flex items-center gap-2"><Badge tone="green" dot>فعال</Badge><a href={app.previewUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-sm acc truncate">{app.previewUrl.replace("https://", "")}</a></span>
+            <span className="block text-[11px] text-white/50 mt-1">{live.branch ? <>شاخه <b dir="ltr">{live.branch}</b> · </> : null}<span dir="ltr" className="font-mono">{live.ref}</span> · {live.at}</span></span>
+          <span className="flex flex-wrap gap-2">
+            <AsyncButton className={BTN_P + " h-9 px-3 text-xs"} confirmText="این نسخه جایگزین نسخه اصلی شود؟ (دستور انتشار، اگر تعریف شده، اول اجرا می‌شود)" onClick={async () => { await api.paas.promote(app.id, live.id); notify("انتقال به نسخه اصلی شروع شد", "rocket"); }}><Icon name="rocket" size={13} />انتقال به نسخه اصلی</AsyncButton>
+            <button type="button" onClick={() => onLog(live.id)} className={BTN_G + " h-9 px-3 text-xs"}>لاگ</button>
+            <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText="پیش‌نمایش حذف شود؟" onClick={async () => { await api.paas.removePreview(app.id); notify("پیش‌نمایش حذف شد"); }}>حذف</AsyncButton>
+          </span>
+        </div>
+      )}
+      {building ? <p className="text-xs text-sky-200 mt-4 flex items-center gap-2"><Icon name="loader-circle" size={14} className="animate-spin" />پیش‌نمایش در حال ساخت… <button type="button" className="acc" onClick={() => onLog(building.id)}>لاگ</button></p>
+        : app.source === "git" ? (
+          <div className="flex flex-wrap gap-2 mt-4">
+            <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " h-10 max-w-xs font-mono text-left text-sm"} />
+            <AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={15} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
+          </div>
+        ) : <p className="text-xs text-white/50 mt-4">برای اپ‌های ZIP: <code dir="ltr">gereh deploy --preview</code></p>}
+    </Card>
+  );
+}
+
+function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
+  const TRIG: Record<string, string> = { create: "ساخت اپ", manual: "دستی", git: "push", cli: "CLI", api: "API", rollback: "بازگشت", config: "تغییر تنظیمات", promote: "انتقال پیش‌نمایش" };
+  return (
+    <>
+    <PreviewCard app={app} onLog={onLog} />
     <Card pad="p-0">
       {app.deployments.length === 0 ? <div className="p-6"><Empty icon="rocket" title="هنوز استقراری نیست" /></div> : (
         <ul className="divide-y divide-white/[0.06]">
           {app.deployments.map((d) => (
             <li key={d.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
               <span className="min-w-0">
-                <span className="flex items-center gap-2 flex-wrap"><DeployPill s={d.status} /><span className="text-sm truncate">{d.message || "—"}</span>{d.id === app.liveDeployment && <Badge tone="green">فعال</Badge>}</span>
+                <span className="flex items-center gap-2 flex-wrap"><DeployPill s={d.status} />{d.target === "preview" && <Badge tone="blue">پیش‌نمایش</Badge>}<span className="text-sm truncate">{d.message || "—"}</span>{d.id === app.liveDeployment && <Badge tone="green">فعال</Badge>}</span>
                 <span className="block text-[11px] text-white/50 mt-1">{TRIG[d.trigger] ?? d.trigger}{d.ref ? " · " : ""}<span dir="ltr" className="font-mono">{d.ref}</span> · {d.at}{d.seconds !== null ? " · " + fa(d.seconds) + " ثانیه" : ""}</span>
               </span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => onLog(d.id)} className={BTN_G + " h-8 px-3 text-xs"}>لاگ</button>
-                {d.image && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={13} />بازگشت</AsyncButton>}
+                {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={13} />بازگشت</AsyncButton>}
               </span>
             </li>
           ))}
         </ul>
       )}
     </Card>
+    </>
   );
 }
 
@@ -534,6 +568,7 @@ function AppSettings({ app }: { app: PaasApp }) {
         {app.source === "git" && (
           <Card title="استقرار خودکار با push" icon="code-xml">
             <div className="flex items-center justify-between text-sm mb-3"><span>استقرار خودکار شاخه <b dir="ltr">{app.gitBranch}</b></span><Switch on={app.autoDeploy} onChange={async (v) => { await api.paas.updateApp(app.id, { autoDeploy: v }); }} label="استقرار خودکار" /></div>
+            <div className="flex items-center justify-between gap-3 text-sm mb-3"><span>پیش‌نمایش خودکار برای push به شاخه‌های دیگر<span className="block text-[11px] text-white/50">روی <span dir="ltr">{app.previewUrl.replace("https://", "")}</span>؛ هزینه یک نمونه اضافه تا وقتی فعال است</span></span><Switch on={app.previews} onChange={async (v) => { await api.paas.updateApp(app.id, { previews: v }); }} label="پیش‌نمایش خودکار" /></div>
             <Field label="Webhook URL" hint="در GitHub: Settings › Webhooks › Add webhook (Content type: application/json، رویداد push). در GitLab: Settings › Webhooks › Push events."><CopyText text={app.hookUrl} className="font-mono text-[11px] break-all" /></Field>
             <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="آدرس فعلی از کار می‌افتد و باید در مخزن آدرس جدید را ثبت کنید. ادامه؟" onClick={async () => { await api.paas.regenHook(app.id); notify("آدرس جدید ساخته شد", "key-round"); }}>ساخت توکن جدید</AsyncButton>
           </Card>

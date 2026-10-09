@@ -189,12 +189,24 @@ const commands = {
       uploadId = j.result.uploadId;
       if (j.result.stack) console.log(cyan("==> ") + "Detected " + j.result.stack);
     } else console.log(cyan("==> ") + (app.source === "git" ? "Building from the app's Git repository" : "Pulling the app's image"));
-    const dep = await api("POST", `apps/${app.name}/deployments`, { upload_id: uploadId, message: typeof flags.message === "string" ? flags.message : undefined, via: "cli" });
-    console.log(cyan("==> ") + "Deployment " + dep.id);
+    const preview = !!flags.preview;
+    const dep = await api("POST", `apps/${app.name}/deployments`, { upload_id: uploadId, message: typeof flags.message === "string" ? flags.message : undefined, via: "cli", preview, branch: typeof flags.branch === "string" ? flags.branch : undefined });
+    console.log(cyan("==> ") + (preview ? "Preview deployment " : "Deployment ") + dep.id);
     if (flags.detach) return;
     const ok = await follow(app.name, dep.id);
-    if (!ok) die("Deployment failed. The previous version is still serving traffic.");
-    console.log(green("✓ ") + "Live at " + cyan(app.url));
+    if (!ok) die(preview ? "Preview failed." : "Deployment failed. The previous version is still serving traffic.");
+    if (preview) {
+      const a = await api("GET", "apps/" + app.name);
+      console.log(green("✓ ") + "Preview at " + cyan(a.preview_url) + dim("  — promote with: gereh promote " + dep.id));
+    } else console.log(green("✓ ") + "Live at " + cyan(app.url));
+  },
+  async promote({ pos, flags }) {
+    const name = appName(flags);
+    const depId = pos[0] || (await api("GET", "apps/" + name)).preview_deployment || die("No preview to promote. Usage: gereh promote [deployment-id]");
+    const dep = await api("POST", `apps/${name}/deployments/${depId}/promote`, {});
+    console.log(cyan("==> ") + "Promoting " + depId + " → production (" + dep.id + ")");
+    if (!(await follow(name, dep.id))) die("Promotion failed. The previous version is still serving traffic.");
+    console.log(green("✓ ") + "Production now runs the preview build");
   },
   async logs({ flags, pos }) {
     const name = pos[0] || appName(flags);
@@ -298,8 +310,10 @@ const commands = {
   gereh login [--token grh_…]     save a read-write API token
   gereh apps                      list your apps
   gereh link <app>                link this folder to an app (writes gereh.json)
-  gereh deploy [-m msg] [--detach] [--dir path]
+  gereh deploy [-m msg] [--detach] [--dir path] [--preview [--branch b]]
                                   ZIP apps: pack and upload this folder; Git/image apps: rebuild
+                                  --preview builds into <app>-preview instead of production
+  gereh promote [deployment]      release the preview build to production (no rebuild)
   gereh status                    app URL, domains, size and price
   gereh logs [-f]                 runtime logs (follow with -f)
   gereh env set K=V… [--secret]   set variables (restart, no rebuild)

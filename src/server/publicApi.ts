@@ -7,7 +7,7 @@ import type { Auth } from "./auth";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
 import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, users } from "./db/schema";
-import { appHourly, appsDomain, defaultHost, loadPlans } from "./paas/service";
+import { appHourly, appsDomain, defaultHost, loadPlans, previewHost } from "./paas/service";
 import { registry } from "./rpc";
 import { AppError, sha256 } from "./util";
 import { invGross } from "@/lib/money";
@@ -51,6 +51,7 @@ async function appOut(ctx: Ctx, app: typeof paasApps.$inferSelect) {
     id: app.id, name: app.name, status: app.status, stack: app.stack, source: app.source, url: "https://" + defaultHost(app.name, domain),
     domains: hosts.map((d) => ({ host: d.host, status: d.status })), plan: app.planId, instances: app.instances, autoscale: app.autoscale, max_instances: app.maxInstances,
     disk_gb: app.diskGb, hourly_price_toman: plan ? appHourly(app, plan) : null, live_deployment: app.liveDeployment,
+    preview_url: app.previewDeployment ? "https://" + previewHost(app.name, domain) : null, preview_deployment: app.previewDeployment,
     latest_deployment: last ? { id: last.id, status: last.status, trigger: last.trigger, created_at: iso(last.createdAt) } : null, created_at: iso(app.createdAt),
   };
 }
@@ -96,14 +97,21 @@ export const ROUTES: Route[] = [
   { method: "GET", pattern: /^apps\/([\w-]+)$/, run: async (ctx, m) => appOut(ctx, await ownAppBy(ctx, m[1])) },
   { method: "POST", pattern: /^apps\/([\w-]+)\/deployments$/, write: true, run: async (ctx, m, b) => {
     const app = await ownAppBy(ctx, m[1]);
-    const id = await rpc(ctx, "paas.deploy", app.id, { uploadId: b.upload_id ?? undefined, message: b.message ?? undefined, via: b.via === "cli" ? "cli" : "api" });
-    return { id, status: "queued" };
+    const via = b.via === "cli" ? "cli" : "api";
+    const id = b.preview
+      ? await rpc(ctx, "paas.deployPreview", app.id, { uploadId: b.upload_id ?? undefined, branch: b.branch ?? undefined, message: b.message ?? undefined, via })
+      : await rpc(ctx, "paas.deploy", app.id, { uploadId: b.upload_id ?? undefined, message: b.message ?? undefined, via });
+    return { id, status: "queued", target: b.preview ? "preview" : "production" };
+  } },
+  { method: "POST", pattern: /^apps\/([\w-]+)\/deployments\/([\w-]+)\/promote$/, write: true, run: async (ctx, m) => {
+    const app = await ownAppBy(ctx, m[1]);
+    return { id: await rpc(ctx, "paas.promote", app.id, m[2]), status: "queued" };
   } },
   { method: "GET", pattern: /^apps\/([\w-]+)\/deployments\/([\w-]+)$/, run: async (ctx, m) => {
     const app = await ownAppBy(ctx, m[1]);
     const [d] = await ctx.db.select().from(paasDeployments).where(and(eq(paasDeployments.id, m[2]), eq(paasDeployments.appId, app.id)));
     if (!d) notFound();
-    return { id: d!.id, status: d!.status, trigger: d!.trigger, ref: d!.ref || null, message: d!.message, log: d!.log, created_at: iso(d!.createdAt), finished_at: iso(d!.finishedAt) };
+    return { id: d!.id, status: d!.status, target: d!.target, branch: d!.branch || null, trigger: d!.trigger, ref: d!.ref || null, message: d!.message, log: d!.log, created_at: iso(d!.createdAt), finished_at: iso(d!.finishedAt) };
   } },
   { method: "GET", pattern: /^apps\/([\w-]+)\/logs$/, run: async (ctx, m) => {
     const app = await ownAppBy(ctx, m[1]);

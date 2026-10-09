@@ -42,8 +42,20 @@ export async function appsDomain(db: DB | Tx) {
 }
 export const defaultHost = (name: string, domain: string) => name + "." + domain;
 
-export const appHourly = (a: Pick<AppRow, "instances" | "diskGb" | "status" | "workerInstances">, plan: Pick<PaasPlan, "price">) =>
-  a.status === "stopped" ? (a.diskGb ? hourlyOf(appMonthly({ price: 0 }, 1, a.diskGb)) : 0) : hourlyOf(appMonthly(plan, a.instances + a.workerInstances, a.diskGb));
+export const appHourly = (a: Pick<AppRow, "instances" | "diskGb" | "status" | "workerInstances" | "previewDeployment">, plan: Pick<PaasPlan, "price">) =>
+  a.status === "stopped" ? (a.diskGb ? hourlyOf(appMonthly({ price: 0 }, 1, a.diskGb)) : 0) : hourlyOf(appMonthly(plan, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb));
+
+/** the preview workload: one instance beside production on <name>-preview.<domain>, separate
+    Kubernetes objects (own id), no disk, workers, cron or release command */
+export const previewHost = (name: string, domain: string) => name + "-preview." + domain;
+export function previewSpec(spec: AppSpec, branch = ""): AppSpec {
+  const domain = spec.hosts[0].slice(spec.name.length + 1);
+  return {
+    ...spec, id: spec.id + "-pv", name: spec.name + "-preview", hosts: [previewHost(spec.name, domain)], gitBranch: branch || spec.gitBranch,
+    instances: 1, autoscale: false, maxInstances: 1, diskGb: 0, processes: [], crons: [], releaseCommand: "", cdn: false,
+    env: { ...spec.env, GEREH_PREVIEW: "1" },
+  };
+}
 export const dbHourly = (d: Pick<DbRow, "status">, plan: Pick<PaasPlan, "price" | "diskGb">) =>
   d.status === "stopped" ? hourlyOf(plan.diskGb * 3_000) : hourlyOf(plan.price);
 
@@ -96,9 +108,9 @@ export const setEnvValue = (tx: DB | Tx, appId: string, key: string, value: stri
   tx.insert(paasEnv).values({ appId, key, valueEnc: seal(value), secret, managedBy }).onConflictDoUpdate({ target: [paasEnv.appId, paasEnv.key], set: { valueEnc: seal(value), secret, managedBy } });
 
 /* ---------- deployments ---------- */
-export async function queueDeployment(tx: DB | Tx, app: Pick<AppRow, "id">, o: { trigger: (typeof paasDeployments.$inferInsert)["trigger"]; ref?: string; message?: string; image?: string; uploadPath?: string }) {
+export async function queueDeployment(tx: DB | Tx, app: Pick<AppRow, "id">, o: { trigger: (typeof paasDeployments.$inferInsert)["trigger"]; ref?: string; message?: string; image?: string; uploadPath?: string; target?: "production" | "preview"; branch?: string }) {
   const id = rid("dep");
-  await tx.insert(paasDeployments).values({ id, appId: app.id, trigger: o.trigger, ref: o.ref ?? "", message: o.message ?? "", image: o.image ?? "", uploadPath: o.uploadPath ?? null });
+  await tx.insert(paasDeployments).values({ id, appId: app.id, trigger: o.trigger, ref: o.ref ?? "", message: o.message ?? "", image: o.image ?? "", uploadPath: o.uploadPath ?? null, target: o.target ?? "production", branch: o.branch ?? "" });
   // config/rollback deployments reuse a built image and skip the build
   await enqueue(tx, "paas.build", { deploymentId: id });
   return id;

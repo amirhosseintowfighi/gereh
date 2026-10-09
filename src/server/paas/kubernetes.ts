@@ -286,6 +286,7 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
       ? `git clone --depth 1 --branch ${shq(app.gitBranch || "main")} ${shq(app.gitUrl)} src 2>&1 | sed -E 's#://[^@/]+@#://***@#g'; echo "REF=$(git -C src rev-parse --short HEAD)"`
       : `wget -q -O src.zip "$SOURCE_URL" && mkdir src && unzip -q src.zip -d src && rm src.zip && if [ "$(ls -A src | wc -l)" = 1 ] && [ -d "src/$(ls -A src)" ]; then d="src/$(ls -A src)"; mv "$d" src.tmp && rmdir src && mv src.tmp src; fi`,
     `cd src/${root}`,
+    `if [ -f gereh.json ] && [ "$(wc -c < gereh.json)" -lt 65536 ]; then echo "MANIFEST=$(base64 gereh.json | tr -d '\\n')"; fi`,
     `if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
     `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
   ].join("\n");
@@ -452,8 +453,9 @@ export class KubernetesDriver implements PaasDriver {
     const job = await get("batch/v1", "Job", ns, handle) as { status?: { succeeded?: number; failed?: number; conditions?: { type: string; status: string; message?: string }[] } };
     const log = await this.jobLogs(ns, handle, ["prepare", "kaniko"]);
     const ref = /^REF=(\w+)$/m.exec(log)?.[1];
-    const clean = log.replace(/^REF=\w+\n?/gm, "").trim();
-    if (job.status?.succeeded) return { state: "succeeded", log: clean + "\n==> Image pushed", image: imageFor(app, handle.replace(/^build-/, "")), ref };
+    const m64 = /^MANIFEST=([A-Za-z0-9+/=]+)$/m.exec(log)?.[1];
+    const clean = log.replace(/^(REF|MANIFEST)=\S+\n?/gm, "").trim();
+    if (job.status?.succeeded) return { state: "succeeded", log: clean + "\n==> Image pushed", image: imageFor(app, handle.replace(/^build-/, "")), ref, manifest: m64 ? Buffer.from(m64, "base64").toString("utf8") : undefined };
     const failed = job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True");
     if (failed) return { state: "failed", log: clean + "\nERROR: " + (job.status?.conditions?.find((x) => x.type === "Failed")?.message || "build failed") };
     return { state: "running", log: clean };
@@ -465,7 +467,7 @@ export class KubernetesDriver implements PaasDriver {
     for (const s of h.services.filter((x) => x.build)) {
       const name = "build-" + h.dep + "-" + s.name;
       const job = await get("batch/v1", "Job", ns, name) as { status?: { succeeded?: number; failed?: number; conditions?: { type: string; status: string; message?: string }[] } };
-      const log = (await this.jobLogs(ns, name, ["prepare", "kaniko"])).replace(/^REF=\w+\n?/gm, "").trim();
+      const log = (await this.jobLogs(ns, name, ["prepare", "kaniko"])).replace(/^(REF|MANIFEST)=\S+\n?/gm, "").trim();
       logs.push("──── " + s.name + " ────" + (log ? "\n" + log : ""));
       if (job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True")) return { state: "failed", log: logs.join("\n") + "\nERROR: build of service " + s.name + " failed" };
       if (!job.status?.succeeded) running = true;
