@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TLDS, configPrice, isAvailable, parseDomain } from "@/lib/catalog";
+import { TLDS, VPS, cloudPrice, configPrice, isAvailable, parseDomain, tbRate } from "@/lib/catalog";
 
 describe("parseDomain", () => {
   it.each([
@@ -36,19 +36,36 @@ describe("isAvailable", () => {
 });
 
 describe("configPrice", () => {
-  const base = { cpu: 2, ram: 4, disk: 80, loc: "thr", os: "ubuntu", ips: 0, backup: false };
+  const base = { cpu: 2, ram: 4, disk: 80, tb: 1, loc: "thr", os: "ubuntu", ips: 0, backup: false };
 
-  it("prices the base config and rounds to thousands", () => {
-    expect(configPrice(base)).toBe(90000 + 2 * 150000 + 4 * 60000 + 80 * 900);
+  it("prices from unit costs: core 299k, GB RAM 125k, 10 GB disk 125k, TB 840k, IPv4 240k", () => {
+    expect(configPrice(base)).toBe(2 * 299000 + 4 * 125000 + 8 * 125000 + 840000 + 240000);
     expect(configPrice({ ...base, disk: 81 }) % 1000).toBe(0);
+    expect(configPrice({ ...base, tb: undefined })).toBe(configPrice(base));
+  });
+
+  it("steps traffic down to 800k per TB at 10 TB and never below", () => {
+    expect(tbRate(1)).toBe(840000);
+    expect(tbRate(10)).toBe(800000);
+    expect(tbRate(50)).toBe(800000);
+    for (let tb = 1; tb < 50; tb++) {
+      expect(tbRate(tb + 1)).toBeLessThanOrEqual(tbRate(tb));
+      expect((tb + 1) * tbRate(tb + 1)).toBeGreaterThan(tb * tbRate(tb));
+    }
+    expect(configPrice({ ...base, tb: 10 }) - configPrice(base)).toBe(10 * 800000 - 840000);
+  });
+
+  it("prices every cloud plan from its resources", () => {
+    expect(VPS.cloud.map((p) => p.price)).toEqual([2960000, 5645000, 9343000, 16872000]);
+    expect(cloudPrice({ cpu: 1, ram: 2, disk: 40, tb: 2, ips: 1 })).toBe(VPS.cloud[0].price);
   });
 
   it("applies foreign location, Windows licence, extra IPs and backup", () => {
     const p = configPrice(base);
     expect(configPrice({ ...base, loc: "fra" })).toBeGreaterThan(p);
     expect(configPrice({ ...base, os: "win" })).toBe(p + 150000);
-    expect(configPrice({ ...base, ips: 2 })).toBe(p + 240000);
-    expect(configPrice({ ...base, backup: true })).toBe(Math.round((p * 1.12) / 1000) * 1000);
+    expect(configPrice({ ...base, ips: 2 })).toBe(p + 2 * 240000);
+    expect(configPrice({ ...base, backup: true })).toBe(p + Math.round((p * 0.12) / 1000) * 1000);
   });
 
   it("is monotonic in each resource", () => {

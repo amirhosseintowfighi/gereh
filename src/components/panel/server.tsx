@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
+import { IP_PRICE, PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { fa, hashStr, toEnDigits, toman } from "@/lib/format";
 import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
@@ -261,7 +261,7 @@ function ServerNetwork({ s }: { s: Server }) {
           <div className="flex justify-between items-center"><dt className="text-white/50">دروازه</dt><dd className="mono ltr">{s.ip.split(".").slice(0, 3).join(".")}.1</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>۱ گیگابیت بر ثانیه</dd></div>
         </dl>
-        <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + " mt-6 px-4 h-10 text-sm"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(120000)})</button>
+        <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + " mt-6 px-4 h-10 text-sm"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(IP_PRICE)})</button>
       </Card>
       <Card title="Reverse DNS" icon="globe">
         <p className="text-sm text-white/50 leading-7 mb-4">برای ارسال ایمیل از سرور، PTR را روی دامنه خودتان تنظیم کنید.</p>

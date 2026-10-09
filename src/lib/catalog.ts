@@ -1,4 +1,4 @@
-import { hashStr, roundK } from "./format";
+import { fa, hashStr, roundK } from "./format";
 
 export type Tld = { tld: string; reg: number; renew: number; transfer: number; cat: string; hot?: boolean; promo?: boolean };
 export const TLDS: Tld[] = [
@@ -45,12 +45,40 @@ export type Plan = {
   cpu?: string; ram?: string; disk: string; traffic: string; port?: string; ipv4?: string; snap?: string; backup?: string;
   sites?: string; email?: string; db?: string;
 };
+
+/* ---------- cloud server unit prices (Toman / month) ----------
+   Every cloud price on the site is built from these: plans, the custom builder, upgrades and extra IPs.
+   Traffic is stepped: 840k per TB at 1 TB, sliding down to 800k per TB at 10 TB, never below 800k. */
+export const UNIT = { cpu: 299_000, ram: 125_000, ip: 240_000, disk10: 125_000, tb: 840_000, tbFloor: 800_000, tbFloorAt: 10 };
+/** price of one TB when tb TB are bought */
+export const tbRate = (tb: number) => tb <= 1 ? UNIT.tb : Math.max(UNIT.tbFloor, UNIT.tb - ((UNIT.tb - UNIT.tbFloor) * (tb - 1)) / (UNIT.tbFloorAt - 1));
+export type Res = { cpu: number; ram: number; disk: number; tb: number; ips: number };
+export type PriceLine = { key: "cpu" | "ram" | "disk" | "traffic" | "ip" | "extra"; label: string; amount: number };
+/** itemised monthly price of cloud resources (ips = every IPv4, the first one included) */
+export function cloudLines(r: Res): PriceLine[] {
+  return [
+    { key: "cpu", label: fa(r.cpu) + " هسته پردازنده", amount: r.cpu * UNIT.cpu },
+    { key: "ram", label: fa(r.ram) + " گیگابایت رم", amount: r.ram * UNIT.ram },
+    { key: "disk", label: fa(r.disk) + " گیگابایت NVMe", amount: roundK((r.disk / 10) * UNIT.disk10) },
+    { key: "traffic", label: fa(r.tb) + " ترابایت ترافیک (هر ترابایت " + fa(Math.round(tbRate(r.tb) / 1000)) + " هزار)", amount: roundK(r.tb * tbRate(r.tb)) },
+    { key: "ip", label: fa(r.ips) + " آی‌پی IPv4", amount: r.ips * UNIT.ip },
+  ];
+}
+export const cloudPrice = (r: Res) => cloudLines(r).reduce((s, l) => s + l.amount, 0);
+
+/** numeric resources of each cloud plan — the plan price is computed from them */
+export const CLOUD_SPECS: Record<string, Res> = {
+  c1: { cpu: 1, ram: 2, disk: 40, tb: 2, ips: 1 },
+  c2: { cpu: 2, ram: 4, disk: 80, tb: 4, ips: 1 },
+  c3: { cpu: 4, ram: 8, disk: 160, tb: 6, ips: 1 },
+  c4: { cpu: 8, ram: 16, disk: 320, tb: 10, ips: 2 },
+};
 export const VPS: { cloud: Plan[]; metal: Plan[] } = {
   cloud: [
-    { id: "c1", name: "استارت", tag: "پروژه شخصی و محیط تست", price: 390000, cpu: "۱ هسته", ram: "۲ گیگابایت", disk: "۴۰ گیگ NVMe", traffic: "۲ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۱ عدد", backup: "هفتگی" },
-    { id: "c2", name: "پایه", tag: "وب‌سایت و API سبک", price: 690000, cpu: "۲ هسته", ram: "۴ گیگابایت", disk: "۸۰ گیگ NVMe", traffic: "۴ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۲ عدد", backup: "هفتگی" },
-    { id: "c3", name: "حرفه‌ای", tag: "فروشگاه و اپ پرترافیک", price: 1290000, popular: true, cpu: "۴ هسته", ram: "۸ گیگابایت", disk: "۱۶۰ گیگ NVMe", traffic: "۶ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۵ عدد", backup: "روزانه" },
-    { id: "c4", name: "سازمانی", tag: "دیتابیس و سرویس حیاتی", price: 2390000, cpu: "۸ هسته", ram: "۱۶ گیگابایت", disk: "۳۲۰ گیگ NVMe", traffic: "۱۰ ترابایت", port: "۲ گیگابیت", ipv4: "۲ عدد", snap: "۱۰ عدد", backup: "روزانه" },
+    { id: "c1", name: "استارت", tag: "پروژه شخصی و محیط تست", price: cloudPrice(CLOUD_SPECS.c1), cpu: "۱ هسته", ram: "۲ گیگابایت", disk: "۴۰ گیگ NVMe", traffic: "۲ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۱ عدد", backup: "هفتگی" },
+    { id: "c2", name: "پایه", tag: "وب‌سایت و API سبک", price: cloudPrice(CLOUD_SPECS.c2), cpu: "۲ هسته", ram: "۴ گیگابایت", disk: "۸۰ گیگ NVMe", traffic: "۴ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۲ عدد", backup: "هفتگی" },
+    { id: "c3", name: "حرفه‌ای", tag: "فروشگاه و اپ پرترافیک", price: cloudPrice(CLOUD_SPECS.c3), popular: true, cpu: "۴ هسته", ram: "۸ گیگابایت", disk: "۱۶۰ گیگ NVMe", traffic: "۶ ترابایت", port: "۱ گیگابیت", ipv4: "۱ عدد", snap: "۵ عدد", backup: "روزانه" },
+    { id: "c4", name: "سازمانی", tag: "دیتابیس و سرویس حیاتی", price: cloudPrice(CLOUD_SPECS.c4), cpu: "۸ هسته", ram: "۱۶ گیگابایت", disk: "۳۲۰ گیگ NVMe", traffic: "۱۰ ترابایت", port: "۲ گیگابیت", ipv4: "۲ عدد", snap: "۱۰ عدد", backup: "روزانه" },
   ],
   metal: [
     { id: "m1", name: "BM-1", tag: "Intel Xeon E-2388G", price: 9800000, cpu: "۸ هسته / ۱۶ رشته", ram: "۶۴ گیگ ECC", disk: "۲×۱ ترابایت NVMe", traffic: "نامحدود", port: "۱ گیگابیت", ipv4: "۴ عدد", snap: "ندارد", backup: "اختیاری" },
@@ -59,7 +87,7 @@ export const VPS: { cloud: Plan[]; metal: Plan[] } = {
   ],
 };
 /** Numeric resources for each cloud plan (cpu, ram GB, disk GB) — used by resize. */
-export const PLAN_NUMS: Record<string, [number, number, number]> = { c1: [1, 2, 40], c2: [2, 4, 80], c3: [4, 8, 160], c4: [8, 16, 320] };
+export const PLAN_NUMS: Record<string, [number, number, number]> = Object.fromEntries(Object.entries(CLOUD_SPECS).map(([k, r]) => [k, [r.cpu, r.ram, r.disk]]));
 
 export const BILLING = [
   { id: "m", label: "ماهانه", months: 1, disc: 0 },
@@ -94,21 +122,27 @@ export const HOSTING: { linux: Plan[]; wordpress: Plan[] } = {
 export const CPU_STEPS = [1, 2, 4, 6, 8, 12, 16, 24, 32];
 export const RAM_STEPS = [1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
 export const DISK_STEPS = [20, 40, 80, 120, 160, 240, 320, 480, 640, 960, 1280, 1920];
+export const TB_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50];
+export const WIN_LICENSE = 150000;
 
-export type Config = { cpu: number; ram: number; disk: number; loc: string; os: string; ips: number; backup: boolean };
-export function configPrice(c: Config) {
-  let p = 90000 + c.cpu * 150000 + c.ram * 60000 + c.disk * 900;
-  if (LOCS.find((l) => l.id === c.loc)?.foreign) p *= 1.12;
-  if (c.os === "win") p += 150000;
-  p += c.ips * 120000;
-  if (c.backup) p *= 1.12;
-  return roundK(p);
+/** ips = extra IPv4s on top of the one every server has; tb defaults to 1 for carts saved before traffic was a choice */
+export type Config = { cpu: number; ram: number; disk: number; tb?: number; loc: string; os: string; ips: number; backup: boolean };
+export function configLines(c: Config): PriceLine[] {
+  const lines = cloudLines({ cpu: c.cpu, ram: c.ram, disk: c.disk, tb: c.tb ?? 1, ips: 1 + c.ips });
+  const sub = lines.reduce((s, l) => s + l.amount, 0);
+  const extra: PriceLine[] = [];
+  if (LOCS.find((l) => l.id === c.loc)?.foreign) extra.push({ key: "extra", label: "دیتاسنتر خارج (۱۲٪)", amount: roundK(sub * 0.12) });
+  if (c.os === "win") extra.push({ key: "extra", label: "لایسنس ویندوز", amount: WIN_LICENSE });
+  const before = sub + extra.reduce((s, l) => s + l.amount, 0);
+  if (c.backup) extra.push({ key: "extra", label: "بکاپ روزانه (۱۲٪)", amount: roundK(before * 0.12) });
+  return [...lines, ...extra];
 }
+export const configPrice = (c: Config) => configLines(c).reduce((s, l) => s + l.amount, 0);
 
 export const PRESETS = [
-  { id: "p1", name: "سبک", cpu: 2, ram: 4, disk: 80, use: "وب‌سایت شرکتی" },
-  { id: "p2", name: "متعادل", cpu: 4, ram: 8, disk: 160, use: "فروشگاه اینترنتی" },
-  { id: "p3", name: "قدرتمند", cpu: 8, ram: 16, disk: 320, use: "اپلیکیشن و دیتابیس" },
+  { id: "p1", name: "سبک", cpu: 2, ram: 4, disk: 80, tb: 2, use: "وب‌سایت شرکتی" },
+  { id: "p2", name: "متعادل", cpu: 4, ram: 8, disk: 160, tb: 4, use: "فروشگاه اینترنتی" },
+  { id: "p3", name: "قدرتمند", cpu: 8, ram: 16, disk: 320, tb: 10, use: "اپلیکیشن و دیتابیس" },
 ];
 export const SITE_REC = [
   { id: "1", label: "۱ سایت", plan: HOSTING.linux[0] },
@@ -135,14 +169,14 @@ export const HOSTING_FAQ: [string, string][] = [
    same SKU from the database catalog at checkout. A client-supplied amount is never trusted. */
 export type Sku =
   | { t: "plan"; kind: "cloud" | "metal"; plan: string; loc: string; cycle: "m" | "q" | "y"; os?: string; app?: string; hourly?: boolean }
-  | { t: "custom"; cpu: number; ram: number; disk: number; loc: string; os: string; ips: number; backup: boolean; app?: string; hourly?: boolean }
+  | { t: "custom"; cpu: number; ram: number; disk: number; tb?: number; loc: string; os: string; ips: number; backup: boolean; app?: string; hourly?: boolean }
   | { t: "hosting"; plan: string; yearly: boolean; domain?: string }
   | { t: "domain"; name: string; years: number }
   | { t: "ip"; serverId: string; serverName: string };
 
 export type PricedItem = { title: string; meta: string; base: number; icon: string; ltr?: boolean };
 export type CatalogView = { plans: Record<"cloud" | "metal" | "hosting", Plan[]>; tlds: Tld[] };
-export const IP_PRICE = 120000;
+export const IP_PRICE = UNIT.ip;
 export const MAX_DOMAIN_YEARS = 10;
 export const APPS = [
   { id: "", label: "بدون اپلیکیشن" }, { id: "docker", label: "Docker" }, { id: "wordpress", label: "WordPress" },
@@ -166,10 +200,10 @@ export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: stri
     }
     case "custom": {
       const l = locOf(sku.loc);
-      if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk)) return { error: "منابع انتخابی نامعتبر است." };
+      if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk) || (sku.tb !== undefined && !TB_STEPS.includes(sku.tb))) return { error: "منابع انتخابی نامعتبر است." };
       if (!l || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
       if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
-      return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + sku.disk + " گیگ NVMe، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
+      return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + sku.disk + " گیگ NVMe، " + (sku.tb ?? 1) + " ترابایت ترافیک، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
     }
     case "hosting": {
       const p = cat.plans.hosting.find((x) => x.id === sku.plan);

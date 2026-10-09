@@ -29,7 +29,7 @@ export function Logo({ size = 36, decorative = false }: { size?: number; decorat
       </defs>
       <g mask={`url(#${id}mA)`}>{rectA({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
       <g mask={`url(#${id}mB)`}>{rectB({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
-      <circle cx="24" cy="24" r="2.4" fill={`url(#${id}g)`} />
+      <line x1="21.2" y1="24" x2="26.8" y2="24" stroke={`url(#${id}g)`} strokeWidth="2.6" strokeLinecap="round" />
     </svg>
   );
 }

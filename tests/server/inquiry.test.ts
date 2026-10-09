@@ -19,7 +19,7 @@ const balance = async () => (await (await db()).select({ b: users.balance }).fro
 describe("inquiry API", () => {
   it("authenticates by key + password (headers or Basic) and rejects anything else", async () => {
     expect((await api("GET", "balance", undefined, { "x-api-password": "wrong" })).status).toBe(401);
-    expect((await api("GET", "balance")).body).toMatchObject({ ok: true, balance: 2450000 });
+    expect((await api("GET", "balance")).body).toMatchObject({ ok: true, balance: 24500000 });
     const basic = "Basic " + Buffer.from(KEY + ":" + SECRET).toString("base64");
     const res = await GET(new Request("http://x/api/inquiry/v1/balance", { headers: { authorization: basic } }), { params: Promise.resolve({ path: ["balance"] }) } as never);
     expect(res.status).toBe(200);

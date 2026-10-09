@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { VPS } from "@/lib/catalog";
 import { domains, hosting, invoices, jobs, notifications, schedules, servers, ticketMessages, transactions, usageSamples, users } from "@/server/db/schema";
 import { outbox } from "@/server/messaging";
 import { drain, tickSchedule } from "@/server/worker";
@@ -45,7 +46,7 @@ describe("provisioning after payment", () => {
     await runAll();
     const [s] = await (await db()).select().from(servers).where(eq(servers.orderRef, inv.id + ":0"));
     expect(s.billing).toBe("hourly");
-    expect(await balance("u1")).toBe(before - Math.round(390000 * 1.1 / 1000) * 1000 + 390000);
+    expect(await balance("u1")).toBe(before - Math.round(VPS.cloud[0].price * 1.1 / 1000) * 1000 + VPS.cloud[0].price);
   });
 
   it("provisions hosting with a domain and registers domains with DNS", async () => {
@@ -134,7 +135,7 @@ describe("referrals", () => {
     await asUser();
     const inv = await call<Inv>("billing.checkout", [{ t: "plan", kind: "cloud", plan: "c3", loc: "thr", cycle: "m" }]);
     await call("billing.pay", inv.id, "wallet");
-    expect(await balance("u2")).toBe(before + 129000);
+    expect(await balance("u2")).toBe(before + Math.floor(VPS.cloud[2].price / 10 / 1000) * 1000);
     expect((await d.select().from(transactions).where(and(eq(transactions.userId, "u2"), eq(transactions.type, "commission"))))).toHaveLength(1);
   });
 });

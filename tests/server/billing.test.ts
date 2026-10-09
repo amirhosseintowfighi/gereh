@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { VPS } from "@/lib/catalog";
 import { invGross } from "@/lib/money";
 import { coupons, invoices, jobs, kv, payments, servers, transactions, users } from "@/server/db/schema";
 import { completePayment, loadInvoice } from "@/server/rpc/billing";
@@ -14,18 +15,18 @@ describe("checkout prices on the server", () => {
     await asUser();
     const inv = await call<Inv>("billing.checkout", [{ t: "plan", kind: "cloud", plan: "c3", loc: "thr", cycle: "m" }, { t: "domain", name: "brand-new-name.com", years: 2 }]);
     expect(inv.items).toEqual([
-      { desc: "سرور ابری حرفه‌ای، تهران، پرداخت ماهانه", amount: 1290000 },
+      { desc: "سرور ابری حرفه‌ای، تهران، پرداخت ماهانه", amount: VPS.cloud[2].price },
       { desc: "brand-new-name.com، ثبت 2 ساله", amount: 1450000 + 1590000 },
     ]);
     // a forged amount is stripped by validation; the catalog price wins
     const forged = await call<Inv>("billing.checkout", [{ t: "plan", kind: "cloud", plan: "c3", loc: "thr", cycle: "m", base: 1 }]);
-    expect(forged.items[0].amount).toBe(1290000);
+    expect(forged.items[0].amount).toBe(VPS.cloud[2].price);
   });
 
   it("applies foreign-location and cycle discounts exactly like the site", async () => {
     await asUser();
     const inv = await call<Inv>("billing.checkout", [{ t: "plan", kind: "cloud", plan: "c2", loc: "fra", cycle: "y" }]);
-    expect(inv.items[0].amount).toBe(Math.round((690000 * 1.12 * 0.8) / 1000) * 1000 * 12);
+    expect(inv.items[0].amount).toBe(Math.round((VPS.cloud[1].price * 1.12 * 0.8) / 1000) * 1000 * 12);
   });
 
   it("follows admin price edits and refuses disabled plans", async () => {
@@ -52,7 +53,7 @@ describe("checkout prices on the server", () => {
     expect(await fails("billing.quote", "YALDA1404", 1)).toContain("منقضی");
     expect(await fails("billing.quote", "MIGRATE50", 1)).toContain("معتبر نیست");
     const inv = await call<Inv>("billing.checkout", [{ t: "plan", kind: "cloud", plan: "c2", loc: "thr", cycle: "m" }], "WELCOME");
-    expect(inv.items.at(-1)).toEqual({ desc: "کد تخفیف WELCOME", amount: -69000 });
+    expect(inv.items.at(-1)).toEqual({ desc: "کد تخفیف WELCOME", amount: -Math.round(VPS.cloud[1].price / 10) });
     expect((await (await db()).select().from(coupons).where(eq(coupons.code, "WELCOME")))[0].used).toBe(1209);
   });
 

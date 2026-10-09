@@ -4,12 +4,13 @@
    - With demo=true (dev, staging, e2e): the demo customer, sample services, invoices and tickets.
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
+import { eq } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { seedGeoPlans } from "./geo/service";
 import { seedInquiry } from "./inquiry/service";
 import { seedPlans } from "./paas/service";
 import { seal } from "./secrets";
-import { HOSTING, LOCS, OSES, TLDS, VPS } from "@/lib/catalog";
+import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan } from "@/lib/catalog";
 import { fa, hashStr } from "@/lib/format";
 import { faDate, parseJalali } from "@/lib/jalali";
 import type { DB } from "./db/client";
@@ -30,6 +31,22 @@ export const DEFAULT_SETTINGS = {
 export const DEFAULT_VIRT = { host: "panel.gereh.net", port: 4085, key: "", passSet: false, connected: false, version: "", lastSync: "", autoSync: true, bandSuspend: true, suspendUnpaid: true, terminateUnpaid: true, adminManaged: true } as Record<string, string | number | boolean>;
 
 const refCode = () => randomSecret(8, "ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
+
+/** runs on every boot: catalog rows added by later releases (idempotent), and one-off catalog updates */
+export async function upgrade(db: DB) {
+  await seedPlans(db);
+  await seedInquiry(db);
+  await seedGeoPlans(db);
+  // v2 pricing: cloud plans priced from unit costs (CPU, RAM, disk, stepped traffic, IP). Replaces the
+  // stored cloud plan rows once, keeping each plan's on/off switch from the admin panel.
+  const [pv] = await db.select().from(t.kv).where(eq(t.kv.key, "pricing"));
+  if (pv?.value === 2) return;
+  for (const p of VPS.cloud) {
+    const [row] = await db.select().from(t.plans).where(eq(t.plans.id, p.id));
+    if (row) await db.update(t.plans).set({ data: { ...p, ...((row.data as Plan).active === false ? { active: false } : {}) } }).where(eq(t.plans.id, p.id));
+  }
+  await db.insert(t.kv).values({ key: "pricing", value: 2 }).onConflictDoUpdate({ target: t.kv.key, set: { value: 2 } });
+}
 
 export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; adminPassword?: string }) {
   const now = Date.now();
@@ -79,7 +96,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   const FIRST = ["امیر", "سارا", "رضا", "مریم", "علی", "نگار", "حسین", "زهرا", "محمد", "الهام", "کاوه", "نازنین", "پویا", "شیما"];
   const LAST = ["رضایی", "احمدی", "کریمی", "موسوی", "حسینی", "محمدی", "جعفری", "صادقی", "نوری", "تهرانی", "کاظمی", "رحیمی"];
   await db.insert(t.users).values([
-    { id: "u1", name: "امیر رضایی", email: "demo@gereh.net", phone: "09121234567", company: "استودیو نوین", passwordHash: pw, balance: 2450000, status: "active", kyc: "verified", createdAt: J("۱۴۰۳/۰۸/۱۲"), referralCode: "NOVIN24", notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } },
+    { id: "u1", name: "امیر رضایی", email: "demo@gereh.net", phone: "09121234567", company: "استودیو نوین", passwordHash: pw, balance: 24500000, status: "active", kyc: "verified", createdAt: J("۱۴۰۳/۰۸/۱۲"), referralCode: "NOVIN24", notifPrefs: { billing_email: true, billing_sms: true, service_email: true, service_sms: false, news_email: false, security_email: true, security_sms: true } },
     ...Array.from({ length: 23 }, (_, i) => ({
       id: "u" + (i + 2), name: FIRST[(i * 5) % FIRST.length] + " " + LAST[(i * 7) % LAST.length],
       email: "user" + (i + 2) + "@mail.ir", phone: "0912" + String(4000000 + i * 37171).slice(0, 7), company: i % 3 ? "" : "شرکت " + LAST[i % LAST.length],

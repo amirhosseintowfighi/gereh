@@ -23,5 +23,5 @@
   <rect width="48" height="48" rx="11" fill="url(#bg)"/>
   <g mask="url(#mA)"><rect x="9.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 18 24)" stroke="url(#g)" stroke-width="3.6"/></g>
   <g mask="url(#mB)"><rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 30 24)" stroke="url(#g)" stroke-width="3.6"/></g>
-  <circle cx="24" cy="24" r="2.4" fill="url(#g)"/>
+  <line x1="21.2" y1="24" x2="26.8" y2="24" stroke="url(#g)" stroke-width="2.6" stroke-linecap="round"/>
 </svg>

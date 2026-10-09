@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
-import { CPU_STEPS, DISK_STEPS, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TLDS, configPrice, parseDomain } from "@/lib/catalog";
+import { CPU_STEPS, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, WIN_LICENSE, configLines, configPrice, parseDomain } from "@/lib/catalog";
 import { EMAIL_RE, fa, hashStr, toman } from "@/lib/format";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
@@ -116,7 +116,7 @@ export function QuickStart() {
   const [preset, setPreset] = useState("p2");
   const [sites, setSites] = useState("3");
   const pr = PRESETS.find((p) => p.id === preset)!;
-  const prPrice = configPrice({ cpu: pr.cpu, ram: pr.ram, disk: pr.disk, loc: "thr", os: "ubuntu", ips: 0, backup: false });
+  const prPrice = configPrice({ cpu: pr.cpu, ram: pr.ram, disk: pr.disk, tb: pr.tb, loc: "thr", os: "ubuntu", ips: 0, backup: false });
   const rec = SITE_REC.find((s) => s.id === sites)!.plan;
   const parsed = parseDomain(q);
   const baseName = "name" in parsed && parsed.name ? parsed.name : "mybrand";
@@ -153,7 +153,7 @@ export function QuickStart() {
                       <span className="font-extrabold text-sm">{p.name}</span>
                       <span className={"w-4 h-4 rounded-full border-2 grid place-items-center " + (preset === p.id ? "border-white" : "border-white/25")}>{preset === p.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}</span>
                     </div>
-                    <div className="text-[11px] text-white/50 mt-1.5 leading-5">{fa(p.cpu)} هسته، {fa(p.ram)} گیگ رم</div>
+                    <div className="text-[11px] text-white/50 mt-1.5 leading-5">{fa(p.cpu)} هسته، {fa(p.ram)} گیگ رم، {fa(p.tb)} ترابایت</div>
                     <div className="text-[11px] text-white/50 hidden sm:block">{p.use}</div>
                   </button>
                 ))}
@@ -166,7 +166,7 @@ export function QuickStart() {
                 </div>
                 <div className="flex gap-2">
                   <a href="#builder" className={BTN_G + " px-4 h-11 text-sm flex-1 sm:flex-none"}><Icon name="sliders-horizontal" size={16} /> سفارشی‌سازی</a>
-                  <button type="button" onClick={() => addToCart({ t: "custom", cpu: pr.cpu, ram: pr.ram, disk: pr.disk, loc: "thr", os: "ubuntu", ips: 0, backup: false })}
+                  <button type="button" onClick={() => addToCart({ t: "custom", cpu: pr.cpu, ram: pr.ram, disk: pr.disk, tb: pr.tb, loc: "thr", os: "ubuntu", ips: 0, backup: false })}
                     className={BTN_P + " px-5 h-11 text-sm flex-1 sm:flex-none"}><Icon name="plus" size={16} /> افزودن</button>
                 </div>
               </div>
@@ -315,17 +315,16 @@ function Slider({ icon, label, steps, idx, setIdx, fmt }: { icon: string; label:
 
 export function Builder({ id = "builder" }: { id?: string }) {
   const { addToCart } = useApp();
-  const [ci, setCi] = useState(2), [ri, setRi] = useState(3), [di, setDi] = useState(4);
+  const [ci, setCi] = useState(2), [ri, setRi] = useState(3), [di, setDi] = useState(4), [ti, setTi] = useState(1);
   const [loc, setLoc] = useState("thr"), [os, setOs] = useState("ubuntu");
   const [backup, setBackup] = useState(true), [ips, setIps] = useState(0);
-  const cfg = { cpu: CPU_STEPS[ci], ram: RAM_STEPS[ri], disk: DISK_STEPS[di], loc, os, ips, backup };
+  const cfg = { cpu: CPU_STEPS[ci], ram: RAM_STEPS[ri], disk: DISK_STEPS[di], tb: TB_STEPS[ti], loc, os, ips, backup };
   const final = configPrice(cfg);
+  const priceLines = configLines(cfg);
   const locObj = LOCS.find((l) => l.id === loc)!;
   const tier = cfg.cpu >= 16 ? "سنگین" : cfg.cpu >= 6 ? "حرفه‌ای" : cfg.cpu >= 2 ? "متعادل" : "سبک";
   const lines = [
-    ["پردازنده", fa(cfg.cpu) + " هسته"], ["حافظه", fa(cfg.ram) + " گیگابایت"], ["فضا", fa(cfg.disk) + " گیگ NVMe"],
-    ["موقعیت", locObj.label], ["سیستم‌عامل", OSES.find((o) => o.id === os)!.label], ["بکاپ روزانه", backup ? "فعال" : "غیرفعال"],
-    ...(ips ? [["آی‌پی اضافه", fa(ips) + " عدد"]] : []),
+    ["موقعیت", locObj.label], ["سیستم‌عامل", OSES.find((o) => o.id === os)!.label],
   ];
   return (
     <section id={id} className="max-w-6xl mx-auto px-4 sm:px-6 pb-24 scroll-mt-28">
@@ -335,6 +334,10 @@ export function Builder({ id = "builder" }: { id?: string }) {
           <Slider icon="cpu" label="پردازنده" steps={CPU_STEPS} idx={ci} setIdx={setCi} fmt="هسته" />
           <Slider icon="memory-stick" label="حافظه رم" steps={RAM_STEPS} idx={ri} setIdx={setRi} fmt="گیگابایت" />
           <Slider icon="hard-drive" label="فضای NVMe" steps={DISK_STEPS} idx={di} setIdx={setDi} fmt="گیگابایت" />
+          <div>
+            <Slider icon="arrow-down-up" label="ترافیک ماهانه" steps={TB_STEPS} idx={ti} setIdx={setTi} fmt="ترابایت" />
+            <p className="text-[11px] text-white/55 mt-2 leading-5">هر چه ترافیک بیشتر، هر ترابایت ارزان‌تر: از ۸۴۰ هزار تومان برای ۱ ترابایت تا ۸۰۰ هزار تومان از ۱۰ ترابایت به بالا.</p>
+          </div>
           <fieldset>
             <legend className="text-sm text-white/75 mb-3 flex items-center gap-2"><Icon name="map-pin" size={17} className="acc" /> موقعیت دیتاسنتر</legend>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -355,7 +358,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
                   className={"px-3.5 py-2 rounded-xl text-sm border transition ltr " + (os === o.id ? "bg-white/[0.16] border-white/40 text-white" : "bg-white/[0.04] border-white/10 text-white/70 hover:bg-white/10")}>{o.label}</button>
               ))}
             </div>
-            {os === "win" && <div className="text-[11px] text-amber-200/90 mt-2.5">لایسنس ویندوز {toman(150000)} در ماه به قیمت اضافه می‌شود.</div>}
+            {os === "win" && <div className="text-[11px] text-amber-200/90 mt-2.5">لایسنس ویندوز {toman(WIN_LICENSE)} در ماه به قیمت اضافه می‌شود.</div>}
           </fieldset>
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="flex items-center justify-between rounded-2xl bg-white/[0.04] border border-white/10 p-4">
@@ -363,7 +366,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
               <Switch on={backup} onChange={setBackup} label="بکاپ روزانه" />
             </div>
             <div className="flex items-center justify-between rounded-2xl bg-white/[0.04] border border-white/10 p-4">
-              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="hash" size={16} className="acc" />آی‌پی اضافه</div><div className="text-[11px] text-white/55 mt-1">{toman(120000)} برای هر آی‌پی</div></div>
+              <div><div className="text-sm font-bold flex items-center gap-2"><Icon name="hash" size={16} className="acc" />آی‌پی اضافه</div><div className="text-[11px] text-white/55 mt-1">یک آی‌پی همراه سرور است؛ هر آی‌پی اضافه {toman(IP_PRICE)}</div></div>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setIps((i) => Math.max(0, i - 1))} disabled={ips === 0} className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 grid place-items-center hover:bg-white/20 disabled:opacity-40" aria-label="کم کردن آی‌پی"><Icon name="minus" size={15} /></button>
                 <span className="w-6 text-center font-black" aria-live="polite">{fa(ips)}</span>
@@ -389,6 +392,12 @@ export function Builder({ id = "builder" }: { id?: string }) {
           <dl className="mt-6 space-y-2.5 text-sm">
             {lines.map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-white/50">{k}</dt><dd className="font-medium">{v}</dd></div>)}
           </dl>
+          <div className="mt-5 pt-4 border-t border-white/10">
+            <div className="text-xs text-white/55 mb-2.5">ریز قیمت ماهانه</div>
+            <ul className="space-y-2 text-[13px]">
+              {priceLines.map((l) => <li key={l.label} className="flex justify-between gap-3"><span className="text-white/65 min-w-0">{l.label}</span><span className="tabular shrink-0">{fa(l.amount)}</span></li>)}
+            </ul>
+          </div>
           <div className="mt-6 pt-5 border-t border-white/15">
             <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
             <div className="text-[11px] text-white/55 mt-1">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>

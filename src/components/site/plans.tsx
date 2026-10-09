@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { APPS, BILLING, HOSTING, LOCS, parseDomain, type Plan } from "@/lib/catalog";
+import { APPS, BILLING, CLOUD_SPECS, HOSTING, LOCS, cloudLines, parseDomain, type Plan, type PriceLine } from "@/lib/catalog";
 import { BTN_G, BTN_P, GLASS } from "@/lib/cls";
-import { roundK, toman } from "@/lib/format";
+import { fa, roundK, toman } from "@/lib/format";
 import { useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
@@ -16,7 +16,15 @@ const useLivePlans = () => {
 
 type Row = [icon: string, label: string, key: keyof Plan];
 
-function PlanCard({ p, rows, onAdd, badge = "پرفروش‌ترین", priceBase, extra }: { p: Plan; rows: Row[]; onAdd: () => void; badge?: string; priceBase: number; extra?: React.ReactNode }) {
+/** itemised monthly price of a cloud plan; a price edited in the admin panel shows its difference as one line */
+function planLines(p: Plan): PriceLine[] | null {
+  const spec = CLOUD_SPECS[p.id];
+  if (!spec) return null;
+  const lines = cloudLines(spec), sum = lines.reduce((s, l) => s + l.amount, 0);
+  return Math.abs(p.price - sum) >= 1000 ? [...lines, { key: "extra", label: p.price < sum ? "تخفیف پلن" : "تعدیل پلن", amount: p.price - sum }] : lines;
+}
+
+function PlanCard({ p, rows, onAdd, badge = "پرفروش‌ترین", priceBase, extra, breakdown }: { p: Plan; rows: Row[]; onAdd: () => void; badge?: string; priceBase: number; extra?: React.ReactNode; breakdown?: PriceLine[] | null }) {
   return (
     <article className={"spot relative rounded-[1.75rem] p-6 flex flex-col backdrop-blur-md border transition-all duration-300 " +
       (p.popular ? "bg-white/[0.09] border-white/25 lg:-translate-y-3" : "bg-white/[0.045] border-white/[0.1] hover:border-white/20 hover:-translate-y-1")}
@@ -35,6 +43,14 @@ function PlanCard({ p, rows, onAdd, badge = "پرفروش‌ترین", priceBase
           </li>
         ))}
       </ul>
+      {breakdown && (
+        <details className="mt-5 group/bd text-xs">
+          <summary className="cursor-pointer list-none flex items-center gap-1.5 text-white/60 hover:text-white"><Icon name="chevron-down" size={14} className="transition group-open/bd:rotate-180" />ریز قیمت ماهانه</summary>
+          <ul className="mt-2.5 space-y-1.5">
+            {breakdown.map((l) => <li key={l.label} className="flex justify-between gap-2"><span className="text-white/55 min-w-0">{l.label}</span><span className="tabular shrink-0">{fa(l.amount)}</span></li>)}
+          </ul>
+        </details>
+      )}
       <button type="button" onClick={onAdd} className={(p.popular ? BTN_P : BTN_G) + " mt-6 py-3 text-sm"} aria-label={"افزودن " + p.name + " به سبد"}><Icon name="plus" size={16} /> افزودن به سبد</button>
     </article>
   );
@@ -103,7 +119,7 @@ export function VpsPlans() {
             <h2 className="sr-only-focusable">{k === "cloud" ? "پلن‌های سرور ابری" : "پلن‌های سرور اختصاصی"}</h2>
             <div className={"grid gap-5 " + (plans.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3")}>
               {plans.map((p) => (
-                <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)}
+                <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)} breakdown={k === "cloud" ? planLines(p) : null}
                   extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div>
                     : hourly && k === "cloud" ? <div className="text-[11px] text-emerald-300 mt-1">ساعتی حدود {toman(Math.max(1, Math.round(monthly(p, k) / 720)))}</div> : null}
                   onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}), ...(app && k === "cloud" ? { app } : {}) })} />
