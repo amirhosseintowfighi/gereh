@@ -26,10 +26,17 @@ export function Logo({ size = 36, decorative = false }: { size?: number; decorat
           <rect width="48" height="48" fill="#fff" />
           <g clipPath={`url(#${id}c2)`}>{rectB({ stroke: "#000", strokeWidth: 8, fill: "none" })}</g>
         </mask>
+        {/* the bar crosses over both links with the same gap the links leave where they cross each other */}
+        <mask id={id + "mBar"} maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
+          <rect width="48" height="48" fill="#fff" />
+          <line x1="21.1" y1="21.1" x2="26.9" y2="26.9" stroke="#000" strokeWidth="6" strokeLinecap="round" />
+        </mask>
       </defs>
-      <g mask={`url(#${id}mA)`}>{rectA({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
-      <g mask={`url(#${id}mB)`}>{rectB({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
-      <line x1="21" y1="21" x2="27" y2="27" stroke={`url(#${id}g)`} strokeWidth="3.6" strokeLinecap="round" />
+      <g mask={`url(#${id}mBar)`}>
+        <g mask={`url(#${id}mA)`}>{rectA({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
+        <g mask={`url(#${id}mB)`}>{rectB({ stroke: `url(#${id}g)`, strokeWidth: 3.6 })}</g>
+      </g>
+      <line x1="21.1" y1="21.1" x2="26.9" y2="26.9" stroke={`url(#${id}g)`} strokeWidth="3.6" strokeLinecap="round" />
     </svg>
   );
 }

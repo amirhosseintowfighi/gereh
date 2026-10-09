@@ -19,9 +19,15 @@
       <rect width="48" height="48" fill="#fff"/>
       <g clip-path="url(#c2)"><rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 30 24)" stroke="#000" stroke-width="8"/></g>
     </mask>
+      <mask id="mBar" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
+      <rect width="48" height="48" fill="#fff"/>
+      <line x1="21.1" y1="21.1" x2="26.9" y2="26.9" stroke="#000" stroke-width="6.0" stroke-linecap="round"/>
+    </mask>
   </defs>
   <rect width="48" height="48" rx="11" fill="url(#bg)"/>
+  <g mask="url(#mBar)">
   <g mask="url(#mA)"><rect x="9.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 18 24)" stroke="url(#g)" stroke-width="3.6"/></g>
   <g mask="url(#mB)"><rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 30 24)" stroke="url(#g)" stroke-width="3.6"/></g>
-  <line x1="21" y1="21" x2="27" y2="27" stroke="url(#g)" stroke-width="3.6" stroke-linecap="round"/>
+  </g>
+  <line x1="21.1" y1="21.1" x2="26.9" y2="26.9" stroke="url(#g)" stroke-width="3.6" stroke-linecap="round"/>
 </svg>
