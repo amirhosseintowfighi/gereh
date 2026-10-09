@@ -387,7 +387,7 @@ test.describe("gereh apps (paas)", () => {
     await page.goto("/paas");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("کد را بفرستید");
     const pricing = page.getByRole("region", { name: "جدول قیمت اپ" });
-    await expect(pricing.getByRole("row", { name: /^کوچک/ })).toContainText("۲۲۹٬۰۰۰");
+    await expect(pricing.getByRole("row", { name: /^کوچک/ })).toContainText("۹۷۹٬۰۰۰");
     await page.getByRole("link", { name: /Django/ }).first().click();
     await expect(page).toHaveURL(/\/paas\/django$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("هاست Django");
