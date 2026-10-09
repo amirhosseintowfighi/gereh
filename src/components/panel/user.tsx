@@ -11,6 +11,7 @@ import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
 import { AgentConnect } from "./agents";
+import { NotifyChannels } from "./channels";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
 import { Icon } from "../icon";
@@ -706,6 +707,7 @@ function AccountView() {
             </div>
           </Card>
         )}
+        {tab === "notif" && <NotifyChannels />}
         {tab === "team" && <TeamTab />}
         {tab === "kyc" && (
           <Card title="احراز هویت" icon="fingerprint" action={<StatusBadge s={me.kyc} />}>

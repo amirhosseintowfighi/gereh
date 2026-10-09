@@ -291,6 +291,13 @@ PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
 # ---- package mirror (deploy/mirror/README.md) ----
 # MIRROR_URL=https://mirror.gereh.net
 # PAAS_MIRROR=https://mirror.gereh.net
+
+# ---- notification bots (Admin › Settings › Notifications) ----
+# BALE_BOT_TOKEN=
+# BALE_BOT_USERNAME=
+# TELEGRAM_BOT_TOKEN=
+# TELEGRAM_BOT_USERNAME=
+# TELEGRAM_API_BASE=https://api.telegram.org
 EOF
   umask 022
   say "فایل تنظیمات ساخته شد: $ENV_FILE"

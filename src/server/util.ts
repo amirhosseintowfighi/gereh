@@ -27,7 +27,11 @@ export const logActivity = (db: DB | Tx, userId: string, icon: string, text: str
   db.insert(activity).values({ id: rid("a"), userId, icon, text, ip });
 export const logAudit = (db: DB | Tx, actor: string, action: string, target: string, ip = "") =>
   db.insert(audit).values({ id: rid("au"), actor, action, target, ip });
-export const notify = (db: DB | Tx, userId: string, icon: string, text: string) =>
-  db.insert(notifications).values({ id: rid("n"), userId, icon, text });
+/** in-app notification; also goes to the user's Telegram/Bale/webhook channels (kind "service") */
+export async function notify(db: DB | Tx, userId: string, icon: string, text: string) {
+  await db.insert(notifications).values({ id: rid("n"), userId, icon, text });
+  const { fanout } = await import("./channels");
+  await fanout(db, userId, icon === "wallet" || icon === "receipt" ? "billing" : icon === "shield-check" || icon === "lock" ? "security" : "service", text);
+}
 export const addTask = (db: DB | Tx, serverId: string, action: string, status: "done" | "running" | "failed" = "done", progress = 100) =>
   db.insert(serverTasks).values({ id: rid("t"), serverId, action, status, progress });

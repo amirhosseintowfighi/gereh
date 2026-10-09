@@ -264,6 +264,24 @@ export const audit = pgTable("audit", {
 /** singleton documents: "settings", "virt" */
 export const kv = pgTable("kv", { key: text("key").primaryKey(), value: jsonb("value").notNull() });
 
+/** where a customer's notifications also go: a Telegram or Bale chat (linked through the bot) or a signed webhook */
+export const notifyChannels = pgTable("notify_channels", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["telegram", "bale", "webhook"] }).notNull(),
+  /** chat id, or the webhook URL */
+  target: text("target").notNull(),
+  label: text("label").notNull().default(""),
+  /** webhooks: HMAC key, sealed (secrets.ts) */
+  secretEnc: text("secret_enc"),
+  /** notification kinds delivered: billing, service, security, news */
+  events: jsonb("events").$type<string[]>().notNull().default(["billing", "service", "security"]),
+  active: boolean("active").notNull().default(true),
+  lastStatus: text("last_status").notNull().default(""),
+  lastAt: ts("last_at"),
+  createdAt: created(),
+}, (t) => [index("notify_channel_user_ix").on(t.userId)]);
+
 export const plans = pgTable("plans", {
   id: text("id").primaryKey(),
   kind: text("kind", { enum: ["cloud", "metal", "hosting"] }).notNull(),

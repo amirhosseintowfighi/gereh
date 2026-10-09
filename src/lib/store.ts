@@ -19,7 +19,7 @@ export type DB = ClientDB;
 
 export const EMPTY_DB: ClientDB = {
   users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
-  notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
+  notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
@@ -279,6 +279,14 @@ export const api = {
     adminSync: () => rpc<{ total: number; added: number }>("ai.adminSync"),
     adminApplyRule: (discount: number) => rpc<number>("ai.adminApplyRule", discount),
     adminTest: (id: string) => rpc<{ ok: boolean; ms: number; detail: string }>("ai.adminTest", id),
+  },
+  notify: {
+    botLink: (kind: "telegram" | "bale") => rpc<string>("notify.botLink", kind),
+    addWebhook: (w: { url: string; label: string; events: string[] }) => rpc<string>("notify.addWebhook", w),
+    updateChannel: (id: string, patch: { events?: string[]; active?: boolean; label?: string }) => rpc("notify.updateChannel", id, patch),
+    removeChannel: (id: string) => rpc("notify.removeChannel", id),
+    testChannel: (id: string) => rpc("notify.testChannel", id),
+    adminBots: () => rpc<{ kind: string; ok: boolean; detail: string }[]>("notify.adminBots"),
   },
   wp: {
     create: (i: { name: string; plan: "eco" | "turbo"; uploadId?: string; keepUrl?: boolean }) => rpc<string>("wp.create", i),

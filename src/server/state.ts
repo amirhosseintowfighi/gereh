@@ -14,6 +14,7 @@ import { paas } from "./paas/driver";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
 import { aiState, EMPTY_AI } from "./ai/state";
+import { botConfig } from "./channels";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
@@ -66,7 +67,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const tlds: Tld[] = tldRows.map((x) => ({ tld: x.tld, reg: x.reg, renew: x.renew, transfer: x.transfer, cat: x.cat, hot: x.hot, promo: x.promo }));
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
-    notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
+    notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
     settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
@@ -143,6 +144,10 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     apiTokens: tokens.map((k) => ({ id: k.id, name: k.name, scope: k.scope, created: faDate(k.createdAt), lastUsed: k.lastUsedAt ? faDate(k.lastUsedAt) : "—", expires: k.expiresAt ? faDate(k.expiresAt) : "بدون انقضا" })),
     sessions: sess.map((x) => ({ id: x.id.slice(0, 16), device: x.device || "مرورگر", ip: x.ip, place: "", last: ago(x.lastSeenAt), current: x.id === auth.sessionId })),
     notifPrefs: me?.notifPrefs || {},
+    channels: (await db.select().from(t.notifyChannels).where(eq(t.notifyChannels.userId, uid))).map((c) => ({
+      id: c.id, kind: c.kind, label: c.label, target: c.kind === "webhook" ? c.target : "", events: c.events, active: c.active, lastStatus: c.lastStatus, lastAt: c.lastAt ? faDateTime(c.lastAt) : "",
+    })),
+    bots: { telegram: !!botConfig("telegram").username, bale: !!botConfig("bale").username },
     twofa: !!me?.twofaSecret,
     notifications: notifs.map((n) => ({ id: n.id, icon: n.icon, text: n.text, read: n.read, at: ago(n.createdAt) })),
     activity: acts.map((a) => ({ id: a.id, icon: a.icon, text: a.text, ip: a.ip, at: faDateTime(a.createdAt) })),

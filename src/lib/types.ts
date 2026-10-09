@@ -118,6 +118,10 @@ export type ClientDB = {
   apiTokens: { id: string; name: string; scope: string; created: string; lastUsed: string; expires: string }[];
   sessions: { id: string; device: string; ip: string; place: string; last: string; current: boolean }[];
   notifPrefs: Record<string, boolean>;
+  /** Telegram/Bale chats and webhooks that also receive notifications */
+  channels: { id: string; kind: "telegram" | "bale" | "webhook"; label: string; target: string; events: string[]; active: boolean; lastStatus: string; lastAt: string }[];
+  /** which bots the platform has configured */
+  bots: { telegram: boolean; bale: boolean };
   twofa: boolean;
   inbox: { id: string; at: string; name: string; email: string; dept: string; subject: string; message: string }[];
   notifications: { id: string; icon: string; text: string; at: string; read: boolean }[];

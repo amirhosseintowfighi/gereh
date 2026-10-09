@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- assertions walk the import Job manifest */
 import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
 import { eq } from "drizzle-orm";
@@ -16,7 +17,7 @@ beforeEach(fresh);
 const settle = async () => { for (let i = 0; i < 20; i++) if (!(await drain(await db()))) break; };
 const site = async (id: string) => { const c = await context(); return (await buildState(c.db, c.auth, "customer")).db.paasApps.find((a) => a.id === id)!; };
 const upload = async (body: Uint8Array) => {
-  const res = await PUT(new Request("http://x/api/wp/upload", { method: "PUT", body, headers: { origin: "http://x", host: "x" } }));
+  const res = await PUT(new Request("http://x/api/wp/upload", { method: "PUT", body: body as unknown as BodyInit, headers: { origin: "http://x", host: "x" } }));
   return { status: res.status, body: await res.json() };
 };
 

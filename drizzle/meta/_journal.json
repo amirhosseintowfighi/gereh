@@ -92,6 +92,13 @@
       "when": 1791571536292,
       "tag": "0012_wordpress",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791572275217,
+      "tag": "0013_notify_channels",
+      "breakpoints": true
     }
   ]
 }

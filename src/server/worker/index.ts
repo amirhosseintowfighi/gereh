@@ -14,6 +14,7 @@ import { settleInquiry } from "../inquiry/service";
 import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
 import { wpImport } from "./wordpress";
+import { channelSend } from "../channels";
 import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
@@ -37,6 +38,7 @@ const handlers: Record<JobType, Handler> = {
   "paas.poll": (db, p) => paasPoll(db, p as never),
   "paas.job": (db, p) => paasJobPoll(db, p as never),
   "wp.import": (db, p) => wpImport(db, p as never),
+  "notify.channel": (db, p) => channelSend(db, p as never),
   "paas.db": (db, p) => paasDbCreate(db, p as never),
   "paas.backup": (db, p) => paasBackup(db, p as never),
   "paas.billing": (db) => paasBilling(db),

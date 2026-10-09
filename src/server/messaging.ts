@@ -3,7 +3,7 @@
    nothing is ever sent to real recipients from a non-configured environment. */
 import "server-only";
 
-export type Outgoing = { channel: "sms" | "email"; to: string; subject?: string; text: string; at: number };
+export type Outgoing = { channel: "sms" | "email" | "telegram" | "bale" | "webhook"; to: string; subject?: string; text: string; at: number };
 const g = globalThis as typeof globalThis & { __gerehOutbox?: Outgoing[] };
 export const outbox = (g.__gerehOutbox ??= []);
 const keep = (m: Outgoing) => { outbox.unshift(m); outbox.length = Math.min(outbox.length, 200); };
