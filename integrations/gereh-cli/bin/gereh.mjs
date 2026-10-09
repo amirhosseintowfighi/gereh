@@ -2,12 +2,13 @@
 /* Gereh Apps CLI: zero dependencies, Node 20+.
    Token: GEREH_TOKEN or `gereh login`. API origin: GEREH_API (default https://gereh.net). */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { deflateRawSync } from "node:zlib";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const CONFIG = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "gereh", "config.json");
 const ORIGIN = (process.env.GEREH_API || readConfig().api || "https://gereh.net").replace(/\/$/, "");
 const color = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -222,6 +223,59 @@ const commands = {
   async start({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "start" }); console.log(green("✓ ") + "Started"); },
   async stop({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "stop" }); console.log(green("✓ ") + "Stopped"); },
   async restart({ flags }) { await api("POST", `apps/${appName(flags)}/actions`, { action: "restart" }); console.log(green("✓ ") + "Restarting"); },
+  /** connects coding agents (Claude Code, Cursor, VS Code, Codex) to the Gereh MCP server */
+  async setup({ pos, flags }) {
+    if (pos[0] !== "agent") die("Usage: gereh setup agent [claude|cursor|vscode|codex]");
+    const t = token();
+    const me = await api("GET", "account");
+    const url = ORIGIN + "/api/mcp";
+    const want = pos[1] ? [pos[1]] : ["claude", "cursor", "vscode", "codex"];
+    const has = (bin) => { try { execFileSync(process.platform === "win32" ? "where" : "which", [bin], { stdio: "ignore" }); return true; } catch { return false; } };
+    const mergeJson = (file, key, name, value) => {
+      let j = {};
+      try { j = JSON.parse(readFileSync(file, "utf8")); } catch { /* new file */ }
+      j[key] = { ...(j[key] || {}), [name]: value };
+      mkdirSync(join(file, ".."), { recursive: true });
+      writeFileSync(file, JSON.stringify(j, null, 2) + "\n", { mode: 0o600 });
+    };
+    const done = [];
+    for (const a of want) {
+      if (a === "claude") {
+        if (!has("claude")) { if (pos[1]) console.log(dim("  Claude Code not found (npm i -g @anthropic-ai/claude-code)")); continue; }
+        try { execFileSync("claude", ["mcp", "remove", "--scope", "user", "gereh"], { stdio: "ignore" }); } catch { /* not added yet */ }
+        execFileSync("claude", ["mcp", "add", "--transport", "http", "--scope", "user", "gereh", url, "--header", "Authorization: Bearer " + t], { stdio: "inherit" });
+        done.push("Claude Code");
+      } else if (a === "cursor") {
+        const dir = join(homedir(), ".cursor");
+        if (!existsSync(dir) && !pos[1]) continue;
+        mergeJson(join(dir, "mcp.json"), "mcpServers", "gereh", { url, headers: { Authorization: "Bearer " + t } });
+        done.push("Cursor (~/.cursor/mcp.json)");
+      } else if (a === "vscode") {
+        if (!existsSync(".vscode") && !pos[1]) continue;
+        const file = join(".vscode", "mcp.json");
+        let j = {};
+        try { j = JSON.parse(readFileSync(file, "utf8")); } catch { /* new file */ }
+        j.inputs = [...(j.inputs || []).filter((i) => i.id !== "gereh-token"), { type: "promptString", id: "gereh-token", description: "Gereh API token (grh_…)", password: true }];
+        j.servers = { ...(j.servers || {}), gereh: { type: "http", url, headers: { Authorization: "Bearer ${input:gereh-token}" } } };
+        mkdirSync(".vscode", { recursive: true });
+        writeFileSync(file, JSON.stringify(j, null, 2) + "\n");
+        done.push("VS Code (.vscode/mcp.json — asks for the token on first use)");
+      } else if (a === "codex") {
+        const file = join(homedir(), ".codex", "config.toml");
+        if (!existsSync(join(homedir(), ".codex")) && !pos[1]) continue;
+        const cur = existsSync(file) ? readFileSync(file, "utf8") : "";
+        if (!/^\[mcp_servers\.gereh\]/m.test(cur)) {
+          mkdirSync(join(file, ".."), { recursive: true });
+          writeFileSync(file, cur + (cur && !cur.endsWith("\n") ? "\n" : "") + `\n[mcp_servers.gereh]\nurl = "${url}"\nbearer_token_env_var = "GEREH_TOKEN"\n`);
+        }
+        done.push("Codex (~/.codex/config.toml; export GEREH_TOKEN before starting codex)");
+      } else die("Unknown agent " + a + " (claude, cursor, vscode, codex)");
+    }
+    if (!done.length) die("No supported agent found. Run `gereh setup agent claude|cursor|vscode|codex`, or see " + ORIGIN + "/docs/mcp");
+    for (const d of done) console.log(green("✓ ") + d);
+    console.log(dim("Connected as " + me.name + ". Ask your agent e.g. “list my Gereh apps and check the last deployment”."));
+    if (flags.verbose) console.log(dim("MCP endpoint: " + url));
+  },
   help() {
     console.log(`${bold("gereh")} ${VERSION} — Gereh Apps from your terminal
 
@@ -235,6 +289,8 @@ const commands = {
   gereh env set K=V… [--secret]   set variables (restart, no rebuild)
   gereh env unset K…              remove variables
   gereh start | stop | restart
+  gereh setup agent [claude|cursor|vscode|codex]
+                                  connect coding agents to Gereh (MCP)
   gereh logout
 
   -a, --app <name>   act on an app other than the linked one

@@ -8,6 +8,7 @@ npx @gereh/cli link my-shop          # writes gereh.json in this folder
 npx @gereh/cli deploy -m "v1.4"      # ZIP apps: packs and uploads this folder; Git/image apps: rebuild
 npx @gereh/cli logs -f
 npx @gereh/cli env set API_KEY=xyz --secret
+npx @gereh/cli setup agent            # connect Claude Code, Cursor, VS Code, Codex (MCP)
 ```
 
 In CI set `GEREH_TOKEN` instead of logging in. Files listed in `.gerehignore` (or, if absent, `.gitignore`) are not uploaded; `node_modules`, `.git`, `.env` and build caches never are.

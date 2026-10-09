@@ -10,6 +10,7 @@ import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type DnsRec
 import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
+import { AgentConnect } from "./agents";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
 import { Icon } from "../icon";
@@ -557,6 +558,7 @@ export function UserKeys() {
           <div className="mx-3 mt-3 mb-1 rounded-xl bg-black/30 border border-white/[0.08] p-3 mono text-[11px] text-white/55 ltr overflow-x-auto whitespace-nowrap">curl -H &quot;Authorization: Bearer $GEREH_TOKEN&quot; {SITE_URL}/api/v1/servers</div>
         </Card>
       </div>
+      <AgentConnect />
       <Modal open={keyM} onClose={() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"
         footer={<><button type="button" onClick={() => setKeyM(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
           if (!k.name.trim()) throw new Error("یک نام برای کلید بنویسید.");

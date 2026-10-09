@@ -6,7 +6,7 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { Auth } from "./auth";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
-import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDeployments, paasDomains, servers, users } from "./db/schema";
+import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, servers, users } from "./db/schema";
 import { appHourly, appsDomain, defaultHost, loadPlans } from "./paas/service";
 import { registry } from "./rpc";
 import { AppError, sha256 } from "./util";
@@ -124,6 +124,10 @@ export const ROUTES: Route[] = [
     await rpc(ctx, "paas.power", (await ownAppBy(ctx, m[1])).id, action);
     return { ok: true };
   } },
+  { method: "GET", pattern: /^databases$/, run: async (ctx) => ({ data: (await ctx.db.select().from(paasDbs).where(eq(paasDbs.userId, ctx.auth!.uid))).map((d) => ({
+    id: d.id, name: d.name, engine: d.engine, version: d.version, status: d.status, plan: d.planId, host: d.host || null, port: d.port, database: d.dbName, username: d.username,
+    public_access: d.publicAccess, backups: d.backups, created_at: iso(d.createdAt),
+  })) }) },
   { method: "GET", pattern: /^invoices$/, run: async (ctx) => {
     const list = await ctx.db.select().from(invoices).where(eq(invoices.userId, ctx.auth!.uid));
     const items = list.length ? await ctx.db.select().from(invoiceItems) : [];

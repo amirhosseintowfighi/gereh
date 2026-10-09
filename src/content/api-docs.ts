@@ -108,6 +108,11 @@ curl -s -X POST https://gereh.net/api/v1/apps/my-shop/deployments \\
 |---|---|---|
 | GET | \`/account\` | نام، ایمیل و موجودی کیف پول |
 | GET | \`/invoices\` | صورتحساب‌ها با وضعیت و مبلغ |
+| GET | \`/databases\` | پایگاه‌های داده مدیریت‌شده |
+
+## ایجنت‌های هوش مصنوعی (MCP)
+
+همین API به‌صورت سرور MCP هم در \`https://gereh.net/api/mcp\` در دسترس است تا Claude Code، Cursor، Codex و Copilot با همین توکن‌ها اپ‌ها، سرورها و DNS را مدیریت کنند. راه‌اندازی در [راهنمای MCP](/docs/mcp).
 
 ## Terraform
 
