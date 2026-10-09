@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
-import { appMonthly, DB_ENGINES, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, STACKS, stackOf } from "@/lib/paas";
+import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, STACKS, stackOf } from "@/lib/paas";
 import { api, useDB, useMyId, useSession } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
 import { zipFolder } from "@/lib/zip-client";
@@ -162,7 +162,7 @@ export function NewApp() {
             <PlanPicker plans={plans} value={f.planId} onChange={(id) => set({ planId: id })} label="پلن اپ" />
             <div className="grid sm:grid-cols-2 gap-3 mt-4">
               <Field label="تعداد نمونه" hint="برای دسترس‌پذیری بالا دست‌کم ۲"><Select label="تعداد نمونه" value={String(f.instances)} onChange={(v) => set({ instances: Number(v), diskGb: Number(v) > 1 ? 0 : f.diskGb })} options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: fa(n) }))} /></Field>
-              <Field label="دیسک دائمی (گیگابایت)" hint={f.instances > 1 ? "فقط با یک نمونه" : "برای فایل‌های آپلودی؛ ماهانه ۳٬۰۰۰ تومان هر گیگ"}><Select label="دیسک دائمی" value={String(f.diskGb)} onChange={(v) => set({ diskGb: Number(v) })} options={(f.instances > 1 ? [0] : [0, 1, 5, 10, 20, 50]).map((n) => ({ value: String(n), label: n ? fa(n) + " گیگ" : "ندارد" }))} /></Field>
+              <Field label="دیسک دائمی (گیگابایت)" hint={f.instances > 1 ? "فقط با یک نمونه" : "برای فایل‌های آپلودی؛ ماهانه " + toman(DISK_PRICE_GB) + " هر گیگ"}><Select label="دیسک دائمی" value={String(f.diskGb)} onChange={(v) => set({ diskGb: Number(v) })} options={(f.instances > 1 ? [0] : [0, 1, 5, 10, 20, 50]).map((n) => ({ value: String(n), label: n ? fa(n) + " گیگ" : "ندارد" }))} /></Field>
             </div>
           </Card>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appMonthly, detectStack, hourlyOf, PAAS_NAME_RE } from "@/lib/paas";
+import { appMonthly, detectStack, DISK_PRICE_GB, hourlyOf, PAAS_NAME_RE } from "@/lib/paas";
 
 const files = (o: Record<string, string | null>) => new Map(Object.entries(o));
 
@@ -45,6 +45,6 @@ describe("names and prices", () => {
     expect(hourlyOf(720)).toBe(1);
     expect(hourlyOf(721)).toBe(2);
     expect(hourlyOf(0)).toBe(1);
-    expect(appMonthly({ price: 100_000 }, 3, 10)).toBe(330_000);
+    expect(appMonthly({ price: 100_000 }, 3, 10)).toBe(300_000 + 10 * DISK_PRICE_GB);
   });
 });

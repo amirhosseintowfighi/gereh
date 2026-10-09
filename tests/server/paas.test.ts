@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { context } from "@/server/ctx";
 import { paasApps, paasDbs, paasDeployments, transactions, users } from "@/server/db/schema";
-import { appSpec } from "@/server/paas/service";
+import { appSpec, DEFAULT_PLANS } from "@/server/paas/service";
+const planPrice = (id: string) => DEFAULT_PLANS.find((p) => p.id === id)!.price;
 import { buildState } from "@/server/state";
 import { paasBilling } from "@/server/worker/paas";
 import { drain } from "@/server/worker";
@@ -180,7 +181,7 @@ describe("billing", () => {
     await paasBilling(d);
     const [after] = await d.select({ b: users.balance }).from(users).where(eq(users.id, "u1"));
     // demo: app-small × 2 + db-small, billed per hour
-    expect(before.b - after.b).toBe(Math.ceil(229_000 * 2 / 720) + Math.ceil(289_000 / 720));
+    expect(before.b - after.b).toBe(Math.ceil(planPrice("app-small") * 2 / 720) + Math.ceil(planPrice("db-small") / 720));
     expect((await d.select().from(transactions).where(eq(transactions.userId, "u1"))).some((t) => t.desc.startsWith("مصرف ساعتی گره اپ"))).toBe(true);
 
     await d.update(users).set({ balance: 10 }).where(eq(users.id, "u1"));

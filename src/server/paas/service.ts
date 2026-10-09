@@ -16,18 +16,21 @@ import type { AppSpec, DbSpec } from "./driver";
 export type AppRow = typeof paasApps.$inferSelect;
 export type DbRow = typeof paasDbs.$inferSelect;
 
+/* Sized like the market's common PaaS tiers and priced about 10% under the leading Iranian competitor
+   (Paasta, Mehr 1405): app 0.25 core/256 MB 390k → 349k, 0.5/512 590k → 529k, 1/1 GB 1.09M → 979k,
+   2/4 GB 2.69M → 2.42M, 4/8 GB 4.99M → 4.49M; databases 349k/690k/1.39M → 315k/619k/1.249M. */
 export const DEFAULT_PLANS: PaasPlan[] = [
-  { id: "app-nano", kind: "app", name: "نانو", cpu: 0.25, ramMb: 256, diskGb: 0, price: 59_000, active: true },
-  { id: "app-micro", kind: "app", name: "میکرو", cpu: 0.5, ramMb: 512, diskGb: 0, price: 119_000, active: true },
-  { id: "app-small", kind: "app", name: "کوچک", cpu: 1, ramMb: 1024, diskGb: 0, price: 229_000, active: true },
-  { id: "app-medium", kind: "app", name: "متوسط", cpu: 2, ramMb: 2048, diskGb: 0, price: 449_000, active: true },
-  { id: "app-large", kind: "app", name: "بزرگ", cpu: 4, ramMb: 4096, diskGb: 0, price: 879_000, active: true },
-  { id: "app-xlarge", kind: "app", name: "خیلی بزرگ", cpu: 8, ramMb: 8192, diskGb: 0, price: 1_690_000, active: true },
-  { id: "db-micro", kind: "db", name: "میکرو", cpu: 0.5, ramMb: 512, diskGb: 5, price: 149_000, active: true },
-  { id: "db-small", kind: "db", name: "کوچک", cpu: 1, ramMb: 1024, diskGb: 10, price: 289_000, active: true },
-  { id: "db-medium", kind: "db", name: "متوسط", cpu: 2, ramMb: 2048, diskGb: 25, price: 549_000, active: true },
-  { id: "db-large", kind: "db", name: "بزرگ", cpu: 4, ramMb: 4096, diskGb: 50, price: 1_050_000, active: true },
-  { id: "db-xlarge", kind: "db", name: "خیلی بزرگ", cpu: 8, ramMb: 8192, diskGb: 100, price: 1_990_000, active: true },
+  { id: "app-nano", kind: "app", name: "نانو", cpu: 0.25, ramMb: 256, diskGb: 0, price: 349_000, active: true },
+  { id: "app-micro", kind: "app", name: "میکرو", cpu: 0.5, ramMb: 512, diskGb: 0, price: 529_000, active: true },
+  { id: "app-small", kind: "app", name: "کوچک", cpu: 1, ramMb: 1024, diskGb: 0, price: 979_000, active: true },
+  { id: "app-medium", kind: "app", name: "متوسط", cpu: 2, ramMb: 4096, diskGb: 0, price: 2_420_000, active: true },
+  { id: "app-large", kind: "app", name: "بزرگ", cpu: 4, ramMb: 8192, diskGb: 0, price: 4_490_000, active: true },
+  { id: "app-xlarge", kind: "app", name: "خیلی بزرگ", cpu: 8, ramMb: 16384, diskGb: 0, price: 8_790_000, active: true },
+  { id: "db-micro", kind: "db", name: "میکرو", cpu: 0.25, ramMb: 512, diskGb: 5, price: 315_000, active: true },
+  { id: "db-small", kind: "db", name: "کوچک", cpu: 0.5, ramMb: 1024, diskGb: 10, price: 619_000, active: true },
+  { id: "db-medium", kind: "db", name: "متوسط", cpu: 1, ramMb: 2048, diskGb: 25, price: 1_249_000, active: true },
+  { id: "db-large", kind: "db", name: "بزرگ", cpu: 2, ramMb: 4096, diskGb: 50, price: 2_490_000, active: true },
+  { id: "db-xlarge", kind: "db", name: "خیلی بزرگ", cpu: 4, ramMb: 8192, diskGb: 100, price: 4_790_000, active: true },
 ];
 
 export const seedPlans = (db: DB) => db.insert(paasPlans).values(DEFAULT_PLANS.map((p, i) => ({ ...p, position: i }))).onConflictDoNothing();

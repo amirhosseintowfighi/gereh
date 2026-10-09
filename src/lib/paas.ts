@@ -55,7 +55,7 @@ export const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 /** variables the platform sets itself */
 export const ENV_RESERVED = new Set(["PORT", "GEREH_APP", "GEREH_DEPLOYMENT", "KUBERNETES_SERVICE_HOST"]);
 
-export const DISK_PRICE_GB = 3_000; // Toman per GB per month
+export const DISK_PRICE_GB = 15_000; // Toman per GB per month (Paasta: 30k)
 export const HOURS_PER_MONTH = 720;
 /** hourly charge for a monthly price (rounded up to whole Toman, minimum 1) */
 export const hourlyOf = (monthly: number) => Math.max(1, Math.ceil(monthly / HOURS_PER_MONTH));

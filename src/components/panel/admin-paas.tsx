@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { BTN_G, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
-import { engineOf, stackOf } from "@/lib/paas";
+import { DISK_PRICE_GB, engineOf, stackOf } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
 import type { PaasPlanRow } from "@/lib/types";
 import { useApp } from "../app-context";
@@ -101,7 +101,7 @@ export function AdminPaas() {
               <ul className="space-y-1">{db.paasPlans.filter((p) => p.kind === kind).map((p) => <PlanRow key={p.id} p={p} />)}</ul>
             </Card>
           ))}
-          <p className="text-[11px] text-white/50 lg:col-span-2">قیمت‌ها ماهانه است؛ کسر ساعتی = قیمت ÷ ۷۲۰ (رو به بالا). تغییر قیمت از ساعت بعد روی همه سرویس‌های همان پلن اعمال می‌شود. دیسک دائمی اپ‌ها ماهانه ۳٬۰۰۰ تومان هر گیگ.</p>
+          <p className="text-[11px] text-white/50 lg:col-span-2">قیمت‌ها ماهانه است؛ کسر ساعتی = قیمت ÷ ۷۲۰ (رو به بالا). تغییر قیمت از ساعت بعد روی همه سرویس‌های همان پلن اعمال می‌شود. دیسک دائمی اپ‌ها ماهانه {toman(DISK_PRICE_GB)} هر گیگ.</p>
         </div>
       )}
 

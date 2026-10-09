@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { seedGeoPlans } from "./geo/service";
 import { seedInquiry } from "./inquiry/service";
-import { seedPlans } from "./paas/service";
+import { DEFAULT_PLANS, seedPlans } from "./paas/service";
 import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan } from "@/lib/catalog";
 import { fa, hashStr } from "@/lib/format";
@@ -40,12 +40,18 @@ export async function upgrade(db: DB) {
   // v2 pricing: cloud plans priced from unit costs (CPU, RAM, disk, stepped traffic, IP). Replaces the
   // stored cloud plan rows once, keeping each plan's on/off switch from the admin panel.
   const [pv] = await db.select().from(t.kv).where(eq(t.kv.key, "pricing"));
-  if (pv?.value === 2) return;
-  for (const p of VPS.cloud) {
-    const [row] = await db.select().from(t.plans).where(eq(t.plans.id, p.id));
-    if (row) await db.update(t.plans).set({ data: { ...p, ...((row.data as Plan).active === false ? { active: false } : {}) } }).where(eq(t.plans.id, p.id));
+  const version = Number(pv?.value ?? 0);
+  if (version < 2) {
+    for (const p of VPS.cloud) {
+      const [row] = await db.select().from(t.plans).where(eq(t.plans.id, p.id));
+      if (row) await db.update(t.plans).set({ data: { ...p, ...((row.data as Plan).active === false ? { active: false } : {}) } }).where(eq(t.plans.id, p.id));
+    }
   }
-  await db.insert(t.kv).values({ key: "pricing", value: 2 }).onConflictDoUpdate({ target: t.kv.key, set: { value: 2 } });
+  // v3: Gereh Apps plans resized and repriced against the market (resources and price; on/off kept)
+  if (version < 3) {
+    for (const p of DEFAULT_PLANS) await db.update(t.paasPlans).set({ cpu: p.cpu, ramMb: p.ramMb, diskGb: p.diskGb, price: p.price }).where(eq(t.paasPlans.id, p.id));
+  }
+  if (version < 3) await db.insert(t.kv).values({ key: "pricing", value: 3 }).onConflictDoUpdate({ target: t.kv.key, set: { value: 3 } });
 }
 
 export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; adminPassword?: string }) {
