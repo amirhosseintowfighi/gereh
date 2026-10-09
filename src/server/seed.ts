@@ -6,6 +6,7 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
+import { seedAiModels } from "./ai/service";
 import { seedGeoPlans } from "./geo/service";
 import { seedInquiry } from "./inquiry/service";
 import { DEFAULT_PLANS, seedPlans } from "./paas/service";
@@ -35,6 +36,7 @@ const refCode = () => randomSecret(8, "ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 /** runs on every boot: catalog rows added by later releases (idempotent), and one-off catalog updates */
 export async function upgrade(db: DB) {
   await seedPlans(db);
+  await seedAiModels(db);
   await seedInquiry(db);
   await seedGeoPlans(db);
   // v2 pricing: cloud plans priced from unit costs (CPU, RAM, disk, stepped traffic, IP). Replaces the

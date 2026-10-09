@@ -691,3 +691,61 @@ export const geoRecords = pgTable("geo_records", {
   worldUp: boolean("world_up"),
   checkedAt: ts("checked_at"),
 }, (t) => [index("geo_record_zone_ix").on(t.zoneId)]);
+
+/* ---------------- AI API gateway (api.gereh.dev) ---------------- */
+export const aiModels = pgTable("ai_models", {
+  id: text("id").primaryKey(), // public model id customers send, e.g. claude-opus-5.5
+  name: text("name").notNull(),
+  vendor: text("vendor").notNull(),
+  /** model id at the upstream provider; empty = same as id */
+  upstream: text("upstream").notNull().default(""),
+  /** Toman per 1M tokens */
+  inPrice: money("in_price").notNull(),
+  outPrice: money("out_price").notNull(),
+  /** competitor reference (Toman per 1M) used by the pricing rule; 0 = unknown */
+  refIn: money("ref_in").notNull().default(0),
+  refOut: money("ref_out").notNull().default(0),
+  context: integer("context").notNull().default(128000),
+  vision: boolean("vision").notNull().default(false),
+  tools: boolean("tools").notNull().default(true),
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+export const aiKeys = pgTable("ai_keys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  /** sha256 of the full key; the key itself is shown once */
+  hash: text("hash").notNull(),
+  prefix: text("prefix").notNull(),
+  /** empty = every active model */
+  models: jsonb("models").$type<string[]>().notNull().default([]),
+  dailyCap: money("daily_cap").notNull().default(0), // 0 = no cap
+  monthlyCap: money("monthly_cap").notNull().default(0),
+  rpm: integer("rpm").notNull().default(120),
+  status: text("status", { enum: ["active", "revoked"] }).notNull().default("active"),
+  expiresAt: ts("expires_at"),
+  lastUsedAt: ts("last_used_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("ai_key_hash_uq").on(t.hash), index("ai_key_user_ix").on(t.userId)]);
+
+export const aiUsage = pgTable("ai_usage", {
+  id: text("id").primaryKey(), // request id returned in x-gereh-request-id
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keyId: text("key_id"),
+  model: text("model").notNull(),
+  /** API surface the customer used */
+  format: text("format", { enum: ["openai", "responses", "anthropic", "gemini", "panel"] }).notNull(),
+  stream: boolean("stream").notNull().default(false),
+  status: text("status", { enum: ["success", "error", "denied", "cancelled"] }).notNull(),
+  inTokens: integer("in_tokens").notNull().default(0),
+  outTokens: integer("out_tokens").notNull().default(0),
+  /** true when the upstream reported no usage and tokens were estimated */
+  estimated: boolean("estimated").notNull().default(false),
+  charged: money("charged").notNull().default(0),
+  billed: boolean("billed").notNull().default(false),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed)]);
