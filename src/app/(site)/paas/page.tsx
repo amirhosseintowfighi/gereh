@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GirihField } from "@/components/girih";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
-import { PaasCompare, PaasCta, PaasDatabases, PaasFaq, PaasFeatures, PaasPricing, PaasStacks, PaasSteps, PaasTerminal } from "@/components/site/paas-sections";
+import { PaasCompare, PaasCta, PaasDatabases, PaasFaq, PaasFeatures, PaasPricing, PaasStacks, PaasSteps, PaasTemplates, PaasTerminal } from "@/components/site/paas-sections";
 import { PAAS_FAQ } from "@/content/paas";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { toman } from "@/lib/format";
@@ -48,6 +48,7 @@ export default async function PaasPage() {
       <PaasSteps />
       <PaasFeatures />
       <PaasStacks />
+      <PaasTemplates />
       <PaasPricing plans={plans} />
       <PaasDatabases />
       <PaasCompare />

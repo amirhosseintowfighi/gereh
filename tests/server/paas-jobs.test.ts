@@ -87,3 +87,21 @@ describe("processes, cron, release command and one-off jobs", () => {
     expect(row.finishedAt).not.toBeNull();
   });
 });
+
+describe("one-click templates", () => {
+  it("creates the app, its database and link, and returns generated credentials once", async () => {
+    await asUser();
+    const r = await call<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", "directus", "my-cms");
+    expect(r.credentials).toHaveLength(1);
+    expect(r.credentials[0].value.length).toBeGreaterThan(20);
+    await settle();
+    const app = await appOf(r.appId);
+    expect(app).toMatchObject({ source: "image", diskMount: "/directus/uploads", healthPath: "/server/health", status: "running" });
+    expect(app.links[0].envKey).toBe("DB_CONNECTION_STRING");
+    const spec = await appSpec(await db(), (await (await db()).select().from(paasApps).where(eq(paasApps.id, r.appId)))[0]);
+    expect(spec.env.DB_CONNECTION_STRING).toMatch(/^postgresql:\/\//);
+    expect(spec.env.PUBLIC_URL).toBe("https://my-cms.gereh.dev");
+    expect(spec.env.ADMIN_EMAIL).toBe("demo@gereh.net");
+    expect(await fails("paas.createFromTemplate", "nope", "x-app")).toContain("پیدا نشد");
+  });
+});

@@ -9,6 +9,7 @@ import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomai
 import { enqueue } from "../jobs";
 import { paas } from "../paas/driver";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
+import { templateOf } from "@/lib/paas-templates";
 import { open, seal } from "../secrets";
 import { checkDomain } from "../worker/paas";
 import { fail, logActivity, logAudit, rid } from "../util";
@@ -111,6 +112,27 @@ export const paasRpc = {
     });
     await logActivity(ctx.db, a.uid, "rocket", "ساخت اپ " + i.name, ctx.ip);
     return appId;
+  }),
+
+  /** one-click app: official image + disk + (optionally) a linked managed database + generated secrets */
+  "paas.createFromTemplate": method(z.tuple([z.string().max(40), z.string().trim().toLowerCase().max(30), id.optional()]), async (ctx, [templateId, name, planId]): Promise<{ appId: string; credentials: { label: string; value: string }[] }> => {
+    const run = (m: string, args: unknown[]) => (paasRpc as unknown as Record<string, { run: (c: Ctx, a: unknown) => Promise<unknown> }>)[m].run(ctx, args) as Promise<string>;
+    const a = needUser(ctx);
+    const t = templateOf(templateId);
+    if (!t) fail("این اپ آماده پیدا نشد.", 404);
+    checkName(name);
+    const p = await plan(ctx, planId || t!.planId, "app");
+    const dbPlan = t!.db ? await plan(ctx, t!.db.planId, "db") : null;
+    await needCredit(ctx, a.uid, appMonthly(p, 1, t!.diskGb) + (dbPlan?.price ?? 0));
+    const base = await appsDomain(ctx.db);
+    const fill = (v: string) => v.replaceAll("${url}", "https://" + name + "." + base).replaceAll("${email}", a.user.email).replace(/\$\{secret\}/g, () => randomBytes(24).toString("base64url"));
+    const env = Object.entries(t!.env).map(([key, v]) => ({ key, value: fill(v), secret: v.includes("${secret}") }));
+    let dbId: string | undefined;
+    if (t!.db) dbId = await run("paas.createDb", [{ name: (name + "-db").slice(0, 30), engine: t!.db.engine, version: t!.db.version, planId: dbPlan!.id, publicAccess: false, backups: true }]);
+    const appId = await run("paas.createApp", [{ name, stack: "docker", source: "image", gitUrl: "", gitBranch: "main", image: t!.image, rootDir: "", buildCommand: "", startCommand: "", port: t!.port, planId: p.id, instances: 1, diskGb: t!.diskGb, env }]);
+    await ctx.db.update(paasApps).set({ diskMount: t!.diskMount, ...(t!.health ? { healthPath: t!.health } : {}) }).where(eq(paasApps.id, appId));
+    if (dbId) await ctx.db.insert(paasLinks).values({ appId, dbId, envKey: t!.db!.envKey }).onConflictDoNothing();
+    return { appId, credentials: (t!.show ?? []).map((s) => ({ label: s.label, value: env.find((e) => e.key === s.key)?.value ?? "" })) };
   }),
 
   "paas.deploy": method(z.tuple([id, z.object({ uploadId: z.string().max(64).optional(), message: z.string().max(200).optional(), via: z.enum(["manual", "api", "cli"]).optional() })]), async (ctx, [appId, o]) => {

@@ -5,12 +5,12 @@ import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
 import { hourlyOf } from "@/lib/paas";
 import type { DB } from "../db/client";
-import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasJobs, paasMetrics, paasPlans, transactions, users } from "../db/schema";
+import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasJobs, paasLinks, paasMetrics, paasPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { type ComposeService, ComposeError, composeFromZip } from "../paas/compose";
 import { paas, type AppSpec, type PaasDriver } from "../paas/driver";
 import { applyManifest, manifestFromZip, parseManifest } from "../paas/manifest";
-import { appHourly, appSpec, dbHourly, dbSpec, previewSpec, signSource } from "../paas/service";
+import { appHourly, appSpec, dbHourly, dbSpec, previewSpec, redeployConfig, signSource } from "../paas/service";
 import { notify, rid } from "../util";
 import { ZipError } from "../unzip";
 
@@ -174,6 +174,11 @@ export async function paasDbCreate(db: DB, p: { dbId: string; since?: number }) 
   if (await d.dbReady(spec)) {
     await db.update(paasDbs).set({ status: "running" }).where(eq(paasDbs.id, row.id));
     await notify(db, row.userId, "database", "پایگاه داده " + row.name + " آماده است");
+    // apps linked while the database was being created get its URL now
+    for (const l of await db.select().from(paasLinks).where(eq(paasLinks.dbId, row.id))) {
+      const [a] = await db.select().from(paasApps).where(eq(paasApps.id, l.appId));
+      if (a) await redeployConfig(db, a, "پایگاه داده " + row.name + " آماده شد");
+    }
   } else if (Date.now() - p.since > ROLLOUT_TIMEOUT_MS) {
     await db.update(paasDbs).set({ status: "failed" }).where(eq(paasDbs.id, row.id));
   } else await enqueue(db, "paas.db", p, { runAt: later(pollMs()) });

@@ -181,6 +181,7 @@ export const MAX_DOMAIN_YEARS = 10;
 export const APPS = [
   { id: "", label: "بدون اپلیکیشن" }, { id: "docker", label: "Docker" }, { id: "wordpress", label: "WordPress" },
   { id: "n8n", label: "n8n" }, { id: "nextcloud", label: "Nextcloud" }, { id: "gitlab", label: "GitLab CE" }, { id: "outline-vpn", label: "Outline VPN" },
+  { id: "portainer", label: "Portainer" }, { id: "uptime-kuma", label: "Uptime Kuma" }, { id: "wg-easy", label: "WireGuard (wg-easy)" }, { id: "minio", label: "MinIO (S3)" }, { id: "coolify", label: "Coolify" },
 ];
 
 const locOf = (id: string) => LOCS.find((l) => l.id === id);

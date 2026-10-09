@@ -30,10 +30,10 @@ export function UserApps() {
   return (
     <div>
       <PageTitle title="اپ‌ها" sub={apps.length ? fa(apps.length) + " اپ · حدود " + toman(monthly) + " در ماه" : "کد را بفرستید؛ بیلد، اجرا، SSL و مقیاس با ما."}
-        action={<Link href="/panel/apps/new" className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />اپ جدید</Link>} />
+        action={<div className="flex gap-2"><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-10 px-4 text-sm"}><Icon name="sparkles" size={16} />اپ‌های آماده</Link><Link href="/panel/apps/new" className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />اپ جدید</Link></div>} />
       {apps.length === 0 ? (
         <Card><Empty icon="rocket" title="هنوز اپی ندارید" text="از Git، فایل ZIP یا ایمیج Docker در کمتر از دو دقیقه اپ بسازید؛ پرداخت ساعتی از کیف پول."
-          action={<div className="flex gap-2 justify-center"><Link href="/panel/apps/new" className={BTN_P + " h-10 px-5 text-sm"}>ساخت اولین اپ</Link><Link href="/paas" className={BTN_G + " h-10 px-4 text-sm"}>معرفی گره اپ</Link></div>} /></Card>
+          action={<div className="flex gap-2 justify-center"><Link href="/panel/apps/new" className={BTN_P + " h-10 px-5 text-sm"}>ساخت اولین اپ</Link><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-10 px-4 text-sm"}>اپ‌های آماده</Link><Link href="/paas" className={BTN_G + " h-10 px-4 text-sm"}>معرفی گره اپ</Link></div>} /></Card>
       ) : (
         <ul className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {apps.map((a) => (
