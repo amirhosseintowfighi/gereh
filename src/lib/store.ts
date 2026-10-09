@@ -83,7 +83,7 @@ export const genPassword = () => {
 
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -235,12 +235,14 @@ export const api = {
     createDb: (d: { name: string; engine: string; version: string; planId: string; publicAccess: boolean; backups: boolean }) => rpc<string>("paas.createDb", d),
     dbCredentials: (dbId: string) => rpc<{ password: string; url: string; publicUrl: string }>("paas.dbCredentials", dbId),
     resetDbPassword: (dbId: string) => rpc("paas.resetDbPassword", dbId),
-    updateDb: (dbId: string, patch: { planId?: string; publicAccess?: boolean; backups?: boolean }) => rpc("paas.updateDb", dbId, patch),
+    updateDb: (dbId: string, patch: { planId?: string; publicAccess?: boolean; backups?: boolean; pitr?: boolean }) => rpc("paas.updateDb", dbId, patch),
     dbPower: (dbId: string, action: "start" | "stop") => rpc("paas.dbPower", dbId, action),
     deleteDb: (dbId: string, confirm: string) => rpc("paas.deleteDb", dbId, confirm),
     backupDb: (dbId: string) => rpc<string>("paas.backupDb", dbId),
     deleteBackup: (id: string) => rpc("paas.deleteBackup", id),
     restoreDb: (id: string) => rpc("paas.restoreDb", id),
+    pitrRestore: (dbId: string, at: string, name: string) => rpc<string>("paas.pitrRestore", dbId, at, name),
+    scanReport: (depId: string) => rpc<{ status: string; critical: number; high: number; report: string }>("paas.scanReport", depId),
     link: (appId: string, dbId: string, envKey?: string) => rpc("paas.link", appId, dbId, envKey),
     unlink: (appId: string, dbId: string) => rpc("paas.unlink", appId, dbId),
     setProcesses: (appId: string, list: { name: string; command: string; instances: number }[]) => rpc("paas.setProcesses", appId, list),

@@ -15,7 +15,7 @@ import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
 import { wpImport } from "./wordpress";
 import { channelSend } from "../channels";
-import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll } from "./paas";
+import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll, paasScan, paasVerifyBackups } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
@@ -39,6 +39,8 @@ const handlers: Record<JobType, Handler> = {
   "paas.job": (db, p) => paasJobPoll(db, p as never),
   "wp.import": (db, p) => wpImport(db, p as never),
   "notify.channel": (db, p) => channelSend(db, p as never),
+  "paas.scan": (db, p) => paasScan(db, p as never),
+  "paas.verify": (db) => paasVerifyBackups(db),
   "paas.db": (db, p) => paasDbCreate(db, p as never),
   "paas.backup": (db, p) => paasBackup(db, p as never),
   "paas.billing": (db) => paasBilling(db),
@@ -54,7 +56,7 @@ const handlers: Record<JobType, Handler> = {
 /** periodic jobs: [name, interval in minutes] */
 export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
-  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60],
+  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60], ["paas.verify", 7 * 24 * 60],
   ["inquiry.settle", 10], ["ai.settle", 10], ["geo.billing", 24 * 60], ["geo.health", 5], ["geo.ns", 60],
 ];
 

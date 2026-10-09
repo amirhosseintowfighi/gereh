@@ -46,6 +46,13 @@ const cfg = () => ({
   prometheus: env("PAAS_PROMETHEUS"),
   // package mirror (deploy/mirror) used by builds for base images and npm/pip/Go installs
   mirror: env("PAAS_MIRROR", env("MIRROR_URL")).replace(/\/$/, ""),
+  trivyImage: env("PAAS_TRIVY_IMAGE", "aquasec/trivy:0.58.1"),
+  // optional mirror of the Trivy vulnerability database (ghcr.io/aquasecurity/trivy-db)
+  trivyDb: env("PAAS_TRIVY_DB_REPOSITORY"),
+  // PostgreSQL image with WAL-G (deploy/paas/postgres-walg) and the S3 bucket for WAL archives
+  walgImage: env("PAAS_PG_WALG_IMAGE", "registry.gereh.net/gereh/postgres-walg"),
+  pitrBucket: env("PAAS_PITR_BUCKET", "gereh-pitr"),
+  pitrS3: { endpoint: env("PAAS_PITR_S3_ENDPOINT"), key: env("PAAS_PITR_S3_ACCESS_KEY"), secret: env("PAAS_PITR_S3_SECRET_KEY") },
 });
 
 const FM = "gereh";
@@ -396,22 +403,55 @@ const dbProbe = (d: DbSpec): Obj => ({ exec: { command: ["/bin/sh", "-c", ({
   mongodb: "mongosh --quiet --eval 'db.adminCommand({ping:1})'", redis: 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping',
 } as Record<string, string>)[d.engine]] }, periodSeconds: 10, timeoutSeconds: 5 });
 
+export const pitrPrefix = (userId: string, dbId: string) => "s3://" + cfg().pitrBucket + "/" + dns1123(userId) + "/" + dbId;
+/** WAL-G: restore the latest base backup before `time`, replay WAL up to it, then promote */
+export function pitrRestoreScript(prefix: string, time: string) {
+  return [
+    "set -e", 'D="$PGDATA"',
+    '[ -s "$D/PG_VERSION" ] && { echo "data exists, skipping restore"; exit 0; }',
+    'mkdir -p "$D"',
+    `WALG_S3_PREFIX=${shq(prefix)} wal-g backup-fetch "$D" LATEST`,
+    'touch "$D/recovery.signal"',
+    `printf "%s\\n" ${shq("restore_command = 'WALG_S3_PREFIX=" + prefix + " wal-g wal-fetch %f %p'")} ${shq("recovery_target_time = '" + time + "'")} "recovery_target_action = 'promote'" >> "$D/postgresql.auto.conf"`,
+    'chown -R postgres:postgres "$D" && chmod 700 "$D"',
+  ].join("\n");
+}
+const PITR_SIDECAR = [
+  "set -u", "sleep 120",
+  // a base backup a day, 7 kept; WAL segments in between are archived by the server itself
+  'while true; do wal-g backup-push "$PGDATA" && wal-g delete retain FULL 7 --confirm; sleep 86400; done',
+].join("\n");
+
 export function dbObjects(d: DbSpec): Obj[] {
   const c = cfg(), ns = nsOf(d.userId), labels = dbLabels(d), port = DB_PORTS[d.engine];
+  const walg = d.engine === "postgres" && (d.pitr || d.restore);
+  const walgEnv = walg ? [
+    { name: "AWS_ACCESS_KEY_ID", valueFrom: { secretKeyRef: { name: "pitr-s3", key: "key" } } }, { name: "AWS_SECRET_ACCESS_KEY", valueFrom: { secretKeyRef: { name: "pitr-s3", key: "secret" } } },
+    { name: "AWS_ENDPOINT", value: c.pitrS3.endpoint }, { name: "AWS_S3_FORCE_PATH_STYLE", value: "true" }, { name: "AWS_REGION", value: "us-east-1" },
+    { name: "WALG_S3_PREFIX", value: pitrPrefix(d.userId, d.id) }, { name: "WALG_COMPRESSION_METHOD", value: "brotli" },
+  ] : [];
   return [
+    ...(walg ? [{ apiVersion: "v1", kind: "Secret", metadata: { name: "pitr-s3", namespace: ns, labels: { "app.kubernetes.io/managed-by": FM } }, type: "Opaque", stringData: { key: c.pitrS3.key, secret: c.pitrS3.secret } }] : []),
     { apiVersion: "v1", kind: "Secret", metadata: { name: dbName(d) + "-auth", namespace: ns, labels }, type: "Opaque", stringData: { password: d.password } },
     { apiVersion: "apps/v1", kind: "StatefulSet", metadata: { name: dbName(d), namespace: ns, labels }, spec: {
       serviceName: dbName(d), replicas: 1, selector: { matchLabels: { "app.kubernetes.io/name": dbName(d) } },
       template: { metadata: { labels }, spec: {
         automountServiceAccountToken: false, enableServiceLinks: false, terminationGracePeriodSeconds: 60,
+        ...(walg && d.restore ? { initContainers: [{ name: "pitr-restore", image: c.walgImage + ":" + d.version, command: ["/bin/sh", "-c", pitrRestoreScript(pitrPrefix(d.restore.fromUserId, d.restore.fromId), d.restore.time)], env: [...dbEnv(d), ...walgEnv], volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }] }] } : {}),
         containers: [{
-          name: "db", image: DB_IMAGES[d.engine](d.version),
+          name: "db", image: walg ? c.walgImage + ":" + d.version : DB_IMAGES[d.engine](d.version),
+          ...(walg && d.pitr ? { args: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_command=wal-g wal-push %p", "-c", "archive_timeout=300"] } : {}),
           ...(d.engine === "redis" ? { command: ["/bin/sh", "-c", 'exec redis-server --requirepass "$REDIS_PASSWORD" --appendonly yes --maxmemory ' + Math.floor(d.ramMb * 0.8) + "mb --maxmemory-policy noeviction"] } : {}),
-          env: dbEnv(d), ports: [{ name: "db", containerPort: port }],
+          env: [...dbEnv(d), ...walgEnv], ports: [{ name: "db", containerPort: port }],
           resources: { requests: { cpu: cpuQty(d.cpu / 2), memory: memQty(d.ramMb) }, limits: { cpu: cpuQty(d.cpu), memory: memQty(d.ramMb) } },
           readinessProbe: dbProbe(d), livenessProbe: { tcpSocket: { port }, periodSeconds: 20, failureThreshold: 6, initialDelaySeconds: 30 },
           volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }],
-        }],
+        }, ...(walg && d.pitr ? [{
+          name: "walg", image: c.walgImage + ":" + d.version, command: ["/bin/sh", "-c", PITR_SIDECAR],
+          env: [...dbEnv(d), ...walgEnv, { name: "PGHOST", value: "127.0.0.1" }, { name: "PGUSER", value: d.username }, { name: "PGPASSWORD", valueFrom: { secretKeyRef: { name: dbName(d) + "-auth", key: "password" } } }, { name: "PGDATABASE", value: d.dbName }],
+          resources: { requests: { cpu: "50m", memory: "64Mi" }, limits: { cpu: "500m", memory: "512Mi" } },
+          volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }],
+        }] : [])],
       } },
       volumeClaimTemplates: [{ metadata: { name: "data" }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: d.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } }],
     } },
@@ -446,6 +486,60 @@ export function restoreCommand(d: DbSpec) {
     case "mongodb": return `mongorestore --uri="mongodb://${encodeURIComponent(d.username)}:$DB_PASSWORD@${h}:${p}/?authSource=admin" --archive=/backup/dump --gzip --drop`;
     default: throw new Error("Redis is restored by redisRestoreScript");
   }
+}
+
+/** restores /backup/dump into a server started inside the job and prints what it found */
+export function verifyScript(d: DbSpec) {
+  switch (d.engine) {
+    case "postgres": return [
+      "export PGDATA=/tmp/v; mkdir -p $PGDATA; chown postgres $PGDATA",
+      "su-exec postgres initdb -D $PGDATA -A trust -U postgres >/dev/null",
+      "su-exec postgres pg_ctl -D $PGDATA -o \"-k /tmp -c listen_addresses=''\" -w start >/dev/null",
+      "createdb -h /tmp -U postgres verify",
+      "pg_restore -h /tmp -U postgres -d verify --no-owner --no-acl /backup/dump",
+      "echo \"TABLES=$(psql -h /tmp -U postgres -d verify -tAc \"select count(*) from information_schema.tables where table_schema not in ('pg_catalog','information_schema')\")\"",
+    ].join("\n");
+    case "mysql": case "mariadb": {
+      const [init, srv, cli] = d.engine === "mysql" ? ["mysqld --initialize-insecure --user=root --datadir=/tmp/v", "mysqld", "mysql"] : ["mariadb-install-db --user=root --datadir=/tmp/v --auth-root-authentication-method=normal", "mariadbd", "mariadb"];
+      return [
+        init + " >/dev/null 2>&1",
+        srv + " --user=root --datadir=/tmp/v --skip-networking --socket=/tmp/m.sock >/tmp/m.log 2>&1 &",
+        "for i in $(seq 1 60); do [ -S /tmp/m.sock ] && break; sleep 1; done",
+        cli + " -uroot -S /tmp/m.sock < /backup/dump",
+        // db names are [a-z0-9_] (from the validated resource name)
+        "echo \"TABLES=$(" + cli + " -uroot -S /tmp/m.sock -N -e \"select count(*) from information_schema.tables where table_schema='" + d.dbName.replace(/[^\w]/g, "") + "'\")\"",
+      ].join("\n");
+    }
+    case "mongodb": return [
+      "mkdir -p /tmp/v && mongod --dbpath /tmp/v --bind_ip 127.0.0.1 --port 27099 --fork --logpath /tmp/m.log >/dev/null",
+      "mongorestore --port 27099 --archive=/backup/dump --gzip --quiet",
+      "echo \"TABLES=$(mongosh --port 27099 --quiet --eval 'db.getSiblingDB(" + JSON.stringify(d.dbName) + ").getCollectionNames().length')\"",
+    ].join("\n");
+    default: return "redis-check-rdb /backup/dump | tail -1 && echo TABLES=1";
+  }
+}
+
+export const SCAN_TEMPLATE = "{{range .}}{{range .Vulnerabilities}}{{.Severity}} {{.VulnerabilityID}} {{.PkgName}} {{.InstalledVersion}} -> {{.FixedVersion}}\n{{end}}{{end}}";
+export function scanJob(app: AppSpec, image: string, deploymentId: string): Obj {
+  const c = cfg(), dep = deploymentId.toLowerCase();
+  return { apiVersion: "batch/v1", kind: "Job", metadata: { name: "scan-" + dep, namespace: c.system, labels: { ...appLabels(app), "gereh.net/deployment": deploymentId, "gereh.net/kind": "scan" } }, spec: {
+    backoffLimit: 0, activeDeadlineSeconds: 1800, ttlSecondsAfterFinished: 86_400,
+    template: { metadata: { labels: { "gereh.net/kind": "scan" } }, spec: {
+      restartPolicy: "Never", automountServiceAccountToken: false,
+      containers: [{
+        name: "scan", image: c.trivyImage,
+        args: ["image", "--quiet", "--no-progress", "--scanners", "vuln", "--severity", "HIGH,CRITICAL", "--ignore-unfixed", "--format", "template", "--template", SCAN_TEMPLATE, ...(c.trivyDb ? ["--db-repository", c.trivyDb] : []), image],
+        env: [{ name: "DOCKER_CONFIG", value: "/docker" }, { name: "TRIVY_CACHE_DIR", value: "/cache" }],
+        volumeMounts: [{ name: "registry", mountPath: "/docker" }, { name: "cache", mountPath: "/cache" }],
+        resources: { requests: { cpu: "250m", memory: "512Mi" }, limits: { cpu: "1", memory: "2Gi" } },
+      }],
+      volumes: [{ name: "registry", secret: { secretName: "registry-push", items: [{ key: ".dockerconfigjson", path: "config.json" }] } }, { name: "cache", emptyDir: { sizeLimit: "5Gi" } }],
+    } },
+  } };
+}
+export function parseScan(log: string) {
+  const rows = log.split("\n").filter((l) => /^(CRITICAL|HIGH) /.test(l));
+  return { critical: rows.filter((l) => l.startsWith("CRITICAL")).length, high: rows.filter((l) => l.startsWith("HIGH")).length, report: [...new Set(rows)].sort().slice(0, 300).join("\n") };
 }
 
 /** runs on the stopped Redis volume: load the RDB with AOF off, then switch AOF on so Redis rewrites
@@ -637,6 +731,26 @@ export class KubernetesDriver implements PaasDriver {
     const failed = job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True");
     if (failed) return { state: "failed" as const, output: output + "\nERROR: " + (job.status?.conditions?.find((x) => x.type === "Failed")?.message || "command failed") };
     return { state: "running" as const, output };
+  }
+
+  async startScan(app: AppSpec, image: string, deploymentId: string) {
+    await apply(scanJob(app, image, deploymentId) as never);
+  }
+  async scanStatus(_app: AppSpec, deploymentId: string) {
+    const ns = cfg().system, name = "scan-" + deploymentId.toLowerCase();
+    const job = await get("batch/v1", "Job", ns, name) as { status?: { succeeded?: number; failed?: number } };
+    const log = await this.jobLogs(ns, name, ["scan"], 5000);
+    if (job.status?.succeeded) return { state: "done" as const, ...parseScan(log) };
+    if (job.status?.failed) return { state: "failed" as const, critical: 0, high: 0, report: log.slice(-2000) };
+    return { state: "running" as const, critical: 0, high: 0, report: "" };
+  }
+  async verifyBackup(d: DbSpec, location: string) {
+    const key = location.replace(/^s3:\/\//, "");
+    try {
+      const log = await this.dbJob(d, "verify", DB_IMAGES[d.engine](d.version), verifyScript(d), [], 3600, { mode: "down", key });
+      const t = /TABLES=(\d+)/.exec(log)?.[1];
+      return t ? { ok: true, detail: "TABLES=" + t } : { ok: false, detail: log.slice(-300) };
+    } catch (e) { return { ok: false, detail: (e as Error).message.slice(-300) }; }
   }
 
   async importSite(app: AppSpec, d: DbSpec, sourceUrl: string, jobId: string, newUrl: string) {

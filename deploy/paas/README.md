@@ -136,3 +136,20 @@ cd integrations/gereh-cli && npm publish --access public
 ```
 
 بعد مشتری‌ها از هر جا می‌توانند `npx @gereh/cli deploy` بزنند (راهنما: `/docs/paas`).
+
+## اسکن امنیتی، آزمون پشتیبان و بازیابی لحظه‌ای
+
+- **اسکن ایمیج:** پس از هر بیلد، Job ‏Trivy در فضای نام سیستم ایمیج را با همان اعتبار رجیستری اسکن می‌کند (`PAAS_TRIVY_IMAGE`، اختیاری `PAAS_TRIVY_DB_REPOSITORY` برای میرور پایگاه آسیب‌پذیری؛ `PAAS_SCAN=off` خاموش می‌کند). نتیجه روی هر استقرار در پنل دیده می‌شود.
+- **آزمون بازگردانی پشتیبان:** هفته‌ای یک بار آخرین پشتیبان هر پایگاه داده در یک سرور موقت داخل Job بازگردانی و تعداد جدول‌ها بررسی می‌شود؛ نتیجه کنار پشتیبان‌ها نمایش داده می‌شود.
+- **بازیابی لحظه‌ای PostgreSQL (PITR):** با WAL-G. ایمیج را از `deploy/paas/postgres-walg` برای هر نسخه بسازید و تنظیم کنید:
+
+  ```
+  PAAS_PG_WALG_IMAGE=registry.gereh.net/gereh/postgres-walg
+  PAAS_PITR_BUCKET=gereh-pitr
+  PAAS_PITR_S3_ENDPOINT=https://s3.example.ir
+  PAAS_PITR_S3_ACCESS_KEY=…
+  PAAS_PITR_S3_SECRET_KEY=…
+  ```
+
+  برای امنیت بیشتر یک کاربر S3 جدا فقط با دسترسی همین bucket بسازید. با روشن شدن PITR، سرور WALها را پیوسته (حداکثر هر ۵ دقیقه) و یک sidecar روزانه یک پشتیبان پایه (۷ نسخه) در S3 می‌گذارد. بازیابی همیشه در یک پایگاه داده جدید انجام می‌شود.
+

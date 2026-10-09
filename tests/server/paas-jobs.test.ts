@@ -105,3 +105,44 @@ describe("one-click templates", () => {
     expect(await fails("paas.createFromTemplate", "nope", "x-app")).toContain("پیدا نشد");
   });
 });
+
+describe("image scan, backup verification and PITR", () => {
+  it("scans each new build and reports critical findings", async () => {
+    await asUser();
+    const id = await call<string>("paas.createApp", gitApp({ name: "vuln-app", gitUrl: "https://github.com/acme/vuln.git" }));
+    await settle();
+    const dep = (await appOf(id)).deployments[0];
+    expect(dep).toMatchObject({ scanStatus: "done", scanCritical: 1 });
+    const r = await call<{ report: string }>("paas.scanReport", dep.id);
+    expect(r.report).toContain("CRITICAL CVE-2024-6387");
+  });
+
+  it("verifies the latest backup weekly and restores PostgreSQL to a point in time", async () => {
+    const { paasVerifyBackups } = await import("@/server/worker/paas");
+    const { paasDbBackups, paasDbs } = await import("@/server/db/schema");
+    await asUser();
+    const dbId = await call<string>("paas.createDb", { name: "orders", engine: "postgres", version: "17", planId: "db-micro", publicAccess: false, backups: true });
+    await settle();
+    await call("paas.backupDb", dbId);
+    await settle();
+    await paasVerifyBackups(await db());
+    const [b] = await (await db()).select().from(paasDbBackups).where(eq(paasDbBackups.dbId, dbId));
+    expect(b).toMatchObject({ verified: true });
+    expect(b.verifyDetail).toMatch(/^TABLES=\d+/);
+
+    expect(await fails("paas.pitrRestore", dbId, new Date(Date.now() - 600_000).toISOString(), "orders-restore")).toContain("فعال نیست");
+    await call("paas.updateDb", dbId, { pitr: true });
+    // the database was created moments ago: earlier moments are refused
+    expect(await fails("paas.pitrRestore", dbId, new Date(Date.now() - 3600_000).toISOString(), "orders-restore")).toContain("۷ روز");
+    await (await db()).update(paasDbs).set({ createdAt: new Date(Date.now() - 2 * 86400_000) }).where(eq(paasDbs.id, dbId));
+    const at = new Date(Date.now() - 3600_000);
+    const copy = await call<string>("paas.pitrRestore", dbId, at.toISOString(), "orders-restore");
+    await settle();
+    const [row] = await (await db()).select().from(paasDbs).where(eq(paasDbs.id, copy));
+    const [src] = await (await db()).select().from(paasDbs).where(eq(paasDbs.id, dbId));
+    expect(row).toMatchObject({ status: "running", restoreFrom: dbId, username: src.username, dbName: src.dbName, passwordEnc: src.passwordEnc });
+    expect(row.restoreTime!.getTime()).toBe(at.getTime());
+    const mysql = await call<string>("paas.createDb", { name: "legacy", engine: "mysql", version: "8.4", planId: "db-micro", publicAccess: false, backups: true });
+    expect(await fails("paas.updateDb", mysql, { pitr: true })).toContain("PostgreSQL");
+  });
+});

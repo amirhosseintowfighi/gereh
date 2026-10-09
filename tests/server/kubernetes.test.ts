@@ -305,3 +305,41 @@ describe("prometheus and redis restore", () => {
     expect(JSON.stringify(job)).not.toContain("S3_SECRET_KEY");
   });
 });
+
+describe("scan, backup verification and PITR manifests", () => {
+  it("scan job, parser and verify scripts", async () => {
+    const { scanJob, parseScan, verifyScript, SCAN_TEMPLATE } = await import("@/server/paas/kubernetes");
+    const job = scanJob(app(), "reg.test/u1/shop:dep-1", "dep-1") as Record<string, any>;
+    expect(job.metadata).toMatchObject({ name: "scan-dep-1", namespace: "gereh-system" });
+    expect(job.spec.template.spec.containers[0].args).toContain("reg.test/u1/shop:dep-1");
+    expect(SCAN_TEMPLATE).toContain(".VulnerabilityID");
+    expect(parseScan("x\nCRITICAL CVE-1 a 1 -> 2\nHIGH CVE-2 b 1 -> 2\nHIGH CVE-2 b 1 -> 2\n")).toMatchObject({ critical: 1, high: 2 });
+    for (const engine of ["postgres", "mysql", "mariadb", "mongodb", "redis"]) {
+      const { execFileSync } = await import("node:child_process");
+      expect(() => execFileSync("sh", ["-n", "-c", verifyScript(db({ engine }))])).not.toThrow();
+    }
+  });
+  it("PITR: WAL archiving, the base backup sidecar and a restore init container", async () => {
+    const { pitrRestoreScript } = await import("@/server/paas/kubernetes");
+    const { execFileSync } = await import("node:child_process");
+    process.env.PAAS_PITR_S3_ENDPOINT = "https://s3.test";
+    try {
+      const objs = dbObjects(db({ pitr: true })) as never as Record<string, any>[];
+      expect(objs[0]).toMatchObject({ kind: "Secret", metadata: { name: "pitr-s3" } });
+      const sts = objs.find((o) => o.kind === "StatefulSet")!;
+      const [main, side] = sts.spec.template.spec.containers;
+      expect(main.image).toBe("registry.gereh.net/gereh/postgres-walg:16");
+      expect(main.args).toContain("archive_command=wal-g wal-push %p");
+      expect(side.name).toBe("walg");
+      expect(main.env.find((e: { name: string }) => e.name === "WALG_S3_PREFIX").value).toBe("s3://gereh-pitr/u1/pdb-1");
+      const restored = dbObjects(db({ id: "db-2", restore: { fromId: "pdb-1", fromUserId: "u1", time: "2026-10-09T10:00:00.000Z" } })) as never as Record<string, any>[];
+      const init = restored.find((o) => o.kind === "StatefulSet")!.spec.template.spec.initContainers[0];
+      expect(init.command[2]).toContain("WALG_S3_PREFIX='s3://gereh-pitr/u1/pdb-1' wal-g backup-fetch");
+      const printf = (init.command[2] as string).split("\n").find((l) => l.startsWith("printf"))!;
+      const conf = execFileSync("sh", ["-c", 'D=$(mktemp -d); ' + printf + '; cat "$D/postgresql.auto.conf"']).toString();
+      expect(conf).toContain("recovery_target_time = '2026-10-09T10:00:00.000Z'");
+      expect(conf).toContain("restore_command = 'WALG_S3_PREFIX=s3://gereh-pitr/u1/pdb-1 wal-g wal-fetch %f %p'");
+      execFileSync("sh", ["-n", "-c", pitrRestoreScript("s3://b/u/d", "2026-01-01T00:00:00Z")]);
+    } finally { delete process.env.PAAS_PITR_S3_ENDPOINT; }
+  });
+});

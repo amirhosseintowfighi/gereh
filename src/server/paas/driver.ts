@@ -20,7 +20,14 @@ export type AppSpec = {
   processes: { name: string; command: string; instances: number }[];
   crons: { name: string; schedule: string; command: string; enabled: boolean }[];
 };
-export type DbSpec = { id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean };
+export type DbSpec = {
+  id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean;
+  /** PostgreSQL: continuous WAL archiving (point-in-time recovery) */
+  pitr?: boolean;
+  /** created from another database's WAL archive at a point in time */
+  restore?: { fromId: string; fromUserId: string; time: string };
+};
+export type ScanState = { state: "running" | "done" | "failed"; critical: number; high: number; report: string };
 export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string; /** gereh.json found in the source */ manifest?: string };
 
 export interface PaasDriver {
@@ -44,6 +51,11 @@ export interface PaasDriver {
   /** WordPress import: unpacks a cPanel/zip backup onto the app's disk and loads its SQL into `db`;
       the app must be stopped. Status through jobStatus(); the output ends with PREFIX=<table prefix> */
   importSite(app: AppSpec, db: DbSpec, sourceUrl: string, jobId: string, newUrl: string): Promise<void>;
+  /** vulnerability scan (HIGH/CRITICAL) of a built image, polled with scanStatus() */
+  startScan(app: AppSpec, image: string, deploymentId: string): Promise<void>;
+  scanStatus(app: AppSpec, deploymentId: string): Promise<ScanState>;
+  /** restores a backup into a throwaway server and checks it (the real database is untouched) */
+  verifyBackup(db: DbSpec, location: string): Promise<{ ok: boolean; detail: string }>;
   /** applies the app's cron jobs (create, update, remove) with the live image; no restart */
   syncCrons(app: AppSpec, image: string): Promise<void>;
   metrics(targets: { id: string; kind: "app" | "db"; ramMb: number; owner: string; name: string }[]): Promise<{ id: string; cpu: number; ramMb: number; rpm: number }[]>;
@@ -170,6 +182,14 @@ export class SimulatorDriver implements PaasDriver {
     return { state: failed ? "failed" as const : "succeeded" as const, output: out.join("\n") };
   }
   async syncCrons() {}
+  async startScan() {}
+  async scanStatus(app: AppSpec, deploymentId: string): Promise<ScanState> {
+    const n = [...deploymentId].reduce((h, c) => h + c.charCodeAt(0), 0);
+    const high = n % 4, critical = /vuln/.test(app.image + app.gitUrl) ? 1 : 0;
+    const rows = [...Array(critical)].map(() => "CRITICAL CVE-2024-6387 openssh-server 1:9.2p1-2 -> 1:9.2p1-2+deb12u3").concat([...Array(high)].map((_, i) => "HIGH CVE-2024-" + (45490 + i) + " libexpat1 2.5.0-1 -> 2.5.0-1+deb12u1"));
+    return { state: "done", critical, high, report: rows.join("\n") };
+  }
+  async verifyBackup(db: DbSpec) { return db.engine === "redis" ? { ok: true, detail: "RDB OK" } : { ok: true, detail: "TABLES=" + (12 + (db.id.length % 7)) }; }
   async verifyDomain(host: string) { return !/invalid|example\.(com|org|net)$/.test(host); }
   async createDb(db: DbSpec) { return { host: db.name + "." + db.userId + ".db.gereh.internal", port: ({ postgres: 5432, mysql: 3306, mariadb: 3306, mongodb: 27017, redis: 6379 } as Record<string, number>)[db.engine], publicPort: db.publicAccess ? 30000 + (db.id.length * 97) % 2000 : undefined }; }
   async dbReady() { return true; }

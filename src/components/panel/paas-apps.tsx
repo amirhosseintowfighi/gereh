@@ -329,6 +329,25 @@ function AppOverview({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
   );
 }
 
+/** result of the image vulnerability scan; opens the report */
+function ScanBadge({ d }: { d: PaasApp["deployments"][number] }) {
+  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState<string | null>(null);
+  if (!d.scanStatus || d.scanStatus === "failed") return null;
+  if (d.scanStatus === "running") return <Badge tone="gray">در حال اسکن امنیتی</Badge>;
+  const tone = d.scanCritical ? "red" : d.scanHigh ? "amber" : "green";
+  const label = d.scanCritical ? fa(d.scanCritical) + " آسیب‌پذیری بحرانی" : d.scanHigh ? fa(d.scanHigh) + " آسیب‌پذیری مهم" : "بدون آسیب‌پذیری مهم";
+  return (
+    <>
+      <button type="button" onClick={async () => { setOpen(true); setReport((await api.paas.scanReport(d.id)).report); }} title="گزارش اسکن امنیتی"><Badge tone={tone}><Icon name="shield-check" size={11} /> {label}</Badge></button>
+      <Modal open={open} onClose={() => setOpen(false)} title="اسکن امنیتی ایمیج" icon="shield-check" size="max-w-2xl">
+        <p className="text-sm text-white/65 leading-7">بسته‌های سیستم‌عامل و کتابخانه‌های ایمیج با پایگاه آسیب‌پذیری‌های شناخته‌شده (Trivy) مقایسه شده‌اند؛ فقط موارد مهم و بحرانی که نسخه اصلاح‌شده دارند. برای رفع، ایمیج پایه یا وابستگی را به‌روز و دوباره دیپلوی کنید.</p>
+        <pre dir="ltr" tabIndex={0} aria-label="گزارش آسیب‌پذیری‌ها" className="mt-3 text-left text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-[50vh] overflow-auto whitespace-pre">{report === null ? "…" : report || "No HIGH/CRITICAL vulnerabilities with a fix."}</pre>
+      </Modal>
+    </>
+  );
+}
+
 function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
   const { notify } = useApp();
   const [branch, setBranch] = useState("");
@@ -371,7 +390,7 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
           {app.deployments.map((d) => (
             <li key={d.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
               <span className="min-w-0">
-                <span className="flex items-center gap-2 flex-wrap"><DeployPill s={d.status} />{d.target === "preview" && <Badge tone="blue">پیش‌نمایش</Badge>}<span className="text-sm truncate">{d.message || "—"}</span>{d.id === app.liveDeployment && <Badge tone="green">فعال</Badge>}</span>
+                <span className="flex items-center gap-2 flex-wrap"><DeployPill s={d.status} />{d.target === "preview" && <Badge tone="blue">پیش‌نمایش</Badge>}<ScanBadge d={d} /><span className="text-sm truncate">{d.message || "—"}</span>{d.id === app.liveDeployment && <Badge tone="green">فعال</Badge>}</span>
                 <span className="block text-[11px] text-white/50 mt-1">{TRIG[d.trigger] ?? d.trigger}{d.ref ? " · " : ""}<span dir="ltr" className="font-mono">{d.ref}</span> · {d.at}{d.seconds !== null ? " · " + fa(d.seconds) + " ثانیه" : ""}</span>
               </span>
               <span className="flex gap-2">

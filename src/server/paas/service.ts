@@ -108,7 +108,8 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
 
 export async function dbSpec(db: DB | Tx, d: DbRow): Promise<DbSpec> {
   const [plan] = await db.select().from(paasPlans).where(eq(paasPlans.id, d.planId));
-  return { id: d.id, userId: d.userId, name: d.name, engine: d.engine, version: d.version, cpu: plan?.cpu ?? 0.5, ramMb: plan?.ramMb ?? 512, diskGb: plan?.diskGb ?? 5, username: d.username, password: open(d.passwordEnc) ?? "", dbName: d.dbName, publicAccess: d.publicAccess };
+  return { id: d.id, userId: d.userId, name: d.name, engine: d.engine, version: d.version, cpu: plan?.cpu ?? 0.5, ramMb: plan?.ramMb ?? 512, diskGb: plan?.diskGb ?? 5, username: d.username, password: open(d.passwordEnc) ?? "", dbName: d.dbName, publicAccess: d.publicAccess,
+    pitr: d.pitr, restore: d.restoreFrom && d.restoreTime ? { fromId: d.restoreFrom, fromUserId: d.userId, time: d.restoreTime.toISOString() } : undefined };
 }
 
 export const setEnvValue = (tx: DB | Tx, appId: string, key: string, value: string, secret: boolean, managedBy: string | null = null) =>

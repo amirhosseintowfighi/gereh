@@ -189,6 +189,7 @@ function DbBackups({ d }: { d: PaasDb }) {
   const { notify } = useApp();
   const manual = d.backupList.filter((b) => b.kind === "manual").length;
   return (
+    <>
     <Card title="پشتیبان‌ها" icon="archive" pad="p-3 sm:p-4"
       action={<AsyncButton className={BTN_P + " h-9 px-3 text-xs"} disabled={d.status !== "running" || manual >= 10} onClick={async () => { await api.paas.backupDb(d.id); notify("پشتیبان‌گیری شروع شد", "archive"); }}><Icon name="plus" size={14} />پشتیبان الان</AsyncButton>}>
       <p className="text-[11px] text-white/50 px-2 mb-3">{d.backups ? "پشتیبان خودکار روزانه روشن است؛ ۷ نسخه آخر نگه داشته می‌شود." : "پشتیبان خودکار خاموش است (از تب تنظیمات روشن کنید)."} تا ۱۰ پشتیبان دستی.</p>
@@ -199,7 +200,9 @@ function DbBackups({ d }: { d: PaasDb }) {
             return (
               <li key={b.id} className="p-3 flex flex-wrap items-center justify-between gap-3">
                 <span><span className="flex items-center gap-2"><Badge tone={tone} dot>{label}</Badge><span className="text-sm">{b.at}</span></span>
-                  <span className="block text-[11px] text-white/50 mt-1">{b.kind === "auto" ? "خودکار" : "دستی"}{b.sizeMb ? " · " + fa(b.sizeMb, 1) + " مگابایت" : ""}</span></span>
+                  <span className="block text-[11px] text-white/50 mt-1">{b.kind === "auto" ? "خودکار" : "دستی"}{b.sizeMb ? " · " + fa(b.sizeMb, 1) + " مگابایت" : ""}
+                    {b.verified === true && <span className="text-emerald-300"> · آزمون بازگردانی موفق ({b.verifiedAt})</span>}
+                    {b.verified === false && <span className="text-rose-300" title={b.verifyDetail}> · آزمون بازگردانی ناموفق</span>}</span></span>
                 <span className="flex gap-2">
                   {b.status === "done" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />بازگردانی</AsyncButton>}
                   {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={13} /></AsyncButton>}
@@ -209,6 +212,27 @@ function DbBackups({ d }: { d: PaasDb }) {
           })}
         </ul>
       )}
+      <p className="text-[11px] text-white/45 px-2 mt-3 leading-6">هر هفته آخرین پشتیبان در یک سرور جداگانه بازگردانی و بررسی می‌شود تا مطمئن شوید پشتیبان‌ها واقعاً قابل استفاده‌اند.</p>
+    </Card>
+    {d.engine === "postgres" && <Pitr d={d} />}
+    </>
+  );
+}
+
+/** PostgreSQL point-in-time recovery: WAL archiving + restore into a new database */
+function Pitr({ d }: { d: PaasDb }) {
+  const { notify } = useApp(); const router = useRouter();
+  const [at, setAt] = useState("");
+  const [name, setName] = useState((d.name + "-restore").slice(0, 30));
+  return (
+    <Card title="بازیابی لحظه‌ای (PITR)" icon="clock" className="mt-4" action={<Switch on={d.pitr} onChange={async (v) => { await api.paas.updateDb(d.id, { pitr: v }); notify(v ? "آرشیو پیوسته فعال شد" : "بازیابی لحظه‌ای خاموش شد", "clock"); }} label="بازیابی لحظه‌ای" />}>
+      <p className="text-sm text-white/60 leading-7">تغییرات پایگاه داده به‌صورت پیوسته آرشیو می‌شود و می‌توانید حالت آن را در هر لحظه از ۷ روز گذشته (مثلاً یک دقیقه پیش از یک DELETE اشتباه) در یک پایگاه داده جدید بازیابی کنید. پایگاه داده فعلی دست نمی‌خورد.</p>
+      {d.restoredFrom && <p className="text-xs text-sky-200 mt-2">این پایگاه داده بازیابی لحظه‌ای «{d.restoredFrom}» در {d.restoredAt} است.</p>}
+      {d.pitr && <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end mt-4">
+        <Field label="زمان (به وقت دستگاه شما)"><input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} dir="ltr" className={INPUT + " text-left"} /></Field>
+        <Field label="نام پایگاه داده جدید"><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
+        <AsyncButton disabled={!at || !PAAS_NAME_RE.test(name)} className={BTN_P + " h-11 px-4 text-sm"} onClick={async () => { const id = await api.paas.pitrRestore(d.id, new Date(at).toISOString(), name); notify("بازیابی شروع شد", "clock"); router.push(("/panel/databases/" + id) as never); }}>بازیابی</AsyncButton>
+      </div>}
     </Card>
   );
 }

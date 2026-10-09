@@ -556,6 +556,11 @@ export const paasDeployments = pgTable("paas_deployments", {
   target: text("target", { enum: ["production", "preview"] }).notNull().default("production"),
   /** git branch built (empty: the app's branch) */
   branch: text("branch").notNull().default(""),
+  /** vulnerability scan of the built image (Trivy): "", running, done, failed */
+  scanStatus: text("scan_status").notNull().default(""),
+  scanCritical: integer("scan_critical").notNull().default(0),
+  scanHigh: integer("scan_high").notNull().default(0),
+  scanReport: text("scan_report").notNull().default(""),
   /** commit sha, uploaded file name or image tag */
   ref: text("ref").notNull().default(""),
   message: text("message").notNull().default(""),
@@ -594,6 +599,11 @@ export const paasDbs = pgTable("paas_dbs", {
   publicAccess: boolean("public_access").notNull().default(false),
   publicPort: integer("public_port"),
   backups: boolean("backups").notNull().default(true),
+  /** PostgreSQL point-in-time recovery: continuous WAL archiving with WAL-G */
+  pitr: boolean("pitr").notNull().default(false),
+  /** created as a point-in-time copy of another database */
+  restoreFrom: text("restore_from"),
+  restoreTime: ts("restore_time"),
   suspendedAt: ts("suspended_at"),
   createdAt: created(),
 }, (t) => [uniqueIndex("paas_db_name_uq").on(t.userId, t.name), index("paas_db_user_ix").on(t.userId)]);
@@ -605,6 +615,10 @@ export const paasDbBackups = pgTable("paas_db_backups", {
   status: text("status", { enum: ["running", "done", "failed"] }).notNull().default("running"),
   sizeMb: real("size_mb").notNull().default(0),
   location: text("location").notNull().default(""),
+  /** weekly restore test into a throwaway server: null = not tested yet */
+  verified: boolean("verified"),
+  verifyDetail: text("verify_detail").notNull().default(""),
+  verifiedAt: ts("verified_at"),
   createdAt: created(),
 }, (t) => [index("paas_backup_db_ix").on(t.dbId, t.createdAt)]);
 

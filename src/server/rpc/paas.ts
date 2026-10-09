@@ -57,6 +57,8 @@ function checkEnv(vars: z.infer<typeof envItem>[]) {
   }
   if (new Set(vars.map((v) => v.key)).size !== vars.length) fail("نام متغیرها تکراری است.");
 }
+/** PITR needs the WAL archive bucket (Kubernetes) — always available in the simulator */
+const pitrAvailable = () => !process.env.PAAS_K8S_API || !!process.env.PAAS_PITR_S3_ENDPOINT;
 async function liveImage(ctx: Ctx, app: typeof paasApps.$inferSelect) {
   if (!app.liveDeployment) fail("اپ هنوز نسخه فعالی ندارد؛ اول یک استقرار موفق لازم است.");
   const [live] = await ctx.db.select({ image: paasDeployments.image }).from(paasDeployments).where(eq(paasDeployments.id, app.liveDeployment!));
@@ -426,8 +428,10 @@ export const paasRpc = {
     await logActivity(ctx.db, a.uid, "key-round", "تغییر رمز پایگاه داده " + row.name, ctx.ip);
   }),
 
-  "paas.updateDb": method(z.tuple([id, z.object({ planId: id.optional(), publicAccess: z.boolean().optional(), backups: z.boolean().optional() })]), async (ctx, [dbId, patch]) => {
+  "paas.updateDb": method(z.tuple([id, z.object({ planId: id.optional(), publicAccess: z.boolean().optional(), backups: z.boolean().optional(), pitr: z.boolean().optional() })]), async (ctx, [dbId, patch]) => {
     const { a, row } = await ownDb(ctx, dbId);
+    if (patch.pitr && row.engine !== "postgres") fail("بازیابی لحظه‌ای فقط برای PostgreSQL در دسترس است.");
+    if (patch.pitr && !pitrAvailable()) fail("بازیابی لحظه‌ای هنوز روی این پلتفرم راه‌اندازی نشده است.");
     if (patch.planId && patch.planId !== row.planId) {
       const p = await plan(ctx, patch.planId, "db");
       const [cur] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, row.planId));
@@ -435,10 +439,37 @@ export const paasRpc = {
       if (cur && p.price > cur.price) await needCredit(ctx, a.uid, p.price - cur.price);
     }
     const [next] = await ctx.db.update(paasDbs).set(patch).where(eq(paasDbs.id, row.id)).returning();
-    if (patch.planId !== undefined || patch.publicAccess !== undefined) {
+    if (patch.planId !== undefined || patch.publicAccess !== undefined || patch.pitr !== undefined) {
       const r = await (await paas()).updateDb(await dbSpec(ctx.db, next));
       await ctx.db.update(paasDbs).set({ publicPort: r.publicPort ?? null }).where(eq(paasDbs.id, row.id));
     }
+  }),
+
+  /** a new database restored from the WAL archive at a moment in the last 7 days */
+  "paas.pitrRestore": method(z.tuple([id, z.string().datetime({ offset: true }), z.string().trim().toLowerCase().max(30)]), async (ctx, [dbId, at, name]) => {
+    const { a, row } = await ownDb(ctx, dbId);
+    if (!row.pitr) fail("بازیابی لحظه‌ای برای این پایگاه داده فعال نیست.");
+    const t = new Date(at);
+    if (t.getTime() > Date.now() - 60_000) fail("زمان بازیابی باید دست‌کم یک دقیقه قبل باشد.");
+    if (t.getTime() < Math.max(Date.now() - 7 * 86400_000, row.createdAt.getTime())) fail("فقط تا ۷ روز گذشته (و بعد از ساخت پایگاه داده) قابل بازیابی است.");
+    checkName(name);
+    const [dup] = await ctx.db.select({ id: paasDbs.id }).from(paasDbs).where(and(eq(paasDbs.userId, a.uid), eq(paasDbs.name, name)));
+    if (dup) fail("پایگاه داده‌ای با این نام دارید.");
+    const p = await plan(ctx, row.planId, "db");
+    await needCredit(ctx, a.uid, p.price);
+    const newId = rid("pdb");
+    // same roles and password as the source: they come back with the data
+    await ctx.db.insert(paasDbs).values({ id: newId, userId: a.uid, name, engine: row.engine, version: row.version, planId: row.planId, port: row.port, username: row.username, passwordEnc: row.passwordEnc, dbName: row.dbName, publicAccess: false, backups: true, restoreFrom: row.id, restoreTime: t });
+    await enqueue(ctx.db, "paas.db", { dbId: newId });
+    await logActivity(ctx.db, a.uid, "database-backup", "بازیابی لحظه‌ای " + row.name + " به " + t.toISOString() + " در " + name, ctx.ip);
+    return newId;
+  }),
+
+  "paas.scanReport": method(z.tuple([id]), async (ctx, [depId]) => {
+    const a = needUser(ctx);
+    const [row] = await ctx.db.select({ d: paasDeployments, userId: paasApps.userId }).from(paasDeployments).innerJoin(paasApps, eq(paasApps.id, paasDeployments.appId)).where(eq(paasDeployments.id, depId));
+    if (!row || (row.userId !== a.uid && a.user.role !== "admin")) fail("استقرار پیدا نشد.", 404);
+    return { status: row!.d.scanStatus, critical: row!.d.scanCritical, high: row!.d.scanHigh, report: row!.d.scanReport };
   }),
 
   "paas.dbPower": method(z.tuple([id, z.enum(["start", "stop"])]), async (ctx, [dbId, action]) => {

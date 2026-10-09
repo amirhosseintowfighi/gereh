@@ -18,7 +18,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
   const appIds = apps.map((a) => a.id), dbIds = dbs.map((d) => d.id);
   const since = new Date(Date.now() - 4 * 3600_000);
   const [deps, domains, env, links, backups, metrics, procs, crons, jobs] = await Promise.all([
-    appIds.length ? db.select({ id: paasDeployments.id, appId: paasDeployments.appId, status: paasDeployments.status, trigger: paasDeployments.trigger, ref: paasDeployments.ref, message: paasDeployments.message, image: paasDeployments.image, target: paasDeployments.target, branch: paasDeployments.branch, createdAt: paasDeployments.createdAt, startedAt: paasDeployments.startedAt, finishedAt: paasDeployments.finishedAt })
+    appIds.length ? db.select({ id: paasDeployments.id, appId: paasDeployments.appId, status: paasDeployments.status, trigger: paasDeployments.trigger, ref: paasDeployments.ref, message: paasDeployments.message, image: paasDeployments.image, target: paasDeployments.target, branch: paasDeployments.branch, scanStatus: paasDeployments.scanStatus, scanCritical: paasDeployments.scanCritical, scanHigh: paasDeployments.scanHigh, createdAt: paasDeployments.createdAt, startedAt: paasDeployments.startedAt, finishedAt: paasDeployments.finishedAt })
       .from(paasDeployments).where(inArray(paasDeployments.appId, appIds)).orderBy(desc(paasDeployments.createdAt)) : [],
     appIds.length ? db.select().from(paasDomains).where(inArray(paasDomains.appId, appIds)).orderBy(asc(paasDomains.createdAt)) : [],
     appIds.length ? db.select().from(paasEnv).where(inArray(paasEnv.appId, appIds)).orderBy(asc(paasEnv.key)) : [],
@@ -41,7 +41,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         maxInstances: a.maxInstances, autoscaleCpu: a.autoscaleCpu, diskGb: a.diskGb, diskMount: a.diskMount, status: a.status, url: "https://" + a.name + "." + opts.domain,
         hookUrl: opts.admin ? "" : opts.siteUrl + "/api/paas/hook/" + a.id + "?token=" + a.hookToken, autoDeploy: a.autoDeploy, cdn: a.cdn, liveDeployment: a.liveDeployment, at: faDateTime(a.createdAt),
         hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb))) : 0,
-        deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch })),
+        deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch, scanStatus: d.scanStatus, scanCritical: d.scanCritical, scanHigh: d.scanHigh })),
         product: a.product, wpPlan: a.wpPlan, previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
         domains: domains.filter((d) => d.appId === a.id).map((d) => ({ id: d.id, host: d.host, status: d.status, ssl: d.ssl })),
         env: env.filter((e) => e.appId === a.id).map((e) => ({ key: e.key, secret: e.secret, value: opts.admin || e.secret ? null : open(e.valueEnc) })),
@@ -59,7 +59,8 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         id: d.id, userId: d.userId, name: d.name, engine: d.engine, version: d.version, planId: d.planId, status: d.status, host: d.host, port: d.port, username: d.username, dbName: d.dbName,
         publicAccess: d.publicAccess, publicPort: d.publicPort, backups: d.backups, at: faDateTime(d.createdAt),
         hourly: pl ? (d.status === "stopped" ? hourlyOf(pl.diskGb * 3000) : hourlyOf(pl.price)) : 0,
-        backupList: backups.filter((b) => b.dbId === d.id).slice(0, 30).map((b) => ({ id: b.id, kind: b.kind, status: b.status, sizeMb: b.sizeMb, at: faDateTime(b.createdAt) })),
+        backupList: backups.filter((b) => b.dbId === d.id).slice(0, 30).map((b) => ({ id: b.id, kind: b.kind, status: b.status, sizeMb: b.sizeMb, at: faDateTime(b.createdAt), verified: b.verified, verifyDetail: b.verifyDetail, verifiedAt: b.verifiedAt ? faDateTime(b.verifiedAt) : "" })),
+        pitr: d.pitr, restoredFrom: d.restoreFrom ? (dbs.find((x) => x.id === d.restoreFrom)?.name ?? d.restoreFrom) : "", restoredAt: d.restoreTime ? faDateTime(d.restoreTime) : "",
         links: links.filter((l) => l.dbId === d.id).map((l) => ({ appId: l.appId, appName: appName.get(l.appId) ?? l.appId, envKey: l.envKey })),
         metrics: m(d.id),
       };

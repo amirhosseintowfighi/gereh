@@ -140,8 +140,39 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     await tx.update(paasDeployments).set({ status: "live", finishedAt: new Date(), log: dep.log + "\n==> Live" }).where(eq(paasDeployments.id, dep.id));
     await tx.update(paasApps).set(preview ? { previewDeployment: dep.id } : { status: "running", liveDeployment: dep.id }).where(eq(paasApps.id, app.id));
   });
+  // scan freshly built images for known vulnerabilities (does not block the release)
+  const [done] = await db.select({ image: paasDeployments.image }).from(paasDeployments).where(eq(paasDeployments.id, dep.id));
+  if (done?.image && !done.image.startsWith("compose:") && !["config", "rollback", "promote"].includes(dep.trigger) && process.env.PAAS_SCAN !== "off") {
+    await db.update(paasDeployments).set({ scanStatus: "running" }).where(eq(paasDeployments.id, dep.id));
+    try { await d.startScan(spec, done.image, dep.id); await enqueue(db, "paas.scan", { deploymentId: dep.id, since: Date.now() }, { runAt: later(pollMs() * 5) }); }
+    catch (e) { await db.update(paasDeployments).set({ scanStatus: "failed", scanReport: (e as Error).message }).where(eq(paasDeployments.id, dep.id)); }
+  }
   if (preview) await notify(db, app.userId, "eye", "پیش‌نمایش " + app.name + " آماده است: " + spec.hosts[0]);
   else if (dep.trigger !== "config") await notify(db, app.userId, "rocket", "نسخه جدید " + app.name + " فعال شد");
+}
+
+/* ---------- image vulnerability scan ---------- */
+export async function paasScan(db: DB, p: { deploymentId: string; since: number }) {
+  const [dep] = await db.select().from(paasDeployments).where(eq(paasDeployments.id, p.deploymentId));
+  if (!dep || dep.scanStatus !== "running") return;
+  const [app] = await db.select().from(paasApps).where(eq(paasApps.id, dep.appId));
+  if (!app) return;
+  const r = await (await paas()).scanStatus(await appSpec(db, app), dep.id);
+  if (r.state === "running" && Date.now() - p.since < 40 * 60_000) { await enqueue(db, "paas.scan", p, { runAt: later(pollMs() * 5) }); return; }
+  await db.update(paasDeployments).set({ scanStatus: r.state === "done" ? "done" : "failed", scanCritical: r.critical, scanHigh: r.high, scanReport: r.report.slice(0, 50_000) }).where(eq(paasDeployments.id, dep.id));
+  if (r.critical > 0) await notify(db, app.userId, "shield-check", "در ایمیج " + app.name + " " + r.critical.toLocaleString("fa-IR") + " آسیب‌پذیری بحرانی پیدا شد؛ جزئیات در استقرارها");
+}
+
+/* ---------- weekly: restore-test the latest backup of every database ---------- */
+export async function paasVerifyBackups(db: DB) {
+  const d = await paas();
+  for (const row of await db.select().from(paasDbs).where(eq(paasDbs.status, "running"))) {
+    const [b] = await db.select().from(paasDbBackups).where(and(eq(paasDbBackups.dbId, row.id), eq(paasDbBackups.status, "done"))).orderBy(sql`${paasDbBackups.createdAt} desc`).limit(1);
+    if (!b || (b.verifiedAt && Date.now() - b.verifiedAt.getTime() < 6 * 86400_000)) continue;
+    const r = await d.verifyBackup(await dbSpec(db, row), b.location).catch((e) => ({ ok: false, detail: (e as Error).message }));
+    await db.update(paasDbBackups).set({ verified: r.ok, verifyDetail: r.detail.slice(0, 500), verifiedAt: new Date() }).where(eq(paasDbBackups.id, b.id));
+    if (!r.ok) await notify(db, row.userId, "circle-alert", "آزمون بازگردانی پشتیبان " + row.name + " ناموفق بود؛ تیم فنی بررسی می‌کند");
+  }
 }
 
 /* ---------- one-off jobs (panel, CLI, API, agents) ---------- */

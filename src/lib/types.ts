@@ -43,7 +43,7 @@ export type PaasApp = {
   id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose"; gitUrl: string; gitBranch: string; image: string; rootDir: string;
   buildCommand: string; startCommand: string; port: number; healthPath: string; planId: string; instances: number; autoscale: boolean; maxInstances: number; autoscaleCpu: number; diskGb: number; diskMount: string;
   status: "creating" | "building" | "running" | "stopped" | "failed" | "suspended"; url: string; hookUrl: string; autoDeploy: boolean; cdn: boolean; liveDeployment: string | null; at: string; hourly: number;
-  deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean; target: "production" | "preview"; branch: string }[];
+  deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean; target: "production" | "preview"; branch: string; scanStatus: string; scanCritical: number; scanHigh: number }[];
   previews: boolean; previewDeployment: string | null; previewUrl: string;
   product: "app" | "wordpress"; wpPlan: string | null;
   domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
@@ -60,9 +60,12 @@ export type PaasApp = {
 export type PaasDb = {
   id: string; userId: string; name: string; engine: string; version: string; planId: string; status: "creating" | "running" | "stopped" | "failed" | "suspended";
   host: string; port: number; username: string; dbName: string; publicAccess: boolean; publicPort: number | null; backups: boolean; at: string; hourly: number;
-  backupList: { id: string; kind: "auto" | "manual"; status: string; sizeMb: number; at: string }[];
+  backupList: { id: string; kind: "auto" | "manual"; status: string; sizeMb: number; at: string; verified: boolean | null; verifyDetail: string; verifiedAt: string }[];
   links: { appId: string; appName: string; envKey: string }[];
   metrics: PaasMetric[];
+  pitr: boolean;
+  /** point-in-time copy: source database and moment */
+  restoredFrom: string; restoredAt: string;
 };
 export type InquiryAccess = "open" | "none" | "pending" | "approved" | "rejected";
 export type InquiryState = {
