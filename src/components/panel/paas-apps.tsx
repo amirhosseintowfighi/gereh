@@ -520,7 +520,7 @@ function AppScale({ app }: { app: PaasApp }) {
   const db = useDB();
   const { notify } = useApp();
   const plans = db.paasPlans.filter((p) => p.kind === "app");
-  const [s, setS] = useState({ planId: app.planId, instances: app.instances, autoscale: app.autoscale, maxInstances: Math.max(app.maxInstances, app.instances), diskGb: app.diskGb });
+  const [s, setS] = useState({ planId: app.planId, instances: app.instances, autoscale: app.autoscale, maxInstances: Math.max(app.maxInstances, app.instances), diskGb: app.diskGb, autoscaleCpu: app.autoscaleCpu });
   const plan = plans.find((p) => p.id === s.planId) ?? plans[0];
   const monthly = plan ? appMonthly(plan, s.instances, s.diskGb) : 0;
   return (
@@ -530,8 +530,12 @@ function AppScale({ app }: { app: PaasApp }) {
         <div className="space-y-4">
           <Field label="تعداد نمونه"><Select label="تعداد نمونه" value={String(s.instances)} onChange={(v) => setS({ ...s, instances: Number(v), maxInstances: Math.max(s.maxInstances, Number(v)) })} options={Array.from({ length: s.diskGb ? 1 : 10 }, (_, i) => ({ value: String(i + 1), label: fa(i + 1) }))} /></Field>
           <div className="flex items-center justify-between text-sm"><span>مقیاس خودکار با بار CPU</span><Switch on={s.autoscale} onChange={(v) => setS({ ...s, autoscale: v })} label="مقیاس خودکار" /></div>
+          {s.autoscale && <Field label="آستانه افزایش نمونه" hint="وقتی میانگین مصرف CPU هر نمونه از این درصد پلن بیشتر شود، نمونه جدید اضافه می‌شود"><Select label="آستانه CPU" value={String(s.autoscaleCpu)} onChange={(v) => setS({ ...s, autoscaleCpu: Number(v) })} options={[50, 60, 70, 80, 90].map((n) => ({ value: String(n), label: fa(n) + "٪ CPU" }))} /></Field>}
           {s.autoscale && <Field label="حداکثر نمونه"><Select label="حداکثر نمونه" value={String(s.maxInstances)} onChange={(v) => setS({ ...s, maxInstances: Number(v) })} options={Array.from({ length: 20 }, (_, i) => i + 1).filter((n) => n >= s.instances).map((n) => ({ value: String(n), label: fa(n) }))} /></Field>}
           <Field label="دیسک دائمی (گیگ)" hint={app.diskGb ? "قابل کاهش نیست" : "فقط با یک نمونه"}><Select label="دیسک دائمی" value={String(s.diskGb)} onChange={(v) => setS({ ...s, diskGb: Number(v), instances: Number(v) ? 1 : s.instances })} options={[0, 1, 5, 10, 20, 50, 100].filter((n) => n >= app.diskGb).map((n) => ({ value: String(n), label: n ? fa(n) + " گیگ" : "ندارد" }))} /></Field>
+          {!s.diskGb && (s.instances > 1 || s.autoscale)
+            ? <p className="text-[11px] text-emerald-300/90 leading-6 flex gap-1.5"><Icon name="shield-check" size={14} className="shrink-0 mt-1" />دسترس‌پذیری بالا: نمونه‌ها روی سرورهای فیزیکی مختلف پخش می‌شوند و به‌روزرسانی یا خرابی یک سرور، اپ را از دسترس خارج نمی‌کند.</p>
+            : <p className="text-[11px] text-white/45 leading-6">برای دسترس‌پذیری بالا (پخش روی چند سرور) دست‌کم ۲ نمونه انتخاب کنید.</p>}
           <div className="pt-3 border-t border-white/[0.08]"><Cost monthly={monthly} />{s.autoscale && <span className="block text-[11px] text-white/50 mt-1">در اوج بار تا {toman(plan ? appMonthly(plan, s.maxInstances, s.diskGb) : 0)} در ماه</span>}</div>
           <AsyncButton onClick={async () => { await api.paas.scale(app.id, s); notify("منابع به‌روز شد", "gauge"); }}>اعمال</AsyncButton>
         </div>

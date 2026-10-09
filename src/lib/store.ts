@@ -223,7 +223,7 @@ export const api = {
     logs: (appId: string, tail = 200) => rpc<string[]>("paas.logs", appId, tail),
     updateApp: (appId: string, patch: Record<string, string | number | boolean>) => rpc("paas.updateApp", appId, patch),
     setEnv: (appId: string, set: { key: string; value: string; secret: boolean }[], remove: string[]) => rpc("paas.setEnv", appId, set, remove),
-    scale: (appId: string, s: { planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number }) => rpc("paas.scale", appId, s),
+    scale: (appId: string, s: { planId: string; instances: number; autoscale: boolean; maxInstances: number; diskGb: number; autoscaleCpu?: number }) => rpc("paas.scale", appId, s),
     power: (appId: string, action: "start" | "stop" | "restart") => rpc("paas.power", appId, action),
     deleteApp: (appId: string, confirm: string) => rpc("paas.deleteApp", appId, confirm),
     purgeCache: (appId: string) => rpc("paas.purgeCache", appId),

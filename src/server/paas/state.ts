@@ -38,7 +38,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
       return {
         id: a.id, userId: a.userId, name: a.name, stack: a.stack, source: a.source, gitUrl: a.gitUrl, gitBranch: a.gitBranch, image: a.image, rootDir: a.rootDir,
         buildCommand: a.buildCommand, startCommand: a.startCommand, port: a.port, healthPath: a.healthPath, planId: a.planId, instances: a.instances, autoscale: a.autoscale,
-        maxInstances: a.maxInstances, diskGb: a.diskGb, diskMount: a.diskMount, status: a.status, url: "https://" + a.name + "." + opts.domain,
+        maxInstances: a.maxInstances, autoscaleCpu: a.autoscaleCpu, diskGb: a.diskGb, diskMount: a.diskMount, status: a.status, url: "https://" + a.name + "." + opts.domain,
         hookUrl: opts.admin ? "" : opts.siteUrl + "/api/paas/hook/" + a.id + "?token=" + a.hookToken, autoDeploy: a.autoDeploy, cdn: a.cdn, liveDeployment: a.liveDeployment, at: faDateTime(a.createdAt),
         hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb))) : 0,
         deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch })),

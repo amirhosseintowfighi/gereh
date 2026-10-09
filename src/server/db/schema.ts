@@ -489,6 +489,8 @@ export const paasApps = pgTable("paas_apps", {
   instances: integer("instances").notNull().default(1),
   autoscale: boolean("autoscale").notNull().default(false),
   maxInstances: integer("max_instances").notNull().default(3),
+  /** autoscaling target: average CPU % of the plan per instance */
+  autoscaleCpu: integer("autoscale_cpu").notNull().default(70),
   diskGb: integer("disk_gb").notNull().default(0),
   diskMount: text("disk_mount").notNull().default("/data"),
   region: text("region").notNull().default("thr"),

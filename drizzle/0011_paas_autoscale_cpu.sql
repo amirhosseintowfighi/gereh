@@ -1,0 +1,1 @@
+ALTER TABLE "paas_apps" ADD COLUMN "autoscale_cpu" integer DEFAULT 70 NOT NULL;

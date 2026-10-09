@@ -293,7 +293,7 @@ export const paasRpc = {
     return redeployConfig(ctx.db, app, "تغییر متغیرهای محیطی");
   }),
 
-  "paas.scale": method(z.tuple([id, z.object({ planId: id, instances: z.number().int().min(1).max(10), autoscale: z.boolean(), maxInstances: z.number().int().min(1).max(20), diskGb: z.number().int().min(0).max(500) })]), async (ctx, [appId, s]) => {
+  "paas.scale": method(z.tuple([id, z.object({ planId: id, instances: z.number().int().min(1).max(10), autoscale: z.boolean(), maxInstances: z.number().int().min(1).max(20), diskGb: z.number().int().min(0).max(500), autoscaleCpu: z.number().int().min(30).max(90).optional() })]), async (ctx, [appId, s]) => {
     const { a, app } = await ownApp(ctx, appId);
     const p = await plan(ctx, s.planId, "app");
     if (s.diskGb < app.diskGb) fail("حجم دیسک دائمی را نمی‌توان کم کرد.");
@@ -302,7 +302,7 @@ export const paasRpc = {
     const [cur] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, app.planId));
     const grow = appMonthly(p, s.autoscale ? s.maxInstances : s.instances, s.diskGb) - appMonthly(cur ?? p, app.instances, app.diskGb);
     if (grow > 0) await needCredit(ctx, a.uid, grow);
-    const [next] = await ctx.db.update(paasApps).set({ planId: p.id, instances: s.instances, autoscale: s.autoscale, maxInstances: s.maxInstances, diskGb: s.diskGb }).where(eq(paasApps.id, app.id)).returning();
+    const [next] = await ctx.db.update(paasApps).set({ planId: p.id, instances: s.instances, autoscale: s.autoscale, maxInstances: s.maxInstances, diskGb: s.diskGb, ...(s.autoscaleCpu ? { autoscaleCpu: s.autoscaleCpu } : {}) }).where(eq(paasApps.id, app.id)).returning();
     await logActivity(ctx.db, a.uid, "sliders-horizontal", "تغییر منابع " + app.name + " به " + p.name + " × " + s.instances, ctx.ip);
     return redeployConfig(ctx.db, next, "تغییر منابع");
   }),

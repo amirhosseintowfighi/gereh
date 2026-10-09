@@ -91,7 +91,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
   return {
     id: app.id, userId: app.userId, name: app.name, stack: app.stack, source: app.source, gitUrl: app.gitUrl, gitBranch: app.gitBranch, image: app.image,
     rootDir: app.rootDir, buildCommand: app.buildCommand, startCommand: app.startCommand, port: app.port, healthPath: app.healthPath,
-    cpu: plan?.cpu ?? 0.25, ramMb: plan?.ramMb ?? 256, instances: app.instances, autoscale: app.autoscale, maxInstances: app.maxInstances,
+    cpu: plan?.cpu ?? 0.25, ramMb: plan?.ramMb ?? 256, instances: app.instances, autoscale: app.autoscale, maxInstances: app.maxInstances, autoscaleCpu: app.autoscaleCpu,
     diskGb: app.diskGb, diskMount: app.diskMount, env: vars, hosts: [defaultHost(app.name, base), ...domains.map((x) => x.host)],
     cdn: app.cdn, cacheVersion: app.cacheVersion, releaseCommand: app.releaseCommand,
     processes: processes.map((x) => ({ name: x.name, command: x.command, instances: x.instances })),

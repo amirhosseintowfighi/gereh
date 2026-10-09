@@ -40,7 +40,7 @@ beforeEach(() => { hits = []; answers = {}; });
 
 const app = (over: Partial<AppSpec> = {}): AppSpec => ({
   id: "app-1", userId: "u1", name: "shop", stack: "nextjs", source: "git", gitUrl: "https://tok@github.com/acme/shop.git", gitBranch: "main", image: "", rootDir: "", buildCommand: "", startCommand: "",
-  port: 3000, healthPath: "/health", cpu: 1, ramMb: 1024, instances: 2, autoscale: false, maxInstances: 2, diskGb: 0, diskMount: "/data",
+  port: 3000, healthPath: "/health", cpu: 1, ramMb: 1024, instances: 2, autoscale: false, maxInstances: 2, autoscaleCpu: 70, diskGb: 0, diskMount: "/data",
   env: { PORT: "3000", API_KEY: "s3cret" }, hosts: ["shop.gereh.dev"], cdn: false, cacheVersion: 1, releaseCommand: "", processes: [], crons: [], ...over,
 });
 const db = (over: Partial<DbSpec> = {}): DbSpec => ({ id: "pdb-1", userId: "u1", name: "shop", engine: "postgres", version: "16", cpu: 1, ramMb: 1024, diskGb: 10, username: "shop", password: "pw", dbName: "shop", publicAccess: false, ...over });
@@ -49,7 +49,7 @@ const kinds = (objs: Record<string, unknown>[]) => objs.map((o) => o.kind);
 describe("kubernetes manifests", () => {
   it("app: env secret, deployment with probes and limits, service, ingress", () => {
     const objs = appObjects(app(), "reg.test/u1/shop:dep-1", "dep-1");
-    expect(kinds(objs)).toEqual(["Secret", "Deployment", "Ingress"]);
+    expect(kinds(objs)).toEqual(["Secret", "Deployment", "Ingress", "PodDisruptionBudget"]);
     expect((serviceObjects(app(), "img") as never as Record<string, any>[])[0].spec.ports).toEqual([{ name: "http", port: 80, targetPort: 3000 }]);
     const [secret, dep, ing] = objs as never as Record<string, any>[];
     expect(secret.metadata.namespace).toBe(nsOf("u1"));
@@ -83,6 +83,17 @@ describe("kubernetes manifests", () => {
     expect(ing.metadata.annotations["cert-manager.io/cluster-issuer"]).toBe("letsencrypt");
     expect(ing.spec.rules.map((r: { host: string }) => r.host)).toEqual(["shop.gereh.dev", "www.shop.ir"]);
     expect(hpa.spec).toMatchObject({ minReplicas: 1, maxReplicas: 6 });
+  });
+
+  it("high availability: replicas spread over nodes, a disruption budget, CPU target from the plan share", () => {
+    const objs = appObjects(app({ instances: 3, autoscale: true, maxInstances: 6, autoscaleCpu: 60 }), "img:1", "dep-1") as Record<string, any>[];
+    const dep = objs.find((o) => o.kind === "Deployment")!;
+    expect(dep.spec.template.spec.topologySpreadConstraints[0]).toMatchObject({ topologyKey: "kubernetes.io/hostname", whenUnsatisfiable: "ScheduleAnyway" });
+    expect(objs.find((o) => o.kind === "PodDisruptionBudget")!.spec).toEqual({ maxUnavailable: 1, selector: { matchLabels: { "app.kubernetes.io/name": "shop" } } });
+    expect(objs.find((o) => o.kind === "HorizontalPodAutoscaler")!.spec.metrics[0].resource.target.averageUtilization).toBe(120);
+    const single = appObjects(app({ instances: 1 }), "img:1", "dep-1") as Record<string, any>[];
+    expect(single.some((o) => o.kind === "PodDisruptionBudget")).toBe(false);
+    expect(single.find((o) => o.kind === "Deployment")!.spec.template.spec.topologySpreadConstraints).toBeUndefined();
   });
 
   it("build job: git clone hides tokens, nixpacks fallback, kaniko pushes the tagged image", () => {
@@ -142,7 +153,7 @@ describe("kubernetes driver over HTTP", () => {
     const patches = hits.filter((h) => h.method === "PATCH");
     expect(patches.every((h) => h.type === "application/apply-patch+yaml" && h.path.includes("fieldManager=gereh&force=true"))).toBe(true);
     expect(hits.every((h) => h.auth === "Bearer test-token")).toBe(true);
-    expect(patches.map((h) => (h.body as { kind: string }).kind)).toEqual(["Namespace", "NetworkPolicy", "LimitRange", "Service", "Secret", "Deployment", "Ingress"]);
+    expect(patches.map((h) => (h.body as { kind: string }).kind)).toEqual(["Namespace", "NetworkPolicy", "LimitRange", "Service", "Secret", "Deployment", "Ingress", "PodDisruptionBudget"]);
     expect(hits.some((h) => h.method === "DELETE" && h.path.startsWith("/apis/autoscaling/v2/namespaces/gereh-u-u1/horizontalpodautoscalers/shop"))).toBe(true);
     hits = [];
     await d.release(app(), "img:2", "dep-2");

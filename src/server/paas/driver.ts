@@ -10,7 +10,7 @@ import type { ComposeService } from "./compose";
 export type AppSpec = {
   id: string; userId: string; name: string; stack: string; source: "git" | "zip" | "image" | "compose";
   gitUrl: string; gitBranch: string; image: string; rootDir: string; buildCommand: string; startCommand: string;
-  port: number; healthPath: string; cpu: number; ramMb: number; instances: number; autoscale: boolean; maxInstances: number;
+  port: number; healthPath: string; cpu: number; ramMb: number; instances: number; autoscale: boolean; maxInstances: number; autoscaleCpu: number;
   diskGb: number; diskMount: string; env: Record<string, string>; hosts: string[];
   /** edge cache; cacheVersion is part of the cache key, so bumping it empties the cache */
   cdn: boolean; cacheVersion: number;

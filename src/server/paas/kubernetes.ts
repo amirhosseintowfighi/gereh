@@ -152,6 +152,11 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
         enableServiceLinks: false,
         ...(c.pullSecret ? { imagePullSecrets: [{ name: "gereh-registry" }] } : {}),
         ...(w.aliases?.length ? { hostAliases: w.aliases } : {}),
+        // high availability: replicas of one workload land on different nodes when the cluster has them
+        ...((w.primary && (app.instances > 1 || app.autoscale)) || w.replicas > 1 ? {
+          topologySpreadConstraints: [{ maxSkew: 1, topologyKey: "kubernetes.io/hostname", whenUnsatisfiable: "ScheduleAnyway", labelSelector: { matchLabels: { "app.kubernetes.io/name": w.name } } }],
+          affinity: { podAntiAffinity: { preferredDuringSchedulingIgnoredDuringExecution: [{ weight: 100, podAffinityTerm: { topologyKey: "kubernetes.io/hostname", labelSelector: { matchLabels: { "app.kubernetes.io/name": w.name } } } }] } },
+        } : {}),
         terminationGracePeriodSeconds: 30,
         containers: [{
           name: "app", image: w.image, imagePullPolicy: "IfNotPresent",
@@ -267,8 +272,12 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
   if (app.diskGb) out.push({ apiVersion: "v1", kind: "PersistentVolumeClaim", metadata: { name: app.name + "-data", namespace: ns, labels }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: app.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } });
   if (app.autoscale) out.push({ apiVersion: "autoscaling/v2", kind: "HorizontalPodAutoscaler", metadata: { name: app.name, namespace: ns, labels }, spec: {
     scaleTargetRef: { apiVersion: "apps/v1", kind: "Deployment", name: app.name }, minReplicas: app.instances, maxReplicas: Math.max(app.instances, app.maxInstances),
-    metrics: [{ type: "Resource", resource: { name: "cpu", target: { type: "Utilization", averageUtilization: 70 } } }],
+    // requests are half the plan's CPU, so utilisation of the request is twice the share of the plan
+    metrics: [{ type: "Resource", resource: { name: "cpu", target: { type: "Utilization", averageUtilization: Math.round(Math.min(90, Math.max(30, app.autoscaleCpu ?? 70)) * 2) } } }],
+    behavior: { scaleUp: { stabilizationWindowSeconds: 30 }, scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: "Pods", value: 1, periodSeconds: 60 }] } },
   } });
+  // node drains and upgrades never take every instance down at once
+  if (!app.diskGb && (app.instances > 1 || app.autoscale)) out.push({ apiVersion: "policy/v1", kind: "PodDisruptionBudget", metadata: { name: app.name, namespace: ns, labels }, spec: { maxUnavailable: 1, selector: { matchLabels: { "app.kubernetes.io/name": app.name } } } });
   return out;
 }
 
@@ -500,6 +509,7 @@ export class KubernetesDriver implements PaasDriver {
     for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
     for (const cj of await this.owned(ns, "CronJob", app.id)) if (!keep.has("CronJob/" + cj.metadata.name)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
     if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
+    if (!objs.some((o) => o.kind === "PodDisruptionBudget")) await del("policy/v1", "PodDisruptionBudget", ns, app.name);
     if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
   }
 
@@ -545,6 +555,7 @@ export class KubernetesDriver implements PaasDriver {
     const ns = nsOf(app.userId);
     await del("networking.k8s.io/v1", "Ingress", ns, app.name);
     await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
+    await del("policy/v1", "PodDisruptionBudget", ns, app.name);
     for (const d of await this.owned(ns, "Deployment", app.id)) await del("apps/v1", "Deployment", ns, d.metadata.name);
     for (const sv of await this.owned(ns, "Service", app.id)) await del("v1", "Service", ns, sv.metadata.name);
     for (const cj of await this.owned(ns, "CronJob", app.id)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
