@@ -6,7 +6,7 @@ import { Icon } from "../icon";
 
 const COLS: [string, [string, string, string][]][] = [
   ["زیرساخت", [["server", "سرور ابری", "/vps"], ["server-cog", "سرور اختصاصی", "/vps#dedicated"], ["layers", "هاست وب", "/hosting"], ["globe", "ثبت دامنه", "/domains"], ["radar", "Geo DNS", "/geo-dns"]]],
-  ["پلتفرم و API", [["rocket", "گره اپ (PaaS)", "/paas"], ["database", "پایگاه داده مدیریت‌شده", "/paas/databases"], ["fingerprint", "API استعلام", "/inquiry"], ["workflow", "خدمات دواپس", "/devops"], ["scale", "مقایسه با دیگران", "/compare"]]],
+  ["پلتفرم و API", [["rocket", "گره اپ (PaaS)", "/paas"], ["database", "پایگاه داده مدیریت‌شده", "/paas/databases"], ["bot", "API هوش مصنوعی", "/ai-api"], ["fingerprint", "API استعلام", "/inquiry"], ["workflow", "خدمات دواپس", "/devops"], ["scale", "مقایسه با دیگران", "/compare"]]],
   ["منابع", [["book-open", "راهنما و آموزش", "/kb"], ["newspaper", "بلاگ", "/blog"], ["code-xml", "مستندات", "/docs/api"], ["activity", "وضعیت سرویس‌ها", "/status"], ["languages", "English", "/en"]]],
   ["گره", [["building-2", "درباره ما", "/about"], ["message-circle", "تماس با ما", "/contact"], ["file-text", "قوانین استفاده", "/terms"], ["shield-check", "حریم خصوصی", "/privacy"], ["gauge", "توافق سطح خدمات", "/sla"]]],
 ];

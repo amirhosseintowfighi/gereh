@@ -281,6 +281,12 @@ PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
 # ---- Geo DNS: PowerDNS with LUA records + GeoIP (see deploy/geo/README.md) ----
 # GEO_PDNS=http://NS1_IP:8081|API_KEY
 # GEO_NAMESERVERS=ns1.gereh.net,ns2.gereh.net
+
+# ---- AI API (OpenAI-compatible upstream; without a key answers are simulated) ----
+# set the key with «sudo gereh ai-key» and the host with «sudo gereh ai-domain api.gereh.dev»
+# AI_UPSTREAM_URL=https://codecraftapi.com/v1
+# AI_UPSTREAM_KEY=
+# AI_API_BASE=https://api.gereh.dev
 EOF
   umask 022
   say "فایل تنظیمات ساخته شد: $ENV_FILE"

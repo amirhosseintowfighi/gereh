@@ -4,7 +4,9 @@ import { gateway } from "@/server/ai/gateway";
 import { createKey, settleAi, tehranStarts } from "@/server/ai/service";
 import { setAiUpstream } from "@/server/ai/upstream";
 import { aiKeys, aiModels, aiUsage, transactions, users } from "@/server/db/schema";
-import { db, fresh } from "./helpers";
+import { context } from "@/server/ctx";
+import { buildState } from "@/server/state";
+import { asAdmin, asUser, call as rpc, db, fails, fresh } from "./helpers";
 
 beforeEach(async () => { await fresh(); setAiUpstream(null); });
 afterEach(() => setAiUpstream(null));
@@ -121,5 +123,34 @@ describe("AI gateway", () => {
     const { day, month } = tehranStarts(Date.UTC(2026, 9, 9, 22, 0)); // 01:30 Tehran on the 10th
     expect(day.toISOString()).toBe("2026-10-09T20:30:00.000Z");
     expect(month.toISOString()).toBe("2026-09-30T20:30:00.000Z");
+  });
+
+  it("panel: key lifecycle, playground billing, state slice and staff pricing", async () => {
+    await asUser();
+    const key = await rpc<string>("ai.createKey", { name: "لپ‌تاپ", models: [], dailyCap: 50_000, monthlyCap: 0, rpm: 60, expiresDays: 30 });
+    expect(key).toMatch(/^gk-[A-Za-z0-9]{40}$/);
+    const before = await balance();
+    const p = await rpc<{ text: string; charged: number }>("ai.playground", "gpt-4o-mini", [{ role: "user", content: "درود" }], 256);
+    expect(p.text).toBe("پاسخ آزمایشی گره: درود");
+    expect(await balance()).toBe(before - p.charged);
+    const st = (await buildState((await context()).db, (await context()).auth, "customer")).db.ai;
+    expect(st.keys[0]).toMatchObject({ name: "لپ‌تاپ", status: "active", dailyCap: 50_000, rpm: 60 });
+    expect(st.keys[0].prefix.startsWith("gk-")).toBe(true);
+    expect(JSON.stringify(st)).not.toContain(key); // the full key never comes back
+    expect(st.usage[0]).toMatchObject({ format: "panel", keyName: "پنل", charged: p.charged });
+    expect(st.models.every((m) => m.active && m.refIn === 0 && m.upstream === "")).toBe(true);
+    await rpc("ai.updateKey", st.keys[0].id, { dailyCap: 0, models: ["gpt-4o-mini"] });
+    await rpc("ai.revokeKey", st.keys[0].id);
+    await fails("ai.updateKey", st.keys[0].id, { rpm: 10 });
+    await fails("ai.adminApplyRule", 0.1);
+
+    await asAdmin();
+    expect(await rpc<number>("ai.adminApplyRule", 0.1)).toBeGreaterThan(20);
+    const [m] = await (await db()).select().from(aiModels).where(eq(aiModels.id, "gpt-4o-mini"));
+    expect(m.inPrice).toBe(Math.round((72_000 * 0.9) / 100) * 100);
+    await rpc("ai.adminAddModel", { id: "new-model", name: "New Model", vendor: "openai", upstream: "", inPrice: 1000, outPrice: 2000, context: 8192 });
+    const admin = (await buildState((await context()).db, (await context()).auth, "admin")).db.ai;
+    expect(admin.models.find((x) => x.id === "new-model")).toMatchObject({ active: false });
+    expect(await rpc<{ ok: boolean }>("ai.adminTest", "gpt-4o-mini")).toMatchObject({ ok: true });
   });
 });

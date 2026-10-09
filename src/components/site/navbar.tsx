@@ -14,8 +14,8 @@ import { Menu } from "../ui-client";
 /** links shown in the bar itself (the rest live in the products menu) */
 const BAR = [
   { href: "/paas", label: "گره اپ" },
-  { href: "/geo-dns", label: "Geo DNS" },
-  { href: "/inquiry", label: "API استعلام" },
+  { href: "/ai-api", label: "API هوش مصنوعی" },
+  { href: "/inquiry", label: "API استعلام", wide: true },
   { href: "/devops", label: "دواپس", wide: true },
 ];
 

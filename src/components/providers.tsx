@@ -26,7 +26,8 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
     { href: "/geo-dns", label: "Geo DNS", icon: "radar", desc: "حفظ رتبه گوگل در قطعی اینترنت", badge: "جدید" },
   ] },
   { group: "API و خدمات", items: [
-    { href: "/inquiry", label: "API استعلام", icon: "fingerprint", desc: "ثبت احوال، شاهکار، کارت و شبا؛ پرداخت به ازای مصرف", badge: "جدید" },
+    { href: "/ai-api", label: "API هوش مصنوعی", icon: "bot", desc: "Claude، GPT و Gemini با یک کلید و پرداخت تومانی", badge: "جدید" },
+    { href: "/inquiry", label: "API استعلام", icon: "fingerprint", desc: "ثبت احوال، شاهکار، کارت و شبا؛ پرداخت به ازای مصرف" },
     { href: "/devops", label: "خدمات دواپس", icon: "workflow", desc: "تیم دواپس شما، بدون استخدام" },
   ] },
 ];

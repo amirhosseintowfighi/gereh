@@ -80,7 +80,7 @@ export const aiMethods = {
 
   "ai.adminAddModel": method(z.tuple([z.object({ id: modelId, name: z.string().trim().min(2).max(60), vendor: z.string().trim().min(2).max(30), upstream: z.string().trim().max(120).regex(/^[\w.:/@-]*$/), inPrice: z.number().int().min(1), outPrice: z.number().int().min(1), context: z.number().int().min(1024).max(10_000_000) })]), async (ctx, [m]) => {
     needStaff(ctx, "ai");
-    const r = await ctx.db.insert(aiModels).values({ ...m, position: 900 }).onConflictDoNothing().returning({ id: aiModels.id });
+    const r = await ctx.db.insert(aiModels).values({ ...m, active: false, position: 900 }).onConflictDoNothing().returning({ id: aiModels.id });
     if (!r.length) fail("مدلی با این شناسه وجود دارد.");
     await logAudit(ctx.db, actor(ctx), "افزودن مدل هوش مصنوعی", m.id, ctx.ip);
   }),
