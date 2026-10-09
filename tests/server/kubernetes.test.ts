@@ -100,6 +100,19 @@ describe("kubernetes manifests", () => {
     expect(zipJob.spec.template.spec.initContainers[0].env).toEqual([{ name: "SOURCE_URL", value: "https://site/api/paas/source/dep-3?sig=x" }]);
   });
 
+  it("build job: the package mirror feeds base images and npm/pip/Go installs", () => {
+    process.env.PAAS_MIRROR = "https://mirror.test/";
+    try {
+      const job = buildJob(app(), "dep-9") as Record<string, any>;
+      const prep = job.spec.template.spec.initContainers[0].command[2] as string;
+      expect(prep).toContain("--env 'NPM_CONFIG_REGISTRY=https://mirror.test/repository/npm/'");
+      const args = job.spec.template.spec.containers[0].args as string[];
+      expect(args).toContain("--registry-mirror=mirror.test");
+      expect(args).toContain("--build-arg=PIP_INDEX_URL=https://mirror.test/repository/pypi/simple");
+    } finally { delete process.env.PAAS_MIRROR; }
+    expect((buildJob(app(), "dep-9") as Record<string, any>).spec.template.spec.containers[0].args.some((a: string) => a.startsWith("--registry-mirror"))).toBe(false);
+  });
+
   it("databases: prefixed names (no clash with an app of the same name), secrets by reference", () => {
     const objs = dbObjects(db()) as never as Record<string, any>[];
     expect(objs.map((o) => o.metadata.name)).toEqual(["db-shop-auth", "db-shop", "db-shop"]);

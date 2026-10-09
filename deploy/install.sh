@@ -287,6 +287,10 @@ PAAS_UPLOAD_DIR=$APP_DIR/shared/paas-uploads
 # AI_UPSTREAM_URL=https://codecraftapi.com/v1
 # AI_UPSTREAM_KEY=
 # AI_API_BASE=https://api.gereh.dev
+
+# ---- package mirror (deploy/mirror/README.md) ----
+# MIRROR_URL=https://mirror.gereh.net
+# PAAS_MIRROR=https://mirror.gereh.net
 EOF
   umask 022
   say "فایل تنظیمات ساخته شد: $ENV_FILE"

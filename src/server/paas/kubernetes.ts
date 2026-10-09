@@ -17,6 +17,7 @@ import { resolve4, resolveCname } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
+import { mirrorEnv, mirrorHost } from "@/lib/mirror";
 import type { ComposeService } from "./compose";
 import type { AppSpec, BuildState, DbSpec, PaasDriver } from "./driver";
 
@@ -43,6 +44,8 @@ const cfg = () => ({
   appsDomain: env("PAAS_APPS_DOMAIN", "gereh.dev"),
   // "<namespace>/<service>:<port>" of Prometheus, read through the API server's service proxy
   prometheus: env("PAAS_PROMETHEUS"),
+  // package mirror (deploy/mirror) used by builds for base images and npm/pip/Go installs
+  mirror: env("PAAS_MIRROR", env("MIRROR_URL")).replace(/\/$/, ""),
 });
 
 const FM = "gereh";
@@ -237,6 +240,8 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
   const image = service ? imageFor({ userId: app.userId, name: app.name + "-" + service.name }, dep) : imageFor(app, dep);
   const root = [(app.rootDir || "").replace(/^\/+|\/+$/g, ""), service?.build?.context === "." ? "" : service?.build?.context ?? ""].filter(Boolean).join("/") || ".";
   const dockerfile = service?.build?.dockerfile ?? "Dockerfile";
+  const mirror = c.mirror ? mirrorEnv(c.mirror) : {};
+  const nixEnv = Object.entries(mirror).map(([k, v]) => "--env " + shq(k + "=" + v)).join(" ");
   const prepare = [
     "set -eu", "cd /workspace",
     app.source === "git"
@@ -244,7 +249,7 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
       : `wget -q -O src.zip "$SOURCE_URL" && mkdir src && unzip -q src.zip -d src && rm src.zip && if [ "$(ls -A src | wc -l)" = 1 ] && [ -d "src/$(ls -A src)" ]; then d="src/$(ls -A src)"; mv "$d" src.tmp && rmdir src && mv src.tmp src; fi`,
     `cd src/${root}`,
     `if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
-    `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
+    `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
   ].join("\n");
   return {
     apiVersion: "batch/v1", kind: "Job",
@@ -258,7 +263,8 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
           initContainers: [{ name: "prepare", image: c.builderImage, command: ["/bin/sh", "-c", prepare], env: sourceUrl ? [{ name: "SOURCE_URL", value: sourceUrl }] : [], volumeMounts: [{ name: "workspace", mountPath: "/workspace" }], resources: { limits: { cpu: "1", memory: "1Gi" } } }],
           containers: [{
             name: "kaniko", image: c.kanikoImage,
-            args: ["--context=dir:///workspace/src/" + root, "--dockerfile=/workspace/Dockerfile.gereh", "--destination=" + image, "--cache=true", "--cache-repo=" + c.registry + "/cache/" + dns1123(app.userId), "--snapshot-mode=redo", "--use-new-run", "--compressed-caching=false"],
+            args: ["--context=dir:///workspace/src/" + root, "--dockerfile=/workspace/Dockerfile.gereh", "--destination=" + image, "--cache=true", "--cache-repo=" + c.registry + "/cache/" + dns1123(app.userId), "--snapshot-mode=redo", "--use-new-run", "--compressed-caching=false",
+              ...(c.mirror ? ["--registry-mirror=" + mirrorHost(c.mirror), ...Object.entries(mirror).map(([k, v]) => "--build-arg=" + k + "=" + v)] : [])],
             volumeMounts: [{ name: "workspace", mountPath: "/workspace" }, { name: "registry", mountPath: "/kaniko/.docker" }],
             resources: { requests: { cpu: "500m", memory: "1Gi" }, limits: { cpu: "2", memory: "4Gi" } },
           }],

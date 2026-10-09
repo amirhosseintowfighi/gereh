@@ -71,6 +71,7 @@ kubectl -n ingress-nginx get certificate apps-wildcard   # READY=True
    PAAS_BUILDER_IMAGE=registry.gereh.dev/gereh/builder:1
    PAAS_INGRESS_IP=CLUSTER_IP
    PAAS_PROMETHEUS=monitoring/prometheus-server:80
+   PAAS_MIRROR=https://mirror.gereh.net   # اختیاری: بیلدها از میرور مخازن (deploy/mirror)
    PAAS_SOURCE_BASE_URL=https://gereh.net
    ```
 3. در **پنل ادمین › گره اپ (PaaS) › زیرساخت** دکمه «تست اتصال» را بزنید؛ باید `Kubernetes v1.3x` ببینید. دامنه اپ‌ها را همان‌جا روی `gereh.dev` بگذارید.

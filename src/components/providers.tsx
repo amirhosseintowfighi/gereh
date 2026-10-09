@@ -19,6 +19,7 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
     { href: "/vps#dedicated", label: "سرور اختصاصی", icon: "server-cog", desc: "EPYC و Xeon با پورت تا ۱۰ گیگابیت" },
     { href: "/hosting", label: "هاست وب", icon: "layers", desc: "LiteSpeed، SSL رایگان و بکاپ روزانه" },
     { href: "/domains", label: "ثبت دامنه", icon: "globe", desc: ".ir و بیش از ۱۵ پسوند بین‌المللی" },
+    { href: "/mirror", label: "میرور مخازن", icon: "download", desc: "npm، PyPI و Docker Hub داخل ایران؛ رایگان", badge: "رایگان" },
   ] },
   { group: "پلتفرم ابری", items: [
     { href: "/paas", label: "گره اپ (PaaS)", icon: "rocket", desc: "کد را بفرستید؛ بیلد، SSL و مقیاس با ما" },
