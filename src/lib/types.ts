@@ -69,6 +69,17 @@ export type InquiryState = {
   accounts: { userId: string; name: string; email: string; accountNo: number; status: "active" | "suspended"; calls30: number; spend30: number }[];
   provider: string;
 };
+export type AiModelRow = { id: string; name: string; vendor: string; inPrice: number; outPrice: number; context: number; vision: boolean; active: boolean; refIn: number; refOut: number; upstream: string };
+export type AiKeyRow = { id: string; name: string; prefix: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; status: "active" | "revoked"; expires: string; lastUsed: string; created: string; spentToday: number; spentMonth: number };
+export type AiState = {
+  models: AiModelRow[]; keys: AiKeyRow[];
+  usage: { id: string; userId: string; keyName: string; model: string; format: string; stream: boolean; status: string; inTokens: number; outTokens: number; charged: number; estimated: boolean; latencyMs: number; error: string; at: string }[];
+  stats: { todayCount: number; todaySpend: number; monthCount: number; monthSpend: number; daily: { day: string; count: number; spend: number }[]; byModel: { model: string; count: number; spend: number }[] };
+  /** public base URL of the gateway, e.g. https://api.gereh.dev */
+  endpoint: string;
+  /** staff only: upstream driver name */
+  upstream: string;
+};
 export type GeoRecord = { id: number; name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null; iranUp: boolean | null; worldUp: boolean | null; checked: string };
 export type GeoZone = {
   id: string; userId: string; domain: string; planId: string; status: "pending" | "active" | "suspended"; nsOk: boolean; nsSeen: string[]; nsChecked: string;
@@ -130,6 +141,7 @@ export type ClientDB = {
   /** staff only: "kubernetes" or "simulator" */
   paasDriver: string;
   inquiry: InquiryState;
+  ai: AiState;
   geo: GeoState;
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };

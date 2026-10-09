@@ -23,7 +23,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -81,8 +81,9 @@ export const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(16)), (x) => abc[x % abc.length]).join("");
 };
 
+export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -258,6 +259,17 @@ export const api = {
       x.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
       x.send(form);
     }),
+  },
+  ai: {
+    createKey: (k: AiKeyInput) => rpc<string>("ai.createKey", k),
+    updateKey: (id: string, patch: Partial<Omit<AiKeyInput, "expiresDays">>) => rpc("ai.updateKey", id, patch),
+    revokeKey: (id: string) => rpc("ai.revokeKey", id),
+    playground: (model: string, messages: { role: "system" | "user" | "assistant"; content: string }[], maxTokens: number) => rpc<{ text: string; charged: number; inTokens: number; outTokens: number }>("ai.playground", model, messages, maxTokens),
+    adminModel: (id: string, patch: Partial<{ name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; refIn: number; refOut: number; context: number; active: boolean }>) => rpc("ai.adminModel", id, patch),
+    adminAddModel: (m: { id: string; name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; context: number }) => rpc("ai.adminAddModel", m),
+    adminSync: () => rpc<{ total: number; added: number }>("ai.adminSync"),
+    adminApplyRule: (discount: number) => rpc<number>("ai.adminApplyRule", discount),
+    adminTest: (id: string) => rpc<{ ok: boolean; ms: number; detail: string }>("ai.adminTest", id),
   },
   inquiry: {
     activate: () => rpc("inquiry.activate"),

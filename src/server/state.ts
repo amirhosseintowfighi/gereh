@@ -13,6 +13,7 @@ import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
+import { aiState, EMPTY_AI } from "./ai/state";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
@@ -66,7 +67,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -169,6 +170,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     updates: [...p.updates].reverse().map((u) => ({ ...u, at: faDateTime(new Date(u.at)) })), nextBill: p.nextBillAt && p.status === "active" ? faDate(p.nextBillAt) : "", started: p.startedAt ? faDate(p.startedAt) : "" }));
   Object.assign(out, await paasState(db, { uid, admin, domain: settings.paasDomain || process.env.PAAS_APPS_DOMAIN || "gereh.dev", siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "") }));
   out.inquiry = await inquiryState(db, { uid, admin });
+  out.ai = await aiState(db, { uid, admin });
   out.geo = await geoState(db, { uid, admin });
   if (!admin) {
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
