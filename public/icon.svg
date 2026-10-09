@@ -13,11 +13,11 @@
     <clipPath id="c2"><circle cx="24" cy="30" r="5.2"/></clipPath>
     <mask id="mB" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
       <rect width="48" height="48" fill="#fff"/>
-      <g clip-path="url(#c1)"><rect x="9.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 18 24)" stroke="#000" stroke-width="8"/></g>
+      <g clip-path="url(#c1)"><rect x="9.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 18 24)" stroke="#000" stroke-width="6"/></g>
     </mask>
     <mask id="mA" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
       <rect width="48" height="48" fill="#fff"/>
-      <g clip-path="url(#c2)"><rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 30 24)" stroke="#000" stroke-width="8"/></g>
+      <g clip-path="url(#c2)"><rect x="21.5" y="15.5" width="17" height="17" rx="5.5" transform="rotate(45 30 24)" stroke="#000" stroke-width="6"/></g>
     </mask>
       <mask id="mBar" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
       <rect width="48" height="48" fill="#fff"/>

@@ -20,11 +20,11 @@ export function Logo({ size = 36, decorative = false }: { size?: number; decorat
         <clipPath id={id + "c2"}><circle cx="24" cy="30" r="5.2" /></clipPath>
         <mask id={id + "mB"} maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
           <rect width="48" height="48" fill="#fff" />
-          <g clipPath={`url(#${id}c1)`}>{rectA({ stroke: "#000", strokeWidth: 8, fill: "none" })}</g>
+          <g clipPath={`url(#${id}c1)`}>{rectA({ stroke: "#000", strokeWidth: 6, fill: "none" })}</g>
         </mask>
         <mask id={id + "mA"} maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
           <rect width="48" height="48" fill="#fff" />
-          <g clipPath={`url(#${id}c2)`}>{rectB({ stroke: "#000", strokeWidth: 8, fill: "none" })}</g>
+          <g clipPath={`url(#${id}c2)`}>{rectB({ stroke: "#000", strokeWidth: 6, fill: "none" })}</g>
         </mask>
         {/* the bar crosses over both links with the same gap the links leave where they cross each other */}
         <mask id={id + "mBar"} maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
