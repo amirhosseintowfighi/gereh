@@ -13,11 +13,17 @@ SITE_URL=${SITE_URL:-}
 HERE=$(cd "$(dirname "$0")" && pwd)
 STATE=/etc/gereh-paas; mkdir -p "$STATE"; chmod 700 "$STATE"
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
-gen() { [ -s "$STATE/$1" ] || head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32 > "$STATE/$1"; cat "$STATE/$1"; }
-[ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
 die() { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
+# never exit silently: name the line and command that failed
+trap 'die "failed at line $LINENO: $BASH_COMMAND"' ERR
+gen() {
+  if [ ! -s "$STATE/$1" ]; then local v; v=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9'); printf '%s' "${v:0:32}" > "$STATE/$1"; fi
+  cat "$STATE/$1"
+}
+[ "$(id -u)" = 0 ] || die "run as root"
 
 # ---- preflight: fail before touching the machine ----
+say "preflight checks"
 SITE_HOST=${SITE_URL#*://}; SITE_HOST=${SITE_HOST%%/*}; SITE_HOST=${SITE_HOST%%:*}
 if [ -n "$SITE_HOST" ]; then
   case "$APPS_DOMAIN" in
@@ -27,7 +33,7 @@ if [ -n "$SITE_HOST" ]; then
   esac
 fi
 if ! command -v k3s >/dev/null; then
-  BUSY=$(ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null | grep -oE 'users:\(\("[^"]+' | cut -d'"' -f2 | sort -u | tr '\n' ' ')
+  BUSY=$(ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null | grep -oE 'users:\(\("[^"]+' | cut -d'"' -f2 | sort -u | tr '\n' ' ' || true)
   [ -z "$BUSY" ] || die "ports 80/443 are already used by: $BUSY
    The cluster's ingress needs them. Run this on a separate server (recommended), not on the site's server."
   MEM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
