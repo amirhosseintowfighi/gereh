@@ -60,6 +60,16 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: no-ingress, namespace: gereh-system }
 spec: { podSelector: {}, policyTypes: [Ingress] }
+---
+# cert-manager's HTTP-01 solver pods (for registry.<apps domain>) must be reachable from the ingress,
+# or Let's Encrypt can never validate the registry's certificate
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: acme-solver-from-ingress, namespace: gereh-system }
+spec:
+  podSelector: { matchLabels: { acme.cert-manager.io/http01-solver: "true" } }
+  policyTypes: [Ingress]
+  ingress: [{ from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } } }] }]
 # Secrets you create yourself (see README):
 #   registry-push  — type kubernetes.io/dockerconfigjson, push access to PAAS_REGISTRY (used by Kaniko)
 #   backup-s3      — keys S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY (used by backup/restore jobs)
