@@ -14,6 +14,7 @@ import { seal } from "../secrets";
 import { getSettings, getVirt, STAFF_ROLE_BY_LABEL } from "../state";
 import { fail, genPassword, logAudit, notify, randomSecret, rid } from "../util";
 import { resetVirt, virt, VirtualizorDriver } from "../virt/driver";
+import { normalizeHost } from "../virt/virtualizor";
 
 const id = z.string().max(40);
 const money = z.number().int().min(0).max(10_000_000_000);
@@ -131,8 +132,10 @@ export const adminRpc = {
   }),
 
   /** tests the given (or stored) credentials against Virtualizor, then stores them encrypted */
-  "admin.virtTest": method(z.tuple([z.object({ host: z.string().max(253), port: z.number().int().min(1).max(65535), key: z.string().max(200), pass: z.string().max(200).optional() })]), async (ctx, [cfg]) => {
+  "admin.virtTest": method(z.tuple([z.object({ host: z.string().max(253), port: z.number().int().min(1).max(65535), key: z.string().max(200), pass: z.string().max(200).optional(), insecure: z.boolean().optional() })]), async (ctx, [cfg]) => {
     needStaff(ctx, "virtualizor");
+    const nh = normalizeHost(cfg.host);
+    cfg = { ...cfg, host: nh.host, port: nh.port ?? cfg.port };
     if (!cfg.host.trim() || !cfg.key.trim()) fail("آدرس و کلید API لازم است.");
     const cur = await getVirt(ctx.db);
     const pass = cfg.pass || (cur.passEnc ? (await import("../secrets")).open(String(cur.passEnc)) : null);
@@ -142,12 +145,12 @@ export const adminRpc = {
       // outside production the simulator answers unless VIRTUALIZOR_LIVE=1 asks for a real connection test
       version = process.env.NODE_ENV !== "production" && process.env.VIRTUALIZOR_LIVE !== "1"
         ? "Simulator"
-        : (await new VirtualizorDriver({ host: cfg.host.trim(), adminPort: cfg.port, key: cfg.key.trim(), pass: pass! }).test()).version;
+        : (await new VirtualizorDriver({ host: cfg.host.trim(), adminPort: cfg.port, key: cfg.key.trim(), pass: pass!, ...(cfg.insecure ? { tlsStrict: false } : {}) }).test()).version;
     } catch (e) {
       await ctx.db.insert(virtLog).values({ id: rid("vl"), kind: "تست اتصال", result: "error", detail: (e instanceof Error ? e.message : String(e)).slice(0, 300) });
       fail("اتصال برقرار نشد: " + (e instanceof Error ? e.message : "خطای ناشناخته"));
     }
-    const next = { ...cur, host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), passEnc: cfg.pass ? seal(cfg.pass) : cur.passEnc, passSet: true, connected: true, version };
+    const next = { ...cur, host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), passEnc: cfg.pass ? seal(cfg.pass) : cur.passEnc, passSet: true, connected: true, version, insecure: !!cfg.insecure };
     await ctx.db.insert(kv).values({ key: "virt", value: next }).onConflictDoUpdate({ target: kv.key, set: { value: next } });
     await ctx.db.insert(virtLog).values({ id: rid("vl"), kind: "تست اتصال", result: "ok", detail: cfg.host + ":" + cfg.port + " — " + version });
     resetVirt();
@@ -193,7 +196,7 @@ export const adminRpc = {
   }),
   "admin.saveVirt": method(z.tuple([z.record(z.string(), z.union([z.string().max(253), z.number(), z.boolean()]))]), async (ctx, [patch]) => {
     needStaff(ctx, "virtualizor");
-    const allowed = ["host", "port", "key", "autoSync", "bandSuspend", "suspendUnpaid", "terminateUnpaid", "adminManaged"];
+    const allowed = ["host", "port", "key", "insecure", "autoSync", "bandSuspend", "suspendUnpaid", "terminateUnpaid", "adminManaged"];
     const clean = Object.fromEntries(Object.entries(patch).filter(([k]) => allowed.includes(k)));
     const cur = await getVirt(ctx.db);
     await ctx.db.insert(kv).values({ key: "virt", value: { ...cur, ...clean } }).onConflictDoUpdate({ target: kv.key, set: { value: { ...cur, ...clean } } });

@@ -78,3 +78,27 @@ describe("Virtualizor client", () => {
     expect(() => new VirtualizorDriver({ host: "", key: "", pass: "" })).toThrow();
   });
 });
+
+describe("Virtualizor connection errors", () => {
+  it("strips scheme, path and port from a pasted address", async () => {
+    const { normalizeHost } = await import("@/server/virt/virtualizor");
+    expect(normalizeHost("https://Panel.Example.com:4085/index.php?act=home")).toEqual({ host: "panel.example.com", port: 4085 });
+    expect(normalizeHost(" 185.1.2.3 ")).toEqual({ host: "185.1.2.3", port: undefined });
+    const d = new VirtualizorDriver({ host: "https://panel.example.com:4086/", key: "k", pass: "p" });
+    expect(d.url(4086, "servers")).toMatch(/^https:\/\/panel\.example\.com:4086\/index\.php\?/);
+  });
+
+  it("explains the cause instead of a bare 'fetch failed'", async () => {
+    const { explainFetchError } = await import("@/server/virt/virtualizor");
+    const failed = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: { code, message: code } });
+    expect(explainFetchError(failed("DEPTH_ZERO_SELF_SIGNED_CERT"), "h", 4085)).toContain("خودامضا");
+    expect(explainFetchError(failed("ECONNREFUSED"), "h", 4085)).toContain("بسته");
+    expect(explainFetchError(failed("UND_ERR_CONNECT_TIMEOUT"), "h", 4085)).toContain("فایروال");
+    expect(explainFetchError(failed("ENOTFOUND"), "h", 4085)).toContain("DNS");
+  });
+
+  it("reports a refused connection with its cause", async () => {
+    reply = () => { throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED", message: "connect ECONNREFUSED" } }); };
+    await expect(v().test()).rejects.toThrow(/پورت 4085 روی vz\.example\.com.*ECONNREFUSED/);
+  });
+});

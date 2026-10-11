@@ -399,7 +399,7 @@ export function AdminVirtualizor() {
   const db = useDB();
   const { notify } = useApp();
   const [tab, setTab] = useState("connection");
-  const [cfg, setCfg] = useState({ host: String(db.virt.host), port: Number(db.virt.port), key: String(db.virt.key), pass: "" });
+  const [cfg, setCfg] = useState({ host: String(db.virt.host), port: Number(db.virt.port), key: String(db.virt.key), pass: "", insecure: !!db.virt.insecure });
   return (
     <div>
       <PageTitle title="اتصال Virtualizor" sub="سرورها مستقیم روی Virtualizor ساخته و مدیریت می‌شوند؛ این‌جا اتصال و نگاشت‌ها را تنظیم کنید."
@@ -415,14 +415,19 @@ export function AdminVirtualizor() {
         {tab === "connection" && (
           <div className="grid xl:grid-cols-[1.2fr_1fr] gap-4">
             <Card title="Admin API" icon="key-round">
+              {!!db.virt.fromEnv && <p role="status" className="mb-4 p-3 rounded-[12px] bg-amber-400/10 text-amber-200 text-xs leading-6">اتصال فعلی از متغیرهای VIRTUALIZOR_* در فایل ‎.env‎ خوانده می‌شود و این فرم روی آن اثری ندارد. فقط یکی را نگه دارید: یا آن خط‌ها را از ‎.env‎ پاک کنید (<span className="mono" dir="ltr">sudo gereh env</span>) یا همان‌جا اصلاحشان کنید.</p>}
               <form className="grid sm:grid-cols-[1fr_120px] gap-4" onSubmit={(e) => e.preventDefault()}>
                 <Field label="آدرس Master"><input value={cfg.host} onChange={(e) => setCfg((c) => ({ ...c, host: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
                 <Field label="پورت"><input value={cfg.port} inputMode="numeric" onChange={(e) => setCfg((c) => ({ ...c, port: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
                 <Field label="API Key"><input value={cfg.key} autoComplete="off" onChange={(e) => setCfg((c) => ({ ...c, key: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder={db.virt.passSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••"} className={INPUT + " text-left mono"} /></Field>
+                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود. آدرس را بدون https:// و پورت بنویسید."><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder={db.virt.passSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••"} className={INPUT + " text-left mono"} /></Field>
               </form>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div><div className="text-sm font-bold">پذیرش گواهی خودامضا</div><div className="text-[11px] text-white/55 mt-0.5">Virtualizor به‌طور پیش‌فرض گواهی خودامضا دارد؛ امن‌تر است روی Master گواهی معتبر نصب کنید.</div></div>
+                <Switch on={cfg.insecure} label="پذیرش گواهی خودامضا" onChange={(v) => setCfg((c) => ({ ...c, insecure: v }))} />
+              </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), pass: cfg.pass }); setCfg((c) => ({ ...c, pass: "" })); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
+                <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), pass: cfg.pass, insecure: cfg.insecure }); setCfg((c) => ({ ...c, pass: "" })); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
                 <AsyncButton onClick={async () => { if (!cfg.host.trim() || !(cfg.port > 0 && cfg.port < 65536)) throw new Error("آدرس و پورت معتبر لازم است."); await api.admin.saveVirt({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("تنظیمات ذخیره شد"); }}>ذخیره</AsyncButton>
               </div>
               <p className="text-[11px] text-white/55 mt-5 leading-6">کلید و رمز Admin API در Virtualizor: Configuration › Server Info (روی Master). IP سرور گره را در «Allowed IP list to restrict API operations» اضافه کنید.</p>

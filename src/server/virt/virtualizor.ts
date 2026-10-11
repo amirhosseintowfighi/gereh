@@ -9,6 +9,32 @@ import type { CreateVps, PowerAction, VirtDriver, VpsLive } from "./driver";
 type Dict = Record<string, string | number | boolean | (string | number)[] | undefined>;
 export type VirtConfig = { host: string; key: string; pass: string; adminPort?: number; enduserPort?: number; tlsStrict?: boolean; auth?: "adminapikey" | "apikey" };
 
+/** accepts what admins paste ("https://panel.example.com:4085/index.php") and keeps the host name; a port in it is returned too */
+export function normalizeHost(raw: string): { host: string; port?: number } {
+  let h = raw.trim().replace(/^[a-z]+:\/\//i, "").replace(/[/?#].*$/, "").replace(/^.*@/, "");
+  let port: number | undefined;
+  const m = h.match(/^(\[[^\]]+\]|[^:]+):(\d{1,5})$/);
+  if (m) { h = m[1]; port = Number(m[2]); }
+  return { host: h.toLowerCase(), port };
+}
+
+const CERT_CODES = new Set(["DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN", "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "CERT_HAS_EXPIRED", "ERR_TLS_CERT_ALTNAME_INVALID", "CERT_UNTRUSTED"]);
+/** turns undici's bare "fetch failed" into the actual cause, with what to check (exported for tests) */
+export function explainFetchError(e: unknown, host: string, port: number): string {
+  const err = e as { name?: string; message?: string; cause?: { code?: string; message?: string; name?: string } };
+  const code = err.cause?.code || (err.name === "TimeoutError" ? "TIMEOUT" : err.cause?.name) || "";
+  const where = host + ":" + port;
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") return `نام «${host}» پیدا نشد (DNS). در فیلد آدرس فقط نام یا IP سرور Master را بنویسید، بدون https:// و پورت.`;
+  if (code === "ECONNREFUSED") return `پورت ${port} روی ${host} بسته است (${code}). سرویس Virtualizor یا فایروال Master را بررسی کنید.`;
+  if (["UND_ERR_CONNECT_TIMEOUT", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "TIMEOUT", "UND_ERR_HEADERS_TIMEOUT"].includes(code))
+    return `به ${where} نرسید (${code}). فایروال Master (و دیتاسنتر) باید پورت‌های ۴۰۸۵ و ۴۰۸۳ را برای IP سرور گره باز کند.`;
+  if (CERT_CODES.has(code))
+    return `گواهی SSL سرور Virtualizor معتبر نیست (${code}). Virtualizor به‌طور پیش‌فرض گواهی خودامضا دارد: گزینه «پذیرش گواهی خودامضا» را روشن کنید (یا VIRTUALIZOR_TLS_STRICT=0) یا روی Master گواهی معتبر نصب کنید.`;
+  if (code === "ECONNRESET" || code === "EPROTO" || /wrong version number|packet length/i.test(err.cause?.message || ""))
+    return `اتصال TLS به ${where} برقرار نشد (${code || "TLS"}). پورت Admin API معمولاً ۴۰۸۵ (https) است؛ ۴۰۸۲/۴۰۸۴ برای http هستند.`;
+  return `${where}: ${[code, err.cause?.message || err.message].filter(Boolean).join(" — ")}`;
+}
+
 export class VirtualizorError extends Error {
   constructor(public act: string, public details: unknown) {
     super("Virtualizor " + act + ": " + (typeof details === "object" ? Object.values(details as Record<string, unknown>).join("، ") : String(details)));
@@ -21,11 +47,12 @@ export class VirtualizorDriver implements VirtDriver {
   private dispatcher: Agent;
 
   constructor(cfg?: Partial<VirtConfig>) {
+    const n = normalizeHost(cfg?.host ?? process.env.VIRTUALIZOR_HOST ?? "");
     this.cfg = {
-      host: cfg?.host ?? process.env.VIRTUALIZOR_HOST ?? "",
+      host: n.host,
       key: cfg?.key ?? process.env.VIRTUALIZOR_KEY ?? "",
       pass: cfg?.pass ?? process.env.VIRTUALIZOR_PASS ?? "",
-      adminPort: cfg?.adminPort ?? Number(process.env.VIRTUALIZOR_PORT || 4085),
+      adminPort: n.port ?? cfg?.adminPort ?? Number(process.env.VIRTUALIZOR_PORT || 4085),
       enduserPort: cfg?.enduserPort ?? Number(process.env.VIRTUALIZOR_ENDUSER_PORT || 4083),
       tlsStrict: cfg?.tlsStrict ?? process.env.VIRTUALIZOR_TLS_STRICT !== "0",
       auth: cfg?.auth ?? ((process.env.VIRTUALIZOR_AUTH as "adminapikey" | "apikey") || "adminapikey"),
@@ -49,11 +76,14 @@ export class VirtualizorDriver implements VirtDriver {
 
   private async call<T = Record<string, unknown>>(port: number, act: string, query: Dict = {}, body?: Dict): Promise<T> {
     const form = body ? new URLSearchParams(Object.entries(body).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])) : undefined;
-    const res = await fetch(this.url(port, act, query), {
-      method: body ? "POST" : "GET", body: form, signal: AbortSignal.timeout(60_000), dispatcher: this.dispatcher,
-    });
-    if (!res.ok) throw new VirtualizorError(act, "HTTP " + res.status);
-    const json = (await res.json().catch(() => { throw new VirtualizorError(act, "invalid JSON (check API credentials and allowed IP list)"); })) as Record<string, unknown>;
+    let res;
+    try {
+      res = await fetch(this.url(port, act, query), {
+        method: body ? "POST" : "GET", body: form, signal: AbortSignal.timeout(45_000), dispatcher: this.dispatcher,
+      });
+    } catch (e) { throw new VirtualizorError(act, explainFetchError(e, this.cfg.host, port)); }
+    if (!res.ok) throw new VirtualizorError(act, "HTTP " + res.status + (res.status === 403 || res.status === 401 ? " — IP سرور گره را در Allowed IP list کلید API اضافه کنید" : ""));
+    const json = (await res.json().catch(() => { throw new VirtualizorError(act, "پاسخ JSON نبود: کلید و رمز Admin API، نوع احراز (VIRTUALIZOR_AUTH) و Allowed IP list را بررسی کنید"); })) as Record<string, unknown>;
     const err = json.error;
     if (err && (typeof err !== "object" || Object.keys(err as object).length)) throw new VirtualizorError(act, err);
     return json as T;

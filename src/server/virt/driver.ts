@@ -70,15 +70,17 @@ export class SimulatorDriver implements VirtDriver {
 
 const g = globalThis as typeof globalThis & { __gerehVirt?: VirtDriver; __gerehVirtPinned?: boolean };
 /** the configured driver: env credentials, else the encrypted ones saved in the admin panel, else the simulator */
+/** VIRTUALIZOR_HOST/KEY/PASS in .env take precedence over the panel's connection form */
+export const virtFromEnv = () => !!(process.env.VIRTUALIZOR_HOST && process.env.VIRTUALIZOR_KEY && process.env.VIRTUALIZOR_PASS);
 export async function virt(): Promise<VirtDriver> {
   if (g.__gerehVirt) return g.__gerehVirt;
   const { VirtualizorDriver } = await import("./virtualizor");
-  if (process.env.VIRTUALIZOR_HOST && process.env.VIRTUALIZOR_KEY && process.env.VIRTUALIZOR_PASS) return (g.__gerehVirt = new VirtualizorDriver());
+  if (virtFromEnv()) return (g.__gerehVirt = new VirtualizorDriver());
   if (process.env.NODE_ENV === "production" || process.env.VIRTUALIZOR_LIVE === "1") {
     const [{ getDb }, { getVirt }, { open }] = await Promise.all([import("../db/client"), import("../state"), import("../secrets")]);
     const v = await getVirt(await getDb());
     const pass = open(String(v.passEnc || ""));
-    if (v.host && v.key && pass) return (g.__gerehVirt = new VirtualizorDriver({ host: String(v.host), adminPort: Number(v.port) || 4085, key: String(v.key), pass }));
+    if (v.host && v.key && pass) return (g.__gerehVirt = new VirtualizorDriver({ host: String(v.host), adminPort: Number(v.port) || 4085, key: String(v.key), pass, ...(v.insecure ? { tlsStrict: false } : {}) }));
   }
   return (g.__gerehVirt = new SimulatorDriver());
 }

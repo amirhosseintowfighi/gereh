@@ -11,6 +11,7 @@ import type { DB } from "./db/client";
 import * as t from "./db/schema";
 import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
+import { virtFromEnv } from "./virt/driver";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
 import { aiState, EMPTY_AI } from "./ai/state";
@@ -214,7 +215,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   out.audit = audit.map((a) => ({ id: a.id, actor: a.actor, action: a.action, target: a.target, ip: a.ip, at: faDateTime(a.createdAt) }));
   out.staff = staff.map((s) => ({ id: s.id, name: s.name, email: s.email, role: staffLabel(s.staffRole) }));
   const { passEnc: _secret, ...virtPublic } = virt;
-  out.virt = { ...virtPublic, lastSync: virt.lastSync ? faDateTime(new Date(String(virt.lastSync))) : "—" };
+  out.virt = { ...virtPublic, fromEnv: virtFromEnv(), lastSync: virt.lastSync ? faDateTime(new Date(String(virt.lastSync))) : "—" };
   out.virtLog = virtLog.map((v) => ({ id: v.id, kind: v.kind, result: v.result, detail: v.detail, at: faDateTime(v.createdAt) }));
   out.planMap = planMap;
   out.inbox = inbox.map((m) => ({ id: m.id, name: m.name, email: m.email, dept: m.dept, subject: m.subject, message: m.message, at: faDateTime(m.createdAt) }));
