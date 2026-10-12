@@ -7,12 +7,14 @@ import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import type { DB, Tx } from "../db/client";
 import { coupons, invoiceItems, invoices, payments, plans, tlds, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
+import { getLocations } from "../locations";
 import { gatewayById, gatewaysFor } from "../pay/gateways";
 import { getSettings } from "../state";
 import { AppError, fail, logActivity, logAudit, nextId, notify, rid } from "../util";
 import { fulfil, type FulfilItem } from "./fulfil";
 
 export async function catalog(db: DB | Tx): Promise<CatalogView> {
+  await getLocations(db);
   const [ps, ts] = await Promise.all([db.select().from(plans), db.select().from(tlds)]);
   const out: CatalogView = { plans: { cloud: [], metal: [], hosting: [] }, tlds: ts.map((x) => ({ tld: x.tld, reg: x.reg, renew: x.renew, transfer: x.transfer, cat: x.cat, hot: x.hot, promo: x.promo })) };
   for (const p of ps.sort((a, b) => a.position - b.position)) out.plans[p.kind].push(p.data as Plan);

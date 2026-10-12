@@ -94,14 +94,20 @@ export const BILLING = [
   { id: "q", label: "سه‌ماهه", months: 3, disc: 0.05, badge: "۵٪" },
   { id: "y", label: "سالانه", months: 12, disc: 0.2, badge: "۲۰٪" },
 ];
-export type Loc = { id: string; label: string; sub: string; ping: number; metal: boolean; foreign: boolean; up: number; speed: number };
-export const LOCS: Loc[] = [
-  { id: "thr", label: "تهران", sub: "دیتاسنتر اصلی", ping: 8, metal: true, foreign: false, up: 99.998, speed: 940 },
-  { id: "isf", label: "اصفهان", sub: "دیتاسنتر پشتیبان", ping: 14, metal: false, foreign: false, up: 99.991, speed: 870 },
-  { id: "fra", label: "فرانکفورت", sub: "آلمان", ping: 86, metal: true, foreign: true, up: 99.996, speed: 610 },
-  { id: "ams", label: "آمستردام", sub: "هلند", ping: 93, metal: false, foreign: true, up: 99.993, speed: 580 },
+/** a datacenter location; groupCloud/groupMetal are the Virtualizor server groups new VPSs there are created in */
+export type Loc = { id: string; label: string; sub: string; ping: number; metal: boolean; foreign: boolean; up: number; speed: number; groupCloud?: string; groupMetal?: string; active?: boolean };
+export const DEFAULT_LOCS: Loc[] = [
+  { id: "thr", label: "تهران", sub: "دیتاسنتر اصلی", ping: 8, metal: true, foreign: false, up: 99.998, speed: 940, groupCloud: "thr-cloud", groupMetal: "thr-metal", active: true },
+  { id: "isf", label: "اصفهان", sub: "دیتاسنتر پشتیبان", ping: 14, metal: false, foreign: false, up: 99.991, speed: 870, groupCloud: "isf-cloud", groupMetal: "", active: true },
+  { id: "fra", label: "فرانکفورت", sub: "آلمان", ping: 86, metal: true, foreign: true, up: 99.996, speed: 610, groupCloud: "fra-cloud", groupMetal: "fra-metal", active: true },
+  { id: "ams", label: "آمستردام", sub: "هلند", ping: 93, metal: false, foreign: true, up: 99.993, speed: 580, groupCloud: "ams-cloud", groupMetal: "", active: true },
 ];
-export const locLabel = (id: string) => (LOCS.find((l) => l.id === id) || LOCS[0]).label;
+/** the live list: starts as the defaults and is replaced in place with what the admin saved (setLocs) */
+export const LOCS: Loc[] = DEFAULT_LOCS.map((l) => ({ ...l }));
+export function setLocs(list: Loc[]) { if (list.length) LOCS.splice(0, LOCS.length, ...list); }
+/** locations customers can order in (disabled ones stay known so existing servers keep their label) */
+export const orderLocs = () => LOCS.filter((l) => l.active !== false);
+export const locLabel = (id: string) => LOCS.find((l) => l.id === id)?.label ?? id;
 export const OSES = [
   { id: "ubuntu", label: "Ubuntu 24.04" }, { id: "debian", label: "Debian 12" },
   { id: "alma", label: "AlmaLinux 9" }, { id: "win", label: "Windows 2022" },
@@ -192,7 +198,7 @@ export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: stri
       const p = cat.plans[sku.kind]?.find((x) => x.id === sku.plan);
       const l = locOf(sku.loc), b = BILLING.find((x) => x.id === sku.cycle);
       if (!p || p.active === false) return { error: "این پلن فعلا ارائه نمی‌شود." };
-      if (!l || (sku.kind === "metal" && !l.metal)) return { error: "این موقعیت برای پلن انتخابی در دسترس نیست." };
+      if (!l || l.active === false || (sku.kind === "metal" && !l.metal)) return { error: "این موقعیت برای پلن انتخابی در دسترس نیست." };
       if (!b) return { error: "دوره پرداخت نامعتبر است." };
       if (sku.hourly && (sku.kind !== "cloud" || sku.cycle !== "m")) return { error: "پرداخت ساعتی فقط برای سرور ابری ماهانه است." };
       if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
@@ -202,7 +208,7 @@ export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: stri
     case "custom": {
       const l = locOf(sku.loc);
       if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk) || (sku.tb !== undefined && !TB_STEPS.includes(sku.tb))) return { error: "منابع انتخابی نامعتبر است." };
-      if (!l || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
+      if (!l || l.active === false || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
       if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
       return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + sku.disk + " گیگ NVMe، " + (sku.tb ?? 1) + " ترابایت ترافیک، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
     }

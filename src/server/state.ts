@@ -12,6 +12,7 @@ import * as t from "./db/schema";
 import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
 import { virtFromEnv } from "./virt/driver";
+import { getLocations, publicLocations } from "./locations";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
 import { aiState, EMPTY_AI } from "./ai/state";
@@ -68,7 +69,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const tlds: Tld[] = tldRows.map((x) => ({ tld: x.tld, reg: x.reg, renew: x.renew, transfer: x.transfer, cat: x.cat, hot: x.hot, promo: x.promo }));
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
-    notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
+    notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], locations: [], virtGroups: [], coupons: [], announcements: [], audit: [], staff: [],
     settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
@@ -178,7 +179,9 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   out.inquiry = await inquiryState(db, { uid, admin });
   out.ai = await aiState(db, { uid, admin });
   out.geo = await geoState(db, { uid, admin });
+  const locations = await getLocations(db);
   if (!admin) {
+    out.locations = publicLocations(locations);
     out.nodes = nodes.map((n) => ({ ...n, cpu: 0, ram: 0, disk: 0, vms: 0, model: "" })); // locations/status only
     return { session: clientSession(auth), db: out };
   }
@@ -215,6 +218,8 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   out.audit = audit.map((a) => ({ id: a.id, actor: a.actor, action: a.action, target: a.target, ip: a.ip, at: faDateTime(a.createdAt) }));
   out.staff = staff.map((s) => ({ id: s.id, name: s.name, email: s.email, role: staffLabel(s.staffRole) }));
   const { passEnc: _secret, ...virtPublic } = virt;
+  out.locations = locations;
+  out.virtGroups = Array.isArray(virt.groups) ? (virt.groups as unknown as string[]) : [];
   out.virt = { ...virtPublic, fromEnv: virtFromEnv(), lastSync: virt.lastSync ? faDateTime(new Date(String(virt.lastSync))) : "—" };
   out.virtLog = virtLog.map((v) => ({ id: v.id, kind: v.kind, result: v.result, detail: v.detail, at: faDateTime(v.createdAt) }));
   out.planMap = planMap;

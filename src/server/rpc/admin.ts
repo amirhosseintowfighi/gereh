@@ -5,7 +5,8 @@ import type { Plan } from "@/lib/catalog";
 import { EMAIL_RE, PHONE_RE, toEnDigits } from "@/lib/format";
 import { faDateTime, parseJalali } from "@/lib/jalali";
 import { actor, method, needStaff } from "../ctx";
-import { announcements, coupons, incidents, incidentUpdates, kv, nodes, osTemplates, planMap, plans, tlds, transactions, users, virtLog } from "../db/schema";
+import { announcements, coupons, incidents, incidentUpdates, kv, nodes, osTemplates, planMap, plans, servers, tlds, transactions, users, virtLog } from "../db/schema";
+import { getLocations, saveLocations } from "../locations";
 import { COMPONENTS } from "../status";
 import { enqueue } from "../jobs";
 import { sendEmail } from "../messaging";
@@ -79,14 +80,77 @@ export const adminRpc = {
     await ctx.db.update(nodes).set({ status: n!.status === "online" ? "maintenance" : "online" }).where(eq(nodes.id, nid));
     await logAudit(ctx.db, actor(ctx), "تغییر حالت نود", nid, ctx.ip);
   }),
-  "admin.addNode": method(z.tuple([z.object({ id: z.string().max(40), loc: z.enum(["thr", "isf", "fra", "ams"]), model: z.string().max(80) })]), async (ctx, [n]) => {
+  "admin.addNode": method(z.tuple([z.object({ id: z.string().max(40), loc: z.string().max(10), model: z.string().max(80) })]), async (ctx, [n]) => {
     needStaff(ctx, "infra");
     const nid = n.id.trim().toLowerCase();
     if (!/^[a-z0-9-]{3,}$/.test(nid)) fail("شناسه نود معتبر نیست.");
+    if (!(await getLocations(ctx.db)).some((l) => l.id === n.loc)) fail("لوکیشن پیدا نشد.");
     const [dup] = await ctx.db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, nid));
     if (dup) fail("نودی با این شناسه وجود دارد.");
     await ctx.db.insert(nodes).values({ id: nid, loc: n.loc, model: n.model.trim() });
     await logAudit(ctx.db, actor(ctx), "افزودن نود", nid, ctx.ip);
+  }),
+  /** move a node to another location and/or fix its hardware label */
+  "admin.updateNode": method(z.tuple([id, z.object({ loc: z.string().max(10).optional(), model: z.string().max(80).optional() })]), async (ctx, [nid, patch]) => {
+    needStaff(ctx, "infra");
+    if (patch.loc !== undefined && !(await getLocations(ctx.db)).some((l) => l.id === patch.loc)) fail("لوکیشن پیدا نشد.");
+    const r = await ctx.db.update(nodes).set({ ...(patch.loc !== undefined ? { loc: patch.loc } : {}), ...(patch.model !== undefined ? { model: patch.model.trim() } : {}) }).where(eq(nodes.id, nid)).returning({ id: nodes.id });
+    if (!r.length) fail("نود پیدا نشد.", 404);
+    await logAudit(ctx.db, actor(ctx), "ویرایش نود", nid + (patch.loc ? " → " + patch.loc : ""), ctx.ip);
+  }),
+  /** removes the node from Gereh's list only; the server in Virtualizor is untouched (the next sync re-adds it if it still exists) */
+  "admin.deleteNode": method(z.tuple([id]), async (ctx, [nid]) => {
+    needStaff(ctx, "infra");
+    const r = await ctx.db.delete(nodes).where(eq(nodes.id, nid)).returning({ id: nodes.id });
+    if (!r.length) fail("نود پیدا نشد.", 404);
+    await logAudit(ctx.db, actor(ctx), "حذف نود", nid, ctx.ip);
+  }),
+
+  /** create or edit a datacenter location and the Virtualizor server groups it provisions into */
+  "admin.saveLocation": method(z.tuple([z.object({
+    id: z.string().max(10), label: z.string().max(40), sub: z.string().max(60), ping: z.number().int().min(0).max(1000), up: z.number().min(0).max(100), speed: z.number().int().min(0).max(100_000),
+    metal: z.boolean(), foreign: z.boolean(), active: z.boolean(), groupCloud: z.string().max(60), groupMetal: z.string().max(60), isNew: z.boolean().optional(),
+  })]), async (ctx, [l]) => {
+    needStaff(ctx, "infra");
+    const lid = l.id.trim().toLowerCase();
+    if (!/^[a-z0-9-]{2,10}$/.test(lid)) fail("شناسه لوکیشن: ۲ تا ۱۰ حرف کوچک انگلیسی، عدد یا خط تیره (مثل thr یا ist).");
+    if (!l.label.trim()) fail("نام لوکیشن لازم است.");
+    if (!l.groupCloud.trim()) fail("Server Group ابری در Virtualizor را مشخص کنید.");
+    if (l.metal && !l.groupMetal.trim()) fail("برای سرور اختصاصی، Server Group اختصاصی را هم مشخص کنید.");
+    const list = await getLocations(ctx.db);
+    const at = list.findIndex((x) => x.id === lid);
+    if (l.isNew && at >= 0) fail("لوکیشنی با این شناسه وجود دارد.");
+    if (!l.isNew && at < 0) fail("لوکیشن پیدا نشد.", 404);
+    const { isNew: _n, ...rest } = l;
+    const item = { ...rest, id: lid, label: l.label.trim(), sub: l.sub.trim(), groupCloud: l.groupCloud.trim(), groupMetal: l.metal ? l.groupMetal.trim() : "" };
+    const next = at >= 0 ? list.map((x, i) => (i === at ? item : x)) : [...list, item];
+    if (!next.some((x) => x.active !== false)) fail("دست‌کم یک لوکیشن باید فعال بماند.");
+    await saveLocations(ctx.db, next);
+    await logAudit(ctx.db, actor(ctx), at >= 0 ? "ویرایش لوکیشن" : "افزودن لوکیشن", lid + " → " + item.groupCloud, ctx.ip);
+  }),
+  "admin.moveLocation": method(z.tuple([z.string().max(10), z.enum(["up", "down"])]), async (ctx, [lid, dir]) => {
+    needStaff(ctx, "infra");
+    const list = await getLocations(ctx.db);
+    const i = list.findIndex((x) => x.id === lid), j = dir === "up" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    await saveLocations(ctx.db, list);
+  }),
+  /** only an empty location can be deleted: move its nodes first; servers living there block it (disable it instead) */
+  "admin.deleteLocation": method(z.tuple([z.string().max(10)]), async (ctx, [lid]) => {
+    needStaff(ctx, "infra");
+    const list = await getLocations(ctx.db);
+    if (!list.some((x) => x.id === lid)) fail("لوکیشن پیدا نشد.", 404);
+    const [[s], [n]] = await Promise.all([
+      ctx.db.select({ n: count() }).from(servers).where(eq(servers.loc, lid)),
+      ctx.db.select({ n: count() }).from(nodes).where(eq(nodes.loc, lid)),
+    ]);
+    if (s.n) fail(s.n.toLocaleString("fa-IR") + " سرور مشتری در این لوکیشن است. به‌جای حذف، آن را غیرفعال کنید تا سفارش جدید نگیرد.");
+    if (n.n) fail(n.n.toLocaleString("fa-IR") + " نود در این لوکیشن است. اول نودها را به لوکیشن دیگری منتقل یا حذف کنید.");
+    const next = list.filter((x) => x.id !== lid);
+    if (!next.some((x) => x.active !== false)) fail("دست‌کم یک لوکیشن باید فعال بماند.");
+    await saveLocations(ctx.db, next);
+    await logAudit(ctx.db, actor(ctx), "حذف لوکیشن", lid, ctx.ip);
   }),
 
   "admin.saveCoupon": method(z.tuple([z.object({ id: z.string().max(40).optional(), code: z.string().max(20), type: z.enum(["percent", "fixed"]).optional(), value: money.optional(), limit: z.number().int().min(0).optional(), expires: z.string().max(20).optional(), active: z.boolean().optional() }).passthrough()]), async (ctx, [c]) => {
@@ -163,7 +227,13 @@ export const adminRpc = {
     let detail = "";
     if (/سرور|نود/.test(label)) {
       const list = await v.servers();
-      for (const s of list) await ctx.db.insert(nodes).values({ id: s.name, loc: s.group.split("-")[0] || "thr", model: "", cpu: s.cpu, ram: s.ram, disk: s.disk, vms: s.vms }).onConflictDoUpdate({ target: nodes.id, set: { cpu: s.cpu, ram: s.ram, disk: s.disk, vms: s.vms } });
+      const locs = await getLocations(ctx.db);
+      // a node belongs to the location whose cloud/metal server group matches its Virtualizor group
+      const locFor = (g: string) => locs.find((l) => l.groupCloud === g || l.groupMetal === g)?.id ?? locs.find((l) => l.id === g.split("-")[0])?.id ?? locs[0]?.id ?? "thr";
+      for (const s of list) await ctx.db.insert(nodes).values({ id: s.name, loc: locFor(s.group), model: "", cpu: s.cpu, ram: s.ram, disk: s.disk, vms: s.vms }).onConflictDoUpdate({ target: nodes.id, set: { cpu: s.cpu, ram: s.ram, disk: s.disk, vms: s.vms } });
+      const groups = [...new Set(list.map((s) => s.group).filter(Boolean))].sort();
+      const cur = await getVirt(ctx.db);
+      await ctx.db.insert(kv).values({ key: "virt", value: { ...cur, groups } }).onConflictDoUpdate({ target: kv.key, set: { value: { ...cur, groups } } });
       detail = list.length.toLocaleString("fa-IR") + " سرور";
     } else if (/قالب/.test(label)) {
       const list = await v.osTemplates();

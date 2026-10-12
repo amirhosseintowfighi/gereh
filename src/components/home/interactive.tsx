@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
+import { useLocs } from "@/lib/use-locs";
 import { CPU_STEPS, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, WIN_LICENSE, configLines, configPrice, parseDomain } from "@/lib/catalog";
 import { EMAIL_RE, fa, hashStr, toman } from "@/lib/format";
 import { useApp } from "../app-context";
@@ -316,12 +317,14 @@ function Slider({ icon, label, steps, idx, setIdx, fmt }: { icon: string; label:
 export function Builder({ id = "builder" }: { id?: string }) {
   const { addToCart } = useApp();
   const [ci, setCi] = useState(2), [ri, setRi] = useState(3), [di, setDi] = useState(4), [ti, setTi] = useState(1);
-  const [loc, setLoc] = useState("thr"), [os, setOs] = useState("ubuntu");
+  const [locSel, setLoc] = useState("thr"), [os, setOs] = useState("ubuntu");
   const [backup, setBackup] = useState(true), [ips, setIps] = useState(0);
+  const locs = useLocs().filter((l) => l.active !== false);
+  const locObj = locs.find((l) => l.id === locSel) || locs[0] || LOCS[0];
+  const loc = locObj.id;
   const cfg = { cpu: CPU_STEPS[ci], ram: RAM_STEPS[ri], disk: DISK_STEPS[di], tb: TB_STEPS[ti], loc, os, ips, backup };
   const final = configPrice(cfg);
   const priceLines = configLines(cfg);
-  const locObj = LOCS.find((l) => l.id === loc)!;
   const tier = cfg.cpu >= 16 ? "سنگین" : cfg.cpu >= 6 ? "حرفه‌ای" : cfg.cpu >= 2 ? "متعادل" : "سبک";
   const lines = [
     ["موقعیت", locObj.label], ["سیستم‌عامل", OSES.find((o) => o.id === os)!.label],
@@ -341,7 +344,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
           <fieldset>
             <legend className="text-sm text-white/75 mb-3 flex items-center gap-2"><Icon name="map-pin" size={17} className="acc" /> موقعیت دیتاسنتر</legend>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {LOCS.map((l) => (
+              {locs.map((l) => (
                 <button type="button" key={l.id} onClick={() => setLoc(l.id)} aria-pressed={loc === l.id}
                   className={"rounded-2xl p-3 text-right border transition " + (loc === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.04] border-white/10 hover:bg-white/10")}>
                   <div className="font-bold text-sm">{l.label}</div>
@@ -414,7 +417,8 @@ export function Builder({ id = "builder" }: { id?: string }) {
 const uptimeDays = (seed: string) => Array.from({ length: 60 }, (_, i) => { const h = hashStr(seed + i) % 100; return h < 3 ? "warn" : h < 4 ? "down" : "ok"; });
 export function Network() {
   const [sel, setSel] = useState("thr");
-  const loc = LOCS.find((l) => l.id === sel)!;
+  const locs = useLocs().filter((l) => l.active !== false);
+  const loc = locs.find((l) => l.id === sel) || locs[0] || LOCS[0];
   const [pings, setPings] = useState<Record<string, number>>(() => Object.fromEntries(LOCS.map((l) => [l.id, l.ping])));
   const [hist, setHist] = useState<number[]>(() => Array.from({ length: 30 }, (_, i) => loc.ping + Math.sin(i / 2) * 1.5));
   const [hover, setHover] = useState<number | null>(null);
@@ -423,12 +427,12 @@ export function Network() {
     const t = setInterval(() => {
       const next = Object.fromEntries(LOCS.map((l) => [l.id, Math.max(1, Math.round(l.ping + (Math.random() - 0.5) * (l.ping * 0.25 + 2)))]));
       setPings(next);
-      setHist((h) => [...h.slice(1), next[sel]]);
+      setHist((h) => [...h.slice(1), next[loc.id] ?? loc.ping]);
     }, 1300);
     return () => clearInterval(t);
-  }, [sel]);
+  }, [loc.id, loc.ping]);
   const choose = (id: string) => {
-    const l = LOCS.find((x) => x.id === id)!;
+    const l = locs.find((x) => x.id === id) || loc;
     setSel(id); setHist(Array.from({ length: 30 }, (_, i) => l.ping + Math.sin(i / 2) * 1.5)); setTest({ phase: "idle", p: 0, mbps: 0 });
   };
   useEffect(() => {
@@ -450,15 +454,15 @@ export function Network() {
       <SectionHead title="شبکه‌ای که می‌توانید ببینید" sub="وضعیت دیتاسنترها را دنبال کنید و سرعت اتصال را خودتان بسنجید." />
       <div className="grid lg:grid-cols-[320px_1fr] gap-5">
         <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
-          {LOCS.map((l) => (
-            <button type="button" key={l.id} onClick={() => choose(l.id)} aria-pressed={sel === l.id}
-              className={"spot rounded-2xl p-4 text-right border backdrop-blur-md transition " + (sel === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.06] border-white/15 hover:bg-white/10")}>
+          {locs.map((l) => (
+            <button type="button" key={l.id} onClick={() => choose(l.id)} aria-pressed={loc.id === l.id}
+              className={"spot rounded-2xl p-4 text-right border backdrop-blur-md transition " + (loc.id === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.06] border-white/15 hover:bg-white/10")}>
               <div className="flex items-center justify-between">
                 <span className="font-extrabold">{l.label}</span>
                 <span className="relative flex w-2.5 h-2.5" aria-label="عملیاتی"><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-50" /><span className="relative w-2.5 h-2.5 rounded-full bg-emerald-400" /></span>
               </div>
               <div className="text-[11px] text-white/55 mt-1">{l.sub}</div>
-              <div className="mt-3 flex items-baseline gap-1"><span className="font-black text-xl tabular-nums">{fa(pings[l.id])}</span><span className="text-[11px] text-white/50">ms</span></div>
+              <div className="mt-3 flex items-baseline gap-1"><span className="font-black text-xl tabular-nums">{fa(pings[l.id] ?? l.ping)}</span><span className="text-[11px] text-white/50">ms</span></div>
             </button>
           ))}
         </div>
@@ -466,7 +470,7 @@ export function Network() {
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-sm text-white/60"><Icon name="activity" size={16} className="acc" /> تأخیر شبکه تا {loc.label}</div>
-              <div className="mt-2 flex items-baseline gap-2"><Num value={pings[sel]} className="text-5xl font-black tabular-nums" /><span className="text-white/50">میلی‌ثانیه</span></div>
+              <div className="mt-2 flex items-baseline gap-2"><Num value={pings[loc.id] ?? loc.ping} className="text-5xl font-black tabular-nums" /><span className="text-white/50">میلی‌ثانیه</span></div>
               <svg viewBox={`0 0 ${w} ${hh}`} preserveAspectRatio="none" className="w-full mt-4" style={{ height: 64 }} aria-hidden="true">
                 <path d={path} fill="none" stroke="#7dd3fc" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
               </svg>

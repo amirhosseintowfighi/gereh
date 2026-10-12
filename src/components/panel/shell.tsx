@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from "react";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
+import { useLocs } from "@/lib/use-locs";
 import { useApp } from "../app-context";
 import { VirguleLink, VirguleMark, Wordmark } from "../brand";
 import { AccountSwitcher, roleLabel } from "./team";
@@ -73,6 +74,7 @@ export function PanelGate({ kind, children }: { kind: "user" | "admin"; children
 
 function PanelShell({ kind, children }: { kind: "user" | "admin"; children: React.ReactNode }) {
   const db = useDB();
+  useLocs(db.locations); // keeps location labels (locLabel) in sync with what the admin saved
   const myId = useMyId();
   const session = useSession();
   const path = usePathname();

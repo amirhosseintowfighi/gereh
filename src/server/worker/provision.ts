@@ -7,6 +7,7 @@ import { addMonths } from "@/lib/jalali";
 import type { DB } from "../db/client";
 import { dnsRecords, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users } from "../db/schema";
 import { enqueue } from "../jobs";
+import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
 import { cloudInitFor } from "../apps";
 import { virt } from "../virt/driver";
@@ -29,6 +30,7 @@ export async function provisionServer(db: DB, p: Payload) {
   const u = await owner(db, p.userId);
 
   // resources, plan and location
+  const locs = await getLocations(db);
   let name: string, cpu: number, ram: number, disk: number, price: number, plid = 0, group: string, months = 1;
   if (sku.t === "plan") {
     const [row] = await db.select().from(plans).where(and(eq(plans.id, sku.plan), eq(plans.kind, sku.kind)));
@@ -36,7 +38,7 @@ export async function provisionServer(db: DB, p: Payload) {
     [cpu, ram, disk] = PLAN_NUMS[sku.plan] ?? [8, 64, 2000];
     const [m] = await db.select().from(planMap).where(eq(planMap.id, sku.plan));
     plid = m?.plid ?? 0;
-    group = m?.group.replace(/^thr/, sku.loc) ?? sku.loc + "-cloud";
+    group = locationGroup(locs.find((l) => l.id === sku.loc), sku.kind) || (m?.group.replace(/^thr/, sku.loc) ?? sku.loc + "-cloud");
     name = plan.name;
     const cycle = BILLING.find((b) => b.id === sku.cycle)!;
     months = cycle.months;
@@ -46,7 +48,7 @@ export async function provisionServer(db: DB, p: Payload) {
     const { configPrice } = await import("@/lib/catalog");
     price = configPrice(sku);
     name = "سفارشی";
-    group = sku.loc + "-cloud";
+    group = locationGroup(locs.find((l) => l.id === sku.loc), "cloud") || sku.loc + "-cloud";
     const [m] = await db.select().from(planMap).where(eq(planMap.id, "c1"));
     plid = m?.plid ?? 0;
   }

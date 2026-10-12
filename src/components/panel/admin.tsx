@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LOCS, locLabel } from "@/lib/catalog";
+import { LOCS, locLabel, type Loc } from "@/lib/catalog";
+import { useLocs } from "@/lib/use-locs";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { EMAIL_RE, PHONE_RE, fa, nowFa, toEnDigits, toman } from "@/lib/format";
 import { api, byId, invGross, useDB, type Coupon, type Invoice } from "@/lib/store";
@@ -348,44 +349,95 @@ export function AdminProducts() {
 }
 
 /* ================= infrastructure ================= */
+type LocForm = Loc & { isNew?: boolean };
+const NEW_LOC: LocForm = { id: "", label: "", sub: "", ping: 10, metal: false, foreign: false, up: 99.99, speed: 900, groupCloud: "", groupMetal: "", active: true, isNew: true };
 export function AdminInfra() {
   const db = useDB();
   const { notify, confirm } = useApp();
+  const locs = useLocs(db.locations);
   const [add, setAdd] = useState<{ id: string; loc: string; model: string } | null>(null);
+  const [edit, setEdit] = useState<LocForm | null>(null);
+  const groups = [...new Set([...(db.virtGroups || []), ...locs.flatMap((l) => [l.groupCloud || "", l.groupMetal || ""])].filter(Boolean))].sort();
+  const num = (v: string) => Number(amountInput(v) || 0);
   return (
     <div>
-      <PageTitle title="زیرساخت" sub="دیتاسنترها و نودهای مجازی‌سازی (همگام با Virtualizor)" action={<button type="button" onClick={() => setAdd({ id: "", loc: "thr", model: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> افزودن نود</button>} />
+      <PageTitle title="زیرساخت" sub="لوکیشن‌ها، اتصال هر کدام به Server Group در Virtualizor، و نودهای مجازی‌سازی"
+        action={<div className="flex gap-2">
+          <button type="button" onClick={() => setAdd({ id: "", loc: locs[0]?.id ?? "", model: "" })} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="radio-tower" size={16} /> افزودن نود</button>
+          <button type="button" onClick={() => setEdit({ ...NEW_LOC })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> افزودن لوکیشن</button>
+        </div>} />
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {LOCS.map((l) => {
+        {locs.map((l, i) => {
           const ns = db.nodes.filter((n) => n.loc === l.id && n.status === "online");
           const all = db.nodes.filter((n) => n.loc === l.id);
           const vms = all.reduce((s, n) => s + n.vms, 0);
           const avg = ns.length ? Math.round(ns.reduce((s, n) => s + n.cpu, 0) / ns.length) : 0;
+          const linked = !!l.groupCloud;
           return (
-            <div key={l.id} className="spot rounded-[1.4rem] p-5 bg-white/[0.055] backdrop-blur-xl border border-white/[0.11] hl">
-              <div className="flex items-center justify-between"><span className="font-extrabold">{l.label}</span><span className={"w-2.5 h-2.5 rounded-full " + (ns.length ? "bg-emerald-400" : "bg-amber-300")} aria-label={ns.length ? "آنلاین" : "بدون نود فعال"} /></div>
-              <div className="text-xs text-white/55 mt-1">{fa(all.length)} نود، {fa(vms)} ماشین مجازی</div>
+            <div key={l.id} className={"spot rounded-[1.4rem] p-5 bg-white/[0.055] backdrop-blur-xl border border-white/[0.11] hl " + (l.active === false ? "opacity-60" : "")}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-extrabold truncate">{l.label} <span className="mono text-[11px] text-white/45 font-normal">{l.id}</span></span>
+                <Menu triggerClass={ICON_BTN} trigger={<Icon name="ellipsis-vertical" size={16} />} label={"عملیات " + l.label} items={[
+                  { label: "ویرایش و اتصال به Virtualizor", icon: "pencil", run: () => setEdit({ ...l }) },
+                  { label: l.active === false ? "فعال کردن" : "غیرفعال کردن (بدون سفارش جدید)", icon: l.active === false ? "eye" : "eye-off", run: async () => { await api.admin.saveLocation({ ...l, active: l.active === false }); notify(l.active === false ? "لوکیشن فعال شد" : "لوکیشن غیرفعال شد"); } },
+                  ...(i > 0 ? [{ label: "انتقال به قبل", icon: "arrow-right", run: () => api.admin.moveLocation(l.id, "up") }] : []),
+                  ...(i < locs.length - 1 ? [{ label: "انتقال به بعد", icon: "arrow-left", run: () => api.admin.moveLocation(l.id, "down") }] : []),
+                  { label: "حذف لوکیشن", icon: "trash-2", danger: true, run: async () => { if (!(await confirm("لوکیشن «" + l.label + "» حذف شود؟", { danger: true }))) return; await api.admin.deleteLocation(l.id); notify("لوکیشن حذف شد"); } },
+                ]} />
+              </div>
+              <div className="text-xs text-white/55 mt-1">{fa(all.length)} نود، {fa(vms)} ماشین مجازی{l.active === false ? "، غیرفعال" : ""}</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge tone={linked ? "green" : "red"} dot>{linked ? "Virtualizor: " + l.groupCloud : "بدون Server Group"}</Badge>
+                {l.metal && <Badge tone={l.groupMetal ? "green" : "amber"}>{"اختصاصی: " + (l.groupMetal || "—")}</Badge>}
+              </div>
               <div className="mt-4"><Meter label="میانگین بار CPU" value={avg} right={fa(avg) + "٪"} /></div>
             </div>
           );
         })}
       </div>
-      <DataTable rows={db.nodes} searchKeys={["id", "model"]} filters={[{ key: "status", label: "وضعیت", options: ["online", "maintenance"] }]}
+      <DataTable rows={db.nodes} searchKeys={["id", "model"]} filters={[{ key: "status", label: "وضعیت", options: ["online", "maintenance"] }, { key: "loc", label: "لوکیشن", options: locs.map((l) => l.id) }]}
         columns={[
           { key: "id", label: "نود", render: (r) => <div><div className="mono font-bold">{r.id}</div><div className="text-[11px] text-white/55 ltr text-right">{r.model}</div></div> },
-          { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
+          { key: "loc", label: "لوکیشن", render: (r) => <div className="w-36"><Select value={r.loc} label={"لوکیشن " + r.id} onChange={async (v) => { await api.admin.updateNode(r.id, { loc: v }); notify("نود " + r.id + " به " + locLabel(v) + " منتقل شد"); }} options={[...locs.map((l) => ({ value: l.id, label: l.label })), ...(locs.some((l) => l.id === r.loc) ? [] : [{ value: r.loc, label: r.loc + " (حذف‌شده)" }])]} /></div> },
           { key: "cpu", label: "CPU", sortable: true, render: (r) => <div className="w-28"><Meter value={r.cpu} right={fa(r.cpu) + "٪"} label="CPU" /></div> },
           { key: "ram", label: "RAM", sortable: true, render: (r) => <div className="w-28"><Meter value={r.ram} right={fa(r.ram) + "٪"} label="RAM" /></div> },
           { key: "disk", label: "دیسک", render: (r) => <div className="w-28"><Meter value={r.disk} right={fa(r.disk) + "٪"} label="دیسک" /></div> },
           { key: "vms", label: "VM", sortable: true, render: (r) => fa(r.vms) },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
-          { key: "a", label: "حالت نگهداری", render: (r) => <Switch on={r.status === "maintenance"} label={"حالت نگهداری " + r.id} onChange={async () => { if (r.status === "online" && !(await confirm("نود " + r.id + " به حالت نگهداری برود؟ ماشین‌ها جابه‌جا می‌شوند.", { danger: true }))) return; await api.admin.toggleNode(r.id); notify("حالت نود تغییر کرد"); }} /> },
+          { key: "a", label: "نگهداری", render: (r) => <Switch on={r.status === "maintenance"} label={"حالت نگهداری " + r.id} onChange={async () => { if (r.status === "online" && !(await confirm("نود " + r.id + " به حالت نگهداری برود؟ ماشین‌ها جابه‌جا می‌شوند.", { danger: true }))) return; await api.admin.toggleNode(r.id); notify("حالت نود تغییر کرد"); }} /> },
+          { key: "x", label: "", render: (r) => <IconBtn icon="trash-2" label={"حذف نود " + r.id} onClick={async () => { if (!(await confirm("نود " + r.id + " از فهرست گره حذف شود؟ روی Virtualizor تغییری نمی‌کند و اگر آن‌جا باقی باشد، همگام‌سازی بعدی دوباره اضافه‌اش می‌کند.", { danger: true }))) return; await api.admin.deleteNode(r.id); notify("نود حذف شد"); }} /> },
         ]} />
+      <p className="text-[11px] text-white/55 mt-3 leading-6">نودها با «همگام‌سازی سرورها» در صفحه اتصال Virtualizor به‌روز می‌شوند و بر اساس Server Group خود، خودکار به لوکیشن مربوط وصل می‌شوند.</p>
+
+      <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.isNew ? "افزودن لوکیشن" : "ویرایش لوکیشن"} icon="map-pin"
+        footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!edit) return; await api.admin.saveLocation(edit); notify(edit.isNew ? "لوکیشن اضافه شد" : "لوکیشن ذخیره شد"); setEdit(null); }}>ذخیره</AsyncButton></>}>
+        {edit && <div className="space-y-4">
+          <datalist id="virt-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="شناسه" hint="۲ تا ۱۰ حرف انگلیسی؛ بعداً قابل تغییر نیست"><input value={edit.id} disabled={!edit.isNew} onChange={(e) => setEdit((s) => s && { ...s, id: e.target.value.toLowerCase() })} dir="ltr" placeholder="ist" className={INPUT + " text-left mono"} /></Field>
+            <Field label="نام"><input value={edit.label} onChange={(e) => setEdit((s) => s && { ...s, label: e.target.value })} placeholder="استانبول" className={INPUT} /></Field>
+          </div>
+          <Field label="توضیح کوتاه"><input value={edit.sub} onChange={(e) => setEdit((s) => s && { ...s, sub: e.target.value })} placeholder="ترکیه" className={INPUT} /></Field>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Server Group ابری در Virtualizor" hint={groups.length ? "از فهرست انتخاب کنید یا بنویسید" : "اول «همگام‌سازی سرورها» را بزنید تا فهرست بیاید"}><input list="virt-groups" value={edit.groupCloud ?? ""} onChange={(e) => setEdit((s) => s && { ...s, groupCloud: e.target.value })} dir="ltr" placeholder="ist-cloud" className={INPUT + " text-left mono"} /></Field>
+            <Field label="Server Group اختصاصی" hint="فقط اگر سرور اختصاصی می‌فروشید"><input list="virt-groups" value={edit.groupMetal ?? ""} disabled={!edit.metal} onChange={(e) => setEdit((s) => s && { ...s, groupMetal: e.target.value })} dir="ltr" placeholder="ist-metal" className={INPUT + " text-left mono"} /></Field>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="پینگ (ms)"><input value={edit.ping} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, ping: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field label="آپتایم ٪"><input value={edit.up} inputMode="decimal" onChange={(e) => setEdit((s) => s && { ...s, up: Math.min(100, Number(toEnDigits(e.target.value).replace(/[^0-9.]/g, "")) || 0) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field label="سرعت (Mbps)"><input value={edit.speed} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, speed: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+          </div>
+          {([["metal", "سرور اختصاصی در این لوکیشن"], ["foreign", "دیتاسنتر خارج (۱۲٪ افزایش قیمت سرور ابری)"], ["active", "فعال برای سفارش جدید"]] as const).map(([k, label]) => (
+            <div key={k} className="flex items-center justify-between gap-3"><span className="text-sm">{label}</span><Switch on={k === "active" ? edit.active !== false : !!edit[k]} label={label} onChange={(v) => setEdit((s) => s && { ...s, [k]: v })} /></div>
+          ))}
+        </div>}
+      </Modal>
+
       <Modal open={!!add} onClose={() => setAdd(null)} title="افزودن نود" icon="radio-tower"
         footer={<><button type="button" onClick={() => setAdd(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!add) return; const v = { ...add, id: add.id.trim().toLowerCase(), model: add.model.trim() }; if (!/^[a-z0-9-]{3,}$/.test(v.id)) throw new Error("شناسه نود معتبر نیست."); await api.admin.addNode(v); setAdd(null); notify("نود اضافه شد"); }}>افزودن</AsyncButton></>}>
         {add && <div className="space-y-4">
-          <Field label="شناسه" hint="مثال: thr-hv-04"><input value={add.id} onChange={(e) => setAdd((s) => s && { ...s, id: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-          <Field label="دیتاسنتر"><Select value={add.loc} label="دیتاسنتر" onChange={(v) => setAdd((s) => s && { ...s, loc: v })} options={LOCS.map((l) => ({ value: l.id, label: l.label }))} /></Field>
+          <Field label="شناسه" hint="همان نام سرور در Virtualizor، مثال: thr-hv-04"><input value={add.id} onChange={(e) => setAdd((s) => s && { ...s, id: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+          <Field label="لوکیشن"><Select value={add.loc} label="لوکیشن" onChange={(v) => setAdd((s) => s && { ...s, loc: v })} options={locs.map((l) => ({ value: l.id, label: l.label }))} /></Field>
           <Field label="سخت‌افزار"><input value={add.model} onChange={(e) => setAdd((s) => s && { ...s, model: e.target.value })} dir="ltr" placeholder="EPYC 9354 / 768GB" className={INPUT + " text-left"} /></Field>
         </div>}
       </Modal>

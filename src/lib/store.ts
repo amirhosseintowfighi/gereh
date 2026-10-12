@@ -8,7 +8,7 @@
    reading plain snapshots through useDB()/useSession().
    ===================================================================== */
 import { useSyncExternalStore } from "react";
-import type { Sku } from "./catalog";
+import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
 import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, Ticket } from "./types";
@@ -19,7 +19,7 @@ export type DB = ClientDB;
 
 export const EMPTY_DB: ClientDB = {
   users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
-  notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], coupons: [], announcements: [], audit: [], staff: [],
+  notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], locations: [], virtGroups: [], coupons: [], announcements: [], audit: [], staff: [],
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
@@ -362,6 +362,11 @@ export const api = {
     updateTld: (tld: string, patch: { reg?: number; renew?: number; transfer?: number; promo?: boolean }) => rpc("admin.updateTld", tld, patch),
     toggleNode: (id: string) => rpc("admin.toggleNode", id),
     addNode: (n: { id: string; loc: string; model: string }) => rpc("admin.addNode", n),
+    updateNode: (id: string, patch: { loc?: string; model?: string }) => rpc("admin.updateNode", id, patch),
+    deleteNode: (id: string) => rpc("admin.deleteNode", id),
+    saveLocation: (l: Loc & { isNew?: boolean }) => rpc("admin.saveLocation", { ...l, groupCloud: l.groupCloud ?? "", groupMetal: l.groupMetal ?? "", active: l.active !== false }),
+    moveLocation: (id: string, dir: "up" | "down") => rpc("admin.moveLocation", id, dir),
+    deleteLocation: (id: string) => rpc("admin.deleteLocation", id),
     saveCoupon: (c: Partial<Coupon> & { code: string }) => rpc("admin.saveCoupon", c),
     deleteCoupon: (id: string) => rpc("admin.deleteCoupon", id),
     saveAnnouncement: (a: { title: string; body: string; level: "info" | "warning" | "critical" }) => rpc("admin.saveAnnouncement", a),

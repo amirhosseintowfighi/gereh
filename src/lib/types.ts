@@ -129,7 +129,7 @@ export type ClientDB = {
   inbox: { id: string; at: string; name: string; email: string; dept: string; subject: string; message: string }[];
   notifications: { id: string; icon: string; text: string; at: string; read: boolean }[];
   activity: { id: string; icon: string; text: string; at: string; ip: string }[];
-  nodes: Node[]; coupons: Coupon[]; announcements: Announcement[];
+  nodes: Node[]; locations: import("./catalog").Loc[]; virtGroups: string[]; coupons: Coupon[]; announcements: Announcement[];
   audit: { id: string; actor: string; action: string; target: string; at: string; ip: string }[];
   staff: { id: string; name: string; email: string; role: string }[];
   settings: Settings;

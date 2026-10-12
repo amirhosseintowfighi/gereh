@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useLocs } from "@/lib/use-locs";
 import { APPS, BILLING, CLOUD_SPECS, HOSTING, LOCS, cloudLines, parseDomain, type Plan, type PriceLine } from "@/lib/catalog";
 import { BTN_G, BTN_P, GLASS } from "@/lib/cls";
 import { fa, roundK, toman } from "@/lib/format";
@@ -67,9 +68,10 @@ export function VpsPlans() {
   const [kind, setKindRaw] = useState<"cloud" | "metal">("cloud");
   const [billing, setBilling] = useState("m");
   const [loc, setLoc] = useState("thr");
+  const open = useLocs().filter((l) => l.active !== false);
   const setKind = (k: string) => {
     setKindRaw(k as "cloud" | "metal");
-    if (k === "metal" && !LOCS.find((l) => l.id === loc)?.metal) setLoc("thr");
+    if (k === "metal" && !open.find((l) => l.id === loc)?.metal) setLoc(open.find((l) => l.metal)?.id ?? loc);
   };
   useEffect(() => {
     const sync = () => { if (location.hash === "#dedicated") setKind("metal"); };
@@ -79,8 +81,8 @@ export function VpsPlans() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const b = BILLING.find((x) => x.id === billing)!;
-  const locs = kind === "metal" ? LOCS.filter((l) => l.metal) : LOCS;
-  const locObj = LOCS.find((l) => l.id === loc) || LOCS[0];
+  const locs = kind === "metal" ? open.filter((l) => l.metal) : open;
+  const locObj = locs.find((l) => l.id === loc) || locs[0] || LOCS[0];
   const monthly = (p: Plan, k: string) => roundK(p.price * (locObj.foreign && k === "cloud" ? 1.12 : 1) * (1 - b.disc));
 
   return (
@@ -89,8 +91,8 @@ export function VpsPlans() {
         <div className="overflow-x-auto no-scrollbar"><Tabs value={kind} onChange={setKind} label="نوع سرور" options={[{ id: "cloud", label: "سرور ابری", icon: "cloud" }, { id: "metal", label: "سرور اختصاصی", icon: "server-cog" }]} /></div>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="موقعیت دیتاسنتر">
           {locs.map((l) => (
-            <button type="button" key={l.id} onClick={() => setLoc(l.id)} aria-pressed={loc === l.id}
-              className={"px-3 h-10 rounded-xl text-sm whitespace-nowrap border transition flex items-center gap-1.5 " + (loc === l.id ? "bg-white/[0.18] border-white/40" : "bg-white/[0.05] border-white/10 text-white/70 hover:bg-white/10")}>
+            <button type="button" key={l.id} onClick={() => setLoc(l.id)} aria-pressed={locObj.id === l.id}
+              className={"px-3 h-10 rounded-xl text-sm whitespace-nowrap border transition flex items-center gap-1.5 " + (locObj.id === l.id ? "bg-white/[0.18] border-white/40" : "bg-white/[0.05] border-white/10 text-white/70 hover:bg-white/10")}>
               <Icon name="map-pin" size={14} />{l.label}
             </button>
           ))}
@@ -122,7 +124,7 @@ export function VpsPlans() {
                 <PlanCard key={p.id} p={p} rows={VPS_ROWS} priceBase={monthly(p, k)} breakdown={k === "cloud" ? planLines(p) : null}
                   extra={b.months > 1 ? <div className="text-[11px] text-emerald-300 mt-1">پرداخت {b.label}: {toman(monthly(p, k) * b.months)}</div>
                     : hourly && k === "cloud" ? <div className="text-[11px] text-emerald-300 mt-1">ساعتی حدود {toman(Math.max(1, Math.round(monthly(p, k) / 720)))}</div> : null}
-                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}), ...(app && k === "cloud" ? { app } : {}) })} />
+                  onAdd={() => addToCart({ t: "plan", kind: k, plan: p.id, loc: locObj.id, cycle: b.id as "m" | "q" | "y", ...(hourly && k === "cloud" ? { hourly: true } : {}), ...(app && k === "cloud" ? { app } : {}) })} />
               ))}
             </div>
 
