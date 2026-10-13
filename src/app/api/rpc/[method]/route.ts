@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { customAllows } from "@/server/account-extras";
 import { context, teamAllows } from "@/server/ctx";
 import { errorResponse, noStore, sameOrigin } from "@/server/http";
 import { registry } from "@/server/rpc";
@@ -12,7 +13,7 @@ export async function POST(req: Request, { params }: RouteContext<"/api/rpc/[met
     const body = (await req.json().catch(() => ({}))) as { args?: unknown };
     const args = m.args.parse(body.args ?? []);
     const ctx = await context();
-    if (!teamAllows(ctx.auth?.teamRole, method)) return NextResponse.json({ error: "نقش شما در این حساب اجازه این کار را ندارد." }, { status: 403 });
+    if (!teamAllows(ctx.auth?.teamRole, method) || !(await customAllows(ctx.db, ctx.auth, method))) return NextResponse.json({ error: "نقش شما در این حساب اجازه این کار را ندارد." }, { status: 403 });
     const result = await m.run(ctx, args);
     return NextResponse.json({ result: result ?? null }, { headers: noStore });
   } catch (e) {

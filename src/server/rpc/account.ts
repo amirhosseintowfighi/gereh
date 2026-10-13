@@ -6,7 +6,7 @@ import { EMAIL_RE, PHONE_RE, strength, toEnDigits } from "@/lib/format";
 import { verifyTotp } from "@/lib/totp";
 import { rateLimit } from "../auth";
 import { method, needUser } from "../ctx";
-import { apiTokens, notifications, sessions, sshKeys, users } from "../db/schema";
+import { apiTokens, notifications, recoveryCodes, sessions, sshKeys, users } from "../db/schema";
 import { hashPassword, verifyPassword } from "../password";
 import { fail, logActivity, randomSecret, rid, sha256 } from "../util";
 
@@ -57,6 +57,7 @@ export const accountRpc = {
     if (on && !/^[A-Z2-7]{32}$/.test(secret || "")) fail("کلید نامعتبر است؛ دوباره تلاش کنید.");
     if (!(check && code && (await verifyTotp(check, toEnDigits(code))))) fail("کد واردشده درست نیست؛ کد فعلی اپلیکیشن را وارد کنید.");
     await ctx.db.update(users).set({ twofaSecret: on ? check : null }).where(eq(users.id, a.user.id));
+    if (!on) await ctx.db.delete(recoveryCodes).where(eq(recoveryCodes.userId, a.user.id));
     await logActivity(ctx.db, a.user.id, "shield-check", on ? "فعال‌سازی ورود دومرحله‌ای" : "غیرفعال‌سازی ورود دومرحله‌ای", ctx.ip);
   }),
 
@@ -66,7 +67,7 @@ export const accountRpc = {
     await ctx.db.delete(sessions).where(and(eq(sessions.userId, a.user.id), like(sessions.id, prefix + "%"), ne(sessions.id, a.sessionId)));
   }),
 
-  "account.setNotif": method(z.tuple([z.string().regex(/^[a-z]+_(email|sms)$/), z.boolean()]), async (ctx, [key, val]) => {
+  "account.setNotif": method(z.tuple([z.string().regex(/^[a-z]+_(email|sms|push|telegram)$/), z.boolean()]), async (ctx, [key, val]) => {
     const a = needUser(ctx);
     await ctx.db.update(users).set({ notifPrefs: sql`${users.notifPrefs} || ${JSON.stringify({ [key]: val })}::jsonb` }).where(eq(users.id, a.uid));
   }),

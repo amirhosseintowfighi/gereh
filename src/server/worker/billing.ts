@@ -5,13 +5,14 @@ import { and, eq, inArray, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
 import { invGross } from "@/lib/money";
 import type { DB } from "../db/client";
-import { domains, hosting, invoiceItems, invoices, servers, tlds, transactions, users } from "../db/schema";
+import { domains, hosting, invoiceItems, invoices, servers, tlds, users } from "../db/schema";
+import { debit } from "../billing-extras";
 import { enqueue } from "../jobs";
 import { createInvoice, settleInvoice } from "../rpc/billing";
 import type { FulfilItem } from "../rpc/fulfil";
 import { getSettings, getVirt } from "../state";
 import { virt } from "../virt/driver";
-import { addTask, logActivity, notify, rid } from "../util";
+import { addTask, logActivity, notify } from "../util";
 
 const DAY = 86400_000;
 
@@ -101,12 +102,8 @@ export async function hourly(db: DB) {
   const list = await db.select().from(servers).where(and(eq(servers.billing, "hourly"), inArray(servers.status, ["running", "stopped"])));
   for (const s of list) {
     const cost = Math.max(1, Math.round(s.price / 720));
-    const ok = await db.transaction(async (tx) => {
-      const [u] = await tx.update(users).set({ balance: sql`${users.balance} - ${cost}` }).where(and(eq(users.id, s.userId), sql`${users.balance} >= ${cost}`)).returning({ id: users.id });
-      if (!u) return false;
-      await tx.insert(transactions).values({ id: rid("TX"), userId: s.userId, type: "usage", amount: -cost, method: "کیف پول", desc: "مصرف ساعتی " + s.name });
-      return true;
-    });
+    // a linked project wallet pays first; the main wallet may dip to the admin's negative grace
+    const ok = await db.transaction((tx) => debit(tx, s.userId, cost, "مصرف ساعتی سرور " + s.name, { serverId: s.id }));
     if (!ok) {
       if (s.vpsid) await (await virt()).suspend(s.vpsid);
       await db.update(servers).set({ status: "suspended", suspendedAt: new Date() }).where(eq(servers.id, s.id));

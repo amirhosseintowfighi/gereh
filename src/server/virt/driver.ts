@@ -6,6 +6,8 @@ import "server-only";
 
 export type PowerAction = "start" | "stop" | "restart" | "poweroff";
 export type CreateVps = { uid: number; plid: number; osid: number; hostname: string; rootpass: string; serverGroup: string; sshKey?: string; cloudInit?: string };
+/** ws: websocket URL for noVNC ("" = no web console, e.g. the simulator) */
+export type VncInfo = { host: string; port: number; password: string; ws: string };
 export type VpsLive = { vpsid: number; status: "running" | "stopped" | "suspended"; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number; bwLimit: number };
 
 export interface VirtDriver {
@@ -30,6 +32,15 @@ export interface VirtDriver {
   plans(): Promise<{ plid: number; name: string }[]>;
   servers(): Promise<{ serid: number; name: string; group: string; cpu: number; ram: number; disk: number; vms: number }[]>;
   osTemplates(): Promise<{ osid: number; name: string; distro: string }[]>;
+  /** gives the VPS `count` IPv4 addresses in total, keeping `keep`; returns them all */
+  setIps(vpsid: number, keep: string[], count: number): Promise<string[]>;
+  setPtr(vpsid: number, ip: string, host: string): Promise<void>;
+  networkReset(vpsid: number): Promise<void>;
+  /** extra disks; returns the hypervisor slot */
+  addDisk(vpsid: number, sizeGb: number): Promise<number>;
+  resizeDisk(vpsid: number, slot: number, sizeGb: number): Promise<void>;
+  detachDisk(vpsid: number, slot: number): Promise<void>;
+  vnc(vpsid: number): Promise<VncInfo>;
 }
 
 export class SimulatorDriver implements VirtDriver {
@@ -65,7 +76,20 @@ export class SimulatorDriver implements VirtDriver {
   }
   async plans() { return [10, 11, 12, 13, 14, 15, 16].map((plid, i) => ({ plid, name: "plan-" + (i + 1) })); }
   async servers() { return [{ serid: 1, name: "thr-hv-01", group: "thr-cloud", cpu: 62, ram: 71, disk: 48, vms: 38 }]; }
-  async osTemplates() { return [{ osid: 347, name: "Ubuntu 24.04", distro: "ubuntu" }, { osid: 351, name: "Debian 12", distro: "debian" }]; }
+  async osTemplates() { return [{ osid: 347, name: "Ubuntu 24.04", distro: "ubuntu" }, { osid: 351, name: "Debian 12", distro: "debian" }, { osid: 901, name: "Windows Server 2022", distro: "windows" }]; }
+  private ipSeq = 0;
+  async setIps(vpsid: number, keep: string[], count: number) {
+    const out = keep.slice(0, count);
+    while (out.length < count) out.push("185.143.234." + (((vpsid + ++this.ipSeq * 7) % 230) + 20));
+    return out;
+  }
+  async setPtr() {}
+  async networkReset() {}
+  private slots = new Map<number, number>();
+  async addDisk(vpsid: number) { const n = (this.slots.get(vpsid) ?? 0) + 1; this.slots.set(vpsid, n); return n; }
+  async resizeDisk() {}
+  async detachDisk() {}
+  async vnc(vpsid: number) { return { host: "vnc-sim.gereh.net", port: 5900 + (vpsid % 1000), password: "sim" + (vpsid % 10000), ws: "" }; }
 }
 
 const g = globalThis as typeof globalThis & { __gerehVirt?: VirtDriver; __gerehVirtPinned?: boolean };

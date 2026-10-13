@@ -3,6 +3,7 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { EMAIL_RE, PHONE_RE, strength, toEnDigits } from "@/lib/format";
 import { verifyTotp } from "@/lib/totp";
+import { redeemRecoveryCode } from "../account-extras";
 import { checkOtp, clearRateLimit, createSession, destroySession, issueOtp, rateLimit } from "../auth";
 import { actor, method, needStaff, type Ctx } from "../ctx";
 import { sessions, users } from "../db/schema";
@@ -33,7 +34,8 @@ export const authRpc = {
     if (user!.status === "suspended" && user!.role !== "admin") fail("حساب شما معلق است؛ با پشتیبانی تماس بگیرید.", 403);
     if (user!.twofaSecret) {
       if (!code) fail(TWOFA_REQUIRED, 401);
-      if (!(await verifyTotp(user!.twofaSecret, toEnDigits(code!)))) fail("کد ورود دومرحله‌ای درست نیست.", 401);
+      // a one-time recovery code (XXXX-XXXX) stands in for the app code
+      if (!(await verifyTotp(user!.twofaSecret, toEnDigits(code!))) && !(await redeemRecoveryCode(ctx.db, user!.id, code!))) fail("کد ورود دومرحله‌ای درست نیست.", 401);
     }
     await clearRateLimit(ctx.db, "login:id:" + id);
     return startSession(ctx, user!, "رمز عبور");

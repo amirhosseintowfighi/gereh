@@ -14,7 +14,8 @@ export type JobType =
   | "inquiry.settle" | "geo.billing" | "geo.health" | "geo.ns" | "ai.settle"
   | "dbaas.init" | "dbaas.import" | "dbaas.expire"
   | "storage.billing" | "storage.collect"
-  | "mail.deliver" | "mail.billing" | "mail.dns" | "mail.daily";
+  | "mail.deliver" | "mail.billing" | "mail.dns" | "mail.daily"
+  | "vps.billing" | "vps.snapshots";
 
 export async function enqueue(db: DB | Tx, type: JobType, payload: Record<string, unknown> = {}, opts: { runAt?: Date; dedupe?: string } = {}) {
   await db.insert(jobs).values({ type, payload, runAt: opts.runAt ?? new Date(), dedupe: opts.dedupe ?? null }).onConflictDoNothing();

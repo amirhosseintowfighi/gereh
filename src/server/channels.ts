@@ -121,8 +121,12 @@ export async function webhookSend(url: string, secret: string, payload: Record<s
 /** fans a notification out to the user's channels (one job per channel, retried); the 10-minute
     dedupe stops the in-app and the email copy of the same event arriving twice */
 export async function fanout(db: DB | Tx, userId: string, kind: string, subject: string, text = "") {
-  const list = await db.select({ id: notifyChannels.id, events: notifyChannels.events }).from(notifyChannels).where(and(eq(notifyChannels.userId, userId), eq(notifyChannels.active, true)));
-  const h = createHash("sha1").update(subject).digest("hex").slice(0, 12), bucket = Math.floor(Date.now() / 600_000);
+  const all = await db.select({ id: notifyChannels.id, events: notifyChannels.events, kind: notifyChannels.kind }).from(notifyChannels).where(and(eq(notifyChannels.userId, userId), eq(notifyChannels.active, true)));
+  if (!all.length) return;
+  // the preferences matrix can switch the chat bots off for one kind of event
+  const [u] = await db.select({ prefs: users.notifPrefs }).from(users).where(eq(users.id, userId));
+  const list = u?.prefs?.[kind + "_telegram"] === false ? all.filter((c) => c.kind === "webhook") : all;
+  const h =createHash("sha1").update(subject).digest("hex").slice(0, 12), bucket = Math.floor(Date.now() / 600_000);
   for (const c of list) if (c.events.includes(kind)) await enqueue(db, "notify.channel", { channelId: c.id, kind, subject, text, attempt: 1 }, { dedupe: "ch:" + c.id + ":" + h + ":" + bucket });
 }
 

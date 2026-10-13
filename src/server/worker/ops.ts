@@ -1,5 +1,6 @@
 /* Operational jobs: usage sampling + alerts, nightly reconciliation, ticket SLA and auto-replies,
    and outbound notifications that respect each customer's preferences. */
+import { pushSend } from "../account-extras";
 import { fanout } from "../channels";
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
@@ -96,6 +97,7 @@ export async function notifySend(db: DB, p: NotifyPayload) {
   if (p.secret || prefs[kind + "_email"] !== false) await sendEmail(u.email, p.subject, p.text);
   if (!p.secret && prefs[kind + "_sms"] && u.phone) await sendSms(u.phone, p.subject + "\n" + p.text.slice(0, 250));
   if (!p.secret) await fanout(db, u.id, kind, p.subject, p.text);
+  if (!p.secret && prefs[kind + "_push"]) await pushSend(db, u.id, p.subject);
 }
 
 export const purgeOld = async (db: DB) => {

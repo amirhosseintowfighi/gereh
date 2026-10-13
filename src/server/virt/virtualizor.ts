@@ -4,7 +4,7 @@
    auth parameter style is configurable for that reason (VIRTUALIZOR_AUTH=adminapikey|apikey). */
 import "server-only";
 import { Agent, fetch } from "undici";
-import type { CreateVps, PowerAction, VirtDriver, VpsLive } from "./driver";
+import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsLive } from "./driver";
 
 type Dict = Record<string, string | number | boolean | (string | number)[] | undefined>;
 export type VirtConfig = { host: string; key: string; pass: string; adminPort?: number; enduserPort?: number; tlsStrict?: boolean; auth?: "adminapikey" | "apikey" };
@@ -172,5 +172,30 @@ export class VirtualizorDriver implements VirtDriver {
     const j = await this.admin<{ ostemplates?: Record<string, { osid: string; name: string; distro: string }>; oslist?: Record<string, Record<string, { name: string; distro?: string }>> }>("ostemplates");
     if (j.ostemplates) return Object.values(j.ostemplates).map((o) => ({ osid: Number(o.osid), name: o.name, distro: o.distro }));
     return Object.values(j.oslist ?? {}).flatMap((group) => Object.entries(group).map(([osid, o]) => ({ osid: Number(osid), name: o.name, distro: o.distro ?? "" })));
+  }
+
+  /* ---- network, extra disks and the web console; fields marked (verify) as above ---- */
+  async setIps(vpsid: number, keep: string[], count: number) {
+    // managevps keeps the listed addresses and allocates the rest from the server's IP pool (verify)
+    const j = await this.admin<{ vs_info?: { ips?: Record<string, string> | string[] } }>("managevps", {}, { vpsid, editvps: 1, num_ips: count, ...Object.fromEntries(keep.map((ip, i) => ["ips[" + i + "]", ip])) });
+    const ips = j.vs_info?.ips;
+    const list = Array.isArray(ips) ? ips : Object.values(ips ?? {});
+    return list.length ? list.map(String) : keep;
+  }
+  async setPtr(vpsid: number, ip: string, host: string) { await this.enduser(vpsid, "rdns", {}, { ip, rdns: host, editrdns: 1 }); } // (verify)
+  async networkReset(vpsid: number) { await this.admin("managevps", {}, { vpsid, editvps: 1, reset_network: 1 }); } // (verify)
+  async addDisk(vpsid: number, sizeGb: number) {
+    const j = await this.admin<{ disk?: { disk_num?: number | string } }>("managevps", {}, { vpsid, editvps: 1, add_disk: 1, disk_size: sizeGb }); // (verify)
+    return Number(j.disk?.disk_num ?? 1) || 1;
+  }
+  async resizeDisk(vpsid: number, slot: number, sizeGb: number) { await this.admin("managevps", {}, { vpsid, editvps: 1, ["disk_size[" + slot + "]"]: sizeGb }); } // (verify)
+  async detachDisk(vpsid: number, slot: number) { await this.admin("managevps", {}, { vpsid, editvps: 1, ["del_disk[" + slot + "]"]: 1 }); } // (verify)
+  /** enduser act=vnc&novnc=1: host, port and password of the websockify proxy; VIRTUALIZOR_NOVNC_URL shapes the socket URL */
+  async vnc(vpsid: number): Promise<VncInfo> {
+    const j = await this.enduser<{ info?: { ip?: string; port?: number | string; password?: string } }>(vpsid, "vnc", { novnc: 1 });
+    const i = j.info ?? {};
+    const host = i.ip || this.cfg.host, port = Number(i.port ?? 0);
+    const tpl = process.env.VIRTUALIZOR_NOVNC_URL || "wss://{host}:{port}/";
+    return { host, port, password: i.password ?? "", ws: port ? tpl.replace("{host}", host).replace("{port}", String(port)) : "" };
   }
 }
