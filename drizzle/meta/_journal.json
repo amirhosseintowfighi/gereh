@@ -106,6 +106,13 @@
       "when": 1791572945145,
       "tag": "0014_scan_verify_pitr",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791600020000,
+      "tag": "0020_ai_plus",
+      "breakpoints": true
     }
   ]
 }

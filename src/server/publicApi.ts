@@ -6,7 +6,9 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { Auth } from "./auth";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
-import { apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, users } from "./db/schema";
+import { hitOut, kbQuery } from "./ai/kb";
+import { panelCaller } from "./ai/service";
+import { aiKbs, apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, users } from "./db/schema";
 import { appHourly, appsDomain, defaultHost, loadPlans, previewHost } from "./paas/service";
 import { registry } from "./rpc";
 import { AppError, sha256 } from "./util";
@@ -151,5 +153,12 @@ export const ROUTES: Route[] = [
     const list = await ctx.db.select().from(invoices).where(eq(invoices.userId, ctx.auth!.uid));
     const items = list.length ? await ctx.db.select().from(invoiceItems) : [];
     return { data: list.map((i) => { const it = items.filter((x) => x.invoiceId === i.id); return { id: i.id, status: i.status, total_toman: invGross({ items: it, tax: i.taxRate }), created_at: iso(i.createdAt), due_at: iso(i.dueAt), paid_at: iso(i.paidAt) }; }) };
+  } },
+  { method: "GET", pattern: /^ai\/kb$/, run: async (ctx) => ({ data: (await ctx.db.select().from(aiKbs).where(eq(aiKbs.userId, ctx.auth!.uid))).map((k) => ({ id: k.id, name: k.name, embedding_model: k.model, created_at: iso(k.createdAt) })) }) },
+  // spends wallet credit (the question is embedded), so it needs a read-write token
+  { method: "POST", pattern: /^ai\/kb\/([\w-]+)\/query$/, write: true, run: async (ctx, m, b) => {
+    const r = await kbQuery(ctx.db, await panelCaller(ctx.db, ctx.auth!.uid), m[1], String(b.query ?? ""), Number(b.top_k) || 5);
+    if ("http" in r) throw new AppError(r.message, r.http);
+    return { data: r.hits.map(hitOut), charged_toman: r.charged };
   } },
 ];

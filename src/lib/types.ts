@@ -79,11 +79,25 @@ export type InquiryState = {
   accounts: { userId: string; name: string; email: string; accountNo: number; status: "active" | "suspended"; calls30: number; spend30: number }[];
   provider: string;
 };
-export type AiModelRow = { id: string; name: string; vendor: string; inPrice: number; outPrice: number; context: number; vision: boolean; active: boolean; refIn: number; refOut: number; upstream: string };
-export type AiKeyRow = { id: string; name: string; prefix: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; status: "active" | "revoked"; expires: string; lastUsed: string; created: string; spentToday: number; spentMonth: number };
+export type AiModelRow = { id: string; name: string; vendor: string; inPrice: number; outPrice: number; context: number; vision: boolean; active: boolean; refIn: number; refOut: number; upstream: string; kind: "chat" | "embedding" | "image" | "tts" | "stt" | "rerank"; unitPrice: number };
+export type AiKeyRow = {
+  id: string; name: string; prefix: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; status: "active" | "disabled" | "revoked"; expires: string; lastUsed: string; created: string; spentToday: number; spentMonth: number;
+  /** days until expiry (0 = never) */
+  expiresIn: number; ips: string[]; routing: "" | "price" | "throughput" | "latency"; projectId: string | null; requestsMonth: number;
+};
+export type AiChatSummary = { id: string; title: string; model: string; kbId: string | null; at: string };
+export type AiChatFull = { id: string; title: string; model: string; system: string; temperature: number; kbId: string | null; messages: { id: number; role: "user" | "assistant"; content: string; charged: number; attachments: { name: string; type: "image" | "text" }[]; at: string }[] };
+export type AiLogFilter = { keyId?: string; model?: string; status?: "success" | "error" | "denied" | "cancelled"; projectId?: string; days: number; q?: string; offset?: number };
+export type AiLogRow = { id: string; keyId: string; keyName: string; model: string; format: string; stream: boolean; status: string; inTokens: number; outTokens: number; units: number; charged: number; estimated: boolean; latencyMs: number; finish: string; error: string; hasBody: boolean; at: string; iso: string };
+type AiAgg = { count: number; spend: number; inTokens: number; outTokens: number; errors: number };
+export type AiReport = { days: number; daily: (AiAgg & { day: string; label: string })[]; byModel: (AiAgg & { model: string })[]; byKey: (AiAgg & { keyId: string; keyName: string })[]; byProject: (AiAgg & { projectId: string; name: string })[] };
+export type AiProjectRow = { id: string; name: string; monthlyLimit: number; spentMonth: number; keys: number };
+export type AiKbRow = { id: string; name: string; model: string; chunks: number; chars: number; docs: { id: string; name: string; mime: string; chars: number; chunks: number; charged: number; at: string }[] };
 export type AiState = {
   models: AiModelRow[]; keys: AiKeyRow[];
-  usage: { id: string; userId: string; keyName: string; model: string; format: string; stream: boolean; status: string; inTokens: number; outTokens: number; charged: number; estimated: boolean; latencyMs: number; error: string; at: string }[];
+  usage: { id: string; userId: string; keyName: string; model: string; format: string; stream: boolean; status: string; inTokens: number; outTokens: number; units: number; finish: string; charged: number; estimated: boolean; latencyMs: number; error: string; at: string }[];
+  projects: AiProjectRow[]; kbs: AiKbRow[];
+  settings: { retentionDays: 30 | 60; logBodies: boolean; lowBalance: number };
   stats: { todayCount: number; todaySpend: number; monthCount: number; monthSpend: number; daily: { day: string; count: number; spend: number }[]; byModel: { model: string; count: number; spend: number }[] };
   /** public base URL of the gateway, e.g. https://api.gereh.dev */
   endpoint: string;

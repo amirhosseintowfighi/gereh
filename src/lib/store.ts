@@ -11,7 +11,8 @@ import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
-import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, Ticket } from "./types";
+import type { AiKind } from "./ai";
+import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, Ticket } from "./types";
 
 export type { CartItem, ClientDB, Coupon, DnsRecord, FwRule, Hosting, Invoice, Server, Session, Ticket, User } from "./types";
 export { invGross, invTotal };
@@ -23,7 +24,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], projects: [], kbs: [], settings: { retentionDays: 30, logBodies: false, lowBalance: 0 }, stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -81,9 +82,9 @@ export const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(16)), (x) => abc[x % abc.length]).join("");
 };
 
-export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
+export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips: string[]; routing: "" | "price" | "throughput" | "latency"; projectId: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -273,11 +274,30 @@ export const api = {
   },
   ai: {
     createKey: (k: AiKeyInput) => rpc<string>("ai.createKey", k),
-    updateKey: (id: string, patch: Partial<Omit<AiKeyInput, "expiresDays">>) => rpc("ai.updateKey", id, patch),
+    updateKey: (id: string, patch: Partial<AiKeyInput>) => rpc("ai.updateKey", id, patch),
+    setKeyEnabled: (id: string, on: boolean) => rpc("ai.setKeyEnabled", id, on),
     revokeKey: (id: string) => rpc("ai.revokeKey", id),
     playground: (model: string, messages: { role: "system" | "user" | "assistant"; content: string }[], maxTokens: number) => rpc<{ text: string; charged: number; inTokens: number; outTokens: number }>("ai.playground", model, messages, maxTokens),
-    adminModel: (id: string, patch: Partial<{ name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; refIn: number; refOut: number; context: number; active: boolean }>) => rpc("ai.adminModel", id, patch),
-    adminAddModel: (m: { id: string; name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; context: number }) => rpc("ai.adminAddModel", m),
+    adminModel: (id: string, patch: Partial<{ name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; refIn: number; refOut: number; context: number; active: boolean; kind: AiKind; unitPrice: number; vision: boolean }>) => rpc("ai.adminModel", id, patch),
+    adminAddModel: (m: { id: string; name: string; vendor: string; upstream: string; inPrice: number; outPrice: number; context: number; kind: AiKind; unitPrice: number }) => rpc("ai.adminAddModel", m),
+    chats: () => rpc<AiChatSummary[]>("ai.chats"),
+    chatGet: (id: string) => rpc<AiChatFull>("ai.chatGet", id),
+    chatCreate: (o: { model: string; system: string; temperature: number; kbId: string | null }) => rpc<string>("ai.chatCreate", o),
+    chatUpdate: (id: string, patch: Partial<{ title: string; model: string; system: string; temperature: number; kbId: string | null }>) => rpc("ai.chatUpdate", id, patch),
+    chatDelete: (id: string) => rpc("ai.chatDelete", id),
+    embedCompare: (model: string, texts: string[], query: string) => rpc<{ ranked: { text: string; score: number }[]; dims: number; charged: number }>("ai.embedCompare", model, texts, query),
+    kbCreate: (name: string, model: string) => rpc<string>("ai.kbCreate", name, model),
+    kbRename: (id: string, name: string) => rpc("ai.kbRename", id, name),
+    kbDelete: (id: string) => rpc("ai.kbDelete", id),
+    kbUpload: (kbId: string, f: { name: string; mime: string; data: string }) => rpc<{ docId: string; chunks: number; charged: number }>("ai.kbUpload", kbId, f),
+    kbDocDelete: (docId: string) => rpc("ai.kbDocDelete", docId),
+    kbSearch: (kbId: string, query: string, k = 5) => rpc<{ charged: number; hits: { document: string; chunk: number; score: number; text: string }[] }>("ai.kbSearch", kbId, query, k),
+    projectSave: (p: { id?: string; name: string; monthlyLimit: number }) => rpc<string>("ai.projectSave", p),
+    projectDelete: (id: string) => rpc("ai.projectDelete", id),
+    logs: (f: AiLogFilter) => rpc<{ total: number; rows: AiLogRow[] }>("ai.logs", f),
+    logBody: (id: string) => rpc<{ request: string; response: string } | null>("ai.logBody", id),
+    report: (days: 7 | 30 | 60) => rpc<AiReport>("ai.report", days),
+    saveSettings: (s: AiState["settings"]) => rpc("ai.saveSettings", s),
     adminSync: () => rpc<{ total: number; added: number }>("ai.adminSync"),
     adminApplyRule: (discount: number) => rpc<number>("ai.adminApplyRule", discount),
     adminTest: (id: string) => rpc<{ ok: boolean; ms: number; detail: string }>("ai.adminTest", id),

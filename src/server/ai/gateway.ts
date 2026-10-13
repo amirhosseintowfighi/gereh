@@ -6,6 +6,10 @@
      POST v1/messages, v1/messages/count_tokens      Anthropic Messages
      GET  v1beta/models                              Gemini model list
      POST v1beta/models/<model>:generateContent      Gemini (and :streamGenerateContent?alt=sse)
+     POST v1/embeddings, v1/rerank                   embedding and rerank models
+     POST v1/images/generations, v1/images/edits     image models (edits: multipart)
+     POST v1/audio/speech, v1/audio/transcriptions   text-to-speech, speech-to-text (multipart)
+     POST v1/kb/<id>/query (also kb/<id>/query)      knowledge-base retrieval
    Auth: Authorization: Bearer gk-…, x-api-key (Anthropic SDKs), x-goog-api-key or ?key= (Gemini). */
 import "server-only";
 import { asc, eq } from "drizzle-orm";
@@ -14,7 +18,10 @@ import { rateLimit } from "../auth";
 import type { DB } from "../db/client";
 import { aiModels } from "../db/schema";
 import { AppError } from "../util";
-import { aiErr, authenticateKey, resolveModel, runChat, type AiError, type Format, type Renderer } from "./service";
+import { ipAllowed } from "../inquiry/service";
+import { embeddings, imageEdits, imageGenerations, isAiError, rerank, speech, transcriptions, type Out } from "./endpoints";
+import { hitOut, kbQuery } from "./kb";
+import { aiErr, authenticateKey, keyCaller, resolveModel, runChat, type AiError, type Caller, type Format, type Renderer } from "./service";
 import {
   AnthropicStream, anthropicToChat, ChatStream, chatToAnthropic, chatToGemini, chatToResponses, geminiToChat, GeminiStream, ResponsesStream, responsesToChat, type ChatRequest,
 } from "./translate";
@@ -35,7 +42,8 @@ function errorBody(format: Format, e: AiError) {
 }
 const fail = (format: Format, e: AiError) => Response.json(errorBody(format, e), { status: e.http, headers: H });
 
-const RENDER: Record<Exclude<Format, "panel">, (model: string, keepUsage: boolean) => Renderer> = {
+type ChatFormat = "openai" | "responses" | "anthropic" | "gemini";
+const RENDER: Record<ChatFormat, (model: string, keepUsage: boolean) => Renderer> = {
   openai: (model, keepUsage) => ({
     json: (r) => ({
       id: r.id, object: "chat.completion", created: Math.floor(Date.now() / 1000), model,
@@ -55,6 +63,10 @@ function credential(req: Request, url: URL) {
   return (bearer || req.headers.get("x-api-key") || req.headers.get("x-goog-api-key") || url.searchParams.get("key") || "").trim();
 }
 
+const clientIp = (req: Request) => (process.env.TRUST_PROXY === "1" ? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() : req.headers.get("x-real-ip")) || "";
+const MULTIPART: Record<string, (d: DB, caller: Caller, allowed: string[], f: FormData) => Promise<Out>> = { "v1/images/edits": imageEdits, "v1/audio/transcriptions": transcriptions };
+const JSON_ROUTES: Record<string, (d: DB, caller: Caller, allowed: string[], b: Record<string, unknown>) => Promise<Out>> = { "v1/embeddings": embeddings, "v1/images/generations": imageGenerations, "v1/audio/speech": speech, "v1/rerank": rerank };
+
 function formatOf(path: string): Format {
   if (path.startsWith("v1beta/")) return "gemini";
   if (path.startsWith("v1/messages")) return "anthropic";
@@ -69,23 +81,41 @@ export async function gateway(d: DB, req: Request, path: string): Promise<Respon
   try {
     const key = await authenticateKey(d, credential(req, url));
     if (!key) return fail(format, aiErr(401, "invalid_api_key", "کلید API نامعتبر است. کلید را از پنل گره › API هوش مصنوعی بسازید (با gk- شروع می‌شود)."));
-    if (key.status !== "active" || key.userStatus === "suspended") return fail(format, aiErr(403, "key_disabled", "این کلید باطل شده یا حساب معلق است."));
+    if (key.status !== "active" || key.userStatus === "suspended") return fail(format, aiErr(403, "key_disabled", "این کلید باطل یا غیرفعال شده، یا حساب معلق است."));
     if (key.expiresAt && key.expiresAt.getTime() < Date.now()) return fail(format, aiErr(401, "key_expired", "این کلید منقضی شده است؛ کلید جدید بسازید."));
+    const ip = clientIp(req);
+    if (!ipAllowed(key.ips, ip)) return fail(format, aiErr(403, "ip_not_allowed", "درخواست از IP مجاز این کلید نیامده است (" + (ip || "نامشخص") + ")."));
     try { await rateLimit(d, "ai:" + key.id, key.rpm, 60); } catch (e) {
       if (e instanceof AppError) return fail(format, aiErr(429, "rate_limit_exceeded", "سقف درخواست در دقیقه این کلید (" + key.rpm + ") پر شده است."));
       throw e;
     }
 
     if (req.method === "GET" && (path === "v1/models" || path === "v1beta/models")) {
-      const list = (await d.select().from(aiModels).where(eq(aiModels.active, true)).orderBy(asc(aiModels.position))).filter((m) => !key.models.length || key.models.includes(m.id));
+      const all = (await d.select().from(aiModels).where(eq(aiModels.active, true)).orderBy(asc(aiModels.position))).filter((m) => !key.models.length || key.models.includes(m.id));
+      const list = all.filter((m) => m.kind === "chat");
       if (format === "gemini") return Response.json({ models: list.map((m) => ({ name: "models/" + m.id, displayName: m.name, inputTokenLimit: m.context, outputTokenLimit: 65536, supportedGenerationMethods: ["generateContent", "streamGenerateContent"] })) }, { headers: H });
       if (req.headers.get("anthropic-version")) return Response.json({ data: list.map((m) => ({ type: "model", id: m.id, display_name: m.name, created_at: "2025-01-01T00:00:00Z" })), has_more: false, first_id: list[0]?.id ?? null, last_id: list.at(-1)?.id ?? null }, { headers: H });
-      return Response.json({ object: "list", data: list.map((m) => ({ id: m.id, object: "model", created: 1735689600, owned_by: m.vendor, context_length: m.context, pricing: { input_toman_per_million: m.inPrice, output_toman_per_million: m.outPrice } })) }, { headers: H });
+      return Response.json({ object: "list", data: all.map((m) => ({ id: m.id, object: "model", created: 1735689600, owned_by: m.vendor, kind: m.kind, context_length: m.context, pricing: m.kind === "chat" ? { input_toman_per_million: m.inPrice, output_toman_per_million: m.outPrice } : m.kind === "embedding" ? { input_toman_per_million: m.inPrice } : m.kind === "tts" ? { toman_per_million_characters: m.inPrice } : m.kind === "image" ? { toman_per_image: m.unitPrice } : m.kind === "stt" ? { toman_per_minute: m.unitPrice } : { toman_per_thousand_searches: m.unitPrice } })) }, { headers: H });
     }
     if (req.method !== "POST") return fail(format, aiErr(404, "not_found", "مسیر پشتیبانی نمی‌شود. مستندات: https://gereh.net/docs/ai-api"));
     if (Number(req.headers.get("content-length") || 0) > MAX_BODY) return fail(format, aiErr(413, "request_too_large", "حجم درخواست بیش از ۱۶ مگابایت است."));
+    const caller = await keyCaller(d, key);
+    const done = (r: Out) => (isAiError(r) ? fail(format, r) : r);
+    if (Object.hasOwn(MULTIPART, path)) {
+      const form = await req.formData().catch(() => null);
+      if (!form) return fail(format, aiErr(400, "invalid_request", "بدنه باید multipart/form-data باشد."));
+      return done(await MULTIPART[path](d, caller, key.models, form));
+    }
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail(format, aiErr(400, "invalid_json", "بدنه درخواست JSON معتبر نیست."));
+
+    if (Object.hasOwn(JSON_ROUTES, path)) return done(await JSON_ROUTES[path](d, caller, key.models, body));
+    const kb = /^v1\/kb\/([\w-]{1,40})\/query$/.exec(path);
+    if (kb) {
+      const r = await kbQuery(d, caller, kb[1], typeof body.query === "string" ? body.query : "", Number(body.top_k) || 5, key.models);
+      if (isAiError(r)) return fail(format, r);
+      return Response.json({ object: "list", model: r.model, data: r.hits.map(hitOut) }, { headers: { ...H, "x-gereh-charged-toman": String(r.charged) } });
+    }
 
     let chat: ChatRequest, model: string, keepUsage = false;
     if (path === "v1/chat/completions") {
@@ -114,8 +144,8 @@ export async function gateway(d: DB, req: Request, path: string): Promise<Respon
 
     const resolved = await resolveModel(d, model, key.models);
     if ("http" in resolved) return fail(format, resolved);
-    const render = RENDER[format as Exclude<Format, "panel">](resolved.id, keepUsage);
-    const r = await runChat({ db: d, caller: { userId: key.userId, keyId: key.id, dailyCap: key.dailyCap, monthlyCap: key.monthlyCap }, model: resolved, format, chat, render });
+    const render = RENDER[format as ChatFormat](resolved.id, keepUsage);
+    const r = await runChat({ db: d, caller, model: resolved, format, chat, render });
     if (r.kind === "error") return fail(format, r.error);
     const head = { ...H, "x-gereh-request-id": r.requestId };
     if (r.kind === "json") return Response.json(r.body, { headers: { ...head, "x-gereh-charged-toman": String(r.charged) } });

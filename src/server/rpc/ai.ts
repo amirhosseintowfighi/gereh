@@ -1,11 +1,11 @@
 import "server-only";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { AI_DISCOUNT, rulePrice } from "@/lib/ai";
+import { AI_DISCOUNT, AI_KINDS, isPriced, rulePrice } from "@/lib/ai";
 import { createKey, resolveModel, runChat, syncUpstreamModels } from "../ai/service";
 import { aiUpstream } from "../ai/upstream";
 import { actor, method, needStaff, needUser } from "../ctx";
-import { aiKeys, aiModels } from "../db/schema";
+import { aiKeys, aiModels, aiProjects } from "../db/schema";
 import { fail, logActivity, logAudit } from "../util";
 
 const modelId = z.string().trim().regex(/^[\w.:/@-]{2,80}$/);
@@ -16,7 +16,17 @@ const keyFields = z.object({
   monthlyCap: z.number().int().min(0).max(10_000_000_000),
   rpm: z.number().int().min(1).max(600),
   expiresDays: z.number().int().min(0).max(365),
+  /** exact IPv4/IPv6 or IPv4 CIDR */
+  ips: z.array(z.string().trim().regex(/^(\d{1,3}(\.\d{1,3}){3}(\/([0-9]|[12]\d|3[0-2]))?|[0-9a-fA-F:]{2,39})$/, "IP یا بازه CIDR نامعتبر است.")).max(20).optional(),
+  routing: z.enum(["", "price", "throughput", "latency"]).optional(),
+  projectId: z.string().max(40).nullable().optional(),
 });
+
+async function checkProject(ctx: Parameters<typeof needUser>[0], uid: string, projectId: string | null | undefined) {
+  if (!projectId) return;
+  const [p] = await ctx.db.select({ id: aiProjects.id }).from(aiProjects).where(and(eq(aiProjects.id, projectId), eq(aiProjects.userId, uid)));
+  if (!p) fail("پروژه پیدا نشد.", 404);
+}
 
 async function ownKey(ctx: Parameters<typeof needUser>[0], id: string) {
   const a = needUser(ctx);
@@ -31,15 +41,27 @@ export const aiMethods = {
     const a = needUser(ctx);
     const [{ n }] = await ctx.db.select({ n: count() }).from(aiKeys).where(and(eq(aiKeys.userId, a.uid), eq(aiKeys.status, "active")));
     if (n >= 20) fail("حداکثر ۲۰ کلید فعال؛ کلیدهای بی‌استفاده را باطل کنید.");
+    await checkProject(ctx, a.uid, k.projectId);
     const r = await createKey(ctx.db, a.uid, k);
     await logActivity(ctx.db, a.uid, "key-round", "ساخت کلید API هوش مصنوعی «" + k.name + "»", ctx.ip);
     return r.key;
   }),
 
-  "ai.updateKey": method(z.tuple([z.string().max(40), keyFields.omit({ expiresDays: true }).partial()]), async (ctx, [id, patch]) => {
-    const { k } = await ownKey(ctx, id);
-    if (k.status !== "active") fail("کلید باطل‌شده قابل ویرایش نیست.");
-    await ctx.db.update(aiKeys).set(patch).where(eq(aiKeys.id, id));
+  /** expiresDays, when sent, restarts the expiry from today (0 = never expires) */
+  "ai.updateKey": method(z.tuple([z.string().max(40), keyFields.partial()]), async (ctx, [id, patch]) => {
+    const { a, k } = await ownKey(ctx, id);
+    if (k.status === "revoked") fail("کلید باطل‌شده قابل ویرایش نیست.");
+    await checkProject(ctx, a.uid, patch.projectId);
+    const { expiresDays, ...rest } = patch;
+    await ctx.db.update(aiKeys).set({ ...rest, ...(expiresDays !== undefined ? { expiresAt: expiresDays ? new Date(Date.now() + expiresDays * 86400_000) : null } : {}) }).where(eq(aiKeys.id, id));
+  }),
+
+  /** pause or resume a key without revoking it */
+  "ai.setKeyEnabled": method(z.tuple([z.string().max(40), z.boolean()]), async (ctx, [id, on]) => {
+    const { a, k } = await ownKey(ctx, id);
+    if (k.status === "revoked") fail("کلید باطل‌شده قابل فعال‌سازی نیست.");
+    await ctx.db.update(aiKeys).set({ status: on ? "active" : "disabled" }).where(eq(aiKeys.id, id));
+    await logActivity(ctx.db, a.uid, "key-round", (on ? "فعال‌سازی" : "غیرفعال‌سازی") + " کلید API هوش مصنوعی «" + k.name + "»", ctx.ip);
   }),
 
   "ai.revokeKey": method(z.tuple([z.string().max(40)]), async (ctx, [id]) => {
@@ -69,18 +91,21 @@ export const aiMethods = {
     inPrice: z.number().int().min(0).max(1_000_000_000).optional(), outPrice: z.number().int().min(0).max(1_000_000_000).optional(),
     refIn: z.number().int().min(0).max(1_000_000_000).optional(), refOut: z.number().int().min(0).max(1_000_000_000).optional(),
     context: z.number().int().min(1024).max(10_000_000).optional(), active: z.boolean().optional(),
+    kind: z.enum(AI_KINDS as [string, ...string[]]).optional(), unitPrice: z.number().int().min(0).max(1_000_000_000).optional(), vision: z.boolean().optional(),
   })]), async (ctx, [id, patch]) => {
     needStaff(ctx, "ai");
     const [m] = await ctx.db.select().from(aiModels).where(eq(aiModels.id, id));
     if (!m) fail("مدل پیدا نشد.", 404);
-    if (patch.active && !(patch.inPrice ?? m!.inPrice) && !(patch.outPrice ?? m!.outPrice)) fail("پیش از فعال‌سازی، قیمت مدل را تعیین کنید.");
-    await ctx.db.update(aiModels).set(patch).where(eq(aiModels.id, id));
+    const next = { ...m!, ...patch } as typeof m & { kind: (typeof AI_KINDS)[number] };
+    if (next.active && !isPriced(next.kind, next)) fail("پیش از فعال‌سازی، قیمت مدل را تعیین کنید.");
+    await ctx.db.update(aiModels).set(patch as Partial<typeof aiModels.$inferInsert>).where(eq(aiModels.id, id));
     await logAudit(ctx.db, actor(ctx), "ویرایش مدل هوش مصنوعی", id + " " + JSON.stringify(patch), ctx.ip);
   }),
 
-  "ai.adminAddModel": method(z.tuple([z.object({ id: modelId, name: z.string().trim().min(2).max(60), vendor: z.string().trim().min(2).max(30), upstream: z.string().trim().max(120).regex(/^[\w.:/@-]*$/), inPrice: z.number().int().min(1), outPrice: z.number().int().min(1), context: z.number().int().min(1024).max(10_000_000) })]), async (ctx, [m]) => {
+  "ai.adminAddModel": method(z.tuple([z.object({ id: modelId, name: z.string().trim().min(2).max(60), vendor: z.string().trim().min(2).max(30), upstream: z.string().trim().max(120).regex(/^[\w.:/@-]*$/), inPrice: z.number().int().min(0).max(1_000_000_000), outPrice: z.number().int().min(0).max(1_000_000_000), context: z.number().int().min(1024).max(10_000_000), kind: z.enum(AI_KINDS as [string, ...string[]]).default("chat"), unitPrice: z.number().int().min(0).max(1_000_000_000).default(0) })]), async (ctx, [m]) => {
     needStaff(ctx, "ai");
-    const r = await ctx.db.insert(aiModels).values({ ...m, active: false, position: 900 }).onConflictDoNothing().returning({ id: aiModels.id });
+    if (!isPriced(m.kind as (typeof AI_KINDS)[number], m)) fail("قیمت متناسب با نوع مدل را وارد کنید.");
+    const r = await ctx.db.insert(aiModels).values({ ...m, kind: m.kind as (typeof AI_KINDS)[number], active: false, position: 900 }).onConflictDoNothing().returning({ id: aiModels.id });
     if (!r.length) fail("مدلی با این شناسه وجود دارد.");
     await logAudit(ctx.db, actor(ctx), "افزودن مدل هوش مصنوعی", m.id, ctx.ip);
   }),

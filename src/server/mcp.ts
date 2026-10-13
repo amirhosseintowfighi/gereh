@@ -57,6 +57,10 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "delete_dns_record", title: "Delete DNS record", write: true, description: "Removes a DNS record.", inputSchema: { type: "object", properties: { domain_id: str("Domain id"), record_id: str("Record id") }, required: ["domain_id", "record_id"] },
     call: (a) => ["DELETE", "domains/" + seg(a.domain_id) + "/records/" + seg(a.record_id)] },
   { name: "list_invoices", title: "List invoices", description: "Invoices with status and total in Toman.", inputSchema: { type: "object", properties: {} }, call: () => ["GET", "invoices"] },
+  { name: "list_knowledge_bases", title: "List knowledge bases", description: "AI API knowledge bases (RAG) of the account with their embedding model.", inputSchema: { type: "object", properties: {} }, call: () => ["GET", "ai/kb"] },
+  { name: "query_knowledge_base", title: "Search knowledge base", write: true, description: "Semantic search in a knowledge base: returns the most relevant passages with document name and cosine score. The question is embedded and billed to the wallet (a few Toman).",
+    inputSchema: { type: "object", properties: { kb_id: str("Knowledge base id from list_knowledge_bases"), query: str("Question or search text"), top_k: { type: "integer", description: "Passages to return (1-20, default 5)" } }, required: ["kb_id", "query"] },
+    call: (a) => ["POST", "ai/kb/" + seg(a.kb_id) + "/query", { query: a.query, top_k: a.top_k }] },
 ];
 
 type RpcMsg = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Json };
