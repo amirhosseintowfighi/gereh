@@ -1294,7 +1294,7 @@ export const paasConsoleSessions = pgTable("paas_console_sessions", {
   /** run: the output tail */
   output: text("output").notNull().default(""),
   ip: text("ip").notNull().default(""),
-  startedAt: created(),
+  startedAt: ts("started_at").notNull().defaultNow(),
   endedAt: ts("ended_at"),
 }, (t) => [index("paas_console_app_ix").on(t.appId, t.startedAt)]);
 

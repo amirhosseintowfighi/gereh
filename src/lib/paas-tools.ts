@@ -69,7 +69,7 @@ export function logLevel(line: string): LogLevel {
     if (/^(debug|trace|10|20)$/.test(w)) return "debug";
     if (/^(info|30|notice)$/.test(w)) return "info";
   }
-  const http = /\s(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s\S+\s(\d{3})\b/.exec(line)?.[1];
+  const http = /(?:^|\s)(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s\S+\s(\d{3})\b/.exec(line)?.[1];
   if (http) return http >= "500" ? "error" : http >= "400" ? "warn" : "info";
   return "info";
 }
