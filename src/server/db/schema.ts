@@ -834,3 +834,72 @@ export const aiUsage = pgTable("ai_usage", {
   error: text("error").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed)]);
+
+/* ---------------- Object Storage (فضای ذخیره‌سازی ابری) ---------------- */
+export const storagePlans = pgTable("storage_plans", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  sizeGb: integer("size_gb").notNull(),
+  price: money("price").notNull(), // Toman per month, billed hourly from the wallet
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+export type StorageCorsRule = { origins: string[]; methods: string[]; headers: string[]; maxAge: number };
+export type StorageLifecycle = { days: number; prefix: string };
+
+export const storageBuckets = pgTable("storage_buckets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** the real bucket name on the S3 backend (globally unique) */
+  name: text("name").notNull(),
+  planId: text("plan_id").notNull(),
+  access: text("access", { enum: ["private", "public"] }).notNull().default("private"),
+  status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
+  versioning: boolean("versioning").notNull().default(false),
+  cors: jsonb("cors").$type<StorageCorsRule[]>().notNull().default([]),
+  lifecycle: jsonb("lifecycle").$type<StorageLifecycle | null>(),
+  usedBytes: bigint("used_bytes", { mode: "number" }).notNull().default(0),
+  objects: integer("objects").notNull().default(0),
+  /** last cumulative request/traffic counters read from the backend (deltas go to storage_usage) */
+  counters: jsonb("counters").$type<{ requests: number; bytesIn: number; bytesOut: number }>().notNull().default({ requests: 0, bytesIn: 0, bytesOut: 0 }),
+  usageAt: ts("usage_at"),
+  suspendedAt: ts("suspended_at"),
+  /** "billing" (resumed automatically after a top-up) or "staff" (resumed by staff only) */
+  suspendReason: text("suspend_reason", { enum: ["", "billing", "staff"] }).notNull().default(""),
+  createdAt: created(),
+}, (t) => [uniqueIndex("storage_bucket_name_uq").on(t.name), index("storage_bucket_user_ix").on(t.userId)]);
+
+export const storageKeys = pgTable("storage_keys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  accessKey: text("access_key").notNull(),
+  /** AES-GCM sealed (secrets.ts); shown to the customer once */
+  secretEnc: text("secret_enc").notNull(),
+  grants: jsonb("grants").$type<{ bucketId: string; perm: "read" | "write" }[]>().notNull().default([]),
+  createdAt: created(),
+  rotatedAt: ts("rotated_at"),
+}, (t) => [uniqueIndex("storage_key_access_uq").on(t.accessKey), index("storage_key_user_ix").on(t.userId)]);
+
+export const storageDomains = pgTable("storage_domains", {
+  id: text("id").primaryKey(),
+  bucketId: text("bucket_id").notNull().references(() => storageBuckets.id, { onDelete: "cascade" }),
+  host: text("host").notNull(),
+  status: text("status", { enum: ["pending", "active", "failed"] }).notNull().default("pending"),
+  ssl: text("ssl", { enum: ["pending", "issued", "failed"] }).notNull().default("pending"),
+  checkedAt: ts("checked_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("storage_domain_uq").on(t.host), index("storage_domain_bucket_ix").on(t.bucketId)]);
+
+/** one row per bucket per day (UTC date): peak size and request/traffic totals */
+export const storageUsage = pgTable("storage_usage", {
+  id: serial("id").primaryKey(),
+  bucketId: text("bucket_id").notNull().references(() => storageBuckets.id, { onDelete: "cascade" }),
+  day: text("day").notNull(), // YYYY-MM-DD
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+  objects: integer("objects").notNull().default(0),
+  requests: bigint("requests", { mode: "number" }).notNull().default(0),
+  bytesIn: bigint("bytes_in", { mode: "number" }).notNull().default(0),
+  bytesOut: bigint("bytes_out", { mode: "number" }).notNull().default(0),
+}, (t) => [uniqueIndex("storage_usage_uq").on(t.bucketId, t.day)]);

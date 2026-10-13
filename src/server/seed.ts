@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { seedAiModels } from "./ai/service";
 import { seedGeoPlans } from "./geo/service";
+import { seedStoragePlans } from "./storage/service";
 import { seedInquiry } from "./inquiry/service";
 import { DEFAULT_PLANS, seedPlans } from "./paas/service";
 import { seal } from "./secrets";
@@ -39,6 +40,7 @@ export async function upgrade(db: DB) {
   await seedAiModels(db);
   await seedInquiry(db);
   await seedGeoPlans(db);
+  await seedStoragePlans(db);
   // v2 pricing: cloud plans priced from unit costs (CPU, RAM, disk, stepped traffic, IP). Replaces the
   // stored cloud plan rows once, keeping each plan's on/off switch from the admin panel.
   const [pv] = await db.select().from(t.kv).where(eq(t.kv.key, "pricing"));
