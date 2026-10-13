@@ -11,7 +11,7 @@ import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
-import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, Ticket } from "./types";
+import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
 
 export type { CartItem, ClientDB, Coupon, DnsRecord, FwRule, Hosting, Invoice, Server, Session, Ticket, User } from "./types";
 export { invGross, invTotal };
@@ -82,8 +82,10 @@ export const genPassword = () => {
 };
 
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
+export type StorageGrant = { bucketId: string; perm: "read" | "write" };
+export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -332,6 +334,32 @@ export const api = {
     adminPlan: (id: string, patch: { name?: string; price?: number; records?: number; active?: boolean }) => rpc("geo.adminPlan", id, patch),
     adminZone: (id: string, patch: { status?: "pending" | "active" | "suspended"; syncStatus?: "none" | "setup" | "ok" | "lagging" | "failed"; extendDays?: number }) => rpc("geo.adminZone", id, patch),
     adminTest: () => rpc<{ driver: string; detail: string }>("geo.adminTest"),
+  },
+  storage: {
+    create: (b: { name: string; planId: string; access: "private" | "public" }) => rpc<string>("storage.create", b),
+    remove: (id: string, confirm: string) => rpc("storage.remove", id, confirm),
+    setAccess: (id: string, access: "private" | "public") => rpc("storage.setAccess", id, access),
+    changePlan: (id: string, planId: string) => rpc("storage.changePlan", id, planId),
+    setVersioning: (id: string, on: boolean) => rpc("storage.setVersioning", id, on),
+    setCors: (id: string, rules: StorageCors[]) => rpc<{ corsApplied: boolean }>("storage.setCors", id, rules),
+    setLifecycle: (id: string, rule: { days: number; prefix: string } | null) => rpc("storage.setLifecycle", id, rule),
+    addDomain: (id: string, host: string) => rpc<string>("storage.addDomain", id, host),
+    verifyDomain: (id: string, domainId: string) => rpc<{ status: string; ssl: string }>("storage.verifyDomain", id, domainId),
+    removeDomain: (id: string, domainId: string) => rpc("storage.removeDomain", id, domainId),
+    createKey: (k: { name: string; grants: StorageGrant[] }) => rpc<{ id: string; accessKey: string; secretKey: string }>("storage.createKey", k),
+    updateKey: (id: string, patch: { name?: string; grants?: StorageGrant[] }) => rpc("storage.updateKey", id, patch),
+    revokeKey: (id: string) => rpc("storage.revokeKey", id),
+    regenerateKey: (id: string) => rpc<{ id: string; accessKey: string; secretKey: string }>("storage.regenerateKey", id),
+    objects: (id: string, prefix: string, cursor: string | null = null) => rpc<StorageListing>("storage.objects", id, prefix, cursor),
+    mkdir: (id: string, prefix: string, name: string) => rpc<string>("storage.mkdir", id, prefix, name),
+    uploadUrl: (id: string, key: string, size: number, type: string) => rpc<{ url: string; method: "PUT" }>("storage.uploadUrl", id, key, size, type),
+    downloadUrl: (id: string, key: string) => rpc<string>("storage.downloadUrl", id, key),
+    share: (id: string, key: string, ttl: number) => rpc<{ url: string; expiresAt: string }>("storage.share", id, key, ttl),
+    deleteObjects: (id: string, keys: string[]) => rpc<number>("storage.deleteObjects", id, keys),
+    move: (id: string, from: string, to: string) => rpc<number>("storage.move", id, from, to),
+    adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("storage.adminPlan", id, patch),
+    adminSuspend: (id: string, on: boolean) => rpc("storage.adminSuspend", id, on),
+    adminTest: () => rpc<{ driver: string; version: string }>("storage.adminTest"),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),
