@@ -11,7 +11,8 @@ import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
-import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, Ticket } from "./types";
+import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
+import type { Dmarc, MailAdminList, MailDomainDetail, MailMessageView, MailMsgRow, MailOverview, MailSendInput, MailStats } from "./mail";
 
 export type { CartItem, ClientDB, Coupon, DnsRecord, FwRule, Hosting, Invoice, Server, Session, Ticket, User } from "./types";
 export { invGross, invTotal };
@@ -23,7 +24,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" }, storage: { plans: [], buckets: [], keys: [], endpoint: "", region: "", driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -82,8 +83,10 @@ export const genPassword = () => {
 };
 
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
+export type StorageGrant = { bucketId: string; perm: "read" | "write" };
+export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -366,6 +369,68 @@ export const api = {
     adminPlan: (id: string, patch: { name?: string; price?: number; records?: number; active?: boolean }) => rpc("geo.adminPlan", id, patch),
     adminZone: (id: string, patch: { status?: "pending" | "active" | "suspended"; syncStatus?: "none" | "setup" | "ok" | "lagging" | "failed"; extendDays?: number }) => rpc("geo.adminZone", id, patch),
     adminTest: () => rpc<{ driver: string; detail: string }>("geo.adminTest"),
+  },
+  storage: {
+    create: (b: { name: string; planId: string; access: "private" | "public" }) => rpc<string>("storage.create", b),
+    remove: (id: string, confirm: string) => rpc("storage.remove", id, confirm),
+    setAccess: (id: string, access: "private" | "public") => rpc("storage.setAccess", id, access),
+    changePlan: (id: string, planId: string) => rpc("storage.changePlan", id, planId),
+    setVersioning: (id: string, on: boolean) => rpc("storage.setVersioning", id, on),
+    setCors: (id: string, rules: StorageCors[]) => rpc<{ corsApplied: boolean }>("storage.setCors", id, rules),
+    setLifecycle: (id: string, rule: { days: number; prefix: string } | null) => rpc("storage.setLifecycle", id, rule),
+    addDomain: (id: string, host: string) => rpc<string>("storage.addDomain", id, host),
+    verifyDomain: (id: string, domainId: string) => rpc<{ status: string; ssl: string }>("storage.verifyDomain", id, domainId),
+    removeDomain: (id: string, domainId: string) => rpc("storage.removeDomain", id, domainId),
+    createKey: (k: { name: string; grants: StorageGrant[] }) => rpc<{ id: string; accessKey: string; secretKey: string }>("storage.createKey", k),
+    updateKey: (id: string, patch: { name?: string; grants?: StorageGrant[] }) => rpc("storage.updateKey", id, patch),
+    revokeKey: (id: string) => rpc("storage.revokeKey", id),
+    regenerateKey: (id: string) => rpc<{ id: string; accessKey: string; secretKey: string }>("storage.regenerateKey", id),
+    objects: (id: string, prefix: string, cursor: string | null = null) => rpc<StorageListing>("storage.objects", id, prefix, cursor),
+    mkdir: (id: string, prefix: string, name: string) => rpc<string>("storage.mkdir", id, prefix, name),
+    uploadUrl: (id: string, key: string, size: number, type: string) => rpc<{ url: string; method: "PUT" }>("storage.uploadUrl", id, key, size, type),
+    downloadUrl: (id: string, key: string) => rpc<string>("storage.downloadUrl", id, key),
+    share: (id: string, key: string, ttl: number) => rpc<{ url: string; expiresAt: string }>("storage.share", id, key, ttl),
+    deleteObjects: (id: string, keys: string[]) => rpc<number>("storage.deleteObjects", id, keys),
+    move: (id: string, from: string, to: string) => rpc<number>("storage.move", id, from, to),
+    adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("storage.adminPlan", id, patch),
+    adminSuspend: (id: string, on: boolean) => rpc("storage.adminSuspend", id, on),
+    adminTest: () => rpc<{ driver: string; version: string }>("storage.adminTest"),
+  },
+  mail: {
+    overview: () => rpc<MailOverview>("mail.overview"),
+    domain: (id: string) => rpc<MailDomainDetail>("mail.domain", id),
+    messages: (id: string, f: { direction: "out" | "in"; status?: string; tag?: string; q?: string; mailboxId?: string; offset?: number }) => rpc<{ total: number; rows: MailMsgRow[] }>("mail.messages", id, f),
+    message: (id: string, msgId: string) => rpc<MailMessageView>("mail.message", id, msgId),
+    stats: (id: string) => rpc<MailStats>("mail.stats", id),
+    create: (d: { domain: string; planId: string }) => rpc<{ id: string; apiKey: string }>("mail.create", d),
+    remove: (id: string, confirm: string) => rpc("mail.remove", id, confirm),
+    setMode: (id: string, mode: "dev" | "live") => rpc("mail.setMode", id, mode),
+    setPlan: (id: string, planId: string) => rpc("mail.setPlan", id, planId),
+    checkDns: (id: string) => rpc<{ verified: boolean; ok: Record<string, boolean> }>("mail.checkDns", id),
+    autoDns: (id: string) => rpc<{ zone: string; added: number; replaced: number; verified: boolean }>("mail.autoDns", id),
+    setDmarc: (id: string, d: Dmarc) => rpc("mail.setDmarc", id, d),
+    rotateKey: (id: string) => rpc<string>("mail.rotateKey", id),
+    rotateDkim: (id: string) => rpc("mail.rotateDkim", id),
+    smtpCreate: (id: string) => rpc<{ username: string; password: string }>("mail.smtpCreate", id),
+    smtpReveal: (id: string, smtpId: string) => rpc<string>("mail.smtpReveal", id, smtpId),
+    smtpRegenerate: (id: string, smtpId: string) => rpc<string>("mail.smtpRegenerate", id, smtpId),
+    smtpRemove: (id: string, smtpId: string) => rpc("mail.smtpRemove", id, smtpId),
+    mailboxCreate: (id: string, b: { local: string; name: string; password: string; quotaMb: number }) => rpc("mail.mailboxCreate", id, b),
+    mailboxUpdate: (id: string, boxId: string, p: { name?: string; password?: string; quotaMb?: number; active?: boolean }) => rpc("mail.mailboxUpdate", id, boxId, p),
+    mailboxRemove: (id: string, boxId: string) => rpc("mail.mailboxRemove", id, boxId),
+    aliasSave: (id: string, a: { local: string; destinations: string[] }) => rpc("mail.aliasSave", id, a),
+    aliasRemove: (id: string, aliasId: string) => rpc("mail.aliasRemove", id, aliasId),
+    setInbound: (id: string, p: { catchAll?: string; spamThreshold?: number }) => rpc("mail.setInbound", id, p),
+    ruleAdd: (id: string, r: { field: "from" | "to" | "subject"; op: "contains" | "equals" | "ends"; value: string; action: "forward" | "drop"; target: string }) => rpc("mail.ruleAdd", id, r),
+    ruleRemove: (id: string, ruleId: string) => rpc("mail.ruleRemove", id, ruleId),
+    blockAdd: (id: string, pattern: string) => rpc("mail.blockAdd", id, pattern),
+    blockRemove: (id: string, blockId: string) => rpc("mail.blockRemove", id, blockId),
+    send: (id: string, m: MailSendInput) => rpc<{ id: string; status: string }>("mail.send", id, m),
+    testInbound: (id: string, m: { from: string; to: string; subject: string; text: string }) => rpc<{ action: string; id?: string }>("mail.testInbound", id, m),
+    adminList: () => rpc<MailAdminList>("mail.adminList"),
+    adminPlan: (id: string, patch: { name?: string; price?: number; dailyLimit?: number; monthlyLimit?: number; mailboxes?: number; quotaMb?: number; active?: boolean }) => rpc("mail.adminPlan", id, patch),
+    adminDomain: (id: string, p: { suspend: boolean }) => rpc("mail.adminDomain", id, p),
+    adminTest: () => rpc<{ driver: string; detail: string }>("mail.adminTest"),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),
