@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- assertions walk deeply nested manifest JSON */
 import { and, eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { classifyFailure, ciTemplates, dnsError, expandCodes, monthKey, nginxConfError, phpIniError } from "@/lib/paas-runtime";
