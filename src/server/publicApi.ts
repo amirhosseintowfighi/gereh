@@ -8,9 +8,10 @@ import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
 import { hitOut, kbQuery } from "./ai/kb";
 import { panelCaller } from "./ai/service";
-import { aiKbs, apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, users } from "./db/schema";
+import { aiKbs, apiTokens, dnsRecords, domains, invoiceItems, invoices, paasApps, paasDbs, paasDeployments, paasDomains, paasJobs, servers, storageBuckets, storagePlans, users } from "./db/schema";
 import { appHourly, appsDomain, defaultHost, loadPlans, previewHost } from "./paas/service";
 import { registry } from "./rpc";
+import { storageEndpoint, storageRegion } from "./storage/driver";
 import { AppError, sha256 } from "./util";
 import { invGross } from "@/lib/money";
 
@@ -56,6 +57,16 @@ async function appOut(ctx: Ctx, app: typeof paasApps.$inferSelect) {
     preview_url: app.previewDeployment ? "https://" + previewHost(app.name, domain) : null, preview_deployment: app.previewDeployment,
     latest_deployment: last ? { id: last.id, status: last.status, trigger: last.trigger, created_at: iso(last.createdAt) } : null, created_at: iso(app.createdAt),
   };
+}
+
+const bucketOut = (b: typeof storageBuckets.$inferSelect, plan?: typeof storagePlans.$inferSelect) => ({
+  id: b.id, name: b.name, status: b.status, access: b.access, plan: b.planId, size_gb: plan?.sizeGb ?? null, used_bytes: b.usedBytes, objects: b.objects,
+  versioning: b.versioning, endpoint: storageEndpoint(), region: storageRegion(), created_at: iso(b.createdAt),
+});
+async function bucketsOut(ctx: Ctx, id?: string) {
+  const own = eq(storageBuckets.userId, ctx.auth!.uid);
+  const [rows, plans] = await Promise.all([ctx.db.select().from(storageBuckets).where(id ? and(own, eq(storageBuckets.id, id)) : own), ctx.db.select().from(storagePlans)]);
+  return rows.map((b) => bucketOut(b, plans.find((p) => p.id === b.planId)));
 }
 
 type Route = { method: string; pattern: RegExp; write?: boolean; run: (ctx: Ctx, m: RegExpExecArray, body: Record<string, unknown>) => Promise<unknown> };
@@ -149,6 +160,11 @@ export const ROUTES: Route[] = [
     id: d.id, name: d.name, engine: d.engine, version: d.version, status: d.status, plan: d.planId, host: d.host || null, port: d.port, database: d.dbName, username: d.username,
     public_access: d.publicAccess, backups: d.backups, created_at: iso(d.createdAt),
   })) }) },
+  { method: "GET", pattern: /^storage\/buckets$/, run: async (ctx) => ({ data: await bucketsOut(ctx) }) },
+  { method: "POST", pattern: /^storage\/buckets$/, write: true, run: async (ctx, _m, b) => {
+    const id = await rpc(ctx, "storage.create", { name: String(b.name ?? ""), planId: String(b.plan ?? "st-20"), access: b.access === "public" ? "public" : "private" });
+    return (await bucketsOut(ctx, String(id)))[0];
+  } },
   { method: "GET", pattern: /^invoices$/, run: async (ctx) => {
     const list = await ctx.db.select().from(invoices).where(eq(invoices.userId, ctx.auth!.uid));
     const items = list.length ? await ctx.db.select().from(invoiceItems) : [];

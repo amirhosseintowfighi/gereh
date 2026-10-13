@@ -66,6 +66,15 @@ export type PaasDb = {
   pitr: boolean;
   /** point-in-time copy: source database and moment */
   restoredFrom: string; restoredAt: string;
+} & DbExtra;
+/** managed database extras (src/lib/dbaas.ts) */
+export type DbExtra = {
+  config: { params: Record<string, string>; extensions: string[]; allowlist: string[]; replicaSet: boolean; extImage: boolean; initialized: boolean; seed: { from: string; status: string; detail: string } | null };
+  users: { id: string; username: string; grants: { db: string; access: "ro" | "rw" }[]; at: string }[];
+  databases: { id: string; name: string; at: string }[];
+  panels: { id: string; tool: string; url: string; username: string; status: string; expiresAt: string; minutesLeft: number }[];
+  imports: { id: string; format: string; status: string; output: string; sizeMb: number; at: string }[];
+  events: { id: number; level: string; message: string; at: string }[];
 };
 export type InquiryAccess = "open" | "none" | "pending" | "approved" | "rejected";
 export type InquiryState = {
@@ -111,6 +120,23 @@ export type GeoZone = {
   records: GeoRecord[]; /** staff only: token for the sync agent */ syncToken: string;
 };
 export type GeoState = { plans: { id: string; name: string; price: number; records: number; healthChecks: boolean; sync: "none" | "files" | "full"; active: boolean }[]; zones: GeoZone[]; nameservers: string[]; driver: string };
+export type StorageCors = { origins: string[]; methods: string[]; headers: string[]; maxAge: number };
+export type StorageBucket = {
+  id: string; userId: string; name: string; planId: string; access: "private" | "public"; status: "active" | "suspended"; suspendReason: string;
+  versioning: boolean; cors: StorageCors[]; lifecycle: { days: number; prefix: string } | null; usedBytes: number; objects: number; hourly: number; at: string; usageAt: string;
+  /** public bucket: base URL of its objects; custom domains point their CNAME at `cname` */
+  publicBase: string; cname: string;
+  domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: "pending" | "issued" | "failed"; checked: string }[];
+  /** last 7 days, oldest first (customer view only) */
+  usage: { day: string; sizeBytes: number; objects: number; requests: number; bytesIn: number; bytesOut: number }[];
+};
+export type StorageKey = { id: string; name: string; accessKey: string; grants: { bucketId: string; perm: "read" | "write" }[]; at: string; rotated: string };
+export type StorageState = {
+  plans: { id: string; name: string; sizeGb: number; price: number; active: boolean }[]; buckets: StorageBucket[]; keys: StorageKey[];
+  endpoint: string; region: string;
+  /** staff only: "s3" or "simulator" */
+  driver: string;
+};
 export type PaasPlanRow = { id: string; kind: "app" | "db"; name: string; cpu: number; ramMb: number; diskGb: number; price: number; active: boolean };
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
@@ -171,6 +197,7 @@ export type ClientDB = {
   inquiry: InquiryState;
   ai: AiState;
   geo: GeoState;
+  storage: StorageState;
   /** team: members of the owner's account (owner view) and accounts the user belongs to */
   team: { members: { id: string; name: string; email: string; role: TeamRole; since: string }[]; invites: { id: string; email: string; role: TeamRole; expires: string }[]; memberships: { ownerId: string; ownerName: string; role: TeamRole }[] };
   /** referral programme stats for the signed-in customer */

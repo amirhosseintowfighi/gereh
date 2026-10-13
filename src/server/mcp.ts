@@ -56,6 +56,10 @@ export const MCP_TOOLS: McpTool[] = [
     call: (a) => ["POST", "domains/" + seg(a.domain_id) + "/records", { type: a.type, name: a.name, value: a.value, ttl: a.ttl, priority: a.priority }] },
   { name: "delete_dns_record", title: "Delete DNS record", write: true, description: "Removes a DNS record.", inputSchema: { type: "object", properties: { domain_id: str("Domain id"), record_id: str("Record id") }, required: ["domain_id", "record_id"] },
     call: (a) => ["DELETE", "domains/" + seg(a.domain_id) + "/records/" + seg(a.record_id)] },
+  { name: "list_buckets", title: "List storage buckets", description: "Object Storage (S3-compatible) buckets with plan size, usage, access (public/private), endpoint and region.", inputSchema: { type: "object", properties: {} }, call: () => ["GET", "storage/buckets"] },
+  { name: "create_bucket", title: "Create storage bucket", write: true, description: "Creates an S3-compatible bucket billed hourly from the wallet. Plans: st-20, st-40, st-80, st-160, st-320, st-640, st-1280 (GB). Bucket names are global: 3-63 lowercase letters, digits and hyphens. Access keys are created in the panel.",
+    inputSchema: { type: "object", properties: { name: str("Bucket name"), plan: str("Plan id (default st-20)"), access: str("private (default) or public (anyone can read objects)", { enum: ["private", "public"] }) }, required: ["name"] },
+    call: (a) => ["POST", "storage/buckets", { name: a.name, plan: a.plan, access: a.access }] },
   { name: "list_invoices", title: "List invoices", description: "Invoices with status and total in Toman.", inputSchema: { type: "object", properties: {} }, call: () => ["GET", "invoices"] },
   { name: "list_knowledge_bases", title: "List knowledge bases", description: "AI API knowledge bases (RAG) of the account with their embedding model.", inputSchema: { type: "object", properties: {} }, call: () => ["GET", "ai/kb"] },
   { name: "query_knowledge_base", title: "Search knowledge base", write: true, description: "Semantic search in a knowledge base: returns the most relevant passages with document name and cosine score. The question is embedded and billed to the wallet (a few Toman).",
@@ -105,7 +109,7 @@ export async function handleMcp(ctx: Ctx, scope: string, msg: RpcMsg) {
         protocolVersion: MCP_PROTOCOLS.includes(want) ? want : MCP_PROTOCOLS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
-        instructions: "Gereh Cloud (Iran): apps (PaaS), managed databases, cloud servers, domains/DNS and invoices of the signed-in account. Prices are in Toman. "
+        instructions: "Gereh Cloud (Iran): apps (PaaS), managed databases, object storage buckets, cloud servers, domains/DNS and invoices of the signed-in account. Prices are in Toman. "
           + "Deploy with deploy_app, then poll get_deployment every few seconds until status is live or failed and read its log on failure. "
           + (scope === "read-write" ? "" : "This token is read-only: write tools will fail."),
       });

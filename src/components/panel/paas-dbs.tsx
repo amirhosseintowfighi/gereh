@@ -11,6 +11,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
+import { BackupActions, DbActivity, DbFirewall, DbImport, DbInspector, DbPanels, DbTuning, DbUsers } from "./dbaas";
 import { Cost, cpuLabel, PlanPicker, ramLabel, StatusPill } from "./paas-shared";
 
 /* ================= list + create ================= */
@@ -21,7 +22,7 @@ export function UserDatabases({ create = false }: { create?: boolean }) {
   const monthly = dbs.reduce((s, d) => s + d.hourly * 720, 0);
   return (
     <div>
-      <PageTitle title="پایگاه داده" sub={dbs.length ? fa(dbs.length) + " پایگاه داده · حدود " + toman(monthly) + " در ماه" : "PostgreSQL، MySQL، MariaDB، MongoDB و Redis مدیریت‌شده با پشتیبان روزانه."}
+      <PageTitle title="پایگاه داده" sub={dbs.length ? fa(dbs.length) + " پایگاه داده · حدود " + toman(monthly) + " در ماه" : fa(DB_ENGINES.length) + " موتور مدیریت‌شده: PostgreSQL، MySQL، MongoDB، Redis، SQL Server، Elasticsearch، RabbitMQ، ClickHouse و…"}
         action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />پایگاه داده جدید</button>} />
       {dbs.length === 0 ? (
         <Card><Empty icon="database" title="هنوز پایگاه داده‌ای ندارید" text="در کمتر از یک دقیقه بسازید و با یک کلیک به اپ‌هایتان متصل کنید."
@@ -34,7 +35,7 @@ export function UserDatabases({ create = false }: { create?: boolean }) {
                 <span className="flex items-center justify-between gap-2"><b dir="ltr" className="truncate">{d.name}</b><StatusPill s={d.status} /></span>
                 <span className="block text-xs text-white/55 mt-1">{engineOf(d.engine)?.label ?? d.engine} {d.version}</span>
                 <span className="block text-xs text-white/55 mt-3">{d.links.length ? "متصل به " + d.links.map((l) => l.appName).join("، ") : "به اپی متصل نیست"}</span>
-                <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{d.backups ? "پشتیبان روزانه" : "بدون پشتیبان خودکار"}</span><span className="tabular">{fa(d.hourly)} تومان / ساعت</span></span>
+                <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{!engineOf(d.engine)?.backups ? "بدون پشتیبان‌گیری" : d.backups ? "پشتیبان روزانه" : "بدون پشتیبان خودکار"}</span><span className="tabular">{fa(d.hourly)} تومان / ساعت</span></span>
               </Link>
             </li>
           ))}
@@ -49,7 +50,7 @@ function NewDatabase({ open, onClose }: { open: boolean; onClose: () => void }) 
   const db = useDB(); const router = useRouter();
   const { notify } = useApp();
   const plans = db.paasPlans.filter((p) => p.kind === "db");
-  const [f, setF] = useState({ name: "", engine: "postgres", version: "17", planId: "db-micro", publicAccess: false, backups: true });
+  const [f, setF] = useState({ name: "", engine: "postgres", version: "17", planId: "db-micro", publicAccess: false, backups: true, replicaSet: false });
   const [error, setError] = useState("");
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
   const plan = plans.find((p) => p.id === f.planId) ?? plans[0];
@@ -58,23 +59,31 @@ function NewDatabase({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <Modal open={open} onClose={onClose} title="پایگاه داده جدید" icon="database" size="max-w-3xl">
       <div className="space-y-5">
-        <div role="radiogroup" aria-label="موتور" className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {DB_ENGINES.map((e) => (
-            <button key={e.id} type="button" role="radio" aria-checked={f.engine === e.id} title={e.hint} onClick={() => set({ engine: e.id, version: e.versions[0] })}
-              className={"rounded-2xl p-3 border text-center transition " + (f.engine === e.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
-              <Icon name={e.icon} size={18} className="acc mx-auto" /><b className="block text-xs mt-1.5">{e.label}</b>
-            </button>
+        <div role="radiogroup" aria-label="موتور" className="space-y-3">
+          {[...new Set(DB_ENGINES.map((e) => e.group))].map((g) => (
+            <div key={g}><p className="text-[11px] text-white/50 mb-1.5">{g}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {DB_ENGINES.filter((e) => e.group === g).map((e) => (
+                  <button key={e.id} type="button" role="radio" aria-checked={f.engine === e.id} title={e.hint} onClick={() => { const p = plans.find((x) => x.id === f.planId); set({ engine: e.id, version: e.versions[0], backups: e.backups, publicAccess: e.publicOk === false ? false : f.publicAccess, ...(e.minRamMb && p && p.ramMb < e.minRamMb ? { planId: plans.find((x) => x.ramMb >= e.minRamMb!)?.id ?? f.planId } : {}) }); }}
+                    className={"rounded-2xl p-3 border text-center transition " + (f.engine === e.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+                    <Icon name={e.icon} size={18} className="acc mx-auto" /><b className="block text-xs mt-1.5">{e.label}</b>
+                    {!e.backups && <span className="block text-[10px] text-amber-200/70 mt-0.5">بدون پشتیبان‌گیری</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        {engine && <p className="text-xs text-white/55 -mt-2">{engine.hint}</p>}
+        {engine && <p className="text-xs text-white/55">{engine.hint}{engine.minRamMb ? " · دست‌کم " + ramLabel(engine.minRamMb) + " حافظه" : ""}{!engine.backups ? " · پشتیبان‌گیری خودکار و بازگردانی ندارد" : ""}</p>}
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="نام" error={nameError || undefined}><input value={f.name} onChange={(e) => set({ name: e.target.value.toLowerCase() })} dir="ltr" placeholder="shop-db" aria-invalid={!!nameError} className={INPUT + " text-left"} /></Field>
           <Field label="نسخه"><Select label="نسخه" value={f.version} onChange={(v) => set({ version: v })} options={(engine?.versions ?? []).map((v) => ({ value: v, label: v }))} /></Field>
         </div>
         <PlanPicker plans={plans} value={f.planId} onChange={(id) => set({ planId: id })} label="پلن پایگاه داده" />
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3"><span>پشتیبان خودکار روزانه<span className="block text-[11px] text-white/50">۷ نسخه آخر نگه داشته می‌شود</span></span><Switch on={f.backups} onChange={(v) => set({ backups: v })} label="پشتیبان خودکار" /></div>
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3"><span>دسترسی از بیرون<span className="block text-[11px] text-white/50">برای اتصال از سیستم خودتان</span></span><Switch on={f.publicAccess} onChange={(v) => set({ publicAccess: v })} label="دسترسی عمومی" /></div>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3"><span>پشتیبان خودکار روزانه<span className="block text-[11px] text-white/50">{engine?.backups ? "۷ نسخه آخر نگه داشته می‌شود" : "برای این موتور پشتیبانی نمی‌شود"}</span></span><Switch on={f.backups && !!engine?.backups} disabled={!engine?.backups} onChange={(v) => set({ backups: v })} label="پشتیبان خودکار" /></div>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3"><span>دسترسی از بیرون<span className="block text-[11px] text-white/50">{engine?.publicOk === false ? "فقط از اپ‌های خودتان" : "برای اتصال از سیستم خودتان"}</span></span><Switch on={f.publicAccess} disabled={engine?.publicOk === false} onChange={(v) => set({ publicAccess: v })} label="دسترسی عمومی" /></div>
+          {f.engine === "mongodb" && <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3"><span>Replica Set<span className="block text-[11px] text-white/50">برای تراکنش و change stream</span></span><Switch on={f.replicaSet} onChange={(v) => set({ replicaSet: v })} label="Replica Set" /></div>}
         </div>
         <div className="flex flex-wrap items-end justify-between gap-4 pt-4 border-t border-white/[0.08]">
           {plan && <Cost monthly={plan.price} />}
@@ -95,6 +104,8 @@ function NewDatabase({ open, onClose }: { open: boolean; onClose: () => void }) 
 /* ================= detail ================= */
 const TABS = [
   { id: "overview", label: "اتصال", icon: "plug" }, { id: "backups", label: "پشتیبان‌ها", icon: "archive" },
+  { id: "users", label: "کاربران", icon: "users" }, { id: "data", label: "داده‌ها", icon: "table" }, { id: "panels", label: "پنل وب", icon: "layout-dashboard" },
+  { id: "tuning", label: "پیکربندی", icon: "sliders-horizontal" },
   { id: "resources", label: "منابع", icon: "gauge" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 
@@ -103,7 +114,7 @@ export function DbDetail({ id }: { id: string }) {
   const d = db.paasDbs.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
   if (!d) return <Card><Empty icon="database" title="پایگاه داده پیدا نشد" action={<Link href="/panel/databases" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت</Link>} /></Card>;
-  const pending = d.status === "creating" || d.backupList.some((b) => b.status === "running" || b.status === "restoring");
+  const pending = d.status === "creating" || d.backupList.some((b) => b.status === "running" || b.status === "restoring") || d.imports.some((x) => x.status === "queued" || x.status === "running") || d.config.seed?.status === "pending";
   return (
     <div>
       <Refresh active={pending} />
@@ -116,6 +127,10 @@ export function DbDetail({ id }: { id: string }) {
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <DbConnect d={d} />}
         {tab === "backups" && <DbBackups d={d} />}
+        {tab === "users" && <DbUsers d={d} />}
+        {tab === "data" && <DbInspector d={d} />}
+        {tab === "panels" && <DbPanels d={d} />}
+        {tab === "tuning" && <DbTuning d={d} />}
         {tab === "resources" && <DbResources d={d} />}
         {tab === "settings" && <DbSettings d={d} />}
       </div>
@@ -169,6 +184,7 @@ function DbConnect({ d }: { d: PaasDb }) {
         <MetricCard label="پردازنده" icon="cpu" values={d.metrics.map((m) => m.cpu)} unit="٪" />
         <MetricCard label="حافظه" icon="memory-stick" values={d.metrics.map((m) => m.ramMb)} unit="MB" />
       </div>
+      <DbActivity d={d} />
     </div>
   );
 }
@@ -188,6 +204,7 @@ const BK_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "g
 function DbBackups({ d }: { d: PaasDb }) {
   const { notify } = useApp();
   const manual = d.backupList.filter((b) => b.kind === "manual").length;
+  if (!engineOf(d.engine)?.backups) return <><Card><Empty icon="archive" title={"پشتیبان‌گیری برای " + (engineOf(d.engine)?.label ?? d.engine) + " پشتیبانی نمی‌شود"} text="از داده‌های مهم در برنامه خودتان خروجی بگیرید." /></Card><DbImport d={d} /></>;
   return (
     <>
     <Card title="پشتیبان‌ها" icon="archive" pad="p-3 sm:p-4"
@@ -204,6 +221,7 @@ function DbBackups({ d }: { d: PaasDb }) {
                     {b.verified === true && <span className="text-emerald-300"> · آزمون بازگردانی موفق ({b.verifiedAt})</span>}
                     {b.verified === false && <span className="text-rose-300" title={b.verifyDetail}> · آزمون بازگردانی ناموفق</span>}</span></span>
                 <span className="flex gap-2">
+                  {b.status === "done" && <BackupActions d={d} backupId={b.id} />}
                   {b.status === "done" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />بازگردانی</AsyncButton>}
                   {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={13} /></AsyncButton>}
                 </span>
@@ -214,6 +232,8 @@ function DbBackups({ d }: { d: PaasDb }) {
       )}
       <p className="text-[11px] text-white/45 px-2 mt-3 leading-6">هر هفته آخرین پشتیبان در یک سرور جداگانه بازگردانی و بررسی می‌شود تا مطمئن شوید پشتیبان‌ها واقعاً قابل استفاده‌اند.</p>
     </Card>
+    {d.config.seed && <p className={"text-xs mt-3 " + (d.config.seed.status === "failed" ? "text-rose-300" : "text-sky-200")}>این پایگاه داده از پشتیبان «{d.config.seed.from}» ساخته شده است{d.config.seed.status === "pending" ? "؛ بازگردانی در جریان است…" : d.config.seed.status === "failed" ? "؛ بازگردانی ناموفق بود: " + d.config.seed.detail : "."}</p>}
+    <DbImport d={d} />
     {d.engine === "postgres" && <Pitr d={d} />}
     </>
   );
@@ -266,9 +286,10 @@ function DbSettings({ d }: { d: PaasDb }) {
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       <Card title="تنظیمات" icon="settings-2">
         <div className="space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-3"><span>پشتیبان خودکار روزانه</span><Switch on={d.backups} onChange={async (v) => { await api.paas.updateDb(d.id, { backups: v }); notify(v ? "پشتیبان خودکار روشن شد" : "پشتیبان خودکار خاموش شد", "archive"); }} label="پشتیبان خودکار" /></div>
-          <div className="flex items-center justify-between gap-3"><span>دسترسی از بیرون<span className="block text-[11px] text-white/50">{d.publicPort ? "پورت عمومی " + fa(d.publicPort) : "فقط از اپ‌های خودتان در گره"}</span></span><Switch on={d.publicAccess} onChange={async (v) => { await api.paas.updateDb(d.id, { publicAccess: v }); notify("ذخیره شد", "check"); }} label="دسترسی عمومی" /></div>
+          <div className="flex items-center justify-between gap-3"><span>پشتیبان خودکار روزانه</span><Switch on={d.backups} disabled={!engineOf(d.engine)?.backups} onChange={async (v) => { await api.paas.updateDb(d.id, { backups: v }); notify(v ? "پشتیبان خودکار روشن شد" : "پشتیبان خودکار خاموش شد", "archive"); }} label="پشتیبان خودکار" /></div>
+          <div className="flex items-center justify-between gap-3"><span>دسترسی از بیرون<span className="block text-[11px] text-white/50">{d.publicPort ? "پورت عمومی " + fa(d.publicPort) : "فقط از اپ‌های خودتان در گره"}</span></span><Switch on={d.publicAccess} disabled={engineOf(d.engine)?.publicOk === false} onChange={async (v) => { await api.paas.updateDb(d.id, { publicAccess: v }); notify("ذخیره شد", "check"); }} label="دسترسی عمومی" /></div>
         </div>
+        <div className="mt-4"><DbFirewall d={d} /></div>
       </Card>
       <Card title="حذف پایگاه داده" icon="trash-2">
         {d.links.length > 0 ? <p className="text-sm text-white/65 leading-7">ابتدا اتصال آن را از اپ‌های {d.links.map((l) => l.appName).join("، ")} بردارید.</p> : <>

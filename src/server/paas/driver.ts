@@ -4,7 +4,7 @@
    - SimulatorDriver (below): in-process stand-in with realistic timings and logs for dev, CI and demos.
    Long operations are split into start + poll so the worker never blocks on a build. */
 import "server-only";
-import { stackOf } from "@/lib/paas";
+import { engineOf, stackOf } from "@/lib/paas";
 import type { ComposeService } from "./compose";
 
 export type AppSpec = {
@@ -26,6 +26,10 @@ export type DbSpec = {
   pitr?: boolean;
   /** created from another database's WAL archive at a point in time */
   restore?: { fromId: string; fromUserId: string; time: string };
+  /** DBaaS extras (src/lib/dbaas.ts): tuning, PostgreSQL extensions, public allowlist, MongoDB replica set */
+  params?: Record<string, string>; extensions?: string[]; allowlist?: string[]; replicaSet?: boolean;
+  /** PostgreSQL on the Gereh image with PostGIS and pgvector */
+  extImage?: boolean;
 };
 export type ScanState = { state: "running" | "done" | "failed"; critical: number; high: number; report: string };
 export type BuildState = { state: "running" | "succeeded" | "failed"; log: string; image?: string; ref?: string; /** gereh.json found in the source */ manifest?: string };
@@ -191,7 +195,7 @@ export class SimulatorDriver implements PaasDriver {
   }
   async verifyBackup(db: DbSpec) { return db.engine === "redis" ? { ok: true, detail: "RDB OK" } : { ok: true, detail: "TABLES=" + (12 + (db.id.length % 7)) }; }
   async verifyDomain(host: string) { return !/invalid|example\.(com|org|net)$/.test(host); }
-  async createDb(db: DbSpec) { return { host: db.name + "." + db.userId + ".db.gereh.internal", port: ({ postgres: 5432, mysql: 3306, mariadb: 3306, mongodb: 27017, redis: 6379 } as Record<string, number>)[db.engine], publicPort: db.publicAccess ? 30000 + (db.id.length * 97) % 2000 : undefined }; }
+  async createDb(db: DbSpec) { return { host: db.name + "." + db.userId + ".db.gereh.internal", port: engineOf(db.engine)?.port ?? 5432, publicPort: db.publicAccess ? 30000 + (db.id.length * 97) % 2000 : undefined }; }
   async dbReady() { return true; }
   async updateDb(db: DbSpec) { return { publicPort: db.publicAccess ? 30000 + (db.id.length * 97) % 2000 : undefined }; }
   async setDbState() {}

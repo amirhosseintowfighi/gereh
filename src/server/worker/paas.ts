@@ -3,7 +3,7 @@
 import "server-only";
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
-import { hourlyOf } from "@/lib/paas";
+import { engineOf, hourlyOf } from "@/lib/paas";
 import type { DB } from "../db/client";
 import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasJobs, paasLinks, paasMetrics, paasPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -248,6 +248,7 @@ export async function paasBackup(db: DB, p: { backupId: string; restore?: boolea
 export async function paasDaily(db: DB) {
   const list = await db.select().from(paasDbs).where(and(eq(paasDbs.status, "running"), eq(paasDbs.backups, true)));
   for (const row of list) {
+    if (!engineOf(row.engine)?.backups) continue;
     const id = rid("bk");
     await db.insert(paasDbBackups).values({ id, dbId: row.id, kind: "auto" });
     await enqueue(db, "paas.backup", { backupId: id });

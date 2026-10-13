@@ -20,12 +20,13 @@ import https from "node:https";
 import { mirrorEnv, mirrorHost } from "@/lib/mirror";
 import type { ComposeService } from "./compose";
 import type { AppSpec, BuildState, DbSpec, PaasDriver } from "./driver";
+import { enginePort, engineK8s, pgArgs } from "./engines";
 
 type Obj = Record<string, unknown>;
 type K8sError = Error & { status?: number };
 
 const env = (k: string, d = "") => process.env[k] || d;
-const cfg = () => ({
+export const cfg = () => ({
   api: env("PAAS_K8S_API").replace(/\/$/, ""),
   token: env("PAAS_K8S_TOKEN"),
   ca: env("PAAS_K8S_CA"),
@@ -70,7 +71,7 @@ const shq = (s: string) => "'" + s.replace(/'/g, "'\\''") + "'";
 
 /* ---------- HTTP ---------- */
 let caCache: string | undefined;
-function caPem() {
+export function caPem() {
   const c = cfg().ca;
   if (!c) return undefined;
   if (caCache === undefined) caCache = c.includes("BEGIN CERTIFICATE") ? c : readFileSync(c, "utf8");
@@ -123,8 +124,8 @@ function pathOf(apiVersion: string, kind: string, ns: string | null, name?: stri
 export function apply(obj: Obj & { apiVersion: string; kind: string; metadata: { name: string; namespace?: string } }) {
   return k8s("PATCH", pathOf(obj.apiVersion, obj.kind, obj.metadata.namespace ?? null, obj.metadata.name) + "?fieldManager=" + FM + "&force=true", obj, "application/apply-patch+yaml");
 }
-const del = (apiVersion: string, kind: string, ns: string, name: string) => ignore404(k8s("DELETE", pathOf(apiVersion, kind, ns, name) + "?propagationPolicy=Background"));
-const get = (apiVersion: string, kind: string, ns: string, name: string) => k8s("GET", pathOf(apiVersion, kind, ns, name));
+export const del = (apiVersion: string, kind: string, ns: string, name: string) => ignore404(k8s("DELETE", pathOf(apiVersion, kind, ns, name) + "?propagationPolicy=Background"));
+export const get = (apiVersion: string, kind: string, ns: string, name: string) => k8s("GET", pathOf(apiVersion, kind, ns, name));
 
 /* ---------- manifests (exported for tests) ---------- */
 export function namespaceObjects(userId: string): Obj[] {
@@ -384,24 +385,13 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
   };
 }
 
-const DB_IMAGES: Record<string, (v: string) => string> = { postgres: (v) => "postgres:" + v + "-alpine", mysql: (v) => "mysql:" + v, mariadb: (v) => "mariadb:" + v, mongodb: (v) => "mongo:" + v, redis: (v) => "redis:" + v + "-alpine" };
-const DB_PORTS: Record<string, number> = { postgres: 5432, mysql: 3306, mariadb: 3306, mongodb: 27017, redis: 6379 };
-const DB_DATA: Record<string, string> = { postgres: "/var/lib/postgresql/data", mysql: "/var/lib/mysql", mariadb: "/var/lib/mysql", mongodb: "/data/db", redis: "/data" };
-
-function dbEnv(d: DbSpec) {
-  const s = (key: string) => ({ valueFrom: { secretKeyRef: { name: dbName(d) + "-auth", key } } });
-  switch (d.engine) {
-    case "postgres": return [{ name: "POSTGRES_USER", value: d.username }, { name: "POSTGRES_PASSWORD", ...s("password") }, { name: "POSTGRES_DB", value: d.dbName }, { name: "PGDATA", value: "/var/lib/postgresql/data/pgdata" }];
-    case "mysql": return [{ name: "MYSQL_USER", value: d.username }, { name: "MYSQL_PASSWORD", ...s("password") }, { name: "MYSQL_ROOT_PASSWORD", ...s("password") }, { name: "MYSQL_DATABASE", value: d.dbName }];
-    case "mariadb": return [{ name: "MARIADB_USER", value: d.username }, { name: "MARIADB_PASSWORD", ...s("password") }, { name: "MARIADB_ROOT_PASSWORD", ...s("password") }, { name: "MARIADB_DATABASE", value: d.dbName }];
-    case "mongodb": return [{ name: "MONGO_INITDB_ROOT_USERNAME", value: d.username }, { name: "MONGO_INITDB_ROOT_PASSWORD", ...s("password") }, { name: "MONGO_INITDB_DATABASE", value: d.dbName }];
-    default: return [{ name: "REDIS_PASSWORD", ...s("password") }];
-  }
-}
-const dbProbe = (d: DbSpec): Obj => ({ exec: { command: ["/bin/sh", "-c", ({
-  postgres: 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"', mysql: 'mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD"', mariadb: "healthcheck.sh --connect --innodb_initialized",
-  mongodb: "mongosh --quiet --eval 'db.adminCommand({ping:1})'", redis: 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping',
-} as Record<string, string>)[d.engine]] }, periodSeconds: 10, timeoutSeconds: 5 });
+/* engine details (image, env, probes, tuning flags) live in ./engines.ts */
+const dbImage = (d: DbSpec) => engineK8s(d.engine).image(d);
+const dbEnv = (d: DbSpec) => engineK8s(d.engine).env(d);
+const dbProbe = (d: DbSpec): Obj => {
+  const e = engineK8s(d.engine);
+  return { ...(e.probe ? { exec: { command: ["/bin/sh", "-c", e.probe] } } : { tcpSocket: { port: e.port } }), periodSeconds: 10, timeoutSeconds: 5 };
+};
 
 export const pitrPrefix = (userId: string, dbId: string) => "s3://" + cfg().pitrBucket + "/" + dns1123(userId) + "/" + dbId;
 /** WAL-G: restore the latest base backup before `time`, replay WAL up to it, then promote */
@@ -423,8 +413,11 @@ const PITR_SIDECAR = [
 ].join("\n");
 
 export function dbObjects(d: DbSpec): Obj[] {
-  const c = cfg(), ns = nsOf(d.userId), labels = dbLabels(d), port = DB_PORTS[d.engine];
+  const c = cfg(), ns = nsOf(d.userId), labels = dbLabels(d), e = engineK8s(d.engine), port = e.port, data = e.data;
   const walg = d.engine === "postgres" && (d.pitr || d.restore);
+  const args = d.engine === "postgres" ? pgArgs(d, !!(walg && d.pitr)) : e.args?.(d);
+  const command = e.command?.(d);
+  const rsKey = d.engine === "mongodb" && d.replicaSet;
   const walgEnv = walg ? [
     { name: "AWS_ACCESS_KEY_ID", valueFrom: { secretKeyRef: { name: "pitr-s3", key: "key" } } }, { name: "AWS_SECRET_ACCESS_KEY", valueFrom: { secretKeyRef: { name: "pitr-s3", key: "secret" } } },
     { name: "AWS_ENDPOINT", value: c.pitrS3.endpoint }, { name: "AWS_S3_FORCE_PATH_STYLE", value: "true" }, { name: "AWS_REGION", value: "us-east-1" },
@@ -432,43 +425,52 @@ export function dbObjects(d: DbSpec): Obj[] {
   ] : [];
   return [
     ...(walg ? [{ apiVersion: "v1", kind: "Secret", metadata: { name: "pitr-s3", namespace: ns, labels: { "app.kubernetes.io/managed-by": FM } }, type: "Opaque", stringData: { key: c.pitrS3.key, secret: c.pitrS3.secret } }] : []),
-    { apiVersion: "v1", kind: "Secret", metadata: { name: dbName(d) + "-auth", namespace: ns, labels }, type: "Opaque", stringData: { password: d.password } },
+    { apiVersion: "v1", kind: "Secret", metadata: { name: dbName(d) + "-auth", namespace: ns, labels }, type: "Opaque", stringData: { password: d.password, ...e.secret?.(d) } },
     { apiVersion: "apps/v1", kind: "StatefulSet", metadata: { name: dbName(d), namespace: ns, labels }, spec: {
       serviceName: dbName(d), replicas: 1, selector: { matchLabels: { "app.kubernetes.io/name": dbName(d) } },
       template: { metadata: { labels }, spec: {
         automountServiceAccountToken: false, enableServiceLinks: false, terminationGracePeriodSeconds: 60,
-        ...(walg && d.restore ? { initContainers: [{ name: "pitr-restore", image: c.walgImage + ":" + d.version, command: ["/bin/sh", "-c", pitrRestoreScript(pitrPrefix(d.restore.fromUserId, d.restore.fromId), d.restore.time)], env: [...dbEnv(d), ...walgEnv], volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }] }] } : {}),
+        ...(e.fsGroup ? { securityContext: { fsGroup: e.fsGroup } } : {}),
+        ...(walg && d.restore ? { initContainers: [{ name: "pitr-restore", image: c.walgImage + ":" + d.version, command: ["/bin/sh", "-c", pitrRestoreScript(pitrPrefix(d.restore.fromUserId, d.restore.fromId), d.restore.time)], env: [...dbEnv(d), ...walgEnv], volumeMounts: [{ name: "data", mountPath: data }] }] } : {}),
+        // mongod insists on a key file only its own user can read
+        ...(rsKey ? { initContainers: [{ name: "keyfile", image: dbImage(d), command: ["/bin/sh", "-c", "cp /key-src/keyfile /etc/mongo-key/keyfile && chown 999:999 /etc/mongo-key/keyfile && chmod 400 /etc/mongo-key/keyfile"], volumeMounts: [{ name: "key-src", mountPath: "/key-src" }, { name: "key", mountPath: "/etc/mongo-key" }] }] } : {}),
         containers: [{
-          name: "db", image: walg ? c.walgImage + ":" + d.version : DB_IMAGES[d.engine](d.version),
-          ...(walg && d.pitr ? { args: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_command=wal-g wal-push %p", "-c", "archive_timeout=300"] } : {}),
-          ...(d.engine === "redis" ? { command: ["/bin/sh", "-c", 'exec redis-server --requirepass "$REDIS_PASSWORD" --appendonly yes --maxmemory ' + Math.floor(d.ramMb * 0.8) + "mb --maxmemory-policy noeviction"] } : {}),
-          env: [...dbEnv(d), ...walgEnv], ports: [{ name: "db", containerPort: port }],
+          name: "db", image: walg ? c.walgImage + ":" + d.version : dbImage(d),
+          ...(args ? { args } : {}),
+          ...(command ? { command } : {}),
+          env: [...dbEnv(d), ...walgEnv], ports: [{ name: "db", containerPort: port }, ...(e.extraPorts ?? []).map((x) => ({ name: x.name, containerPort: x.port }))],
           resources: { requests: { cpu: cpuQty(d.cpu / 2), memory: memQty(d.ramMb) }, limits: { cpu: cpuQty(d.cpu), memory: memQty(d.ramMb) } },
-          readinessProbe: dbProbe(d), livenessProbe: { tcpSocket: { port }, periodSeconds: 20, failureThreshold: 6, initialDelaySeconds: 30 },
-          volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }],
+          readinessProbe: dbProbe(d), livenessProbe: { tcpSocket: { port }, periodSeconds: 20, failureThreshold: 6, initialDelaySeconds: e.slow ? 120 : 30 },
+          volumeMounts: [{ name: "data", mountPath: data }, ...(rsKey ? [{ name: "key", mountPath: "/etc/mongo-key" }] : [])],
         }, ...(walg && d.pitr ? [{
           name: "walg", image: c.walgImage + ":" + d.version, command: ["/bin/sh", "-c", PITR_SIDECAR],
           env: [...dbEnv(d), ...walgEnv, { name: "PGHOST", value: "127.0.0.1" }, { name: "PGUSER", value: d.username }, { name: "PGPASSWORD", valueFrom: { secretKeyRef: { name: dbName(d) + "-auth", key: "password" } } }, { name: "PGDATABASE", value: d.dbName }],
           resources: { requests: { cpu: "50m", memory: "64Mi" }, limits: { cpu: "500m", memory: "512Mi" } },
-          volumeMounts: [{ name: "data", mountPath: DB_DATA[d.engine] }],
+          volumeMounts: [{ name: "data", mountPath: data }],
         }] : [])],
+        ...(rsKey ? { volumes: [{ name: "key-src", secret: { secretName: dbName(d) + "-auth", items: [{ key: "keyfile", path: "keyfile" }] } }, { name: "key", emptyDir: { medium: "Memory", sizeLimit: "1Mi" } }] } : {}),
       } },
       volumeClaimTemplates: [{ metadata: { name: "data" }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: d.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } }],
     } },
-    { apiVersion: "v1", kind: "Service", metadata: { name: dbName(d), namespace: ns, labels }, spec: { selector: { "app.kubernetes.io/name": dbName(d) }, ports: [{ name: "db", port, targetPort: port }] } },
+    { apiVersion: "v1", kind: "Service", metadata: { name: dbName(d), namespace: ns, labels }, spec: { selector: { "app.kubernetes.io/name": dbName(d) }, ports: [{ name: "db", port, targetPort: port }, ...(e.extraPorts ?? []).map((x) => ({ name: x.name, port: x.port, targetPort: x.port }))] } },
   ];
 }
-/** public access: a NodePort plus a policy that opens only this database's pod to the outside */
-export const publicObjects = (d: DbSpec): Obj[] => [
-  { apiVersion: "networking.k8s.io/v1", kind: "NetworkPolicy", metadata: { name: dbName(d) + "-public", namespace: nsOf(d.userId), labels: dbLabels(d) }, spec: { podSelector: { matchLabels: { "app.kubernetes.io/name": dbName(d) } }, policyTypes: ["Ingress"], ingress: [{ ports: [{ port: DB_PORTS[d.engine] }], from: [{ ipBlock: { cidr: "0.0.0.0/0" } }] }] } },
-  publicSvc(d),
-];
-const publicSvc = (d: DbSpec): Obj => ({ apiVersion: "v1", kind: "Service", metadata: { name: dbName(d) + "-public", namespace: nsOf(d.userId), labels: dbLabels(d) }, spec: { type: "NodePort", selector: { "app.kubernetes.io/name": dbName(d) }, ports: [{ name: "db", port: DB_PORTS[d.engine], targetPort: DB_PORTS[d.engine] }] } });
+/** public access: a NodePort plus a policy that opens only this database's pod to the outside — to
+    everyone, or only to the allowlisted CIDRs. With an allowlist the Service keeps the client's
+    address (externalTrafficPolicy Local), so the public DNS name must point at the nodes themselves. */
+export const publicObjects = (d: DbSpec): Obj[] => {
+  const allow = d.allowlist?.length ? d.allowlist : ["0.0.0.0/0"];
+  return [
+    { apiVersion: "networking.k8s.io/v1", kind: "NetworkPolicy", metadata: { name: dbName(d) + "-public", namespace: nsOf(d.userId), labels: dbLabels(d) }, spec: { podSelector: { matchLabels: { "app.kubernetes.io/name": dbName(d) } }, policyTypes: ["Ingress"], ingress: [{ ports: [{ port: enginePort(d.engine) }], from: allow.map((cidr) => ({ ipBlock: { cidr } })) }] } },
+    publicSvc(d),
+  ];
+};
+const publicSvc = (d: DbSpec): Obj => ({ apiVersion: "v1", kind: "Service", metadata: { name: dbName(d) + "-public", namespace: nsOf(d.userId), labels: dbLabels(d) }, spec: { type: "NodePort", ...(d.allowlist?.length ? { externalTrafficPolicy: "Local" } : {}), selector: { "app.kubernetes.io/name": dbName(d) }, ports: [{ name: "db", port: enginePort(d.engine), targetPort: enginePort(d.engine) }] } });
 export const dbHost = (d: Pick<DbSpec, "name" | "userId">) => dbName(d) + "." + nsOf(d.userId) + ".svc.cluster.local";
 
 /* shell snippets for backup / restore Jobs (run in the platform namespace) */
 export function dumpCommand(d: DbSpec) {
-  const h = dbHost(d), p = DB_PORTS[d.engine];
+  const h = dbHost(d), p = enginePort(d.engine);
   switch (d.engine) {
     case "postgres": return `PGPASSWORD="$DB_PASSWORD" pg_dump -h ${h} -p ${p} -U ${shq(d.username)} -Fc ${shq(d.dbName)} > /backup/dump`;
     case "mysql": return `mysqldump -h ${h} -P ${p} -u root -p"$DB_PASSWORD" --single-transaction --routines --triggers --databases ${shq(d.dbName)} > /backup/dump`;
@@ -478,7 +480,7 @@ export function dumpCommand(d: DbSpec) {
   }
 }
 export function restoreCommand(d: DbSpec) {
-  const h = dbHost(d), p = DB_PORTS[d.engine];
+  const h = dbHost(d), p = enginePort(d.engine);
   switch (d.engine) {
     case "postgres": return `PGPASSWORD="$DB_PASSWORD" pg_restore -h ${h} -p ${p} -U ${shq(d.username)} -d ${shq(d.dbName)} --clean --if-exists --no-owner /backup/dump`;
     case "mysql": return `mysql -h ${h} -P ${p} -u root -p"$DB_PASSWORD" < /backup/dump`;
@@ -570,7 +572,7 @@ export class KubernetesDriver implements PaasDriver {
     return { version: "Kubernetes " + String(v.gitVersion ?? "?") };
   }
 
-  private async ensureNs(userId: string) {
+  async ensureNs(userId: string) {
     const ns = nsOf(userId);
     if (this.readyNs.has(ns)) return ns;
     for (const o of namespaceObjects(userId)) await apply(o as never);
@@ -747,7 +749,7 @@ export class KubernetesDriver implements PaasDriver {
   async verifyBackup(d: DbSpec, location: string) {
     const key = location.replace(/^s3:\/\//, "");
     try {
-      const log = await this.dbJob(d, "verify", DB_IMAGES[d.engine](d.version), verifyScript(d), [], 3600, { mode: "down", key });
+      const log = await this.dbJob(d, "verify", dbImage(d), verifyScript(d), [], 3600, { mode: "down", key });
       const t = /TABLES=(\d+)/.exec(log)?.[1];
       return t ? { ok: true, detail: "TABLES=" + t } : { ok: false, detail: log.slice(-300) };
     } catch (e) { return { ok: false, detail: (e as Error).message.slice(-300) }; }
@@ -837,7 +839,7 @@ export class KubernetesDriver implements PaasDriver {
     await this.ensureNs(d.userId);
     for (const o of dbObjects(d)) await apply(o as never);
     const publicPort = d.publicAccess ? await this.publicPort(d) : undefined;
-    return { host: dbHost(d), port: DB_PORTS[d.engine], publicPort };
+    return { host: dbHost(d), port: enginePort(d.engine), publicPort };
   }
   private async publicPort(d: DbSpec) {
     const [policy, svc] = publicObjects(d);
@@ -861,7 +863,7 @@ export class KubernetesDriver implements PaasDriver {
     return { publicPort: undefined };
   }
   private async changePassword(d: DbSpec, old: string) {
-    const h = dbHost(d), p = DB_PORTS[d.engine];
+    const h = dbHost(d), p = enginePort(d.engine);
     const sql = (s: string) => s.replace(/'/g, "''");
     const cmd = ({
       postgres: `echo 'ALTER USER "${d.username.replace(/"/g, "")}" PASSWORD :'"'"'newpw'"'"';' | PGPASSWORD="$OLD" psql -h ${h} -p ${p} -U ${shq(d.username)} -d ${shq(d.dbName)} -v ON_ERROR_STOP=1 -v newpw="$NEW"`,
@@ -870,7 +872,7 @@ export class KubernetesDriver implements PaasDriver {
       mongodb: `mongosh "mongodb://${encodeURIComponent(d.username)}:$OLD_URL@${h}:${p}/admin" --quiet --eval 'db.changeUserPassword(${JSON.stringify(d.username)}, process.env.NEW)'`,
       redis: `redis-cli -h ${h} -p ${p} -a "$OLD" --no-auth-warning CONFIG SET requirepass "$NEW"`,
     } as Record<string, string>)[d.engine];
-    await this.dbJob(d, "passwd", DB_IMAGES[d.engine](d.version), cmd, [{ name: "OLD", value: old }, { name: "OLD_URL", value: encodeURIComponent(old) }, { name: "NEW", value: d.password }], 300);
+    await this.dbJob(d, "passwd", dbImage(d), cmd, [{ name: "OLD", value: old }, { name: "OLD_URL", value: encodeURIComponent(old) }, { name: "NEW", value: d.password }], 300);
   }
   async setDbState(d: DbSpec, action: "start" | "stop") {
     await k8s("PATCH", pathOf("apps/v1", "StatefulSet", nsOf(d.userId), dbName(d)), { spec: { replicas: action === "stop" ? 0 : 1 } }, "application/merge-patch+json");
@@ -886,7 +888,7 @@ export class KubernetesDriver implements PaasDriver {
   }
 
   /** runs a one-off Job in the platform namespace and waits for it; returns its log */
-  private async waitJob(ns: string, name: string, timeoutSec: number, containers: string[]) {
+  async waitJob(ns: string, name: string, timeoutSec: number, containers: string[]) {
     for (const t0 = Date.now(); Date.now() - t0 < timeoutSec * 1000 + 30_000; await sleep(3000)) {
       const j = await get("batch/v1", "Job", ns, name) as { status?: { succeeded?: number; failed?: number } };
       if (j.status?.succeeded) return this.jobLogs(ns, name, containers);
@@ -895,7 +897,7 @@ export class KubernetesDriver implements PaasDriver {
     throw new Error(name + " timed out");
   }
 
-  private async dbJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down" | "share"; key: string }) {
+  async dbJob(d: DbSpec, kind: string, image: string, script: string, envs: { name: string; value: string }[], timeoutSec: number, upload?: { mode: "up" | "down" | "share"; key: string }) {
     const c = cfg(), name = (kind + "-" + d.id + "-" + Date.now().toString(36)).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 60);
     const s3 = ["S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY"].map((k) => ({ name: k, valueFrom: { secretKeyRef: { name: "backup-s3", key: k } } }));
     const vol = [{ name: "backup", mountPath: "/backup" }];
@@ -918,14 +920,14 @@ export class KubernetesDriver implements PaasDriver {
 
   async backupDb(d: DbSpec, backupId: string) {
     const key = cfg().bucket + "/" + dns1123(d.userId) + "/" + d.id + "/" + backupId + ".dump";
-    const log = await this.dbJob(d, "backup", DB_IMAGES[d.engine](d.version), dumpCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "up", key });
+    const log = await this.dbJob(d, "backup", dbImage(d), dumpCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "up", key });
     const bytes = Number(/SIZE=(\d+)/.exec(log)?.[1] ?? 0);
     return { sizeMb: Math.round((bytes / 1024 / 1024) * 10) / 10, location: "s3://" + key };
   }
   async restoreDb(d: DbSpec, location: string) {
     const key = location.replace(/^s3:\/\//, "");
     if (d.engine === "redis") return this.restoreRedis(d, key);
-    await this.dbJob(d, "restore", DB_IMAGES[d.engine](d.version), restoreCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key });
+    await this.dbJob(d, "restore", dbImage(d), restoreCommand(d), [{ name: "DB_PASSWORD", value: d.password }], 3600, { mode: "down", key });
   }
 
   private async restoreRedis(d: DbSpec, key: string) {
@@ -946,7 +948,7 @@ export class KubernetesDriver implements PaasDriver {
         apiVersion: "batch/v1", kind: "Job", metadata: { name, namespace: ns, labels: { "app.kubernetes.io/managed-by": FM, "gereh.net/kind": "restore" } },
         spec: { backoffLimit: 0, activeDeadlineSeconds: 3600, ttlSecondsAfterFinished: 3600, template: { metadata: { labels: { "gereh.net/kind": "restore" } }, spec: {
           restartPolicy: "Never", automountServiceAccountToken: false,
-          containers: [{ name: "main", image: DB_IMAGES.redis(d.version), command: ["/bin/sh", "-c", redisRestoreScript], env: [{ name: "URL", value: url }],
+          containers: [{ name: "main", image: dbImage(d), command: ["/bin/sh", "-c", redisRestoreScript], env: [{ name: "URL", value: url }],
             resources: { limits: { cpu: cpuQty(d.cpu), memory: memQty(d.ramMb * 2) } }, volumeMounts: [{ name: "data", mountPath: "/data" }] }],
           volumes: [{ name: "data", persistentVolumeClaim: { claimName: "data-" + sts + "-0" } }],
         } } },

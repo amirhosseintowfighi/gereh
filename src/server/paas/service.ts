@@ -4,9 +4,9 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { appMonthly, hourlyOf, type PaasPlan } from "@/lib/paas";
+import { appMonthly, defaultEnvKeyFor, hourlyOf, type PaasPlan } from "@/lib/paas";
 import type { DB, Tx } from "../db/client";
-import { paasApps, paasCrons, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
+import { paasApps, paasCrons, paasDbConfig, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
 import { enqueue } from "../jobs";
 import { open, seal } from "../secrets";
 import { getSettings } from "../state";
@@ -67,10 +67,23 @@ export function connectionUrl(d: Pick<DbRow, "engine" | "host" | "port" | "usern
     case "mysql": case "mariadb": return `mysql://${u}:${p}@${d.host}:${d.port}/${d.dbName}`;
     case "mongodb": return `mongodb://${u}:${p}@${d.host}:${d.port}/${d.dbName}?authSource=admin`;
     case "redis": return `redis://default:${p}@${d.host}:${d.port}/0`;
+    // Prisma / JDBC style, accepted by the common Node, Python and .NET drivers
+    case "mssql": return `sqlserver://${d.host}:${d.port};database=${d.dbName};user=${d.username};password=${password};encrypt=true;trustServerCertificate=true`;
+    case "elasticsearch": return `http://${u}:${p}@${d.host}:${d.port}`;
+    case "rabbitmq": return `amqp://${u}:${p}@${d.host}:${d.port}/${encodeURIComponent(d.dbName)}`;
+    case "clickhouse": return `http://${u}:${p}@${d.host}:${d.port}/?database=${d.dbName}`;
+    case "cassandra": return `cassandra://${u}:${p}@${d.host}:${d.port}/${d.dbName}`;
+    case "couchdb": return `http://${u}:${p}@${d.host}:${d.port}/${d.dbName}`;
+    // the password is also the API token
+    case "influxdb": return `http://${u}:${p}@${d.host}:${d.port}/?org=gereh&bucket=${d.dbName}`;
+    case "neo4j": return `bolt://${u}:${p}@${d.host}:${d.port}`;
+    case "arangodb": return `http://${u}:${p}@${d.host}:${d.port}/_db/${d.dbName}`;
+    case "rethinkdb": return `rethinkdb://${u}:${p}@${d.host}:${d.port}/${d.dbName}`;
+    case "prometheus": return `http://${d.host}:${d.port}`;
     default: return "";
   }
 }
-export const defaultEnvKey = (engine: string) => (engine === "redis" ? "REDIS_URL" : engine === "mongodb" ? "MONGODB_URI" : "DATABASE_URL");
+export const defaultEnvKey = defaultEnvKeyFor;
 
 /** everything the driver needs to run an app: plan size, decrypted env, linked database URLs, hosts */
 export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
@@ -107,9 +120,10 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
 }
 
 export async function dbSpec(db: DB | Tx, d: DbRow): Promise<DbSpec> {
-  const [plan] = await db.select().from(paasPlans).where(eq(paasPlans.id, d.planId));
+  const [[plan], [conf]] = await Promise.all([db.select().from(paasPlans).where(eq(paasPlans.id, d.planId)), db.select().from(paasDbConfig).where(eq(paasDbConfig.dbId, d.id))]);
   return { id: d.id, userId: d.userId, name: d.name, engine: d.engine, version: d.version, cpu: plan?.cpu ?? 0.5, ramMb: plan?.ramMb ?? 512, diskGb: plan?.diskGb ?? 5, username: d.username, password: open(d.passwordEnc) ?? "", dbName: d.dbName, publicAccess: d.publicAccess,
-    pitr: d.pitr, restore: d.restoreFrom && d.restoreTime ? { fromId: d.restoreFrom, fromUserId: d.userId, time: d.restoreTime.toISOString() } : undefined };
+    pitr: d.pitr, restore: d.restoreFrom && d.restoreTime ? { fromId: d.restoreFrom, fromUserId: d.userId, time: d.restoreTime.toISOString() } : undefined,
+    ...(conf ? { params: conf.params, extensions: conf.extensions, allowlist: conf.allowlist, replicaSet: conf.replicaSet, extImage: conf.extImage } : {}) };
 }
 
 export const setEnvValue = (tx: DB | Tx, appId: string, key: string, value: string, secret: boolean, managedBy: string | null = null) =>

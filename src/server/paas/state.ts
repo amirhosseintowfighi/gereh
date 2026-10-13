@@ -8,6 +8,7 @@ import type { ClientDB } from "@/lib/types";
 import type { DB } from "../db/client";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasMetrics, paasPlans, paasProcesses } from "../db/schema";
 import { open } from "../secrets";
+import { dbaasState } from "./dbaas-service";
 import { previewHost } from "./service";
 
 export async function paasState(db: DB, opts: { uid: string; admin: boolean; domain: string; siteUrl: string }): Promise<Pick<ClientDB, "paasApps" | "paasDbs" | "paasPlans">> {
@@ -29,6 +30,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
     appIds.length ? db.select().from(paasCrons).where(inArray(paasCrons.appId, appIds)).orderBy(asc(paasCrons.name)) : [],
     appIds.length && !opts.admin ? db.select().from(paasJobs).where(and(inArray(paasJobs.appId, appIds), gte(paasJobs.createdAt, new Date(Date.now() - 7 * 86400_000)))).orderBy(desc(paasJobs.createdAt)).limit(200) : [],
   ]);
+  const extras = await dbaasState(db, dbIds, { admin: opts.admin });
   const m = (target: string) => metrics.filter((x) => x.target === target).map((x) => ({ at: faDateTime(x.createdAt).split(" ")[1] ?? "", cpu: x.cpu, ramMb: x.ramMb, rpm: x.rpm }));
   const appName = new Map(apps.map((a) => [a.id, a.name]));
   return {
@@ -63,6 +65,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         pitr: d.pitr, restoredFrom: d.restoreFrom ? (dbs.find((x) => x.id === d.restoreFrom)?.name ?? d.restoreFrom) : "", restoredAt: d.restoreTime ? faDateTime(d.restoreTime) : "",
         links: links.filter((l) => l.dbId === d.id).map((l) => ({ appId: l.appId, appName: appName.get(l.appId) ?? l.appId, envKey: l.envKey })),
         metrics: m(d.id),
+        ...extras.get(d.id)!,
       };
     }),
   };

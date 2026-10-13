@@ -7,6 +7,7 @@ import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, MAX_CRONS, MAX_PROCESSES, PAAS_NA
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
+import { afterCreateDb } from "../paas/dbaas-service";
 import { paas } from "../paas/driver";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
 import { templateOf } from "@/lib/paas-templates";
@@ -34,18 +35,18 @@ async function ownDb(ctx: Ctx, dbId: string) {
   if (row!.status === "suspended") fail("این پایگاه داده معلق است.", 403);
   return { a, row: row! };
 }
-async function plan(ctx: Ctx, planId: string, kind: "app" | "db") {
+export async function plan(ctx: Ctx, planId: string, kind: "app" | "db") {
   const [p] = await ctx.db.select().from(paasPlans).where(and(eq(paasPlans.id, planId), eq(paasPlans.kind, kind)));
   if (!p || !p.active) fail("این پلن در دسترس نیست.");
   return p!;
 }
 /** creating or growing a resource needs 24 hours of its cost in the wallet */
-async function needCredit(ctx: Ctx, uid: string, monthly: number) {
+export async function needCredit(ctx: Ctx, uid: string, monthly: number) {
   const [u] = await ctx.db.select({ balance: users.balance }).from(users).where(eq(users.id, uid));
   const need = 24 * hourlyOf(monthly);
   if ((u?.balance ?? 0) < need) fail("موجودی کیف پول کافی نیست؛ برای شروع دست‌کم " + need.toLocaleString("fa-IR") + " تومان (هزینه ۲۴ ساعت) لازم است.", 402);
 }
-function checkName(name: string) {
+export function checkName(name: string) {
   if (!PAAS_NAME_RE.test(name)) fail("نام فقط حروف کوچک انگلیسی، عدد و خط تیره؛ ۳ تا ۳۰ نویسه و با حرف شروع شود.");
   if (PAAS_RESERVED.has(name)) fail("این نام رزرو شده است.");
   if (name.endsWith("-preview")) fail("نام اپ نمی‌تواند با ‎-preview‎ تمام شود (برای پیش‌نمایش‌ها رزرو است).");
@@ -389,18 +390,22 @@ export const paasRpc = {
   }),
 
   /* ---------------- databases ---------------- */
-  "paas.createDb": method(z.tuple([z.object({ name: z.string().trim().toLowerCase().max(30), engine: z.enum(DB_ENGINES.map((e) => e.id) as [string, ...string[]]), version: z.string().max(10), planId: id, publicAccess: z.boolean().default(false), backups: z.boolean().default(true) })]), async (ctx, [i]) => {
+  "paas.createDb": method(z.tuple([z.object({ name: z.string().trim().toLowerCase().max(30), engine: z.enum(DB_ENGINES.map((e) => e.id) as [string, ...string[]]), version: z.string().max(10), planId: id, publicAccess: z.boolean().default(false), backups: z.boolean().default(true), replicaSet: z.boolean().optional() })]), async (ctx, [i]) => {
     const a = needUser(ctx);
     checkName(i.name);
     const e = DB_ENGINES.find((x) => x.id === i.engine)!;
     if (!e.versions.includes(i.version)) fail("نسخه انتخابی پشتیبانی نمی‌شود.");
     const p = await plan(ctx, i.planId, "db");
+    if (e.minRamMb && p.ramMb < e.minRamMb) fail(e.label + " دست‌کم " + (e.minRamMb / 1024).toLocaleString("fa-IR") + " گیگابایت حافظه لازم دارد؛ پلن بزرگ‌تری انتخاب کنید.");
+    if (i.publicAccess && e.publicOk === false) fail(e.label + " احراز هویت ندارد و فقط از اپ‌های خودتان در دسترس است.");
     await needCredit(ctx, a.uid, p.price);
     const [dup] = await ctx.db.select({ id: paasDbs.id }).from(paasDbs).where(and(eq(paasDbs.userId, a.uid), eq(paasDbs.name, i.name)));
     if (dup) fail("پایگاه داده‌ای با این نام دارید.");
     const dbId = rid("pdb");
-    const password = randomBytes(18).toString("base64url");
-    await ctx.db.insert(paasDbs).values({ id: dbId, userId: a.uid, name: i.name, engine: i.engine as never, version: i.version, planId: p.id, port: e.port, username: i.engine === "redis" ? "default" : "u_" + i.name.replace(/-/g, "_").slice(0, 20), passwordEnc: seal(password), dbName: i.name.replace(/-/g, "_"), publicAccess: i.publicAccess, backups: i.backups });
+    // SQL Server rejects passwords without upper case, lower case and digits
+    const password = randomBytes(18).toString("base64url") + (i.engine === "mssql" ? "Aa1" : "");
+    await ctx.db.insert(paasDbs).values({ id: dbId, userId: a.uid, name: i.name, engine: i.engine as never, version: i.version, planId: p.id, port: e.port, username: e.user ?? "u_" + i.name.replace(/-/g, "_").slice(0, 20), passwordEnc: seal(password), dbName: i.name.replace(/-/g, "_"), publicAccess: i.publicAccess, backups: i.backups && e.backups });
+    await afterCreateDb(ctx.db, { id: dbId, engine: i.engine as never }, { replicaSet: i.replicaSet });
     await enqueue(ctx.db, "paas.db", { dbId });
     await logActivity(ctx.db, a.uid, "database", "ساخت پایگاه داده " + e.label + " " + i.name, ctx.ip);
     return dbId;
@@ -416,6 +421,7 @@ export const paasRpc = {
 
   "paas.resetDbPassword": method(z.tuple([id]), async (ctx, [dbId]) => {
     const { a, row } = await ownDb(ctx, dbId);
+    if (!["postgres", "mysql", "mariadb", "mongodb", "redis"].includes(row.engine)) fail("تغییر رمز اصلی برای این موتور پشتیبانی نمی‌شود؛ یک کاربر جدید بسازید یا با پشتیبانی تماس بگیرید.");
     const password = randomBytes(18).toString("base64url");
     await ctx.db.update(paasDbs).set({ passwordEnc: seal(password) }).where(eq(paasDbs.id, row.id));
     const next = { ...row, passwordEnc: seal(password) };
@@ -432,6 +438,9 @@ export const paasRpc = {
     const { a, row } = await ownDb(ctx, dbId);
     if (patch.pitr && row.engine !== "postgres") fail("بازیابی لحظه‌ای فقط برای PostgreSQL در دسترس است.");
     if (patch.pitr && !pitrAvailable()) fail("بازیابی لحظه‌ای هنوز روی این پلتفرم راه‌اندازی نشده است.");
+    const eng = DB_ENGINES.find((x) => x.id === row.engine);
+    if (patch.backups && !eng?.backups) fail("پشتیبان‌گیری برای " + (eng?.label ?? row.engine) + " پشتیبانی نمی‌شود.");
+    if (patch.publicAccess && eng?.publicOk === false) fail((eng?.label ?? row.engine) + " فقط از اپ‌های خودتان در دسترس است.");
     if (patch.planId && patch.planId !== row.planId) {
       const p = await plan(ctx, patch.planId, "db");
       const [cur] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, row.planId));
@@ -491,6 +500,7 @@ export const paasRpc = {
 
   "paas.backupDb": method(z.tuple([id]), async (ctx, [dbId]) => {
     const { row } = await ownDb(ctx, dbId);
+    if (!DB_ENGINES.find((x) => x.id === row.engine)?.backups) fail("پشتیبان‌گیری برای این موتور پشتیبانی نمی‌شود.");
     if (row.status !== "running") fail("پایگاه داده باید روشن باشد.");
     const [running] = await ctx.db.select({ id: paasDbBackups.id }).from(paasDbBackups).where(and(eq(paasDbBackups.dbId, row.id), eq(paasDbBackups.status, "running")));
     if (running) fail("یک پشتیبان‌گیری در جریان است.");
