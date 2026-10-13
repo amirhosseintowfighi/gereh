@@ -141,6 +141,13 @@
       "when": 1791600020000,
       "tag": "0020_ai_plus",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791600022000,
+      "tag": "0022_domains_cdn",
+      "breakpoints": true
     }
   ]
 }

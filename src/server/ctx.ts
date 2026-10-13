@@ -73,8 +73,8 @@ export const actor = (ctx: Ctx) => ctx.auth ? ctx.auth.user.name + (ctx.auth.uid
 const MEMBER_SELF = ["team.switch", "team.leave", "team.accept", "account.readAll", "account.readOne"];
 const TEAM_POLICY: Record<"admin" | "tech" | "billing", { groups: string[]; allow: string[]; deny: string[] }> = {
   admin: { groups: ["auth", "servers", "hosting", "domains", "billing", "tickets", "contact", "devops", "paas", "dbaas", "inquiry", "geo", "ai", "storage", "mail"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey", "account.createToken", "account.revokeToken", "account.setNotif"], deny: [] },
-  tech: { groups: ["auth", "servers", "hosting", "domains", "tickets", "contact", "devops", "paas", "dbaas", "inquiry", "geo", "ai", "storage", "mail"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey"], deny: ["domains.renew", "hosting.renew"] },
-  billing: { groups: ["auth", "billing", "tickets", "contact"], allow: [...MEMBER_SELF, "domains.renew", "hosting.renew"], deny: [] },
+  tech: { groups: ["auth", "servers", "hosting", "domains", "tickets", "contact", "devops", "paas", "dbaas", "inquiry", "geo", "ai", "storage", "mail"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey"], deny: ["domains.renew", "hosting.renew", "domains.transferIn"] },
+  billing: { groups: ["auth", "billing", "tickets", "contact"], allow: [...MEMBER_SELF, "domains.renew", "hosting.renew", "domains.transferIn"], deny: [] },
 };
 export function teamAllows(role: "admin" | "tech" | "billing" | undefined, methodName: string) {
   if (!role) return true;

@@ -6,9 +6,11 @@
      is configured they use the simulator so the rest of the flow (orders, invoices, DNS) still works. */
 import "server-only";
 import { eq } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
 import { isAvailable } from "@/lib/catalog";
+import { rdata } from "@/lib/domains";
 import type { DB } from "./db/client";
-import { dnsRecords, domains, type hosting } from "./db/schema";
+import { domains, type hosting } from "./db/schema";
 
 type HostingRow = typeof hosting.$inferSelect;
 
@@ -19,11 +21,21 @@ export interface HostingProvider {
   setPassword(h: HostingRow, password: string): Promise<void>;
   sso(h: HostingRow): Promise<string>;
 }
-export interface DnsProvider { sync(db: DB, domainId: string): Promise<void> }
+export interface DnsProvider {
+  sync(db: DB, domainId: string): Promise<void>;
+  /** signs (or unsigns) the zone; returns the DS records for the registry */
+  dnssec(domain: string, on: boolean): Promise<string[]>;
+}
+/** registrant details a registry needs beyond the name (IRNIC handle for .ir) */
+export type Contact = { irnicHandle?: string };
 export interface Registrar {
   check(name: string, tlds: string[]): Promise<{ tld: string; available: boolean }[]>;
-  register(domain: string, years: number, ns: string[]): Promise<{ authCode: string }>;
+  register(domain: string, years: number, ns: string[], contact?: Contact): Promise<{ authCode: string }>;
   renew(domain: string, years: number): Promise<void>;
+  /** starts a transfer-in with the losing registrar's EPP code; resolves once the registry accepts it */
+  transfer(domain: string, authCode: string, contact?: Contact): Promise<{ expiresAt?: Date }>;
+  /** current EPP auth code (domain secret) */
+  authCode(domain: string): Promise<string>;
   setNameservers(domain: string, ns: string[]): Promise<void>;
   setLock(domain: string, locked: boolean): Promise<void>;
   setPrivacy(domain: string, on: boolean): Promise<void>;
@@ -69,17 +81,14 @@ class PowerDns implements DnsProvider {
     const [d] = await db.select().from(domains).where(eq(domains.id, domainId));
     if (!d) return;
     const zone = d.name + ".";
-    const recs = await db.select().from(dnsRecords).where(eq(dnsRecords.domainId, domainId));
+    const { publishedRecords } = await import("./domains/service");
+    const recs = await publishedRecords(db, domainId);
     const fq = (n: string) => (n === "@" ? zone : n.replace(/\.$/, "") + "." + zone);
-    const content = (r: typeof recs[number]) => {
-      const v = r.type === "TXT" ? '"' + r.value.replace(/"/g, '\\"') + '"' : ["CNAME", "MX", "NS"].includes(r.type) ? r.value.replace(/\.?$/, ".") : r.value;
-      return r.type === "MX" || r.type === "SRV" ? (r.priority ?? 10) + " " + v : v;
-    };
     const want = new Map<string, { name: string; type: string; ttl: number; records: { content: string; disabled: false }[] }>();
     for (const r of recs) {
       const k = fq(r.name) + "|" + r.type;
       const set = want.get(k) ?? { name: fq(r.name), type: r.type, ttl: r.ttl, records: [] };
-      set.records.push({ content: content(r), disabled: false });
+      if (!set.records.some((x) => x.content === rdata(r))) set.records.push({ content: rdata(r), disabled: false });
       want.set(k, set);
     }
     const cur = await this.req("GET", "/" + zone);
@@ -94,8 +103,29 @@ class PowerDns implements DnsProvider {
     ];
     if (rrsets.length) await this.req("PATCH", "/" + zone, { rrsets });
   }
+  /** one combined signing key (ECDSA P-256); PowerDNS signs live, the DS comes from its key list */
+  async dnssec(domain: string, on: boolean) {
+    const zone = domain + ".";
+    if (!on) {
+      const keys = (await (await this.req("GET", "/" + zone + "/cryptokeys")).json().catch(() => [])) as { id: number }[];
+      for (const k of keys) await this.req("DELETE", "/" + zone + "/cryptokeys/" + k.id);
+      return [];
+    }
+    const list = async () => (await (await this.req("GET", "/" + zone + "/cryptokeys")).json().catch(() => [])) as { active: boolean; ds?: string[] }[];
+    let keys = await list();
+    if (!keys.some((k) => k.active)) { await this.req("POST", "/" + zone + "/cryptokeys", { keytype: "csk", active: true, algorithm: "ECDSAP256SHA256" }); keys = await list(); }
+    return keys.filter((k) => k.active).flatMap((k) => k.ds ?? []).filter((d) => / 2 [0-9a-f]+$/i.test(d));
+  }
 }
-class SimDns implements DnsProvider { async sync() {} }
+class SimDns implements DnsProvider {
+  async sync() {}
+  async dnssec(domain: string, on: boolean) { return on ? [simDs(domain)] : []; }
+}
+/** deterministic DS (key tag, ECDSAP256SHA256, SHA-256) for the simulator */
+export const simDs = (domain: string) => {
+  const h = createHash("sha256").update("gereh-ksk:" + domain).digest("hex").toUpperCase();
+  return (parseInt(h.slice(0, 4), 16) % 65535) + " 13 2 " + h;
+};
 
 /* ---------------- registrars ---------------- */
 class ResellerClub implements Registrar {
@@ -125,14 +155,37 @@ class ResellerClub implements Registrar {
     const d = await this.call("domains/details.json", [["order-id", id], ["options", "OrderDetails"]]);
     await this.call("domains/renew.json", [["order-id", id], ["years", String(years)], ["exp-date", String(d.endtime)], ["invoice-option", "NoInvoice"]], "POST");
   }
+  async transfer(domain: string, authCode: string) {
+    const c = process.env.RC_CONTACT_ID!;
+    await this.call("domains/transfer.json", [["domain-name", domain], ["auth-code", authCode], ["customer-id", process.env.RC_CUSTOMER_ID!],
+      ["reg-contact-id", c], ["admin-contact-id", c], ["tech-contact-id", c], ["billing-contact-id", c], ["invoice-option", "NoInvoice"], ["protect-privacy", "true"]], "POST");
+    return {};
+  }
+  async authCode(domain: string) {
+    const d = await this.call("domains/details-by-name.json", [["domain-name", domain], ["options", "OrderDetails"]]);
+    return String(d.domsecret || "");
+  }
   async setNameservers(domain: string, ns: string[]) { await this.call("domains/modify-ns.json", [["order-id", await this.orderId(domain)], ...ns.map((n) => ["ns", n] as [string, string])], "POST"); }
   async setLock(domain: string, locked: boolean) { await this.call(locked ? "domains/enable-theft-protection.json" : "domains/disable-theft-protection.json", [["order-id", await this.orderId(domain)]], "POST"); }
   async setPrivacy(domain: string, on: boolean) { await this.call("domains/modify-privacy-protection.json", [["order-id", await this.orderId(domain)], ["protect-privacy", String(on)], ["reason", "customer request"]], "POST"); }
 }
-class SimRegistrar implements Registrar {
+const simCode = () => randomBytes(4).toString("hex").slice(0, 6) + "#" + randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
+export class SimRegistrar implements Registrar {
+  /** what the simulator was asked to do (tests read it) */
+  static log: string[] = [];
   async check(name: string, tlds: string[]) { return tlds.map((tld) => ({ tld, available: isAvailable(name, tld) })); }
-  async register() { return { authCode: Math.random().toString(36).slice(2, 8) + "#" + Math.random().toString(36).slice(2, 8).toUpperCase() }; }
+  async register(domain: string, _years: number, _ns: string[], contact?: Contact) {
+    SimRegistrar.log.push("register " + domain + (contact?.irnicHandle ? " " + contact.irnicHandle : ""));
+    return { authCode: simCode() };
+  }
   async renew() {}
+  async transfer(domain: string, authCode: string, contact?: Contact) {
+    // .ir moves by the holder's IRNIC handle; other registries check the EPP code
+    if (/\.ir$/.test(domain) ? !contact?.irnicHandle : authCode.length < 6 || /^invalid/i.test(authCode)) throw new Error("registry rejected the transfer of " + domain);
+    SimRegistrar.log.push("transfer " + domain);
+    return {};
+  }
+  async authCode() { return simCode(); }
   async setNameservers() {}
   async setLock() {}
   async setPrivacy() {}
@@ -147,8 +200,10 @@ class Router implements Registrar {
     const by = new Map([...a, ...b].map((x) => [x.tld, x]));
     return tlds.map((t) => by.get(t) ?? { tld: t, available: false });
   }
-  register(d: string, y: number, ns: string[]) { return this.pick(d).register(d, y, ns); }
+  register(d: string, y: number, ns: string[], c?: Contact) { return this.pick(d).register(d, y, ns, c); }
   renew(d: string, y: number) { return this.pick(d).renew(d, y); }
+  transfer(d: string, code: string, c?: Contact) { return this.pick(d).transfer(d, code, c); }
+  authCode(d: string) { return this.pick(d).authCode(d); }
   setNameservers(d: string, ns: string[]) { return this.pick(d).setNameservers(d, ns); }
   setLock(d: string, l: boolean) { return this.pick(d).setLock(d, l); }
   setPrivacy(d: string, p: boolean) { return this.pick(d).setPrivacy(d, p); }

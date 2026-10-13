@@ -1,9 +1,9 @@
 import "server-only";
-import { and, count, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { MAX_DOMAIN_YEARS } from "@/lib/catalog";
 import { actor, isStaff, method, needStaff, needUser, type Ctx } from "../ctx";
-import { dnsRecords, domains, hosting, tlds } from "../db/schema";
+import { domains, hosting, tlds } from "../db/schema";
 import { providers } from "../providers";
 import { fail, logActivity, logAudit, randomSecret, rid } from "../util";
 import { createInvoice } from "./billing";
@@ -16,31 +16,15 @@ async function ownHosting(ctx: Ctx, hid: string) {
   if (!h) fail("هاست پیدا نشد.", 404);
   return h!;
 }
-async function ownDomain(ctx: Ctx, did: string) {
+export async function ownDomain(ctx: Ctx, did: string) {
   const a = needUser(ctx);
   const [d] = await ctx.db.select().from(domains).where(isStaff(ctx, "services") ? eq(domains.id, did) : and(eq(domains.id, did), eq(domains.userId, a.uid)));
   if (!d) fail("دامنه پیدا نشد.", 404);
   return d!;
 }
 
-const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const IPV6 = /^(?=.*:)[0-9a-f:]{2,39}$/i;
 const HOST = /^(?=.{1,253}\.?$)([a-z0-9_](?:[a-z0-9-_]{0,61}[a-z0-9_])?\.)+[a-z]{2,63}\.?$/i;
-const recordSchema = z.object({ id: z.string().max(40).optional(), type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA"]), name: z.string().max(253), value: z.string().max(2048), ttl: z.number().int().min(60).max(604800), priority: z.number().int().min(0).max(65535).optional() });
-type Rec = z.infer<typeof recordSchema>;
-export function validateRecord(r: Rec): string {
-  const name = r.name.trim(), v = r.value.trim();
-  if (!name) return "نام را وارد کنید (برای خود دامنه @).";
-  if (!/^(@|\*|[a-z0-9_*]([a-z0-9-_.]*[a-z0-9_])?)$/i.test(name)) return "نام رکورد معتبر نیست.";
-  if (!v) return "مقدار را وارد کنید.";
-  if (r.type === "A" && !IPV4.test(v)) return "برای رکورد A یک آدرس IPv4 معتبر لازم است.";
-  if (r.type === "AAAA" && !IPV6.test(v)) return "برای رکورد AAAA یک آدرس IPv6 معتبر لازم است.";
-  if ((r.type === "CNAME" || r.type === "MX" || r.type === "NS") && !HOST.test(v)) return "مقدار باید یک نام میزبان معتبر باشد؛ مثل mail.example.com";
-  if (r.type === "CNAME" && name === "@") return "رکورد CNAME روی ریشه دامنه مجاز نیست.";
-  if (r.type === "MX" && r.priority === undefined) return "اولویت MX باید عددی بین ۰ تا ۶۵۵۳۵ باشد.";
-  return "";
-}
-const managedHere = (ns: string[]) => ns.every((n) => /\.gereh\.net$/.test(n));
+export const managedHere = (ns: string[]) => ns.every((n) => /\.gereh\.net$/.test(n));
 
 export const servicesRpc = {
   "hosting.resetPassword": method(z.tuple([id]), async (ctx, [hid]) => {
@@ -76,29 +60,6 @@ export const servicesRpc = {
     await ctx.db.update(hosting).set({ autoRenew: on }).where(eq(hosting.id, h.id));
   }),
 
-  "domains.addRecord": method(z.tuple([id, recordSchema]), async (ctx, [did, r]) => {
-    const d = await ownDomain(ctx, did);
-    if (!managedHere(d.ns)) fail("DNS این دامنه در گره مدیریت نمی‌شود.");
-    const err = validateRecord(r); if (err) fail(err);
-    const [{ n }] = await ctx.db.select({ n: count() }).from(dnsRecords).where(eq(dnsRecords.domainId, d.id));
-    if (n >= 200) fail("حداکثر ۲۰۰ رکورد برای هر دامنه.");
-    const row = { id: rid("r"), domainId: d.id, type: r.type, name: r.name.trim(), value: r.value.trim(), ttl: r.ttl, priority: r.type === "MX" || r.type === "SRV" ? r.priority ?? 10 : null };
-    await ctx.db.insert(dnsRecords).values(row);
-    await (await providers()).dns.sync(ctx.db, d.id);
-  }),
-  "domains.updateRecord": method(z.tuple([id, recordSchema.required({ id: true })]), async (ctx, [did, r]) => {
-    const d = await ownDomain(ctx, did);
-    const err = validateRecord(r); if (err) fail(err);
-    const res = await ctx.db.update(dnsRecords).set({ type: r.type, name: r.name.trim(), value: r.value.trim(), ttl: r.ttl, priority: r.type === "MX" || r.type === "SRV" ? r.priority ?? 10 : null })
-      .where(and(eq(dnsRecords.id, r.id), eq(dnsRecords.domainId, d.id))).returning({ id: dnsRecords.id });
-    if (!res.length) fail("رکورد پیدا نشد.", 404);
-    await (await providers()).dns.sync(ctx.db, d.id);
-  }),
-  "domains.removeRecord": method(z.tuple([id, id]), async (ctx, [did, recId]) => {
-    const d = await ownDomain(ctx, did);
-    await ctx.db.delete(dnsRecords).where(and(eq(dnsRecords.id, recId), eq(dnsRecords.domainId, d.id)));
-    await (await providers()).dns.sync(ctx.db, d.id);
-  }),
   "domains.setNs": method(z.tuple([id, z.array(z.string().max(253)).min(2).max(4)]), async (ctx, [did, raw]) => {
     const d = await ownDomain(ctx, did);
     const ns = raw.map((x) => x.trim().toLowerCase().replace(/\.$/, "")).filter(Boolean);
