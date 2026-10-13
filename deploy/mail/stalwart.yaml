@@ -1,0 +1,88 @@
+# Stalwart Mail Server for Gereh's mail service (سرویس ایمیل).
+# One replica with a persistent volume (RocksDB store). Ports: 25 (MX), 465/587 (submission),
+# 993 (IMAP), 995 (POP3), 8080 (management API, cluster-internal only).
+# Before applying: create the secret (see README.md) and point mx./mail./smtp.gereh.net at the LoadBalancer IP.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gereh-mail
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-data
+  namespace: gereh-mail
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 200Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: stalwart
+  namespace: gereh-mail
+spec:
+  serviceName: stalwart
+  replicas: 1
+  selector:
+    matchLabels: { app: stalwart }
+  template:
+    metadata:
+      labels: { app: stalwart }
+    spec:
+      containers:
+        - name: stalwart
+          image: stalwartlabs/stalwart:v0.11.8
+          env:
+            # first-boot admin password for the management API (user "admin")
+            - name: STALWART_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: stalwart, key: admin-password } }
+          ports:
+            - { name: smtp, containerPort: 25 }
+            - { name: submissions, containerPort: 465 }
+            - { name: submission, containerPort: 587 }
+            - { name: imaps, containerPort: 993 }
+            - { name: pop3s, containerPort: 995 }
+            - { name: http, containerPort: 8080 }
+          volumeMounts:
+            - { name: data, mountPath: /opt/stalwart }
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { memory: 4Gi }
+          readinessProbe:
+            tcpSocket: { port: 25 }
+            initialDelaySeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: stalwart-data }
+---
+# public mail ports (keep the client IP for SPF/DNSBL checks)
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-public
+  namespace: gereh-mail
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector: { app: stalwart }
+  ports:
+    - { name: smtp, port: 25, targetPort: 25 }
+    - { name: submissions, port: 465, targetPort: 465 }
+    - { name: submission, port: 587, targetPort: 587 }
+    - { name: imaps, port: 993, targetPort: 993 }
+    - { name: pop3s, port: 995, targetPort: 995 }
+---
+# management API: reachable only from inside the cluster (the Gereh app sets STALWART_URL to this)
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-admin
+  namespace: gereh-mail
+spec:
+  type: ClusterIP
+  selector: { app: stalwart }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }

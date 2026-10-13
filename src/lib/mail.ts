@@ -67,3 +67,22 @@ export function tehranPeriods(now = new Date()) {
   const month = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), 1) - off;
   return { day: new Date(day), month: new Date(month) };
 }
+
+/* ---------- shapes the panel reads (mail.* read RPCs) ---------- */
+export type MailDomainSummary = { id: string; domain: string; planId: string; mode: "dev" | "live"; status: string; suspendReason: string; apiKeyPrefix: string; dkimSelector: string; returnPath: string; dmarc: Dmarc; catchAll: string; spamThreshold: number; dnsChecked: string; created: string };
+export type MailOverview = { plans: MailPlan[]; domains: (MailDomainSummary & { mailboxes: number; smtp: number; usage: { today: number; month: number } })[]; hosts: { imap: string; smtp: string }; driver: string };
+export type MailDomainDetail = MailDomainSummary & {
+  plan: MailPlan | null; usage: { today: number; month: number }; gerehZone: string;
+  records: (MailRecord & { ok: boolean; seen: string[] })[];
+  smtp: { id: string; username: string; created: string }[];
+  mailboxes: { id: string; local: string; address: string; name: string; quotaMb: number; usedMb: number; active: boolean; unread: number; created: string }[];
+  aliases: { id: string; local: string; address: string; destinations: string[] }[];
+  rules: { id: string; field: "from" | "to" | "subject"; op: "contains" | "equals" | "ends"; value: string; action: "forward" | "drop"; target: string }[];
+  blocks: { id: string; pattern: string }[];
+  hosts: { imap: string; smtp: string; mx: string }; apiUrl: string; simulator: boolean;
+};
+export type MailMsgRow = { id: string; status: string; source: string; from: string; to: string[]; subject: string; tag: string; size: number; read: boolean; spamScore: number | null; attachments: number; at: string };
+export type MailMessageView = { id: string; direction: "out" | "in"; status: string; source: string; from: string; to: string[]; cc: string[]; bcc: string[]; subject: string; tag: string; html: string; text: string; raw: string; size: number; attachments: { name: string; type: string; size: number }[]; messageId: string; spamScore: number | null; error: string; at: string; events: { id: number; type: string; recipient: string; detail: string; at: string }[] };
+export type MailStats = { days: { date: string; sent: number; delivered: number; bounced: number; failed: number; received: number }[]; tags: { tag: string; total: number; delivered: number; bounced: number; failed: number; dev: number }[] };
+export type MailAdminList = { plans: MailPlan[]; driver: string; domains: (MailDomainSummary & { userId: string; owner: string; email: string; mailboxes: number; smtp: number; sent30: number })[] };
+export type MailSendInput = { from: string; to: string; cc?: string; bcc?: string; subject: string; html?: string; text?: string; tag?: string; listUnsubscribe?: string; attachments?: { filename: string; content: string; contentType?: string }[] };
