@@ -17,7 +17,8 @@ async function handle(req: Request, { params }: RouteContext<"/api/v1/[[...path]
     const base = { db: d, ip: req.headers.get("x-real-ip") || "", device: "API" };
     const { auth, scope } = await tokenAuth(base, req.headers.get("authorization"));
     if (route.write && scope !== "read-write") return json({ error: { message: "This token is read-only" } }, 403);
-    const body = route.write && req.method !== "DELETE" ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {};
+    // writes take a JSON body; GET and DELETE take the query string
+    const body = req.method === "GET" || req.method === "DELETE" ? Object.fromEntries(new URL(req.url).searchParams) : ((await req.json().catch(() => ({}))) as Record<string, unknown>);
     return json(await route.run({ ...base, auth }, route.pattern.exec(path)!, body));
   } catch (e) {
     if (e instanceof AppError) return json({ error: { message: e.message } }, e.status === 400 ? 422 : e.status);

@@ -58,6 +58,10 @@ ZIP پروژه‌ای که \`docker-compose.yml\` یا \`compose.yaml\` در ر�
 - سرویس‌ها همدیگر را مثل خود Compose با **نام سرویس** پیدا می‌کنند (مثلاً \`redis://cache:6379\`).
 - \`environment\` هر سرویس اعمال می‌شود، ولی متغیرهای تب «متغیرها» بر آن مقدم‌اند و به همه سرویس‌ها داده می‌شوند.
 - همه سرویس‌ها منابع پلن اپ را با هم شریک‌اند؛ تعداد نمونه فقط روی سرویس عمومی اعمال می‌شود.
+
+### قالب ترکیبی
+
+برای ساخت هم‌زمان چند اپ (مثلاً وب و worker) همراه پایگاه‌های داده مدیریت‌شده، از [قالب ترکیبی](/docs/paas/stack-templates) استفاده کنید: یک فایل YAML با متغیرهای \`$APP_NAME\`، \`$RANDOM_STRING\` و \`$DB_<id>_URL\`. ویرایشگر و گالری آن در [پنل › اپ‌های آماده › قالب ترکیبی](/panel/apps/stack) است و فایل docker-compose را هم تبدیل می‌کند.
 - \`volumes\` و \`env_file\` نادیده گرفته می‌شوند و در لاگ بیلد هشدار می‌گیرند. برای داده ماندگار از پایگاه داده مدیریت‌شده (با پشتیبان) یا دیسک دائمی اپ استفاده کنید.
 
 \`\`\`yaml
@@ -80,7 +84,10 @@ services:
 | Next.js | next در package.json | npm run build | npm start |
 | NestJS | @nestjs/core | npm run build | node dist/main.js |
 | SvelteKit / Astro / Remix / Nuxt | پکیج فریم‌ورک | npm run build | سرور Node فریم‌ورک |
-| Angular / React / Vite | پکیج فریم‌ورک | npm run build | Nginx (استاتیک) |
+| Angular / React / Vue / Vite | پکیج فریم‌ورک | npm run build | Nginx (استاتیک) |
+| Gatsby / Eleventy | gatsby، @11ty/eleventy | npm run build | Nginx (استاتیک) |
+| Hugo | hugo.toml یا config.toml با content/ | hugo --minify | Nginx (استاتیک) |
+| Jekyll | jekyll در Gemfile یا ‎_config.yml | bundle exec jekyll build | Nginx (استاتیک) |
 | Node.js | package.json | — | npm start |
 | Bun | bun.lock | bun install | bun run start |
 | Deno | deno.json | — | deno task start |
@@ -88,11 +95,27 @@ services:
 | Python / Django / FastAPI / Flask | requirements.txt، pyproject.toml | pip install | gunicorn / uvicorn |
 | Laravel / PHP | composer.json، artisan | composer install | PHP-FPM + Nginx |
 | Go | go.mod | go build | باینری خروجی |
+| Elixir / Phoenix | mix.exs | mix compile | mix phx.server |
 | Java | pom.xml، build.gradle | mvn package | java -jar |
 | .NET | ‎*.csproj | dotnet publish | dotnet app.dll |
 | Dockerfile | Dockerfile در ریشه | docker build | CMD ایمیج |
 
 دستورهای بیلد و اجرا را می‌توانید در تنظیمات اپ بازنویسی کنید. برای monorepo «پوشه ریشه» را تنظیم کنید (مثلاً \`apps/web\`).
+
+### نسخه زبان
+
+هنگام ساخت اپ Git یا ZIP نسخه زبان را انتخاب کنید (خالی = تشخیص از \`.nvmrc\`، \`composer.json\`، \`.python-version\` و…):
+
+| زبان | نسخه‌ها |
+|---|---|
+| Node.js (و Next.js، Nuxt، Remix، SvelteKit، Astro…) | 8 تا 24 (فریم‌ورک‌ها از کمترین نسخه‌ای که پشتیبانی می‌کنند) |
+| PHP (Laravel، WordPress) | 7.2 تا 8.4 |
+| Python (Django، Flask، FastAPI) | 3.7 تا 3.13 |
+| ‎.NET | 2.1، 3.1، 5 تا 10 |
+| Go | 1.21 تا 1.25 |
+| Ruby، Java، Rust، Deno، Bun، Elixir، Hugo | چند نسخه پایدار اخیر |
+
+نسخه‌هایی که Nixpacks نصب می‌کند با همان ساخته می‌شوند و بقیه از ایمیج رسمی زبان با Dockerfile تولیدشده؛ جزئیات در [استقرار با Docker](/docs/paas/docker).
 
 ## متغیرهای محیطی
 
@@ -178,14 +201,22 @@ www.example.ir.  CNAME  my-shop.gereh.dev.
 ## CLI
 
 \`\`\`bash
-npx @gereh/cli login          # توکن خواندن-نوشتن از پنل › SSH و API
-npx @gereh/cli link my-shop   # gereh.json را در پوشه پروژه می‌سازد
-npx @gereh/cli deploy -m "v1.4"
-npx @gereh/cli logs -f
-npx @gereh/cli env set API_KEY=xyz --secret
+npx @gereh/cli login                  # توکن خواندن-نوشتن از پنل › SSH و API
+npx @gereh/cli init                   # gereh.json را می‌سازد (نام اپ، دستور اجرا، پورت، سلامت، انتشار)
+npx @gereh/cli deploy -m "v1.4"       # --no-cache، --image ref یا --git url هم دارد
+npx @gereh/cli logs --follow
+npx @gereh/cli shell                  # اجرای دستور در نمونه در حال اجرا
+npx @gereh/cli env import .env --secret
+npx @gereh/cli env export > .env
+npx @gereh/cli db backup shop-db --download
+npx @gereh/cli bucket put my-files ./report.pdf
+npx @gereh/cli mail send --from no-reply@shop.ir --to a@b.ir --subject "سلام" --text "…"
+npx @gereh/cli profile add staging    # چند حساب؛ با --profile staging انتخاب کنید
 \`\`\`
 
 برای اپ‌های ZIP، CLI پوشه فعلی را (با رعایت \`.gerehignore\` یا \`.gitignore\`) فشرده و بارگذاری می‌کند. برای اپ‌های Git، بیلد از آخرین کامیت شاخه انجام می‌شود.
+
+راهنمای کامل GitHub Actions و GitLab CI در [CI/CD با گره اپ](/docs/paas/ci-cd) است.
 
 ### استقرار از GitHub Actions
 

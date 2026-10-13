@@ -66,7 +66,7 @@ export const STACKS: Stack[] = [
   { id: "java", label: "Java / Spring", group: "کامپایلی", port: 8080, hint: "Maven یا Gradle", runtime: "java" },
   { id: "dotnet", label: ".NET", group: "کامپایلی", port: 8080, hint: "ASP.NET Core از 2.1 تا 10", runtime: "dotnet" },
   { id: "ruby", label: "Ruby on Rails", group: "سایر", port: 3000, hint: "با Puma", runtime: "ruby" },
-  { id: "elixir", label: "Elixir / Phoenix", group: "سایر", port: 4000, hint: "Phoenix با mix release", runtime: "elixir" },
+  { id: "elixir", label: "Elixir / Phoenix", group: "سایر", port: 4000, hint: "Phoenix و برنامه‌های mix", runtime: "elixir" },
   { id: "static", label: "سایت استاتیک", group: "سایت استاتیک", port: 80, hint: "HTML، CSS و JS ساده" },
   { id: "hugo", label: "Hugo", group: "سایت استاتیک", port: 80, hint: "سایت‌ساز Go (نسخه extended)", runtime: "hugo", spa: true },
   { id: "jekyll", label: "Jekyll", group: "سایت استاتیک", port: 80, hint: "سایت‌ساز Ruby، سازگار با GitHub Pages", runtime: "ruby", min: "2.7", spa: true },

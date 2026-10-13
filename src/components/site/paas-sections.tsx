@@ -110,16 +110,16 @@ export function PaasStacks({ title = "زبان‌ها و فریم‌ورک‌ه�
 export function PaasTemplates() {
   return (
     <section id="templates" className="max-w-6xl mx-auto px-4 sm:px-6 scroll-mt-24">
-      <SectionHead title="اپ‌های آماده با یک کلیک" sub="n8n، Metabase، Gitea، Grafana، Directus و… با دیسک، پایگاه داده و رمزهای امن، در کمتر از دو دقیقه." />
+      <SectionHead title="اپ‌های آماده با یک کلیک" sub={PAAS_TEMPLATES.length.toLocaleString("fa-IR") + " نرم‌افزار متن‌باز (n8n، Nextcloud، Metabase، Keycloak، Mattermost…) با نسخه دلخواه، دیسک، پایگاه داده و رمزهای امن، در کمتر از دو دقیقه."} />
       <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {PAAS_TEMPLATES.map((t) => (
+        {PAAS_TEMPLATES.slice(0, 20).map((t) => (
           <li key={t.id} className={GLASS_SOFT + " rounded-2xl p-4"}>
             <span className="flex items-center gap-2"><Icon name={t.icon} size={16} className="acc shrink-0" /><b className="text-sm truncate">{t.name}</b></span>
             <p className="text-[11px] text-white/55 leading-5 mt-2">{t.desc}</p>
           </li>
         ))}
       </ul>
-      <div className="text-center mt-6"><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-11 px-6 text-sm"}><Icon name="sparkles" size={16} />راه‌اندازی اپ آماده</Link></div>
+      <div className="text-center mt-6"><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-11 px-6 text-sm"}><Icon name="sparkles" size={16} />همه {PAAS_TEMPLATES.length.toLocaleString("fa-IR")} اپ آماده</Link></div>
     </section>
   );
 }

@@ -144,7 +144,7 @@ function buildScript(app: AppSpec): string[] {
     eleventy: ["==> Detected Eleventy", "$ npm ci", "$ npm run build", "   [11ty] Wrote 42 files", "==> Serving _site/ with nginx"],
     hugo: ["==> Hugo extended from the official release", "$ hugo --minify", "   Total in 412 ms", "==> Serving with nginx"],
     jekyll: ["==> Detected Jekyll", "$ bundle install", "$ bundle exec jekyll build", "   done in 1.9 seconds.", "==> Serving _site/ with nginx"],
-    elixir: ["==> Detected Elixir (Phoenix)", "$ mix deps.get --only prod", "$ mix assets.deploy", "$ mix release", "   Release created at _build/prod/rel/app"],
+    elixir: ["==> Detected Elixir (Phoenix)", "$ mix deps.get --only prod", "$ mix compile", "$ mix assets.deploy", "   Generated app"],
     rust: ["==> Detected Rust (cargo)", "$ cargo build --release", "   Compiling app v0.1.0", "    Finished `release` profile [optimized]"],
     docker: ["==> Building Dockerfile", "#1 [internal] load build definition from Dockerfile", "#7 exporting layers done"],
     compose: ["==> Building services from docker-compose.yml", "   web: build done", "   worker: build done"],

@@ -43,7 +43,7 @@ export function StackTemplates() {
   return (
     <div>
       <PageTitle title="قالب ترکیبی" sub="چند اپ و پایگاه داده را با یک فایل YAML با هم بسازید و به هم وصل کنید." back={["/panel/apps/templates", "اپ‌های آماده"]}
-        action={<Link href={"/docs/paas#قالب-ترکیبی" as never} className={BTN_G + " h-10 px-4 text-sm"}><Icon name="book-open" size={15} />راهنمای قالب</Link>} />
+        action={<Link href={"/docs/paas/stack-templates" as never} className={BTN_G + " h-10 px-4 text-sm"}><Icon name="book-open" size={15} />راهنمای قالب</Link>} />
       <h2 className="text-sm font-bold text-white/80 mb-3">گالری</h2>
       <ul className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
         {STACK_GALLERY.map((g) => (

@@ -70,3 +70,54 @@ describe("catalogue: templates, versions and multi-service templates", () => {
     expect(await fails("paas.createStack", "apps: []", "other")).toContain("دست‌کم یک اپ");
   });
 });
+
+describe("public API for the CLI", () => {
+  const req = (method: string, path: string, token: string, body?: unknown) =>
+    new Request("http://localhost/api/v1/" + path, { method, headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const run = async (method: "GET" | "POST" | "PUT" | "DELETE", path: string, token: string, body?: unknown) => {
+    const route = await import("@/app/api/v1/[[...path]]/route");
+    const res = await route[method](req(method, path, token, body), { params: Promise.resolve({ path: path.split("?")[0].split("/") }) } as never);
+    return { status: res.status, body: await res.json() };
+  };
+
+  it("exports env, runs commands, swaps the image, backs up databases and manages bucket objects", async () => {
+    await asUser();
+    const rw = await call<string>("account.createToken", { name: "cli", scope: "read-write", expires: "۹۰ روز" });
+    const ro = await call<string>("account.createToken", { name: "ro", scope: "read", expires: "۳۰ روز" });
+    const appId = await call<string>("paas.createApp", { name: "cli-app", stack: "docker", source: "image", image: "nginx:1.27", port: 80, planId: "app-micro", env: [{ key: "API_KEY", value: "s3cret", secret: true }] });
+    await settle();
+    expect((await run("GET", "apps/cli-app/env", ro)).status).toBe(403);
+    expect((await run("GET", "apps/cli-app/env", rw)).body.dotenv).toContain("API_KEY=s3cret");
+    const ex = await run("POST", "apps/cli-app/exec", rw, { command: "echo hi" });
+    expect(ex.status).toBe(200);
+    expect(ex.body).toHaveProperty("exit_code");
+    const src = await run("PUT", "apps/cli-app/source", rw, { image: "nginx:1.29-alpine" });
+    expect(src.body.deployment).toBeTruthy();
+    expect((await row(appId)).image).toBe("nginx:1.29-alpine");
+    expect((await run("PUT", "apps/cli-app/source", rw, { git_url: "https://github.com/a/b.git" })).status).toBe(422);
+    await settle();
+    const logs = await run("GET", "apps/cli-app/logs/since?since=" + new Date(Date.now() - 3600_000).toISOString(), rw);
+    expect(Array.isArray(logs.body.lines)).toBe(true);
+    expect((await run("POST", "apps/cli-app/deployments", rw, { no_cache: true })).body.status).toBe("queued");
+
+    const dbId = await call<string>("paas.createDb", { name: "cli-db", engine: "postgres", version: "17", planId: "db-micro", publicAccess: false, backups: true });
+    await settle();
+    const bk = await run("POST", "databases/cli-db/backups", rw, {});
+    expect(bk.body.status).toBe("running");
+    await settle();
+    expect((await run("GET", "databases/" + dbId + "/backups/" + bk.body.id, rw)).body.status).toBe("done");
+    expect((await run("GET", "databases/cli-db/backups", ro)).body.data[0].id).toBe(bk.body.id);
+
+    await call("storage.create", { name: "cli-files", planId: "st-20", access: "private" });
+    const up = await run("POST", "storage/buckets/cli-files/upload-url", rw, { key: "a/b.txt", size: 5 });
+    expect(up.body.url).toContain("cli-files");
+    expect((await run("GET", "storage/buckets/cli-files/objects?prefix=a/", rw)).body).toMatchObject({ objects: [], next: null });
+    expect((await run("POST", "storage/buckets/cli-files/download-url", rw, { key: "a/b.txt" })).body.url).toContain("b.txt");
+    expect((await run("DELETE", "storage/buckets/cli-files/objects", rw)).status).toBe(422);
+    expect((await run("DELETE", "storage/buckets/cli-files/objects?key=a/b.txt", rw)).body.deleted).toEqual(["a/b.txt"]);
+    expect((await run("GET", "storage/buckets/nope/objects", rw)).status).toBe(404);
+
+    expect(Array.isArray((await run("GET", "mail/domains", rw)).body.data)).toBe(true);
+    expect((await run("POST", "mail/domains/nope.example/send", rw, { from: "a@nope.example", to: "b@x.ir" })).status).toBe(404);
+  });
+});
