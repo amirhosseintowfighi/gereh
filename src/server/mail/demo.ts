@@ -1,7 +1,6 @@
-/* Demo data for the mail service: novin.studio (hosted in Gereh DNS, verified, LIVE) with a mailbox,
+/* Demo data for the mail service: novin.studio (verified, LIVE; the zone in Gereh DNS is left as is, so «auto-add» can be tried) with a mailbox,
    an alias, an SMTP login and two weeks of logs. */
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
 import { DMARC_DEFAULT } from "@/lib/mail";
 import type { DB } from "../db/client";
 import * as t from "../db/schema";
@@ -16,10 +15,6 @@ export async function seedMailDemo(db: DB, now: number) {
   const recs = recordsOf(dom);
   const at = new Date(now - 3600_000).toISOString();
   await db.insert(t.mailDomains).values({ ...dom, dnsStatus: Object.fromEntries(recs.map((r) => [r.key, { ok: true, seen: [r.value], at }])) }).onConflictDoNothing();
-  // the zone already holds the mail records (as auto-add would write them)
-  const old = (await db.select().from(t.dnsRecords).where(and(eq(t.dnsRecords.domainId, "dom-501"), inArray(t.dnsRecords.type, ["MX", "TXT"])))).map((r) => r.id);
-  if (old.length) await db.delete(t.dnsRecords).where(inArray(t.dnsRecords.id, old));
-  await db.insert(t.dnsRecords).values(recs.map((r, i) => ({ id: "dom-501-m" + i, domainId: "dom-501", type: r.type, name: r.name === "novin.studio" ? "@" : r.name.replace(/\.novin\.studio$/, ""), value: r.value, ttl: 3600, priority: r.priority ?? null }))).onConflictDoNothing();
   await db.insert(t.mailSmtpUsers).values({ id: "smtp-demo1", domainId: dom.id, username: "novin-studio-a1b2", passwordEnc: seal(genPassword()) }).onConflictDoNothing();
   await db.insert(t.mailMailboxes).values([
     { id: "mbx-demo1", domainId: dom.id, local: "info", name: "اطلاعات", passwordHash: await hashPassword("Demo1234!"), quotaMb: 2048, usedMb: 312.4 },
