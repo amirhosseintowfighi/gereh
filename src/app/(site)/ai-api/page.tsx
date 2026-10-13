@@ -4,7 +4,7 @@ import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { PaasFaq } from "@/components/site/paas-sections";
 import { SectionHead } from "@/components/ui";
-import { AI_FAQ, AI_FEATURES } from "@/content/ai";
+import { AI_ENDPOINTS, AI_FAQ, AI_FEATURES, AI_SNIPPETS } from "@/content/ai";
 import { AI_VENDORS } from "@/lib/ai";
 import { BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
 import { fa } from "@/lib/format";
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 const DESC = "API هوش مصنوعی با پرداخت تومانی: Claude، GPT، Gemini، DeepSeek و Qwen با یک کلید و بدون VPN یا کارت ارزی. سازگار با OpenAI، Anthropic و Gemini؛ مناسب Claude Code، Codex، Cursor و n8n.";
 export const metadata = pageMeta({ title: "API هوش مصنوعی (Claude، GPT، Gemini) با پرداخت تومانی", description: DESC, path: "/ai-api" });
 
-const TOOLS = ["Claude Code", "Codex", "Cursor", "n8n", "LangChain", "Continue", "LibreChat", "Dify"];
+const TOOLS = ["Claude Code", "Codex", "Cursor", "Cline", "n8n", "Open WebUI", "Vercel AI SDK", "LangChain", "Continue", "LibreChat", "Dify"];
+const INTEGRATIONS = ["openai", "openai-js", "vercel-ai", "n8n", "openwebui", "cline"];
 
 export default async function AiApiPage() {
   const { models, endpoint } = await publicAi();
@@ -66,6 +67,30 @@ export default async function AiApiPage() {
           ))}
         </ul>
         <p className="text-center text-sm text-white/55 mt-8">سازگار با {TOOLS.join(" · ")} و هر ابزار دیگری که آدرس API را می‌پذیرد.</p>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 sm:px-6">
+        <SectionHead title="مسیرهای API" sub="گفتگو، Embedding، تصویر، صوت، Rerank و پایگاه دانش؛ همه با یک کلید و صورتحساب تومانی." />
+        <div className={GLASS_SOFT + " rounded-[1.5rem] overflow-x-auto"} tabIndex={0} role="region" aria-label="مسیرهای API">
+          <table className="w-full text-sm min-w-[560px]">
+            <tbody>{AI_ENDPOINTS.map(([m, path, d]) => (
+              <tr key={m + path} className="border-t border-white/[0.06] first:border-0"><td className="p-3 text-xs font-bold text-white/60 w-16" dir="ltr">{m}</td><td className="p-3"><code dir="ltr" className="text-xs">{path}</code></td><td className="p-3 text-white/65 text-xs leading-6">{d}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 sm:px-6">
+        <SectionHead title="اتصال به ابزارها" sub="فقط آدرس پایه و کلید را عوض کنید." />
+        <div className="grid lg:grid-cols-2 gap-4">
+          {AI_SNIPPETS.filter((x) => INTEGRATIONS.includes(x.id)).map((x) => (
+            <details key={x.id} className={GLASS_SOFT + " rounded-2xl p-4 group"}>
+              <summary className="cursor-pointer list-none flex items-center gap-2 font-extrabold"><Icon name={x.icon} size={18} className="acc" />{x.label}<Icon name="chevron-down" size={15} className="ms-auto text-white/50 group-open:rotate-180 transition" /></summary>
+              <p className="text-xs text-white/60 leading-6 mt-3">{x.note}</p>
+              <pre dir="ltr" tabIndex={0} className="mt-2 text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 overflow-x-auto">{x.code(endpoint, "gk-YOUR-KEY")}</pre>
+            </details>
+          ))}
+        </div>
       </section>
 
       <section id="pricing" className="max-w-6xl mx-auto px-4 sm:px-6 scroll-mt-24">

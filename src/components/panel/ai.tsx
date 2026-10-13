@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AI_SNIPPETS } from "@/content/ai";
-import { AI_DISCOUNT, AI_FORMAT_LABEL, AI_VENDORS, rulePrice } from "@/lib/ai";
+import { AI_DISCOUNT, AI_FORMAT_LABEL, AI_KIND_LABEL, AI_KIND_PATH, AI_KIND_PRICE, AI_KINDS, AI_ROUTING, AI_VENDORS, rulePrice, type AiKind } from "@/lib/ai";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, useDB, useMyId, type AiKeyInput } from "@/lib/store";
@@ -11,6 +11,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, Bars, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
+import { AiSettingsCard, EmbedPlayground, KnowledgeBases, Projects, RequestLogs, UsageReport, WebChat } from "./ai-plus";
 
 const USAGE_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
   success: ["موفق", "green"], error: ["خطا", "red"], denied: ["رد شده", "amber"], cancelled: ["لغو شده", "gray"],
@@ -53,15 +54,21 @@ export function UserAi() {
       </div>
 
       <div className="overflow-x-auto no-scrollbar mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های API هوش مصنوعی" options={[
-        { id: "start", label: "شروع سریع", icon: "rocket" }, { id: "keys", label: "کلیدها", icon: "key-round" }, { id: "models", label: "مدل‌ها و قیمت", icon: "tag" },
-        { id: "usage", label: "مصرف", icon: "activity" }, { id: "play", label: "آزمایش", icon: "bot" },
+        { id: "start", label: "شروع سریع", icon: "rocket" }, { id: "chat", label: "چت", icon: "bot" }, { id: "keys", label: "کلیدها", icon: "key-round" }, { id: "projects", label: "پروژه‌ها", icon: "folder-open" },
+        { id: "models", label: "مدل‌ها و قیمت", icon: "tag" }, { id: "usage", label: "مصرف", icon: "chart-column" }, { id: "logs", label: "گزارش درخواست‌ها", icon: "scroll-text" },
+        { id: "embed", label: "Embedding", icon: "sparkles" }, { id: "kb", label: "پایگاه دانش", icon: "book-open" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
       ]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "start" && <QuickStart onKeys={() => setTab("keys")} />}
+        {tab === "chat" && <WebChat />}
         {tab === "keys" && <Keys />}
+        {tab === "projects" && <Projects />}
         {tab === "models" && <ModelList models={a.models} />}
-        {tab === "usage" && <Usage />}
-        {tab === "play" && <Playground />}
+        {tab === "usage" && <UsageReport />}
+        {tab === "logs" && <RequestLogs />}
+        {tab === "embed" && <EmbedPlayground />}
+        {tab === "kb" && <KnowledgeBases />}
+        {tab === "settings" && <AiSettingsCard />}
       </div>
     </div>
   );
@@ -97,7 +104,8 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
   );
 }
 
-const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0 };
+const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0, ips: [], routing: "", projectId: null };
+const KEY_STATUS: Record<AiKeyRow["status"], [string, "green" | "amber" | "red"]> = { active: ["فعال", "green"], disabled: ["غیرفعال", "amber"], revoked: ["باطل شده", "red"] };
 
 function Keys() {
   const a = useDB().ai; const { notify } = useApp();
@@ -109,15 +117,16 @@ function Keys() {
       {a.keys.length === 0 ? <Empty icon="key-round" title="هنوز کلیدی نساخته‌اید" text="برای استفاده از API یک کلید بسازید؛ کلید فقط یک بار نمایش داده می‌شود." /> : (
         <ul className="divide-y divide-white/[0.06]">
           {a.keys.map((k) => (
-            <li key={k.id} className={"p-3 grid sm:grid-cols-[1fr_auto] gap-3 " + (k.status !== "active" ? "opacity-55" : "")}>
+            <li key={k.id} className={"p-3 grid sm:grid-cols-[1fr_auto] gap-3 " + (k.status !== "active" ? "opacity-60" : "")}>
               <div className="min-w-0">
-                <span className="flex flex-wrap items-center gap-2"><b className="text-sm">{k.name}</b><code dir="ltr" className="text-[11px] text-white/60">{k.prefix}…</code>{k.status === "active" ? <Badge tone="green" dot>فعال</Badge> : <Badge tone="red">باطل شده</Badge>}{k.models.length > 0 && <Badge tone="blue">{fa(k.models.length)} مدل مجاز</Badge>}</span>
+                <span className="flex flex-wrap items-center gap-2"><b className="text-sm">{k.name}</b><code dir="ltr" className="text-[11px] text-white/60">{k.prefix}…</code><Badge tone={KEY_STATUS[k.status][1]} dot={k.status === "active"}>{KEY_STATUS[k.status][0]}</Badge>{k.models.length > 0 && <Badge tone="blue">{fa(k.models.length)} مدل مجاز</Badge>}{k.ips.length > 0 && <Badge tone="blue">{fa(k.ips.length)} IP مجاز</Badge>}{k.routing && <Badge>{AI_ROUTING.find((r) => r.value === k.routing)?.label}</Badge>}{k.projectId && <Badge>{a.projects.find((p) => p.id === k.projectId)?.name ?? "پروژه"}</Badge>}</span>
                 <span className="block text-[11px] text-white/55 mt-1.5 leading-6">
-                  امروز {toman(k.spentToday)}{k.dailyCap ? " از سقف " + toman(k.dailyCap) : ""} · این ماه {toman(k.spentMonth)}{k.monthlyCap ? " از سقف " + toman(k.monthlyCap) : ""} · {fa(k.rpm)} درخواست در دقیقه
+                  امروز {toman(k.spentToday)}{k.dailyCap ? " از سقف " + toman(k.dailyCap) : ""} · این ماه {toman(k.spentMonth)}{k.monthlyCap ? " از سقف " + toman(k.monthlyCap) : ""} · {fa(k.requestsMonth)} درخواست این ماه · {fa(k.rpm)} درخواست در دقیقه
                 </span>
                 <span className="block text-[11px] text-white/40">ساخته {k.created}{k.lastUsed ? " · آخرین استفاده " + k.lastUsed : " · بدون استفاده"}{k.expires ? " · انقضا " + k.expires : ""}</span>
               </div>
-              {k.status === "active" && <div className="flex gap-2 sm:self-center">
+              {k.status !== "revoked" && <div className="flex items-center gap-2 sm:self-center">
+                <Switch on={k.status === "active"} onChange={async (v) => { await api.ai.setKeyEnabled(k.id, v); notify(v ? "کلید فعال شد" : "کلید غیرفعال شد", "key-round"); }} label={"فعال بودن کلید " + k.name} />
                 <button type="button" onClick={() => setForm({ edit: k })} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="settings-2" size={13} />محدودیت‌ها</button>
                 <AsyncButton danger className="h-9 px-3 text-xs" confirmText={"کلید «" + k.name + "» بلافاصله از کار می‌افتد. ادامه؟"} onClick={async () => { await api.ai.revokeKey(k.id); notify("کلید باطل شد", "key-round"); }}>ابطال</AsyncButton>
               </div>}
@@ -137,7 +146,9 @@ function Keys() {
 
 function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; models: AiModelRow[]; onClose: () => void; onCreated: (key: string) => void }) {
   const { notify } = useApp();
-  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: 0 } : EMPTY_KEY);
+  const projects = useDB().ai.projects;
+  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: -1, ips: edit.ips, routing: edit.routing, projectId: edit.projectId } : EMPTY_KEY);
+  const [ips, setIps] = useState(f.ips.join("\n"));
   const [limit, setLimit] = useState(!!edit?.models.length);
   const toggle = (id: string) => setF({ ...f, models: f.models.includes(id) ? f.models.filter((m) => m !== id) : [...f.models, id] });
   return (
@@ -148,8 +159,11 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
           <Field label="سقف هزینه روزانه (تومان)" hint="۰ یعنی بدون سقف"><input inputMode="numeric" value={f.dailyCap ? fa(f.dailyCap) : ""} placeholder="۰" onChange={(e) => setF({ ...f, dailyCap: num(e.target.value) })} className={INPUT + " tabular"} /></Field>
           <Field label="سقف هزینه ماهانه (تومان)" hint="۰ یعنی بدون سقف"><input inputMode="numeric" value={f.monthlyCap ? fa(f.monthlyCap) : ""} placeholder="۰" onChange={(e) => setF({ ...f, monthlyCap: num(e.target.value) })} className={INPUT + " tabular"} /></Field>
           <Field label="درخواست در دقیقه"><input inputMode="numeric" value={fa(f.rpm)} onChange={(e) => setF({ ...f, rpm: Math.min(600, Math.max(1, num(e.target.value))) })} className={INPUT + " tabular"} /></Field>
-          {!edit && <Field label="انقضا"><Select label="انقضا" value={String(f.expiresDays)} onChange={(v) => setF({ ...f, expiresDays: Number(v) })} options={[{ value: "0", label: "بدون انقضا" }, { value: "7", label: "۷ روز" }, { value: "30", label: "۳۰ روز" }, { value: "90", label: "۹۰ روز" }, { value: "365", label: "یک سال" }]} /></Field>}
+          <Field label="انقضا"><Select label="انقضا" value={String(f.expiresDays)} onChange={(v) => setF({ ...f, expiresDays: Number(v) })} options={[...(edit ? [{ value: "-1", label: edit.expires ? "بدون تغییر (" + edit.expires + ")" : "بدون تغییر (بدون انقضا)" }] : []), { value: "0", label: "بدون انقضا" }, { value: "7", label: "۷ روز از امروز" }, { value: "30", label: "۳۰ روز از امروز" }, { value: "90", label: "۹۰ روز از امروز" }, { value: "365", label: "یک سال از امروز" }]} /></Field>
+          <Field label="اولویت مسیریابی" hint="به سرویس‌دهنده بالادستی فرستاده می‌شود"><Select label="مسیریابی" value={f.routing} onChange={(v) => setF({ ...f, routing: v as AiKeyInput["routing"] })} options={AI_ROUTING.map((r) => ({ value: r.value, label: r.label }))} /></Field>
+          <Field label="پروژه"><Select label="پروژه" value={f.projectId ?? ""} onChange={(v) => setF({ ...f, projectId: v || null })} options={[{ value: "", label: "بدون پروژه" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]} /></Field>
         </div>
+        <Field label="IPهای مجاز" hint="هر خط یک IP یا بازه CIDR (مثل 185.1.2.0/24)؛ خالی یعنی همه"><textarea dir="ltr" rows={2} value={ips} onChange={(e) => setIps(e.target.value)} className={TEXTAREA + " text-left font-mono text-xs"} /></Field>
         <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm">
           <span>محدود به مدل‌های خاص<span className="block text-[11px] text-white/50">خاموش یعنی همه مدل‌های فعال</span></span>
           <Switch on={limit} onChange={(v) => { setLimit(v); if (!v) setF({ ...f, models: [] }); }} label="محدود به مدل‌های خاص" />
@@ -158,8 +172,9 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
           {models.map((m) => <label key={m.id} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/[0.04] cursor-pointer"><input type="checkbox" checked={f.models.includes(m.id)} onChange={() => toggle(m.id)} />{m.name}</label>)}
         </div>}
         <AsyncButton disabled={f.name.trim().length < 2 || (limit && !f.models.length)} className={BTN_P + " w-full h-11"} onClick={async () => {
-          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
-          else onCreated(await api.ai.createKey({ ...f, name: f.name.trim() }));
+          const ipList = ips.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
+          else onCreated(await api.ai.createKey({ ...f, name: f.name.trim(), ips: ipList }));
         }}>{edit ? "ذخیره" : "ساخت کلید"}</AsyncButton>
       </div>
     </Modal>
@@ -168,28 +183,33 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
 
 export function ModelList({ models, compact = false }: { models: AiModelRow[]; compact?: boolean }) {
   const [vendor, setVendor] = useState("all");
-  const vendors = [...new Set(models.map((m) => m.vendor))];
-  const list = models.filter((m) => m.active && (vendor === "all" || m.vendor === vendor));
+  const [kind, setKind] = useState<AiKind>("chat");
+  const kinds = AI_KINDS.filter((k) => models.some((m) => m.active && m.kind === k));
+  const vendors = [...new Set(models.filter((m) => m.kind === kind).map((m) => m.vendor))];
+  const list = models.filter((m) => m.active && m.kind === kind && (vendor === "all" || m.vendor === vendor));
+  const unit = AI_KIND_PRICE[kind];
   return (
     <Card pad="p-3 sm:p-4" title={compact ? undefined : <span className="flex items-center gap-2">مدل‌ها <Badge>{fa(list.length)}</Badge></span>}>
+      {kinds.length > 1 && <div className="flex flex-wrap gap-1.5 mb-2">{kinds.map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setVendor("all"); }} className={"h-8 px-3 rounded-lg text-xs transition " + (kind === k ? "acc-bg text-white font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}>{AI_KIND_LABEL[k]}</button>)}</div>}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {["all", ...vendors].map((v) => <button key={v} type="button" aria-pressed={vendor === v} onClick={() => setVendor(v)} className={"h-8 px-3 rounded-lg text-xs transition " + (vendor === v ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}>{v === "all" ? "همه" : AI_VENDORS[v] ?? v}</button>)}
       </div>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="قیمت مدل‌ها">
         <table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">مدل</th><th className="p-3">شناسه</th><th className="p-3">ورودی / ۱M توکن</th><th className="p-3">خروجی / ۱M توکن</th><th className="p-3">کانتکست</th></tr></thead>
+          <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">مدل</th><th className="p-3">شناسه</th>{unit.in && <th className="p-3">{unit.in}</th>}{unit.out && <th className="p-3">{unit.out}</th>}{unit.unit && <th className="p-3">{unit.unit}</th>}{kind === "chat" && <th className="p-3">کانتکست</th>}</tr></thead>
           <tbody>{list.map((m) => (
             <tr key={m.id} className="border-t border-white/[0.06]">
               <td className="p-3 font-bold whitespace-nowrap">{m.name}<span className="block text-[11px] font-normal text-white/45">{AI_VENDORS[m.vendor] ?? m.vendor}{m.vision ? " · تصویر" : ""}</span></td>
               <td className="p-3"><CopyText text={m.id} className="font-mono text-xs" /></td>
-              <td className="p-3 tabular whitespace-nowrap">{perM(m.inPrice)}</td>
-              <td className="p-3 tabular whitespace-nowrap text-emerald-300">{perM(m.outPrice)}</td>
-              <td className="p-3 tabular" dir="ltr">{ctx(m.context)}</td>
+              {unit.in && <td className="p-3 tabular whitespace-nowrap">{perM(m.inPrice)}</td>}
+              {unit.out && <td className="p-3 tabular whitespace-nowrap text-emerald-300">{perM(m.outPrice)}</td>}
+              {unit.unit && <td className="p-3 tabular whitespace-nowrap">{perM(m.unitPrice)}</td>}
+              {kind === "chat" && <td className="p-3 tabular" dir="ltr">{ctx(m.context)}</td>}
             </tr>
           ))}</tbody>
         </table>
       </div>
-      <p className="text-[11px] text-white/45 mt-3 leading-6">قیمت‌ها به تومان و به ازای یک میلیون توکن است. هر ۱۰۰۰ توکن تقریباً ۷۵۰ کلمه انگلیسی یا ۴۰۰ تا ۵۰۰ کلمه فارسی است.</p>
+      <p className="text-[11px] text-white/45 mt-3 leading-6">قیمت‌ها به تومان و به واحد هر ستون است؛ مسیر این نوع مدل‌ها <code dir="ltr">{AI_KIND_PATH[kind]}</code> است. هر ۱۰۰۰ توکن تقریباً ۷۵۰ کلمه انگلیسی یا ۴۰۰ تا ۵۰۰ کلمه فارسی است.</p>
     </Card>
   );
 }
@@ -215,67 +235,6 @@ function UsageList({ admin = false }: { admin?: boolean }) {
         </ul>
       )}
     </Card>
-  );
-}
-
-function Usage() {
-  const a = useDB().ai;
-  return (
-    <div className="space-y-4">
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="هزینه روزانه (۳۰ روز)" icon="chart-column">
-          {a.stats.daily.length > 1 ? <Bars data={a.stats.daily.map((d) => d.spend)} labels={a.stats.daily.map((d) => d.day.split("/").slice(-2).join("/"))} height={140} fmt={(v) => toman(v)} /> : <p className="text-sm text-white/55">پس از چند روز استفاده، نمودار اینجا نمایش داده می‌شود.</p>}
-        </Card>
-        <Card title="مصرف این ماه به تفکیک مدل" icon="layers">
-          {a.stats.byModel.length === 0 ? <p className="text-sm text-white/55">هنوز مصرفی ندارید.</p> : <ul className="space-y-2.5">
-            {a.stats.byModel.map((b) => { const max = a.stats.byModel[0].spend || 1; return (
-              <li key={b.model}><div className="flex justify-between text-xs mb-1"><span dir="ltr" className="font-mono">{b.model}</span><span className="tabular text-white/70">{toman(b.spend)} · {fa(b.count)} درخواست</span></div>
-                <div className="h-1.5 rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-violet-400/80" style={{ width: Math.max(2, (b.spend / max) * 100) + "%" }} /></div></li>
-            ); })}
-          </ul>}
-        </Card>
-      </div>
-      <UsageList />
-    </div>
-  );
-}
-
-type Msg = { role: "user" | "assistant"; content: string };
-function Playground() {
-  const a = useDB().ai;
-  const [model, setModel] = useState(a.models.find((m) => m.id === "gpt-4o-mini")?.id ?? a.models[0]?.id ?? "");
-  const [system, setSystem] = useState("");
-  const [input, setInput] = useState("");
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [spent, setSpent] = useState(0);
-  const [max, setMax] = useState(1024);
-  const m = a.models.find((x) => x.id === model);
-  if (!a.models.length) return <Empty icon="bot" title="مدل فعالی وجود ندارد" />;
-  const send = async () => {
-    const next: Msg[] = [...msgs, { role: "user", content: input.trim() }];
-    const r = await api.ai.playground(model, [...(system.trim() ? [{ role: "system" as const, content: system.trim() }] : []), ...next], max);
-    setMsgs([...next, { role: "assistant", content: r.text }]); setInput(""); setSpent(spent + r.charged);
-  };
-  return (
-    <div className="grid lg:grid-cols-[1fr_2fr] gap-4 items-start">
-      <Card title="تنظیمات" icon="settings-2">
-        <div className="space-y-4">
-          <Field label="مدل"><Select label="مدل" value={model} onChange={setModel} options={a.models.map((x) => ({ value: x.id, label: x.name }))} /></Field>
-          {m && <p className="text-[11px] text-white/50 -mt-2">ورودی {perM(m.inPrice)} · خروجی {perM(m.outPrice)} به ازای ۱M توکن</p>}
-          <Field label="حداکثر توکن خروجی"><Select label="حداکثر توکن" value={String(max)} onChange={(v) => setMax(Number(v))} options={[256, 1024, 2048, 4096].map((n) => ({ value: String(n), label: fa(n) }))} /></Field>
-          <Field label="دستور سیستمی (اختیاری)"><textarea rows={3} value={system} onChange={(e) => setSystem(e.target.value)} placeholder="مثلاً: کوتاه و به فارسی پاسخ بده." className={TEXTAREA} /></Field>
-          <div className="flex items-center justify-between text-xs text-white/60"><span>هزینه این گفتگو: <b className="tabular text-white">{toman(spent)}</b></span>{msgs.length > 0 && <button type="button" className="acc" onClick={() => { setMsgs([]); setSpent(0); }}>گفتگوی جدید</button>}</div>
-        </div>
-      </Card>
-      <Card title="گفتگو" icon="bot">
-        <div className="space-y-3 max-h-[55vh] overflow-y-auto mb-4" aria-live="polite">
-          {msgs.length === 0 ? <p className="text-sm text-white/55 leading-7">پیامی بنویسید تا مدل را آزمایش کنید. هزینه مانند API از کیف پول کم می‌شود و در گزارش مصرف با برچسب «پنل» ثبت می‌شود.</p>
-            : msgs.map((x, i) => <div key={i} className={"rounded-2xl px-4 py-3 text-sm leading-7 whitespace-pre-wrap " + (x.role === "user" ? "bg-white/[0.07] ms-8" : "bg-violet-500/10 border border-violet-300/15 me-8")}>{x.content}</div>)}
-        </div>
-        <textarea rows={3} value={input} onChange={(e) => setInput(e.target.value)} placeholder="پیام شما…" aria-label="پیام" className={TEXTAREA} />
-        <AsyncButton disabled={!input.trim() || msgs.length >= 38} className="mt-3" onClick={send}><Icon name="send" size={15} />ارسال</AsyncButton>
-      </Card>
-    </div>
   );
 }
 
@@ -334,14 +293,14 @@ function AdminModels() {
 
 function AdminModelRow({ m }: { m: AiModelRow }) {
   const { notify } = useApp();
-  const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut) });
+  const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut), unitPrice: String(m.unitPrice) });
   const [test, setTest] = useState<{ ok: boolean; ms: number; detail: string } | null>(null);
-  const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut;
+  const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut || num(f.unitPrice) !== m.unitPrice;
   const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT + " h-9 text-xs" + (ltr ? " text-left font-mono" : "")} /></Field>;
   return (
     <details className="rounded-2xl bg-white/[0.03] border border-white/[0.07] group">
       <summary className="p-3 flex flex-wrap items-center justify-between gap-2 cursor-pointer list-none">
-        <span className="flex flex-wrap items-center gap-2 min-w-0"><b className="text-sm">{m.name}</b><code dir="ltr" className="text-[11px] text-white/55">{m.id}</code>{!m.active && <Badge tone="gray">غیرفعال</Badge>}</span>
+        <span className="flex flex-wrap items-center gap-2 min-w-0"><b className="text-sm">{m.name}</b><code dir="ltr" className="text-[11px] text-white/55">{m.id}</code>{m.kind !== "chat" && <Badge tone="blue">{AI_KIND_LABEL[m.kind]}</Badge>}{!m.active && <Badge tone="gray">غیرفعال</Badge>}</span>
         <span className="text-xs tabular text-white/70">{perM(m.inPrice)} / {perM(m.outPrice)}{m.refIn ? <span className="text-white/40"> (مرجع {perM(m.refIn)} / {perM(m.refOut)})</span> : null}</span>
       </summary>
       <div className="px-3 pb-3 space-y-3">
@@ -354,9 +313,12 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
           <div className="text-[11px] text-white/50 self-end pb-2">پیشنهاد قاعده: {m.refIn ? perM(rulePrice(num(f.refIn))) + " / " + perM(rulePrice(num(f.refOut))) : "—"}</div>
           {inp("refIn", "مرجع ورودی")}
           {inp("refOut", "مرجع خروجی")}
+          {inp("unitPrice", "قیمت واحد (تصویر/دقیقه/۱۰۰۰ جست‌وجو)")}
+          <Field label="نوع مدل"><Select label={"نوع " + m.id} value={m.kind} onChange={async (v) => { try { await api.ai.adminModel(m.id, { kind: v as AiKind }); } catch (e) { notify((e as Error).message, "circle-alert"); } }} options={AI_KINDS.map((k) => ({ value: k, label: AI_KIND_LABEL[k] }))} /></Field>
+          <div className="flex items-end gap-2 pb-1"><Switch on={m.vision} onChange={async (v) => { await api.ai.adminModel(m.id, { vision: v }); }} label={"ورودی تصویر " + m.id} /><span className="text-xs text-white/60">ورودی تصویر</span></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AsyncButton disabled={!dirty} className={BTN_P + " h-9 px-4 text-xs"} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
+          <AsyncButton disabled={!dirty} className={BTN_P + " h-9 px-4 text-xs"} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
           <AsyncButton className={BTN_G + " h-9 px-4 text-xs"} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={13} />تست اتصال</AsyncButton>
         </div>
         {test && <p className={"text-xs leading-6 " + (test.ok ? "text-emerald-300" : "text-rose-300")} dir="auto">{test.ok ? "موفق" : "ناموفق"} · {fa(test.ms)}ms · {test.detail}</p>}
@@ -367,7 +329,8 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
 
 function AddModel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { notify } = useApp();
-  const [f, setF] = useState({ id: "", name: "", vendor: "openai", upstream: "", inPrice: "", outPrice: "", context: "128000" });
+  const [f, setF] = useState({ id: "", name: "", vendor: "openai", upstream: "", inPrice: "", outPrice: "", unitPrice: "", context: "128000", kind: "chat" as AiKind });
+  const unit = AI_KIND_PRICE[f.kind];
   return (
     <Modal open={open} onClose={onClose} title="افزودن مدل" icon="plus">
       <div className="grid sm:grid-cols-2 gap-3">
@@ -375,12 +338,14 @@ function AddModel({ open, onClose }: { open: boolean; onClose: () => void }) {
         <Field label="نام نمایشی"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} /></Field>
         <Field label="سازنده"><Select label="سازنده" value={f.vendor} onChange={(v) => setF({ ...f, vendor: v })} options={Object.entries(AI_VENDORS).map(([value, label]) => ({ value, label }))} /></Field>
         <Field label="شناسه نزد سرویس‌دهنده" hint="خالی = همان شناسه عمومی"><input dir="ltr" value={f.upstream} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} className={INPUT + " text-left font-mono"} /></Field>
-        <Field label="قیمت ورودی (ت/1M)"><input inputMode="numeric" value={f.inPrice} onChange={(e) => setF({ ...f, inPrice: e.target.value })} className={INPUT + " tabular"} /></Field>
-        <Field label="قیمت خروجی (ت/1M)"><input inputMode="numeric" value={f.outPrice} onChange={(e) => setF({ ...f, outPrice: e.target.value })} className={INPUT + " tabular"} /></Field>
+        <Field label="نوع"><Select label="نوع" value={f.kind} onChange={(v) => setF({ ...f, kind: v as AiKind })} options={AI_KINDS.map((k) => ({ value: k, label: AI_KIND_LABEL[k] }))} /></Field>
+        {unit.in && <Field label={"قیمت " + unit.in}><input inputMode="numeric" value={f.inPrice} onChange={(e) => setF({ ...f, inPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}
+        {unit.out && <Field label={"قیمت " + unit.out}><input inputMode="numeric" value={f.outPrice} onChange={(e) => setF({ ...f, outPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}
+        {unit.unit && <Field label={"قیمت " + unit.unit}><input inputMode="numeric" value={f.unitPrice} onChange={(e) => setF({ ...f, unitPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}
         <Field label="کانتکست (توکن)"><input inputMode="numeric" value={f.context} onChange={(e) => setF({ ...f, context: e.target.value })} className={INPUT + " tabular"} /></Field>
       </div>
-      <AsyncButton className="mt-4" disabled={!f.id || f.name.trim().length < 2 || !num(f.inPrice) || !num(f.outPrice)} onClick={async () => {
-        await api.ai.adminAddModel({ id: f.id, name: f.name.trim(), vendor: f.vendor, upstream: f.upstream, inPrice: num(f.inPrice), outPrice: num(f.outPrice), context: num(f.context) || 128000 });
+      <AsyncButton className="mt-4" disabled={!f.id || f.name.trim().length < 2 || (!!unit.in && !num(f.inPrice)) || (!!unit.out && !num(f.outPrice)) || (!!unit.unit && !num(f.unitPrice))} onClick={async () => {
+        await api.ai.adminAddModel({ id: f.id, name: f.name.trim(), vendor: f.vendor, upstream: f.upstream, inPrice: unit.in ? num(f.inPrice) : 0, outPrice: unit.out ? num(f.outPrice) : 0, unitPrice: unit.unit ? num(f.unitPrice) : 0, kind: f.kind, context: num(f.context) || 128000 });
         notify("مدل اضافه شد (غیرفعال؛ پس از تست فعال کنید)", "circle-check"); onClose();
       }}>افزودن</AsyncButton>
     </Modal>

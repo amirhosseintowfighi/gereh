@@ -88,7 +88,7 @@ export const aiPlusMethods = {
     if (n >= 20) fail("حداکثر ۲۰ پایگاه دانش.");
     const id = rid("kb");
     await ctx.db.insert(aiKbs).values({ id, userId: a.uid, name, model });
-    await logActivity(ctx.db, a.uid, "library", "ساخت پایگاه دانش «" + name + "»", ctx.ip);
+    await logActivity(ctx.db, a.uid, "book-open", "ساخت پایگاه دانش «" + name + "»", ctx.ip);
     return id;
   }),
 
@@ -104,7 +104,7 @@ export const aiPlusMethods = {
     if (!kb) fail("پایگاه دانش پیدا نشد.", 404);
     await ctx.db.update(aiChats).set({ kbId: null }).where(and(eq(aiChats.userId, a.uid), eq(aiChats.kbId, id)));
     await ctx.db.delete(aiKbs).where(eq(aiKbs.id, id));
-    await logActivity(ctx.db, a.uid, "library", "حذف پایگاه دانش «" + kb!.name + "»", ctx.ip);
+    await logActivity(ctx.db, a.uid, "book-open", "حذف پایگاه دانش «" + kb!.name + "»", ctx.ip);
   }),
 
   /** one file as base64; text is extracted, chunked and embedded right away (billed as embeddings) */
