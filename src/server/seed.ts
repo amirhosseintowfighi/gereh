@@ -8,7 +8,10 @@ import { eq } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { seedAiModels } from "./ai/service";
 import { seedGeoPlans } from "./geo/service";
+import { seedStoragePlans } from "./storage/service";
 import { seedInquiry } from "./inquiry/service";
+import { seedMailDemo } from "./mail/demo";
+import { seedMailPlans } from "./mail/service";
 import { DEFAULT_PLANS, seedPlans } from "./paas/service";
 import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan } from "@/lib/catalog";
@@ -39,6 +42,8 @@ export async function upgrade(db: DB) {
   await seedAiModels(db);
   await seedInquiry(db);
   await seedGeoPlans(db);
+  await seedStoragePlans(db);
+  await seedMailPlans(db);
   // v2 pricing: cloud plans priced from unit costs (CPU, RAM, disk, stepped traffic, IP). Replaces the
   // stored cloud plan rows once, keeping each plan's on/off switch from the admin panel.
   const [pv] = await db.select().from(t.kv).where(eq(t.kv.key, "pricing"));
@@ -72,6 +77,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   await seedPlans(db);
   await seedInquiry(db);
   await seedGeoPlans(db);
+  await seedMailPlans(db);
   await db.insert(t.plans).values([
     ...VPS.cloud.map((p, i) => ({ id: p.id, kind: "cloud" as const, data: p, position: i })),
     ...VPS.metal.map((p, i) => ({ id: p.id, kind: "metal" as const, data: p, position: i })),
@@ -273,6 +279,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     { zoneId: "geo-demo2", name: "@", type: "A", iran: "185.120.220.30", world: "94.130.88.40" },
     { zoneId: "geo-demo2", name: "www", type: "A", iran: "185.120.220.30", world: "94.130.88.40" },
   ]).onConflictDoNothing();
+  await seedMailDemo(db, now);
   await db.insert(t.audit).values([
     { id: "au1", actor: "مدیر سیستم", action: "تغییر قیمت پلن حرفه‌ای", target: "products/c3", createdAt: J("۱۴۰۴/۰۷/۱۰ ۱۶:۲۲"), ip: "10.0.0.4" },
     { id: "au2", actor: "کاوه نوری", action: "پاسخ به تیکت", target: "TK-3021", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۹:۲۰"), ip: "10.0.0.7" },

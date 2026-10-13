@@ -15,6 +15,7 @@ import { virtFromEnv } from "./virt/driver";
 import { getLocations, publicLocations } from "./locations";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
+import { EMPTY_STORAGE, storageState } from "./storage/state";
 import { aiState, EMPTY_AI } from "./ai/state";
 import { botConfig } from "./channels";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
@@ -70,7 +71,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], locations: [], virtGroups: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, storage: EMPTY_STORAGE, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -179,6 +180,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   out.inquiry = await inquiryState(db, { uid, admin });
   out.ai = await aiState(db, { uid, admin });
   out.geo = await geoState(db, { uid, admin });
+  out.storage = await storageState(db, { uid, admin });
   const locations = await getLocations(db);
   if (!admin) {
     out.locations = publicLocations(locations);

@@ -108,6 +108,20 @@
       "breakpoints": true
     },
     {
+      "idx": 15,
+      "version": "7",
+      "when": 1791600015000,
+      "tag": "0015_object_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791600016000,
+      "tag": "0016_mail",
+      "breakpoints": true
+    },
+    {
       "idx": 17,
       "version": "7",
       "when": 1791600017000,

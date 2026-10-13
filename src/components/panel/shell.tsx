@@ -20,11 +20,13 @@ const USER_NAV: NavItem[] = [
   { href: "/panel/hosting", label: "هاست‌ها", icon: "layers", group: "زیرساخت" },
   { href: "/panel/domains", label: "دامنه‌ها", icon: "globe", group: "زیرساخت" },
   { href: "/panel/geo", label: "Geo DNS", icon: "radar", group: "زیرساخت" },
+  { href: "/panel/storage", label: "فضای ذخیره‌سازی", icon: "hard-drive", group: "زیرساخت" },
   { href: "/panel/apps", label: "اپ‌ها", icon: "rocket", group: "گره اپ" },
   { href: "/panel/databases", label: "پایگاه داده", icon: "database", group: "گره اپ" },
   { href: "/panel/wordpress", label: "وردپرس", icon: "layers", group: "گره اپ" },
   { href: "/panel/ai", label: "API هوش مصنوعی", icon: "bot", group: "سرویس‌ها" },
   { href: "/panel/inquiry", label: "API استعلام", icon: "fingerprint", group: "سرویس‌ها" },
+  { href: "/panel/mail", label: "سرویس ایمیل", icon: "mail", group: "سرویس‌ها" },
   { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow", group: "سرویس‌ها" },
   { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet", group: "حساب" },
   { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle", group: "حساب" },
@@ -42,6 +44,8 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/ai", label: "API هوش مصنوعی", icon: "bot" },
   { href: "/admin/inquiry", label: "API استعلام", icon: "fingerprint" },
   { href: "/admin/geo", label: "Geo DNS", icon: "radar" },
+  { href: "/admin/storage", label: "فضای ذخیره‌سازی", icon: "hard-drive" },
+  { href: "/admin/mail", label: "سرویس ایمیل", icon: "mail" },
   { href: "/admin/devops", label: "خدمات دواپس", icon: "workflow" },
   { href: "/admin/tickets", label: "تیکت‌ها", icon: "message-circle" },
   { href: "/admin/chats", label: "گفتگوی آنلاین", icon: "headset" },
@@ -82,7 +86,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/ai", "/panel/inquiry", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;

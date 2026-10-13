@@ -842,6 +842,204 @@ export const aiUsage = pgTable("ai_usage", {
   createdAt: created(),
 }, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed)]);
 
+/* ---------------- Object Storage (فضای ذخیره‌سازی ابری) ---------------- */
+export const storagePlans = pgTable("storage_plans", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  sizeGb: integer("size_gb").notNull(),
+  price: money("price").notNull(), // Toman per month, billed hourly from the wallet
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+/* ---------------- Mail service (سرویس ایمیل) ---------------- */
+/** sending limits and mailbox allowances; one plan per mail domain, billed hourly from the wallet */
+export const mailPlans = pgTable("mail_plans", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  price: money("price").notNull(), // Toman per month
+  dailyLimit: integer("daily_limit").notNull(), // outgoing recipients per day (Tehran time)
+  monthlyLimit: integer("monthly_limit").notNull(),
+  mailboxes: integer("mailboxes").notNull(),
+  quotaMb: integer("quota_mb").notNull(), // largest quota one mailbox may have
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+});
+
+export type StorageCorsRule = { origins: string[]; methods: string[]; headers: string[]; maxAge: number };
+export type StorageLifecycle = { days: number; prefix: string };
+
+export const storageBuckets = pgTable("storage_buckets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** the real bucket name on the S3 backend (globally unique) */
+  name: text("name").notNull(),
+  planId: text("plan_id").notNull(),
+  access: text("access", { enum: ["private", "public"] }).notNull().default("private"),
+  status: text("status", { enum: ["active", "suspended"] }).notNull().default("active"),
+  versioning: boolean("versioning").notNull().default(false),
+  cors: jsonb("cors").$type<StorageCorsRule[]>().notNull().default([]),
+  lifecycle: jsonb("lifecycle").$type<StorageLifecycle | null>(),
+  usedBytes: bigint("used_bytes", { mode: "number" }).notNull().default(0),
+  objects: integer("objects").notNull().default(0),
+  /** last cumulative request/traffic counters read from the backend (deltas go to storage_usage) */
+  counters: jsonb("counters").$type<{ requests: number; bytesIn: number; bytesOut: number }>().notNull().default({ requests: 0, bytesIn: 0, bytesOut: 0 }),
+  usageAt: ts("usage_at"),
+  suspendedAt: ts("suspended_at"),
+  /** "billing" (resumed automatically after a top-up) or "staff" (resumed by staff only) */
+  suspendReason: text("suspend_reason", { enum: ["", "billing", "staff"] }).notNull().default(""),
+  createdAt: created(),
+}, (t) => [uniqueIndex("storage_bucket_name_uq").on(t.name), index("storage_bucket_user_ix").on(t.userId)]);
+
+export const storageKeys = pgTable("storage_keys", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  accessKey: text("access_key").notNull(),
+  /** AES-GCM sealed (secrets.ts); shown to the customer once */
+  secretEnc: text("secret_enc").notNull(),
+  grants: jsonb("grants").$type<{ bucketId: string; perm: "read" | "write" }[]>().notNull().default([]),
+  createdAt: created(),
+  rotatedAt: ts("rotated_at"),
+}, (t) => [uniqueIndex("storage_key_access_uq").on(t.accessKey), index("storage_key_user_ix").on(t.userId)]);
+
+export const storageDomains = pgTable("storage_domains", {
+  id: text("id").primaryKey(),
+  bucketId: text("bucket_id").notNull().references(() => storageBuckets.id, { onDelete: "cascade" }),
+  host: text("host").notNull(),
+  status: text("status", { enum: ["pending", "active", "failed"] }).notNull().default("pending"),
+  ssl: text("ssl", { enum: ["pending", "issued", "failed"] }).notNull().default("pending"),
+  checkedAt: ts("checked_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("storage_domain_uq").on(t.host), index("storage_domain_bucket_ix").on(t.bucketId)]);
+
+/** one row per bucket per day (UTC date): peak size and request/traffic totals */
+export const storageUsage = pgTable("storage_usage", {
+  id: serial("id").primaryKey(),
+  bucketId: text("bucket_id").notNull().references(() => storageBuckets.id, { onDelete: "cascade" }),
+  day: text("day").notNull(), // YYYY-MM-DD
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+  objects: integer("objects").notNull().default(0),
+  requests: bigint("requests", { mode: "number" }).notNull().default(0),
+  bytesIn: bigint("bytes_in", { mode: "number" }).notNull().default(0),
+  bytesOut: bigint("bytes_out", { mode: "number" }).notNull().default(0),
+}, (t) => [uniqueIndex("storage_usage_uq").on(t.bucketId, t.day)]);
+export type MailDmarc = { p: "none" | "quarantine" | "reject"; pct: number; rua: string; adkim: "r" | "s"; aspf: "r" | "s" };
+export type MailDnsCheck = { ok: boolean; seen: string[]; at: string };
+
+export const mailDomains = pgTable("mail_domains", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(),
+  planId: text("plan_id").notNull(),
+  /** dev: accepted and logged, never delivered */
+  mode: text("mode", { enum: ["dev", "live"] }).notNull().default("dev"),
+  /** pending: DKIM/SPF/return-path not verified yet; suspended: no credit or by staff */
+  status: text("status", { enum: ["pending", "active", "suspended"] }).notNull().default("pending"),
+  suspendReason: text("suspend_reason", { enum: ["", "credit", "staff"] }).notNull().default(""),
+  dkimSelector: text("dkim_selector").notNull(),
+  dkimPublic: text("dkim_public").notNull(), // base64 SubjectPublicKeyInfo (the p= value)
+  dkimPrivateEnc: text("dkim_private_enc").notNull(), // sealed PEM
+  returnPath: text("return_path").notNull().default("bounces"), // label of the return-path CNAME
+  dmarc: jsonb("dmarc").$type<MailDmarc>().notNull(),
+  dnsStatus: jsonb("dns_status").$type<Record<string, MailDnsCheck>>().notNull().default({}),
+  dnsCheckedAt: ts("dns_checked_at"),
+  /** sha256 of the HTTP API key; the key is shown once */
+  apiKeyHash: text("api_key_hash").notNull(),
+  apiKeyPrefix: text("api_key_prefix").notNull(),
+  catchAll: text("catch_all").notNull().default(""),
+  spamThreshold: real("spam_threshold").notNull().default(5),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mail_domain_uq").on(t.domain), uniqueIndex("mail_domain_key_uq").on(t.apiKeyHash), index("mail_domain_user_ix").on(t.userId)]);
+
+export const mailSmtpUsers = pgTable("mail_smtp_users", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  passwordEnc: text("password_enc").notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mail_smtp_user_uq").on(t.username), index("mail_smtp_domain_ix").on(t.domainId)]);
+
+export const mailMailboxes = pgTable("mail_mailboxes", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  local: text("local").notNull(),
+  name: text("name").notNull().default(""),
+  passwordHash: text("password_hash").notNull(),
+  quotaMb: integer("quota_mb").notNull(),
+  usedMb: real("used_mb").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mail_mailbox_uq").on(t.domainId, t.local)]);
+
+/** alias (to local mailboxes) or forward (to outside addresses): local part → destinations */
+export const mailAliases = pgTable("mail_aliases", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  local: text("local").notNull(),
+  destinations: jsonb("destinations").$type<string[]>().notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mail_alias_uq").on(t.domainId, t.local)]);
+
+/** inbound rules, applied in order before delivery: first match wins */
+export const mailRules = pgTable("mail_rules", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  field: text("field", { enum: ["from", "to", "subject"] }).notNull(),
+  op: text("op", { enum: ["contains", "equals", "ends"] }).notNull(),
+  value: text("value").notNull(),
+  action: text("action", { enum: ["forward", "drop"] }).notNull(),
+  target: text("target").notNull().default(""),
+  position: serial("position"),
+}, (t) => [index("mail_rule_domain_ix").on(t.domainId)]);
+
+/** blocked senders: a full address or "@domain" */
+export const mailBlocks = pgTable("mail_blocks", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  pattern: text("pattern").notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("mail_block_uq").on(t.domainId, t.pattern)]);
+
+export const mailMessages = pgTable("mail_messages", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => mailDomains.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  direction: text("direction", { enum: ["out", "in"] }).notNull(),
+  /** out: queued → sent → delivered | bounced | failed (dev: logged, never sent); in: received | spam | dropped | rejected */
+  status: text("status", { enum: ["queued", "dev", "sent", "delivered", "bounced", "failed", "received", "spam", "dropped", "rejected"] }).notNull(),
+  source: text("source", { enum: ["api", "smtp", "console", "inbound"] }).notNull(),
+  from: text("from").notNull(),
+  to: jsonb("to").$type<string[]>().notNull(),
+  cc: jsonb("cc").$type<string[]>().notNull().default([]),
+  bcc: jsonb("bcc").$type<string[]>().notNull().default([]),
+  /** counted against the plan's limits */
+  recipients: integer("recipients").notNull().default(1),
+  subject: text("subject").notNull().default(""),
+  tag: text("tag").notNull().default(""),
+  html: text("html").notNull().default(""),
+  text: text("text").notNull().default(""),
+  /** the full RFC 5322 message as sent or received */
+  raw: text("raw").notNull().default(""),
+  size: integer("size").notNull().default(0),
+  attachments: jsonb("attachments").$type<{ name: string; type: string; size: number }[]>().notNull().default([]),
+  messageId: text("message_id").notNull().default(""),
+  mailboxId: text("mailbox_id"),
+  spamScore: real("spam_score"),
+  read: boolean("read").notNull().default(false),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("mail_msg_domain_ix").on(t.domainId, t.createdAt), index("mail_msg_status_ix").on(t.status), index("mail_msg_mid_ix").on(t.messageId)]);
+
+export const mailEvents = pgTable("mail_events", {
+  id: serial("id").primaryKey(),
+  messageId: text("message_id").notNull().references(() => mailMessages.id, { onDelete: "cascade" }),
+  type: text("type", { enum: ["queued", "sent", "delivered", "bounced", "failed", "received", "forwarded", "dropped"] }).notNull(),
+  recipient: text("recipient").notNull().default(""),
+  detail: text("detail").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("mail_event_msg_ix").on(t.messageId)]);
+
 /* ---------- Gereh Apps: build and runtime options (0017_paas_runtime) ---------- */
 /** per-app build hooks, health check, build and runtime options, budget and alerts (one row per app,
     created on first save; a missing row means the defaults in src/lib/paas-runtime.ts) */

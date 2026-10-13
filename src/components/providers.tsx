@@ -26,6 +26,7 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
     { href: "/paas", label: "گره اپ (PaaS)", icon: "rocket", desc: "کد را بفرستید؛ بیلد، SSL و مقیاس با ما" },
     { href: "/paas/databases", label: "پایگاه داده مدیریت‌شده", icon: "database", desc: "PostgreSQL، MySQL، Redis با پشتیبان روزانه" },
     { href: "/geo-dns", label: "Geo DNS", icon: "radar", desc: "حفظ رتبه گوگل در قطعی اینترنت", badge: "جدید" },
+    { href: "/storage", label: "فضای ذخیره‌سازی ابری", icon: "hard-drive", desc: "سازگار با S3؛ پرداخت ساعتی و ترافیک رایگان", badge: "جدید" },
   ] },
   { group: "API و خدمات", items: [
     { href: "/ai-api", label: "API هوش مصنوعی", icon: "bot", desc: "Claude، GPT و Gemini با یک کلید و پرداخت تومانی", badge: "جدید" },
