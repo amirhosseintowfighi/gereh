@@ -136,6 +136,13 @@
       "breakpoints": true
     },
     {
+      "idx": 20,
+      "version": "7",
+      "when": 1791600020000,
+      "tag": "0020_ai_plus",
+      "breakpoints": true
+    },
+    {
       "idx": 21,
       "version": "7",
       "when": 1791600021000,

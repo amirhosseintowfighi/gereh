@@ -62,4 +62,84 @@ export const costOf = (inTokens: number, outTokens: number, m: { inPrice: number
 export const estimateTokens = (chars: number) => Math.ceil(chars / 3.5);
 
 export const AI_KEY_RE = /^gk-[A-Za-z0-9]{40}$/;
-export const AI_FORMAT_LABEL: Record<string, string> = { openai: "OpenAI", responses: "OpenAI Responses", anthropic: "Anthropic", gemini: "Gemini", panel: "پنل" };
+export const AI_FORMAT_LABEL: Record<string, string> = {
+  openai: "OpenAI", responses: "OpenAI Responses", anthropic: "Anthropic", gemini: "Gemini", panel: "پنل",
+  embeddings: "Embeddings", images: "تصویر", speech: "تبدیل متن به گفتار", transcription: "تبدیل گفتار به متن", rerank: "Rerank", kb: "پایگاه دانش",
+};
+
+/* ---------- model kinds and their price units ---------- */
+export type AiKind = "chat" | "embedding" | "image" | "tts" | "stt" | "rerank";
+export const AI_KINDS: AiKind[] = ["chat", "embedding", "image", "tts", "stt", "rerank"];
+export const AI_KIND_LABEL: Record<AiKind, string> = { chat: "گفتگو", embedding: "Embedding", image: "تصویر", tts: "متن به گفتار", stt: "گفتار به متن", rerank: "Rerank" };
+/** which price fields a kind uses, with their unit labels; in/out are per 1M (tokens, or characters for tts), unit is per unit */
+export const AI_KIND_PRICE: Record<AiKind, { in?: string; out?: string; unit?: string }> = {
+  chat: { in: "ورودی / ۱M توکن", out: "خروجی / ۱M توکن" },
+  embedding: { in: "ورودی / ۱M توکن" },
+  image: { unit: "هر تصویر" },
+  tts: { in: "هر ۱M نویسه" },
+  stt: { unit: "هر دقیقه صوت" },
+  rerank: { unit: "هر ۱۰۰۰ جست‌وجو" },
+};
+/** the endpoint each kind is served on */
+export const AI_KIND_PATH: Record<AiKind, string> = {
+  chat: "/v1/chat/completions", embedding: "/v1/embeddings", image: "/v1/images/generations", tts: "/v1/audio/speech", stt: "/v1/audio/transcriptions", rerank: "/v1/rerank",
+};
+type Priced = { inPrice: number; outPrice: number; unitPrice: number };
+/** a model is sellable once the price fields of its kind are set */
+export const isPriced = (kind: AiKind, m: Priced) => {
+  const p = AI_KIND_PRICE[kind];
+  return (p.in ? m.inPrice > 0 : true) && (p.unit ? m.unitPrice > 0 : true) && (p.out ? m.outPrice > 0 : true);
+};
+/** Toman for a non-chat request; quantities: tokens (embedding), images, characters (tts), seconds (stt), searches (rerank) */
+export function kindCost(kind: AiKind, m: Priced, q: { tokens?: number; images?: number; chars?: number; seconds?: number; searches?: number }) {
+  const atLeast1 = (n: number, raw: number) => (n > 0 ? Math.max(1, Math.ceil(raw)) : 0);
+  switch (kind) {
+    case "embedding": return costOf(q.tokens ?? 0, 0, m);
+    case "image": return (q.images ?? 0) * m.unitPrice;
+    case "tts": return atLeast1(q.chars ?? 0, ((q.chars ?? 0) * m.inPrice) / 1_000_000);
+    case "stt": return atLeast1(q.seconds ?? 0, ((q.seconds ?? 0) * m.unitPrice) / 60);
+    case "rerank": return atLeast1(q.searches ?? 0, ((q.searches ?? 0) * m.unitPrice) / 1000);
+    default: return costOf(q.tokens ?? 0, 0, m);
+  }
+}
+
+export type AiRouting = "" | "price" | "throughput" | "latency";
+export const AI_ROUTING: { value: AiRouting; label: string }[] = [
+  { value: "", label: "پیش‌فرض" }, { value: "price", label: "ارزان‌ترین" }, { value: "throughput", label: "بیشترین سرعت تولید" }, { value: "latency", label: "کمترین تأخیر" },
+];
+
+/* ---------- vectors and chunking (knowledge base, embedding playground) ---------- */
+export function cosine(a: ArrayLike<number>, b: ArrayLike<number>) {
+  let dot = 0, na = 0, nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
+
+/** splits text into ~size-character chunks on paragraph, then sentence, boundaries, with a small overlap */
+export function chunkText(text: string, size = 1000, overlap = 150): string[] {
+  const clean = text.replace(/\r\n?/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (!clean) return [];
+  const pieces: string[] = [];
+  for (const para of clean.split(/\n\n/)) {
+    if (para.length <= size) { pieces.push(para); continue; }
+    let cur = "";
+    for (const s of para.split(/(?<=[.!?؟。])\s+/)) {
+      if (s.length > size) { if (cur) { pieces.push(cur); cur = ""; } for (let i = 0; i < s.length; i += size - overlap) pieces.push(s.slice(i, i + size)); continue; }
+      if (cur && cur.length + s.length + 1 > size) { pieces.push(cur); cur = ""; }
+      cur = cur ? cur + " " + s : s;
+    }
+    if (cur) pieces.push(cur);
+  }
+  const out: string[] = [];
+  let cur = "";
+  for (const p of pieces) {
+    if (cur && cur.length + p.length + 2 > size) {
+      out.push(cur);
+      const tail = cur.length > overlap ? cur.slice(-overlap).replace(/^\S*\s/, "") : "";
+      cur = tail ? tail + "\n\n" + p : p;
+    } else cur = cur ? cur + "\n\n" + p : p;
+  }
+  if (cur) out.push(cur);
+  return out;
+}

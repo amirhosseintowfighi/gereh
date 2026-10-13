@@ -804,6 +804,10 @@ export const aiModels = pgTable("ai_models", {
   tools: boolean("tools").notNull().default(true),
   active: boolean("active").notNull().default(true),
   position: integer("position").notNull().default(0),
+  /** what the model does; decides the endpoint and the price unit (see AI_KIND_PRICE) */
+  kind: text("kind", { enum: ["chat", "embedding", "image", "tts", "stt", "rerank"] }).notNull().default("chat"),
+  /** Toman per unit for kinds billed per unit: image (per image), stt (per minute), rerank (per 1000 searches) */
+  unitPrice: money("unit_price").notNull().default(0),
 });
 
 export const aiKeys = pgTable("ai_keys", {
@@ -818,10 +822,15 @@ export const aiKeys = pgTable("ai_keys", {
   dailyCap: money("daily_cap").notNull().default(0), // 0 = no cap
   monthlyCap: money("monthly_cap").notNull().default(0),
   rpm: integer("rpm").notNull().default(120),
-  status: text("status", { enum: ["active", "revoked"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "disabled", "revoked"] }).notNull().default("active"),
   expiresAt: ts("expires_at"),
   lastUsedAt: ts("last_used_at"),
   createdAt: created(),
+  /** allowed client IPs (exact or IPv4 CIDR); empty = any */
+  ips: jsonb("ips").$type<string[]>().notNull().default([]),
+  /** upstream routing preference sent as a header: "" | price | throughput | latency */
+  routing: text("routing").notNull().default(""),
+  projectId: text("project_id"),
 }, (t) => [uniqueIndex("ai_key_hash_uq").on(t.hash), index("ai_key_user_ix").on(t.userId)]);
 
 export const aiUsage = pgTable("ai_usage", {
@@ -830,7 +839,7 @@ export const aiUsage = pgTable("ai_usage", {
   keyId: text("key_id"),
   model: text("model").notNull(),
   /** API surface the customer used */
-  format: text("format", { enum: ["openai", "responses", "anthropic", "gemini", "panel"] }).notNull(),
+  format: text("format", { enum: ["openai", "responses", "anthropic", "gemini", "panel", "embeddings", "images", "speech", "transcription", "rerank", "kb"] }).notNull(),
   stream: boolean("stream").notNull().default(false),
   status: text("status", { enum: ["success", "error", "denied", "cancelled"] }).notNull(),
   inTokens: integer("in_tokens").notNull().default(0),
@@ -842,7 +851,12 @@ export const aiUsage = pgTable("ai_usage", {
   latencyMs: integer("latency_ms").notNull().default(0),
   error: text("error").notNull().default(""),
   createdAt: created(),
-}, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed)]);
+  /** finish reason reported by the model (stop, length, tool_calls…) */
+  finish: text("finish").notNull().default(""),
+  /** non-token quantity billed: images, characters (tts), seconds (stt), searches (rerank) */
+  units: real("units").notNull().default(0),
+  projectId: text("project_id"),
+}, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed), index("ai_usage_project_ix").on(t.projectId, t.createdAt)]);
 
 /* ---------- Managed databases (DBaaS extras) ---------- */
 /** per-database settings beyond the plan: tuning, extensions, firewall, replica set, seeding */
@@ -1283,3 +1297,86 @@ export const paasConsoleSessions = pgTable("paas_console_sessions", {
   startedAt: created(),
   endedAt: ts("ended_at"),
 }, (t) => [index("paas_console_app_ix").on(t.appId, t.startedAt)]);
+
+/* ---------------- AI plus: projects, settings, request bodies, web chat, knowledge bases ---------------- */
+export const aiProjects = pgTable("ai_projects", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  /** Toman per Tehran calendar month over all keys of the project; 0 = no limit */
+  monthlyLimit: money("monthly_limit").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("ai_project_user_ix").on(t.userId)]);
+
+export const aiSettings = pgTable("ai_settings", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  /** days request logs are kept (30 or 60) */
+  retentionDays: integer("retention_days").notNull().default(30),
+  /** store prompts and answers with the logs (opt-in) */
+  logBodies: boolean("log_bodies").notNull().default(false),
+  /** notify when the wallet falls under this many Toman; 0 = off */
+  lowBalance: money("low_balance").notNull().default(0),
+  lowAlertedAt: ts("low_alerted_at"),
+});
+
+/** prompts and answers, only for customers who turned body logging on */
+export const aiBodies = pgTable("ai_bodies", {
+  id: text("id").primaryKey(), // = ai_usage.id
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  request: text("request").notNull().default(""),
+  response: text("response").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("ai_body_user_ix").on(t.userId, t.createdAt)]);
+
+export const aiChats = pgTable("ai_chats", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  model: text("model").notNull(),
+  system: text("system").notNull().default(""),
+  temperature: real("temperature").notNull().default(0.7),
+  kbId: text("kb_id"),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("ai_chat_user_ix").on(t.userId, t.updatedAt)]);
+
+export const aiChatMessages = pgTable("ai_chat_messages", {
+  id: serial("id").primaryKey(),
+  chatId: text("chat_id").notNull().references(() => aiChats.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["user", "assistant"] }).notNull(),
+  content: text("content").notNull(),
+  /** images as data URLs, text files inline */
+  attachments: jsonb("attachments").$type<{ name: string; type: "image" | "text"; data: string }[]>().notNull().default([]),
+  charged: money("charged").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("ai_chat_msg_chat_ix").on(t.chatId, t.id)]);
+
+export const aiKbs = pgTable("ai_kbs", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  /** embedding model used for every chunk and query of this base */
+  model: text("model").notNull(),
+  createdAt: created(),
+}, (t) => [index("ai_kb_user_ix").on(t.userId)]);
+
+export const aiKbDocs = pgTable("ai_kb_docs", {
+  id: text("id").primaryKey(),
+  kbId: text("kb_id").notNull().references(() => aiKbs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  mime: text("mime").notNull(),
+  chars: integer("chars").notNull().default(0),
+  chunks: integer("chunks").notNull().default(0),
+  charged: money("charged").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("ai_kb_doc_kb_ix").on(t.kbId)]);
+
+/** chunk vectors as real[]; cosine runs in JS (src/server/ai/vectors.ts), so a pgvector column can replace it later */
+export const aiKbChunks = pgTable("ai_kb_chunks", {
+  id: serial("id").primaryKey(),
+  kbId: text("kb_id").notNull().references(() => aiKbs.id, { onDelete: "cascade" }),
+  docId: text("doc_id").notNull().references(() => aiKbDocs.id, { onDelete: "cascade" }),
+  idx: integer("idx").notNull(),
+  text: text("text").notNull(),
+  embedding: real("embedding").array().notNull(),
+}, (t) => [index("ai_kb_chunk_kb_ix").on(t.kbId)]);

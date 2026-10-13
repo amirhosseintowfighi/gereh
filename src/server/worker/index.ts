@@ -10,6 +10,7 @@ import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
 import { settleAi } from "../ai/service";
+import { lowBalanceAlerts, purgeAiLogs } from "../ai/reports";
 import { settleInquiry } from "../inquiry/service";
 import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
@@ -50,7 +51,7 @@ const handlers: Record<JobType, Handler> = {
   "paas.collect": (db) => paasCollect(db),
   "paas.daily": (db) => paasDaily(db),
   "inquiry.settle": (db) => settleInquiry(db),
-  "ai.settle": (db) => settleAi(db),
+  "ai.settle": async (db) => { await settleAi(db); await lowBalanceAlerts(db); await purgeAiLogs(db); },
   "geo.billing": (db) => geoBilling(db),
   "geo.health": (db) => geoHealth(db),
   "geo.ns": (db, p) => geoNsCheck(db, p as never),

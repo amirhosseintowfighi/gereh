@@ -58,6 +58,59 @@ r = client.models.generate_content(model="gemini-3.8-flash", contents="سلام!
 print(r.text)`,
   },
   {
+    id: "openai-js", label: "OpenAI SDK (JS)", icon: "braces", lang: "javascript",
+    note: "کتابخانه رسمی openai برای Node.js؛ chat، embeddings، images و audio همه با همین client کار می‌کنند.",
+    code: (base, key) => `import OpenAI from "openai";
+
+const client = new OpenAI({ baseURL: "${base}/v1", apiKey: "${key}" });
+const r = await client.chat.completions.create({
+  model: "<model-id>", // از GET /v1/models
+  messages: [{ role: "user", content: "سلام!" }],
+});
+console.log(r.choices[0].message.content);
+
+const e = await client.embeddings.create({ model: "<embedding-model-id>", input: ["متن اول", "متن دوم"] });
+console.log(e.data[0].embedding.length);`,
+  },
+  {
+    id: "vercel-ai", label: "Vercel AI SDK", icon: "zap", lang: "typescript",
+    note: "با @ai-sdk/openai-compatible (یا createOpenAI) و آدرس گره؛ streamText، generateText و embed پشتیبانی می‌شوند.",
+    code: (base, key) => `import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { streamText } from "ai";
+
+const gereh = createOpenAICompatible({ name: "gereh", baseURL: "${base}/v1", apiKey: "${key}" });
+const result = streamText({ model: gereh("<model-id>"), prompt: "یک شعر کوتاه بنویس" });
+for await (const part of result.textStream) process.stdout.write(part);`,
+  },
+  {
+    id: "n8n", label: "n8n", icon: "workflow", lang: "text",
+    note: "در n8n یک اعتبارنامه از نوع OpenAI بسازید؛ نودهای OpenAI Chat Model، Embeddings OpenAI و AI Agent بدون تغییر کار می‌کنند.",
+    code: (base, key) => `Credentials › New › OpenAI API
+  API Key:   ${key}
+  Base URL:  ${base}/v1
+
+AI Agent › Chat Model › OpenAI Chat Model
+  Credential: (همین اعتبارنامه)
+  Model:      From list (فهرست از /v1/models خوانده می‌شود)`,
+  },
+  {
+    id: "openwebui", label: "Open WebUI", icon: "bot", lang: "bash",
+    note: "Open WebUI را با اتصال OpenAI گره اجرا کنید؛ همه مدل‌های گفتگو در فهرست مدل‌ها ظاهر می‌شوند (یا از Admin › Settings › Connections اضافه کنید).",
+    code: (base, key) => `docker run -d -p 3000:8080 \
+  -e OPENAI_API_BASE_URL=${base}/v1 \
+  -e OPENAI_API_KEY=${key} \
+  -v open-webui:/app/backend/data \
+  --name open-webui ghcr.io/open-webui/open-webui:main`,
+  },
+  {
+    id: "cline", label: "Cline", icon: "code-xml", lang: "text",
+    note: "در افزونه Cline (VS Code): Settings › API Provider را «OpenAI Compatible» بگذارید.",
+    code: (base, key) => `API Provider:  OpenAI Compatible
+Base URL:      ${base}/v1
+API Key:       ${key}
+Model ID:      <model-id>   (از GET /v1/models)`,
+  },
+  {
     id: "curl", label: "cURL", icon: "terminal", lang: "bash",
     note: "ساده‌ترین تست از ترمینال.",
     code: (base, key) => `curl ${base}/v1/chat/completions \\
@@ -73,7 +126,14 @@ export const AI_ENDPOINTS: [string, string, string][] = [
   ["POST", "/v1/messages", "Anthropic Messages — برای Claude Code و SDK رسمی Anthropic"],
   ["POST", "/v1/messages/count_tokens", "شمارش تقریبی توکن ورودی (Anthropic)"],
   ["POST", "/v1beta/models/{model}:generateContent", "Google Gemini (و ‎:streamGenerateContent?alt=sse)"],
-  ["GET", "/v1/models", "فهرست مدل‌ها (با هدر anthropic-version به شکل Anthropic)"],
+  ["POST", "/v1/embeddings", "بردار Embedding متن (OpenAI)؛ هزینه به ازای توکن ورودی"],
+  ["POST", "/v1/images/generations", "ساخت تصویر؛ هزینه به ازای هر تصویر"],
+  ["POST", "/v1/images/edits", "ویرایش تصویر (multipart/form-data)"],
+  ["POST", "/v1/audio/speech", "تبدیل متن به گفتار؛ هزینه به ازای نویسه"],
+  ["POST", "/v1/audio/transcriptions", "تبدیل گفتار به متن (multipart/form-data)؛ هزینه به ازای دقیقه"],
+  ["POST", "/v1/rerank", "مرتب‌سازی اسناد بر اساس ارتباط با پرسش؛ هزینه به ازای هر ۱۰۰۰ جست‌وجو"],
+  ["POST", "/kb/{id}/query", "جست‌وجوی معنایی در پایگاه دانش (RAG) شما"],
+  ["GET", "/v1/models", "فهرست مدل‌ها با نوع و واحد قیمت (با هدر anthropic-version به شکل Anthropic)"],
   ["GET", "/v1beta/models", "فهرست مدل‌ها به شکل Gemini"],
 ];
 
@@ -82,7 +142,9 @@ export const AI_FEATURES: [string, string, string][] = [
   ["plug", "سازگار با هر ابزار", "فرمت‌های OpenAI، Anthropic و Gemini روی یک آدرس؛ Claude Code، Codex، Cursor و n8n بدون تغییر کد."],
   ["wallet", "پرداخت تومانی به ازای مصرف", "هزینه هر درخواست دقیقاً بر اساس توکن مصرفی از کیف پول کم می‌شود؛ بدون اشتراک ماهانه."],
   ["shield-check", "کنترل کامل هزینه", "برای هر کلید سقف روزانه و ماهانه، محدودیت مدل و تعداد درخواست در دقیقه تعیین کنید."],
-  ["activity", "گزارش لحظه‌ای", "تک‌تک درخواست‌ها با مدل، توکن، هزینه و زمان پاسخ در پنل دیده می‌شوند."],
+  ["activity", "گزارش لحظه‌ای", "تک‌تک درخواست‌ها با کلید، مدل، توکن، هزینه، تأخیر و دلیل پایان؛ داشبورد روزانه، مدل و کلید با خروجی CSV."],
+  ["sparkles", "Embedding، تصویر و صوت", "‎/v1/embeddings، ساخت و ویرایش تصویر، تبدیل متن و گفتار و Rerank با همان کلید و پرداخت تومانی."],
+  ["book-open", "پایگاه دانش و چت", "فایل‌هایتان را بارگذاری کنید، در چت پنل با آن‌ها گفتگو کنید یا از API و MCP جست‌وجو کنید."],
   ["zap", "استریم و ابزارها", "پاسخ استریم (SSE)، فراخوانی ابزار (function calling)، ورودی تصویر و خروجی JSON."],
 ];
 
@@ -90,7 +152,7 @@ export const AI_FAQ: [string, string][] = [
   ["قیمت‌ها چطور محاسبه می‌شوند؟", "قیمت هر مدل به ازای یک میلیون توکن ورودی و خروجی جدا اعلام می‌شود. هزینه هر درخواست = (توکن ورودی × قیمت ورودی + توکن خروجی × قیمت خروجی) ÷ یک میلیون، به تومان. درخواست‌های ناموفق هزینه‌ای ندارند."],
   ["چرا موقع ارسال درخواست مبلغی از کیف پول رزرو می‌شود؟", "برای جلوگیری از منفی شدن موجودی، پیش از ارسال حداکثر هزینه ممکن رزرو می‌شود و بلافاصله پس از پاسخ، مازاد آن برمی‌گردد. در گزارش فقط هزینه واقعی ثبت می‌شود."],
   ["با Claude Code و Codex کار می‌کند؟", "بله. Claude Code از مسیر ‎/v1/messages‎ (فرمت Anthropic) و Codex از ‎/v1/responses‎ استفاده می‌کند و هر دو کامل پشتیبانی می‌شوند؛ دستور راه‌اندازی در پنل و مستندات آمده است."],
-  ["اطلاعات درخواست‌های من ذخیره می‌شود؟", "خیر. گره متن درخواست و پاسخ را ذخیره نمی‌کند؛ فقط مدل، تعداد توکن، هزینه و زمان پاسخ برای گزارش و صورتحساب نگه داشته می‌شود."],
+  ["اطلاعات درخواست‌های من ذخیره می‌شود؟", "به‌طور پیش‌فرض خیر. گره متن درخواست و پاسخ را ذخیره نمی‌کند؛ فقط مدل، تعداد توکن، هزینه و زمان پاسخ برای گزارش و صورتحساب ۳۰ یا ۶۰ روز نگه داشته می‌شود. ثبت متن فقط اگر خودتان برای اشکال‌زدایی روشن کنید انجام می‌شود."],
   ["کلیدم لو رفت؛ چه کنم؟", "از پنل › API هوش مصنوعی کلید را باطل کنید و کلید جدید بسازید. با تعیین سقف روزانه برای هر کلید، خسارت احتمالی همیشه محدود است."],
   ["محدودیت سرعت دارد؟", "به‌طور پیش‌فرض ۱۲۰ درخواست در دقیقه برای هر کلید؛ تا ۶۰۰ درخواست قابل تنظیم است. برای نیاز بیشتر تیکت بزنید."],
 ];
@@ -153,9 +215,66 @@ ${snip("anthropic")}
 
 ${snip("gemini")}
 
+## OpenAI SDK در JavaScript
+
+${snip("openai-js")}
+
+## Vercel AI SDK
+
+${snip("vercel-ai")}
+
+## n8n
+
+${snip("n8n")}
+
+## Open WebUI
+
+${snip("openwebui")}
+
+## Cline
+
+${snip("cline")}
+
 ## cURL
 
 ${snip("curl")}
+
+## Embedding، تصویر، صوت و Rerank
+
+هر مدل یک **نوع** دارد (گفتگو، Embedding، تصویر، متن به گفتار، گفتار به متن، Rerank) که در \`GET /v1/models\` (فیلد \`kind\` و \`pricing\`) آمده است و فقط روی مسیر همان نوع پذیرفته می‌شود. واحد قیمت هر نوع:
+
+| نوع | مسیر | واحد قیمت |
+|---|---|---|
+| گفتگو | \`/v1/chat/completions\`، \`/v1/responses\`، \`/v1/messages\` | یک میلیون توکن ورودی و خروجی |
+| Embedding | \`/v1/embeddings\` | یک میلیون توکن ورودی |
+| تصویر | \`/v1/images/generations\`، \`/v1/images/edits\` | هر تصویر |
+| متن به گفتار | \`/v1/audio/speech\` | یک میلیون نویسه |
+| گفتار به متن | \`/v1/audio/transcriptions\` | هر دقیقه صوت |
+| Rerank | \`/v1/rerank\` | هر ۱۰۰۰ جست‌وجو (هر ۱۰۰ سند یک جست‌وجو) |
+
+\`\`\`bash
+curl ${base}/v1/embeddings -H "Authorization: Bearer gk-YOUR-KEY" -H "Content-Type: application/json" \\
+  -d '{"model":"<embedding-model-id>","input":["سلام","درود"]}'
+
+curl ${base}/v1/audio/transcriptions -H "Authorization: Bearer gk-YOUR-KEY" \\
+  -F model=<stt-model-id> -F file=@voice.mp3 -F response_format=verbose_json
+\`\`\`
+
+## پایگاه دانش (RAG)
+
+در [پنل › API هوش مصنوعی › پایگاه دانش](/panel/ai) پایگاه بسازید و فایل txt، md، csv، json، html یا pdf متنی بارگذاری کنید؛ متن قطعه‌بندی و با مدل Embedding انتخابی بردار می‌شود (هزینه مانند Embedding). سپس:
+
+\`\`\`bash
+curl ${base}/kb/KB_ID/query -H "Authorization: Bearer gk-YOUR-KEY" -H "Content-Type: application/json" \\
+  -d '{"query":"شرایط بازگشت وجه چیست؟","top_k":5}'
+\`\`\`
+
+پاسخ فهرست قطعه‌های مرتبط با \`text\`، \`score\` (شباهت کسینوسی)، \`document\` و \`chunk\` است. در «چت» پنل هم می‌توانید پایگاه دانش را برای یک گفتگو انتخاب کنید. ابزارهای \`list_knowledge_bases\` و \`query_knowledge_base\` در [سرور MCP](/docs/mcp) هم در دسترس‌اند.
+
+## مسیریابی و جست‌وجوی وب
+
+- برای هر کلید می‌توانید اولویت مسیریابی (ارزان‌ترین، بیشترین سرعت تولید یا کمترین تأخیر) را تعیین کنید؛ این ترجیح با هدر به سرویس‌دهنده بالادستی فرستاده می‌شود.
+- پسوند \`:online\` روی شناسه مدل گفتگو (مثلاً \`<model-id>:online\`) بدون تغییر به سرویس‌دهنده می‌رسد و با قیمت همان مدل حساب می‌شود.
 
 ## استریم
 
@@ -171,10 +290,12 @@ ${snip("curl")}
 
 ## محدودیت‌ها
 
-- برای هر کلید می‌توانید سقف هزینه روزانه و ماهانه، فهرست مدل‌های مجاز، تعداد درخواست در دقیقه (پیش‌فرض ۱۲۰، حداکثر ۶۰۰) و تاریخ انقضا تعیین کنید.
+- برای هر کلید می‌توانید سقف هزینه روزانه و ماهانه، فهرست مدل‌های مجاز، IPهای مجاز، تعداد درخواست در دقیقه (پیش‌فرض ۱۲۰، حداکثر ۶۰۰) و تاریخ انقضا تعیین کنید و آن را موقتاً غیرفعال کنید.
+- کلیدها را می‌توانید در **پروژه** گروه‌بندی کنید و برای هر پروژه سقف هزینه ماهانه بگذارید.
+- برای کم شدن موجودی کیف پول از یک حد، هشدار تنظیم کنید.
 - حداکثر حجم هر درخواست ۱۶ مگابایت است.
 - در Responses API حالت ذخیره سمت سرور (\`previous_response_id\`، \`background\`، \`conversation\`) پشتیبانی نمی‌شود؛ تاریخچه را در \`input\` بفرستید. Codex به‌طور پیش‌فرض همین کار را می‌کند.
-- متن درخواست‌ها و پاسخ‌ها ذخیره نمی‌شود؛ فقط مدل، توکن، هزینه و زمان پاسخ در گزارش می‌ماند.
+- متن درخواست‌ها و پاسخ‌ها به‌طور پیش‌فرض ذخیره نمی‌شود؛ فقط کلید، مدل، وضعیت، توکن، هزینه، زمان پاسخ و دلیل پایان در گزارش می‌ماند (۳۰ یا ۶۰ روز). ثبت متن برای اشکال‌زدایی اختیاری است و در تنظیمات روشن می‌شود.
 
 ## کدهای خطا
 
@@ -184,6 +305,9 @@ ${snip("curl")}
 | 401 | \`invalid_api_key\` / \`key_expired\` | کلید نامعتبر یا منقضی |
 | 402 | \`insufficient_balance\` | موجودی کیف پول کافی نیست |
 | 402 | \`key_budget_exceeded\` | سقف روزانه یا ماهانه کلید پر شده |
+| 402 | \`project_budget_exceeded\` | سقف ماهانه پروژه کلید پر شده |
+| 400 | \`wrong_model_kind\` | مدل برای این مسیر نیست (مثلاً مدل گفتگو روی ‎/v1/embeddings) |
+| 403 | \`ip_not_allowed\` | درخواست از IP مجاز کلید نیامده است |
 | 403 | \`key_disabled\` / \`model_not_allowed\` | کلید باطل شده یا مدل برای این کلید مجاز نیست |
 | 404 | \`model_not_found\` | مدل وجود ندارد یا غیرفعال است |
 | 429 | \`rate_limit_exceeded\` | سقف درخواست در دقیقه کلید |
