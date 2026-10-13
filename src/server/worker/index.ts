@@ -23,6 +23,7 @@ import { dbaasExpire, dbaasImport, dbaasInit } from "./dbaas";
 import { storageBilling, storageCollect } from "../storage/service";
 import { domainAlertsJob } from "../domains/service";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
+import { vpsBilling, vpsSnapshots } from "./vps";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
 const handlers: Record<JobType, Handler> = {
@@ -70,6 +71,8 @@ const handlers: Record<JobType, Handler> = {
   "mail.dns": (db, p) => mailDns(db, p as never),
   "mail.daily": (db) => mailDaily(db),
   "domains.alerts": (db) => domainAlertsJob(db),
+  "vps.billing": (db) => vpsBilling(db),
+  "vps.snapshots": (db) => vpsSnapshots(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
@@ -81,6 +84,7 @@ export const SCHEDULE: [JobType, number][] = [
   ["storage.billing", 60], ["storage.collect", 60],
   ["mail.billing", 60], ["mail.dns", 60], ["mail.daily", 24 * 60],
   ["domains.alerts", 60],
+  ["vps.billing", 60], ["vps.snapshots", 15],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */

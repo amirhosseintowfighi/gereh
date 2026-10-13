@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, notLike } from "drizzle-orm";
 import { z } from "zod";
 import { PLAN_NUMS, type Plan } from "@/lib/catalog";
 import { strength } from "@/lib/format";
@@ -19,7 +19,7 @@ const FQDN_RE = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 type Row = typeof servers.$inferSelect;
 /** the server if the caller owns it (or is staff with "services"); writes are refused while suspended */
-async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = { write: true }): Promise<Row> {
+export async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = { write: true }): Promise<Row> {
   const a = needUser(ctx);
   const staff = isStaff(ctx, "services");
   const [s] = await ctx.db.select().from(servers).where(staff ? eq(servers.id, sid) : and(eq(servers.id, sid), eq(servers.userId, a.uid)));
@@ -27,7 +27,7 @@ async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = { write
   if (opts.write && s!.status === "suspended" && !staff) fail("این سرور معلق است؛ ابتدا صورتحساب‌ها را پرداخت کنید.", 403);
   return s!;
 }
-const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حال ساخت است."); return s.vpsid!; };
+export const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حال ساخت است."); return s.vpsid!; };
 const log = (ctx: Ctx, s: Row, icon: string, text: string) => logActivity(ctx.db, s.userId, icon, text, ctx.ip);
 
 export const serversRpc = {
@@ -103,10 +103,12 @@ export const serversRpc = {
 
   "servers.snapshot": method(z.tuple([id, z.string().max(60).optional()]), async (ctx, [sid, name]) => {
     const s = await server(ctx, sid);
-    const [{ n }] = await ctx.db.select({ n: count() }).from(snapshots).where(eq(snapshots.serverId, s.id));
+    // scheduled snapshots ("auto-…") have their own retention and do not count here
+    const [{ n }] = await ctx.db.select({ n: count() }).from(snapshots).where(and(eq(snapshots.serverId, s.id), notLike(snapshots.name, "auto-%")));
     if (n >= SNAP_LIMIT) fail("به سقف " + SNAP_LIMIT.toLocaleString("fa-IR") + " اسنپ‌شات رسیده‌اید؛ یکی را حذف کنید.");
     const nm = (name || "").trim() || "snapshot-" + (n + 1);
     if (!/^[\w.-]{1,60}$/.test(nm)) fail("نام اسنپ‌شات فقط حروف انگلیسی، عدد، نقطه و خط تیره.");
+    if (nm.startsWith("auto-")) fail("پیشوند auto- برای اسنپ‌شات‌های زمان‌بندی‌شده رزرو است.");
     await ctx.db.insert(snapshots).values({ id: rid("snap"), serverId: s.id, name: nm, size: +(s.disk * 0.08).toFixed(1) });
     await addTask(ctx.db, s.id, "ساخت اسنپ‌شات " + nm);
     await log(ctx, s, "camera", "ساخت اسنپ‌شات برای " + s.name);

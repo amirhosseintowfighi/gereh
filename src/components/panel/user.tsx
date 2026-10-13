@@ -1,7 +1,8 @@
 "use client";
+import { NotifMatrix, SecurityExtras, TeamExtras } from "./billing-extras";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
@@ -17,7 +18,7 @@ import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs } from "../ui-client";
+import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Tabs } from "../ui-client";
 
 const newBtn = (href: string, label: string) => <Link href={href as never} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> {label}</Link>;
 
@@ -523,7 +524,6 @@ function AccountView() {
   const [pw, setPw] = useState({ cur: "", next: "", rep: "" });
   const [twofaM, setTwofaM] = useState(false);
   const [twofaOff, setTwofaOff] = useState(false);
-  const prefs = [["billing", "صورتحساب و پرداخت"], ["service", "وضعیت سرویس‌ها و قطعی"], ["security", "امنیت و ورود"], ["news", "خبرنامه و تخفیف‌ها"]];
   const kycSteps: [string, boolean][] = [["تأیید شماره موبایل", true], ["تأیید ایمیل", true], ["بارگذاری تصویر کارت ملی", me.kyc !== "none"], ["تأیید نهایی توسط کارشناس", me.kyc === "verified"]];
   return (
     <div>
@@ -568,26 +568,14 @@ function AccountView() {
                 </div>
               ))}
             </Card>
+            <SecurityExtras />
             {twofaM && <TwoFactorModal onClose={() => setTwofaM(false)} account={me.email} />}
             {twofaOff && <TwoFactorOffModal onClose={() => setTwofaOff(false)} />}
           </div>
         )}
-        {tab === "notif" && (
-          <Card title="تنظیمات اعلان" icon="bell" pad="p-3 sm:p-4">
-            <div className="grid grid-cols-[1fr_auto_auto] gap-x-8 items-center text-sm">
-              <div className="text-xs text-white/55 p-3">موضوع</div><div className="text-xs text-white/55 text-center">ایمیل</div><div className="text-xs text-white/55 text-center">پیامک</div>
-              {prefs.map(([k, l]) => (
-                <Fragment key={k}>
-                  <div className="p-3 border-t border-white/[0.06]">{l}</div>
-                  <div className="border-t border-white/[0.06] py-3 flex justify-center"><Switch on={!!db.notifPrefs[k + "_email"]} label={l + "، ایمیل"} onChange={(v) => api.account.setNotif(k + "_email", v)} /></div>
-                  <div className="border-t border-white/[0.06] py-3 flex justify-center"><Switch on={!!db.notifPrefs[k + "_sms"]} label={l + "، پیامک"} onChange={(v) => api.account.setNotif(k + "_sms", v)} /></div>
-                </Fragment>
-              ))}
-            </div>
-          </Card>
-        )}
+        {tab === "notif" && <NotifMatrix />}
         {tab === "notif" && <NotifyChannels />}
-        {tab === "team" && <TeamTab />}
+        {tab === "team" && <><TeamTab /><TeamExtras /></>}
         {tab === "kyc" && (
           <Card title="احراز هویت" icon="fingerprint" action={<StatusBadge s={me.kyc} />}>
             <p className="text-sm text-white/55 leading-7 max-w-2xl">طبق مقررات، ثبت دامنه ملی و خرید سرور اختصاصی نیاز به احراز هویت دارد.</p>

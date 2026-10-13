@@ -15,7 +15,8 @@ export type JobType =
   | "dbaas.init" | "dbaas.import" | "dbaas.expire"
   | "storage.billing" | "storage.collect"
   | "mail.deliver" | "mail.billing" | "mail.dns" | "mail.daily"
-  | "domains.alerts";
+  | "domains.alerts"
+  | "vps.billing" | "vps.snapshots";
 
 export async function enqueue(db: DB | Tx, type: JobType, payload: Record<string, unknown> = {}, opts: { runAt?: Date; dedupe?: string } = {}) {
   await db.insert(jobs).values({ type, payload, runAt: opts.runAt ?? new Date(), dedupe: opts.dedupe ?? null }).onConflictDoNothing();

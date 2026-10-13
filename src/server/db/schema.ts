@@ -1468,3 +1468,170 @@ export const domainAlerts = pgTable("domain_alerts", {
   firedAt: ts("fired_at"),
   createdAt: created(),
 }, (t) => [index("domain_alert_domain_ix").on(t.domainId)]);
+
+/* ---------- Cloud server extras + billing and account extras (0023_vps_billing) ---------- */
+/** additional IPv4 addresses on a VPS, billed hourly from the wallet; rdns is the PTR of that address */
+export const vpsIps = pgTable("vps_ips", {
+  id: text("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ip: text("ip").notNull(),
+  rdns: text("rdns").notNull().default(""),
+  price: money("price").notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("vps_ips_ip_uq").on(t.ip), index("vps_ips_server_ix").on(t.serverId)]);
+
+/** extra block volumes; detached volumes keep their data (and their cost) until deleted */
+export const vpsDisks = pgTable("vps_disks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serverId: text("server_id").references(() => servers.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  loc: text("loc").notNull(),
+  sizeGb: integer("size_gb").notNull(),
+  /** hypervisor disk index while attached */
+  slot: integer("slot"),
+  createdAt: created(),
+}, (t) => [index("vps_disks_user_ix").on(t.userId), index("vps_disks_server_ix").on(t.serverId)]);
+
+/** automatic snapshots: daily or weekly, keeping the newest `retention` automatic ones */
+export const vpsSnapSchedules = pgTable("vps_snap_schedules", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  frequency: text("frequency", { enum: ["daily", "weekly"] }).notNull(),
+  retention: integer("retention").notNull().default(3),
+  /** Tehran hour of day (0-23) and, for weekly, the weekday (0 = Sunday) */
+  hour: integer("hour").notNull().default(3),
+  weekday: integer("weekday").notNull().default(5),
+  active: boolean("active").notNull().default(true),
+  nextRunAt: ts("next_run_at").notNull(),
+  lastRunAt: ts("last_run_at"),
+});
+
+/** monthly traffic state per server: extra packs bought this month, auto-purchase, alert level sent */
+export const vpsTraffic = pgTable("vps_traffic", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  month: text("month").notNull(),
+  extraGb: integer("extra_gb").notNull().default(0),
+  packs: integer("packs").notNull().default(0),
+  autoBuy: boolean("auto_buy").notNull().default(false),
+  /** highest alert sent this month: 0, 80 or 100 */
+  alerted: integer("alerted").notNull().default(0),
+  usedGb: real("used_gb").notNull().default(0),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+export const vpsTrafficDaily = pgTable("vps_traffic_daily", {
+  id: serial("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  day: text("day").notNull(), // YYYY-MM-DD (UTC)
+  inMb: real("in_mb").notNull().default(0),
+  outMb: real("out_mb").notNull().default(0),
+}, (t) => [uniqueIndex("vps_traffic_day_uq").on(t.serverId, t.day)]);
+
+/** cloud firewall groups: one rule set applied to many servers */
+export const fwGroups = pgTable("fw_groups", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  rules: jsonb("rules").$type<{ proto: string; port: string; source: string; action: "allow" | "deny"; note: string }[]>().notNull().default([]),
+  createdAt: created(),
+}, (t) => [index("fw_groups_user_ix").on(t.userId)]);
+export const fwGroupServers = pgTable("fw_group_servers", {
+  id: serial("id").primaryKey(),
+  groupId: text("group_id").notNull().references(() => fwGroups.id, { onDelete: "cascade" }),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+}, (t) => [uniqueIndex("fw_group_server_uq").on(t.groupId, t.serverId), index("fw_group_server_ix").on(t.serverId)]);
+
+/** project wallets: money moved out of the main wallet for one project; linked servers bill from it first */
+export const subWallets = pgTable("sub_wallets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  balance: money("balance").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("sub_wallets_user_ix").on(t.userId)]);
+export const walletTransfers = pgTable("wallet_transfers", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** "" is the main wallet */
+  fromWallet: text("from_wallet").notNull(),
+  toWallet: text("to_wallet").notNull(),
+  amount: money("amount").notNull(),
+  note: text("note").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("wallet_transfers_user_ix").on(t.userId)]);
+export const walletLinks = pgTable("wallet_links", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  walletId: text("wallet_id").notNull().references(() => subWallets.id, { onDelete: "cascade" }),
+});
+
+/** saved buyer identities for official invoices */
+export const invoiceProfiles = pgTable("invoice_profiles", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  name: text("name").notNull(),
+  nationalId: text("national_id").notNull(),
+  economicCode: text("economic_code").notNull().default(""),
+  address: text("address").notNull(),
+  postalCode: text("postal_code").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: created(),
+}, (t) => [index("invoice_profiles_user_ix").on(t.userId)]);
+
+/** per-account billing settings and the level staff assign (SLA and support priority) */
+export const accountMeta = pgTable("account_meta", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  level: text("level", { enum: ["developer", "startup", "enterprise"] }).notNull().default("developer"),
+  /** fixed threshold; with lowCreditAuto the threshold is three days of the current burn */
+  lowCredit: money("low_credit").notNull().default(0),
+  lowCreditAuto: boolean("low_credit_auto").notNull().default(true),
+  lowCreditAlertedAt: ts("low_credit_alerted_at"),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** monthly spending caps: service "all" is the account-wide cap */
+export const budgets = pgTable("budgets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  service: text("service").notNull(),
+  monthlyCap: money("monthly_cap").notNull(),
+  alertPct: integer("alert_pct").notNull().default(80),
+  /** refuse new purchases (budgetAllows) once the cap is reached */
+  block: boolean("block").notNull().default(false),
+  alertedMonth: text("alerted_month").notNull().default(""),
+  alertedLevel: integer("alerted_level").notNull().default(0),
+  createdAt: created(),
+}, (t) => [uniqueIndex("budgets_user_service_uq").on(t.userId, t.service)]);
+
+/** browser push subscriptions (Web Push) */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  device: text("device").notNull().default(""),
+  createdAt: created(),
+}, (t) => [uniqueIndex("push_endpoint_uq").on(t.endpoint), index("push_user_ix").on(t.userId)]);
+
+/** one-time 2FA recovery codes (SHA-256 only) */
+export const recoveryCodes = pgTable("twofa_recovery_codes", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull(),
+  usedAt: ts("used_at"),
+  createdAt: created(),
+}, (t) => [index("recovery_user_ix").on(t.userId)]);
+
+/** owner-defined team roles: a level per service, enforced on top of the member's fixed base role */
+export const teamRoles = pgTable("team_roles", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  perms: jsonb("perms").$type<Record<string, "none" | "view" | "deploy" | "operate" | "manage">>().notNull().default({}),
+  createdAt: created(),
+}, (t) => [index("team_roles_owner_ix").on(t.ownerId)]);
+export const teamMemberRoles = pgTable("team_member_roles", {
+  memberRowId: text("member_row_id").primaryKey().references(() => teamMembers.id, { onDelete: "cascade" }),
+  roleId: text("role_id").notNull().references(() => teamRoles.id, { onDelete: "cascade" }),
+});

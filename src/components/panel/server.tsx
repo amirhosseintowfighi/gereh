@@ -1,19 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IP_PRICE, PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
-import { fa, hashStr, toEnDigits, toman } from "@/lib/format";
+import { fa, toEnDigits, toman } from "@/lib/format";
 import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, StrengthBar, Switch, Tabs } from "../ui-client";
+import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
+import { DisksPanel, FirewallGroups, NetworkExtras, PlanChange, SnapSchedule, TrafficPanel, VncScreen, WalletLink } from "./vps-extras";
 
 const TABS = [
   { id: "overview", label: "نمای کلی", icon: "gauge" }, { id: "traffic", label: "ترافیک", icon: "activity" }, { id: "console", label: "کنسول VNC", icon: "monitor-smartphone" },
-  { id: "access", label: "دسترسی و اپلیکیشن", icon: "key-round" }, { id: "network", label: "شبکه", icon: "network" }, { id: "firewall", label: "فایروال", icon: "shield-check" },
+  { id: "access", label: "دسترسی و اپلیکیشن", icon: "key-round" }, { id: "network", label: "شبکه", icon: "network" }, { id: "disks", label: "دیسک‌ها", icon: "hard-drive" }, { id: "firewall", label: "فایروال", icon: "shield-check" },
   { id: "backups", label: "بکاپ و اسنپ‌شات", icon: "database-backup" }, { id: "boot", label: "بوت، ISO و ریسکیو", icon: "hard-drive" }, { id: "rebuild", label: "نصب مجدد", icon: "refresh-cw" },
   { id: "resize", label: "ارتقا", icon: "trending-up" }, { id: "tasks", label: "لاگ عملیات", icon: "scroll-text" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
@@ -43,10 +44,11 @@ export function ServerDetail({ id }: { id: string }) {
       <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
         {cur === "overview" && <Overview s={s} />}
-        {cur === "traffic" && <ServerTraffic s={s} />}
+        {cur === "traffic" && <TrafficPanel s={s} />}
         {cur === "console" && <VncPanel s={s} />}
         {cur === "access" && <ServerAccess s={s} />}
         {cur === "network" && <ServerNetwork s={s} />}
+        {cur === "disks" && <DisksPanel s={s} />}
         {cur === "firewall" && <ServerFirewall s={s} />}
         {cur === "backups" && <ServerBackups s={s} />}
         {cur === "boot" && <ServerBoot s={s} />}
@@ -115,41 +117,6 @@ function Overview({ s }: { s: Server }) {
   </>;
 }
 
-function ServerTraffic({ s }: { s: Server }) {
-  const [month, setMonth] = useState(0);
-  const months = useMemo(() => [0, 1, 2].map((k) => { const d = new Date(); d.setDate(15); d.setMonth(d.getMonth() - k); return d.toLocaleDateString("fa-IR", { month: "long", year: "numeric" }); }), []);
-  const days = month === 0 ? Math.max(1, Number(new Date().toLocaleDateString("fa-IR-u-nu-latn", { day: "numeric" }))) : 30;
-  const data = useMemo(() => {
-    const rnd = (x: number) => { const v = Math.sin(x * 12.9898 + (hashStr(s.id) % 97) + month * 7.1) * 43758.5453; return v - Math.floor(v); };
-    return Array.from({ length: days }, (_, i) => { const wk = i % 7 === 4 || i % 7 === 5 ? 0.6 : 1; return { in: Math.round((10 + rnd(i) * 30) * wk), out: Math.round((30 + rnd(i + 100) * 80) * wk) }; });
-  }, [s.id, month, days]);
-  const totIn = data.reduce((a, b) => a + b.in, 0), totOut = data.reduce((a, b) => a + b.out, 0), used = totIn + totOut;
-  const peak = Math.max(...data.map((d) => d.in + d.out), 1);
-  return (
-    <div className="space-y-4">
-      <div className="grid sm:grid-cols-3 gap-4">
-        <StatCard icon="arrow-down-up" label={"مصرف " + months[month]} value={used} suffix="گیگابایت" />
-        <StatCard icon="trending-up" label="خروجی (out)" value={totOut} suffix="گیگابایت" />
-        <StatCard icon="activity" label="ورودی (in)" value={totIn} suffix="گیگابایت" />
-      </div>
-      <Card title="ترافیک روزانه" icon="activity" action={<Select className="w-44" label="ماه" value={String(month)} onChange={(v) => setMonth(+v)} options={months.map((m, i) => ({ value: String(i), label: m }))} />}>
-        <div className="mb-6"><Meter label="سهمیه ماهانه" value={used} max={s.bwLimit} right={fa(used) + " از " + fa(s.bwLimit) + " گیگابایت"} /></div>
-        <div className="flex items-end gap-[3px] h-48" role="img" aria-label={"ترافیک روزانه " + months[month] + "، مجموع " + fa(used) + " گیگابایت"}>
-          {data.map((d, i) => (
-            <div key={i} className="group relative flex-1 h-full flex flex-col justify-end gap-[2px]" title={fa(i + 1) + ": ورودی " + fa(d.in) + "، خروجی " + fa(d.out) + " گیگ"}>
-              <div className="rounded-t-[3px] bg-[#9cc9ff]/80 group-hover:bg-[#9cc9ff]" style={{ height: (d.out / peak) * 100 + "%" }} />
-              <div className="rounded-b-[3px] bg-white/25 group-hover:bg-white/40" style={{ height: (d.in / peak) * 100 + "%" }} />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-between text-[10px] text-white/50 mt-2"><span>۱</span><span>{fa(days)}</span></div>
-        <div className="flex gap-5 mt-4 text-xs text-white/55"><span className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#9cc9ff]/80" />خروجی</span><span className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-white/25" />ورودی</span></div>
-        <p className="text-[11px] text-white/55 mt-4 leading-6">با رسیدن به سقف، طبق تنظیم مدیر یا سرعت شبکه محدود می‌شود یا سرور معلق می‌شود. ترافیک اضافه را از بخش صورتحساب بخرید.</p>
-      </Card>
-    </div>
-  );
-}
-
 /* ponytail: demo console. Real one = noVNC over a websockify proxy with a short-lived token (WS /servers/:id/console). */
 function DemoConsole({ s }: { s: Server }) {
   const [hist, setHist] = useState([{ t: "out", v: s.os + " " + s.name + " tty1" }, { t: "out", v: 'Welcome to Gereh Cloud. Type "help" for commands.' }]);
@@ -196,10 +163,11 @@ function VncPanel({ s }: { s: Server }) {
           <span className="flex items-center gap-2 text-white/60"><Icon name="monitor-smartphone" size={15} />کنسول VNC (noVNC)</span>
           <div className="flex gap-1">
             <button type="button" disabled={s.status !== "running"} onClick={() => notify("Ctrl+Alt+Del ارسال شد", "keyboard")} className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 ltr disabled:opacity-40">Ctrl+Alt+Del</button>
+            <Link href={`/panel/servers/${s.id}/console`} target="_blank" className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 flex items-center gap-1"><Icon name="external-link" size={13} />پنجره جدا</Link>
             <button type="button" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen())?.catch(() => notify("تمام‌صفحه پشتیبانی نمی‌شود", "circle-alert"))} className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 flex items-center gap-1"><Icon name="external-link" size={13} />تمام‌صفحه</button>
           </div>
         </div>
-        <DemoConsole s={s} />
+        <VncScreen s={s} fallback={<DemoConsole s={s} />} />
       </div>
       <div className="space-y-4">
         <Card title="اتصال مستقیم VNC" icon="key-round">
@@ -268,6 +236,7 @@ function ServerNetwork({ s }: { s: Server }) {
         <Field label={"PTR برای " + s.ip}><input value={rdns} onChange={(e) => setRdns(e.target.value)} dir="ltr" placeholder="mail.example.com" className={INPUT + " text-left"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const v = rdns.trim().toLowerCase(); if (v && !/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v)) throw new Error("نام دامنه معتبر نیست."); await api.servers.setRdns(s.id, v); setRdns(v); notify("Reverse DNS ذخیره شد"); }}>ذخیره</AsyncButton></div>
       </Card>
+      <NetworkExtras s={s} />
     </div>
   );
 }
@@ -308,6 +277,7 @@ function ServerFirewall({ s }: { s: Server }) {
         <Field className="col-span-2" label="توضیح"><input value={form.note} maxLength={60} onChange={(e) => setForm((f) => f && { ...f, note: e.target.value })} className={INPUT} /></Field>
       </div>}
     </Modal>
+    <FirewallGroups s={s} />
   </>;
 }
 
@@ -337,6 +307,7 @@ function ServerBackups({ s }: { s: Server }) {
             </div>
           ))}
       </Card>
+      <SnapSchedule s={s} />
     </div>
   );
 }
@@ -394,9 +365,14 @@ function ServerRebuild({ s }: { s: Server }) {
   return (
     <Card title="نصب مجدد سیستم‌عامل" icon="refresh-cw">
       <div role="alert" className="rounded-xl bg-rose-500/[0.08] border border-rose-400/20 p-4 text-sm text-rose-100 flex gap-3 mb-5"><Icon name="circle-alert" size={18} />همه اطلاعات روی دیسک پاک می‌شود. پیش از ادامه، یک اسنپ‌شات بگیرید.</div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label="سیستم‌عامل">
-        {db.osTemplates.filter((t) => t.on).map((o) => <button type="button" role="radio" aria-checked={os === o.name} key={o.osid} onClick={() => setOs(o.name)} className={"rounded-xl p-4 border text-sm ltr transition " + (os === o.name ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>{o.name}</button>)}
-      </div>
+      {[["لینوکس", db.osTemplates.filter((t) => t.on && !/windows/i.test(t.distro + t.name))], ["ویندوز", db.osTemplates.filter((t) => t.on && /windows/i.test(t.distro + t.name))]].map(([label, list]) => (list as typeof db.osTemplates).length > 0 && (
+        <div key={label as string} className="mb-4">
+          <div className="text-xs text-white/55 mb-2">{label as string}{label === "ویندوز" && " (لایسنس ویندوز جداگانه محاسبه می‌شود)"}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label={"سیستم‌عامل " + label}>
+            {(list as typeof db.osTemplates).map((o) => <button type="button" role="radio" aria-checked={os === o.name} key={o.osid} onClick={() => setOs(o.name)} className={"rounded-xl p-4 border text-sm ltr transition " + (os === o.name ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>{o.name}</button>)}
+          </div>
+        </div>
+      ))}
       <Field className="mt-5" label={"برای تأیید، نام سرور را بنویسید: " + s.name}><input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
       <div className="mt-5 flex justify-end"><AsyncButton danger disabled={!os || confirmName.trim() !== s.name} onClick={async () => { await api.servers.reinstall(s.id, os); setOs(""); setConfirmName(""); notify("سیستم‌عامل نصب شد", "terminal"); }}>نصب مجدد</AsyncButton></div>
     </Card>
@@ -409,6 +385,7 @@ function ServerResize({ s }: { s: Server }) {
   const cur = VPS.cloud.find((p) => p.name === s.plan);
   const curDisk = s.disk;
   return (
+    <>
     <Card title="ارتقای منابع" icon="trending-up">
       <p className="text-sm text-white/50 mb-5 leading-7">ارتقا با یک ری‌استارت کوتاه اعمال می‌شود. مابه‌التفاوت روزهای باقی‌مانده از کیف پول کسر می‌شود. کاهش فضای دیسک ممکن نیست.</p>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3" role="radiogroup" aria-label="پلن جدید">
@@ -428,6 +405,8 @@ function ServerResize({ s }: { s: Server }) {
       </div>
       <div className="mt-5 flex justify-end"><AsyncButton disabled={!plan} confirmText="سرور برای اعمال تغییرات ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { const p = VPS.cloud.find((x) => x.id === plan)!; await api.servers.resize(s.id, p.id); setPlan(""); notify("سرور به پلن " + p.name + " ارتقا یافت", "trending-up"); }}>اعمال ارتقا</AsyncButton></div>
     </Card>
+    <PlanChange s={s} />
+    </>
   );
 }
 
@@ -459,6 +438,7 @@ function ServerSettings({ s }: { s: Server }) {
         <Field className="mt-4" label={"نام سرور را بنویسید: " + s.name}><input value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton danger disabled={del.trim() !== s.name} onClick={async () => { await api.servers.remove(s.id); notify("سرور حذف شد", "trash-2"); router.push("/panel/servers"); }}>حذف همیشگی</AsyncButton></div>
       </Card>
+      <WalletLink s={s} />
     </div>
   );
 }
