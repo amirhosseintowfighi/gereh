@@ -18,6 +18,7 @@ import { wpImport } from "./wordpress";
 import { mailBilling, mailDaily, mailDeliver, mailDns } from "./mail";
 import { channelSend } from "../channels";
 import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll, paasScan, paasVerifyBackups } from "./paas";
+import { paasDiskBackup, paasToolsCollect, paasToolsDaily } from "./paas-tools";
 import { dbaasExpire, dbaasImport, dbaasInit } from "./dbaas";
 import { storageBilling, storageCollect } from "../storage/service";
 import { domainAlertsJob } from "../domains/service";
@@ -51,6 +52,9 @@ const handlers: Record<JobType, Handler> = {
   "paas.billing": (db) => paasBilling(db),
   "paas.collect": (db) => paasCollect(db),
   "paas.daily": (db) => paasDaily(db),
+  "paas.tools": (db) => paasToolsCollect(db),
+  "paas.toolsDaily": (db) => paasToolsDaily(db),
+  "paas.diskBackup": (db, p) => paasDiskBackup(db, p as never),
   "inquiry.settle": (db) => settleInquiry(db),
   "ai.settle": async (db) => { await settleAi(db); await lowBalanceAlerts(db); await purgeAiLogs(db); },
   "geo.billing": (db) => geoBilling(db),
@@ -71,7 +75,7 @@ const handlers: Record<JobType, Handler> = {
 /** periodic jobs: [name, interval in minutes] */
 export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
-  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60], ["paas.verify", 7 * 24 * 60],
+  ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60], ["paas.verify", 7 * 24 * 60], ["paas.tools", 5], ["paas.toolsDaily", 24 * 60],
   ["inquiry.settle", 10], ["ai.settle", 10], ["geo.billing", 24 * 60], ["geo.health", 5], ["geo.ns", 60],
   ["dbaas.expire", 5],
   ["storage.billing", 60], ["storage.collect", 60],

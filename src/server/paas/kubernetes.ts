@@ -23,6 +23,7 @@ import http from "node:http";
 import https from "node:https";
 import { mirrorEnv, mirrorHost } from "@/lib/mirror";
 import { expandCodes, NGINX_STACKS, PHP_STACKS } from "@/lib/paas-runtime";
+import { diskClaim, diskVolume } from "@/lib/paas-tools";
 import type { ComposeService } from "./compose";
 import type { AppEvent, AppSpec, BuildState, DbSpec, PaasDriver, RolloutProblem } from "./driver";
 import { enginePort, engineK8s, pgArgs } from "./engines";
@@ -46,6 +47,9 @@ export const cfg = () => ({
   registry: env("PAAS_REGISTRY", "registry.gereh.net"),
   pullSecret: env("PAAS_REGISTRY_PULL_SECRET"), // base64 .dockerconfigjson, copied into each customer namespace
   storageClass: env("PAAS_STORAGE_CLASS"),
+  // SFTP sidecar for disk accounts (users from /etc/sftp/users.conf, see deploy/paas/README.md)
+  sftpImage: env("PAAS_SFTP_IMAGE", "atmoz/sftp:debian"),
+  sftpUid: env("PAAS_SFTP_UID", "0"),
   builderImage: env("PAAS_BUILDER_IMAGE", "registry.gereh.net/gereh/builder:1"),
   kanikoImage: env("PAAS_KANIKO_IMAGE", "gcr.io/kaniko-project/executor:v1.23.2"),
   mcImage: env("PAAS_MC_IMAGE", "minio/mc:RELEASE.2025-04-16T18-13-26Z"),
@@ -178,24 +182,57 @@ export const confData = (app: AppSpec): Record<string, string> => {
   return { ...(rt.nginxConf && NGINX_STACKS.has(app.stack) ? { "nginx.conf": rt.nginxConf } : {}), ...(rt.phpIni && PHP_STACKS.has(app.stack) ? { "php.ini": rt.phpIni } : {}) };
 };
 
+/** the app's disks: named ones, or the single "data" disk of the original layout */
+export const diskList = (app: Pick<AppSpec, "disks" | "diskGb" | "diskMount">) => app.disks ?? (app.diskGb > 0 ? [{ name: "data", mount: app.diskMount || "/data", sizeGb: app.diskGb }] : []);
+
+/* SFTP: an atmoz/sftp sidecar in the app's pod (it shares the disk volumes, which are ReadWriteOnce),
+   reached through a NodePort Service; each account is chrooted to /home/<user> with its disk mounted
+   at /home/<user>/<disk> (read-only accounts get a read-only mount) */
+function sftpContainer(s: NonNullable<AppSpec["sftp"]>): Obj {
+  return {
+    name: "sftp", image: cfg().sftpImage, imagePullPolicy: "IfNotPresent", ports: [{ name: "sftp", containerPort: 22 }],
+    resources: { requests: { cpu: "10m", memory: "32Mi" }, limits: { cpu: "250m", memory: "128Mi" } },
+    volumeMounts: [
+      { name: "sftp", mountPath: "/etc/sftp/users.conf", subPath: "users.conf", readOnly: true },
+      ...(s.hostKey ? [{ name: "sftp", mountPath: "/etc/ssh/ssh_host_rsa_key", subPath: "ssh_host_rsa_key", readOnly: true }] : []),
+      ...s.users.map((u) => ({ name: diskVolume(u.disk), mountPath: "/home/" + u.name + "/" + u.disk, ...(u.access === "ro" ? { readOnly: true } : {}) })),
+    ],
+  };
+}
+export function sftpObjects(app: AppSpec): Obj[] {
+  const ns = nsOf(app.userId), labels = appLabels(app), s = app.sftp!, uid = cfg().sftpUid;
+  return [
+    { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-sftp", namespace: ns, labels }, type: "Opaque", stringData: {
+      "users.conf": s.users.map((u) => u.name + ":" + u.password.replace(/:/g, "") + ":" + uid + ":" + uid).join("\n") + "\n",
+      ...(s.hostKey ? { ssh_host_rsa_key: s.hostKey } : {}),
+    } },
+    { apiVersion: "v1", kind: "Service", metadata: { name: app.name + "-sftp", namespace: ns, labels }, spec: { type: "NodePort", selector: { "app.kubernetes.io/name": app.name }, ports: [{ name: "sftp", port: 22, targetPort: 22, protocol: "TCP" }] } },
+    // the namespace policy only admits the ingress controller; SFTP comes straight from outside
+    { apiVersion: "networking.k8s.io/v1", kind: "NetworkPolicy", metadata: { name: app.name + "-sftp", namespace: ns, labels }, spec: { podSelector: { matchLabels: { "app.kubernetes.io/name": app.name } }, policyTypes: ["Ingress"], ingress: [{ ports: [{ port: 22, protocol: "TCP" }] }] } },
+  ];
+}
+
 function deployment(app: AppSpec, w: Workload, deploymentId: string, share: number): Obj {
   const c = cfg(), ns = nsOf(app.userId), labels = { ...appLabels(app), "app.kubernetes.io/name": w.name, "gereh.net/service": w.service };
   const rt = app.runtime;
   const probe = w.port ? healthProbe(app, w.port) : undefined;
-  const disk = w.primary && app.diskGb > 0;
   const web = w.primary && w.service === "app";
+  const disk = w.primary && app.diskGb > 0;
+  const disks = w.primary ? diskList(app) : [];
+  const sftp = web && app.sftp?.users.length ? app.sftp : null;
   const preStart = web && rt?.preStart.trim() ? rt.preStart : "";
   const command = w.command && preStart ? "set -e\n" + preStart + "\n" + w.command : w.command;
   const conf = web ? confData(app) : {};
   const scratch = rt?.readOnlyFs ? scratchDirs(app) : [];
   const mounts = [
-    ...(disk ? [{ name: "data", mountPath: app.diskMount || "/data" }] : []),
+    ...disks.map((d) => ({ name: diskVolume(d.name), mountPath: d.mount })),
     ...scratch.map((dir, i) => ({ name: "scratch-" + i, mountPath: dir })),
     ...(conf["nginx.conf"] ? [{ name: "conf", mountPath: c.nginxConfPath, subPath: "nginx.conf", readOnly: true }] : []),
     ...(conf["php.ini"] ? [{ name: "conf", mountPath: "/etc/gereh/php/zz-gereh.ini", subPath: "php.ini", readOnly: true }] : []),
   ];
   const volumes = [
-    ...(disk ? [{ name: "data", persistentVolumeClaim: { claimName: app.name + "-data" } }] : []),
+    ...disks.map((d) => ({ name: diskVolume(d.name), persistentVolumeClaim: { claimName: diskClaim(app.name, d.name) } })),
+    ...(sftp ? [{ name: "sftp", secret: { secretName: app.name + "-sftp", defaultMode: 0o600 } }] : []),
     ...scratch.map((_, i) => ({ name: "scratch-" + i, emptyDir: { sizeLimit: "512Mi" } })),
     ...(Object.keys(conf).length ? [{ name: "conf", configMap: { name: app.name + "-conf" } }] : []),
   ];
@@ -241,7 +278,7 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
           ...(rt?.zeroDowntime && w.port ? { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } } } : {}),
           securityContext: security,
           ...(mounts.length ? { volumeMounts: mounts } : {}),
-        }],
+        }, ...(sftp ? [sftpContainer(sftp)] : [])],
         ...(volumes.length ? { volumes } : {}),
       },
     },
@@ -428,7 +465,8 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
     ...ingressObjects(app),
   ];
   if (!compose && image) for (const cr of app.crons ?? []) out.push(cronJobObject(app, cr, image));
-  if (app.diskGb) out.push({ apiVersion: "v1", kind: "PersistentVolumeClaim", metadata: { name: app.name + "-data", namespace: ns, labels }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: app.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } });
+  for (const d of diskList(app)) out.push({ apiVersion: "v1", kind: "PersistentVolumeClaim", metadata: { name: diskClaim(app.name, d.name), namespace: ns, labels }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: d.sizeGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } });
+  if (app.sftp?.users.length && !compose) out.push(...sftpObjects(app));
   if (app.autoscale) out.push({ apiVersion: "autoscaling/v2", kind: "HorizontalPodAutoscaler", metadata: { name: app.name, namespace: ns, labels }, spec: {
     scaleTargetRef: { apiVersion: "apps/v1", kind: "Deployment", name: app.name }, minReplicas: app.instances, maxReplicas: Math.max(app.instances, app.maxInstances),
     // requests are half the plan's CPU, so utilisation of the request is twice the share of the plan
@@ -852,6 +890,10 @@ export class KubernetesDriver implements PaasDriver {
     await del("v1", "Secret", ns, app.name + "-env");
     await del("v1", "Secret", ns, app.name + "-tls");
     await del("v1", "PersistentVolumeClaim", ns, app.name + "-data");
+    for (const d of app.disks ?? []) await del("v1", "PersistentVolumeClaim", ns, diskClaim(app.name, d.name));
+    await del("v1", "Service", ns, app.name + "-sftp");
+    await del("v1", "Secret", ns, app.name + "-sftp");
+    await del("networking.k8s.io/v1", "NetworkPolicy", ns, app.name + "-sftp");
   }
 
   private async pods(app: AppSpec) {

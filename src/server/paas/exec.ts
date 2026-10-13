@@ -65,7 +65,7 @@ export function exitCode(status: string) {
 
 /** runs `command` in a container; `stdin` is written and must be fully consumed by the command
     (v4 has no stdin EOF, so read a known length, e.g. `head -c N`) */
-export function podExec(ns: string, pod: string, container: string, command: string[], o: { stdin?: AsyncIterable<Buffer> | Buffer; timeoutMs?: number; maxOut?: number } = {}): Promise<ExecResult> {
+export function podExec(ns: string, pod: string, container: string, command: string[], o: { stdin?: AsyncIterable<Buffer> | Buffer; timeoutMs?: number; maxOut?: number; /** binary stdout goes here instead of the result */ onStdout?: (chunk: Buffer) => void } = {}): Promise<ExecResult> {
   const { api, token } = cfg();
   const url = new URL(api + execPath(ns, pod, container, command, !!o.stdin));
   const lib = url.protocol === "http:" ? http : https;
@@ -105,7 +105,8 @@ export function podExec(ns: string, pod: string, container: string, command: str
         if (ch === 3) { status += body.toString("utf8"); return; }
         size += body.length;
         if (size > maxOut) return finish(new Error("exec output too large"));
-        (ch === 2 ? err : out).push(body);
+        if (ch === 1 && o.onStdout) o.onStdout(body);
+        else (ch === 2 ? err : out).push(body);
       });
       if (head?.length) read(head);
       sock.on("data", read);
@@ -124,6 +125,73 @@ export function podExec(ns: string, pod: string, container: string, command: str
           }
         } catch (e) { finish(e as Error); }
       })();
+    });
+    req.end();
+  });
+}
+
+/** an interactive terminal (tty; stdout and stderr arrive merged on channel 1, resize on channel 4) */
+export type PodShell = {
+  write(data: string | Buffer): void;
+  resize(cols: number, rows: number): void;
+  close(): void;
+  onData(cb: (chunk: Buffer) => void): void;
+  onExit(cb: (code: number, message: string) => void): void;
+};
+export function podShell(ns: string, pod: string, container: string, command: string[], size: { cols: number; rows: number }): Promise<PodShell> {
+  const { api, token } = cfg();
+  const url = new URL(api + `/api/v1/namespaces/${ns}/pods/${pod}/exec?container=${encodeURIComponent(container)}&stdin=true&stdout=true&tty=true` + command.map((c) => "&command=" + encodeURIComponent(c)).join(""));
+  const lib = url.protocol === "http:" ? http : https;
+  return new Promise((resolve, reject) => {
+    const req = lib.request(url, {
+      method: "GET", ca: caPem(),
+      headers: { authorization: "Bearer " + token, connection: "Upgrade", upgrade: "websocket", "sec-websocket-version": "13", "sec-websocket-key": randomBytes(16).toString("base64"), "sec-websocket-protocol": "v4.channel.k8s.io" },
+    });
+    const timer = setTimeout(() => { req.destroy(); reject(new Error("exec timed out")); }, 30_000);
+    req.on("response", (res) => {
+      clearTimeout(timer);
+      const chunks: Buffer[] = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => reject(new Error("Kubernetes exec: " + res.statusCode + " " + Buffer.concat(chunks).toString("utf8").slice(0, 300))));
+    });
+    req.on("error", (e) => { clearTimeout(timer); reject(e); });
+    req.on("upgrade", (_res, sock: Duplex, head) => {
+      clearTimeout(timer);
+      const data: ((c: Buffer) => void)[] = [], exit: ((code: number, message: string) => void)[] = [];
+      let status = "", ended = false;
+      const end = () => {
+        if (ended) return;
+        ended = true;
+        clearInterval(ping);
+        sock.destroy();
+        const r = status ? exitCode(status) : { code: 0, message: "" };
+        for (const cb of exit) cb(r.code, r.message);
+      };
+      const send = (ch: number, b: Buffer) => { if (!ended) sock.write(frame(Buffer.concat([Buffer.from([ch]), b]))); };
+      const read = frameReader((op, msg) => {
+        if (op === 8) return end();
+        if (op === 9) { sock.write(frame(msg, 10)); return; }
+        if (op !== 1 && op !== 2 || !msg.length) return;
+        if (msg[0] === 3) status += msg.subarray(1).toString("utf8");
+        else if (msg[0] === 1 || msg[0] === 2) { if (data.length) for (const cb of data) cb(msg.subarray(1)); else early.push(msg.subarray(1)); }
+      });
+      const early: Buffer[] = [];
+      // keeps idle-timeout proxies between us and the API server from closing the stream
+      const ping = setInterval(() => { if (!ended) sock.write(frame(Buffer.alloc(0), 9)); }, 30_000);
+      sock.on("data", read);
+      sock.on("end", end);
+      sock.on("close", end);
+      sock.on("error", end);
+      const shell: PodShell = {
+        write: (d) => send(0, Buffer.isBuffer(d) ? d : Buffer.from(d, "utf8")),
+        resize: (cols, rows) => send(4, Buffer.from(JSON.stringify({ Width: cols, Height: rows }))),
+        close: () => { if (!ended) { sock.write(frame(Buffer.alloc(0), 8)); end(); } },
+        onData: (cb) => { data.push(cb); for (const c of early.splice(0)) cb(c); },
+        onExit: (cb) => { if (ended) { const r = status ? exitCode(status) : { code: 0, message: "" }; cb(r.code, r.message); } else exit.push(cb); },
+      };
+      shell.resize(size.cols, size.rows);
+      if (head?.length) read(head);
+      resolve(shell);
     });
     req.end();
   });

@@ -6,6 +6,7 @@ import path from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { appMonthly, defaultEnvKeyFor, hourlyOf, type PaasPlan } from "@/lib/paas";
 import { PHP_STACKS } from "@/lib/paas-runtime";
+import { PLAN_LOG_DAYS } from "@/lib/paas-tools";
 import type { DB, Tx } from "../db/client";
 import { paasApps, paasCrons, paasDbConfig, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -13,6 +14,7 @@ import { open, seal } from "../secrets";
 import { getSettings } from "../state";
 import { rid } from "../util";
 import type { AppSpec, DbSpec } from "./driver";
+import { toolsSpec } from "./disks";
 import { PLAN_LIMITS, runtimeSpec } from "./runtime";
 
 export type AppRow = typeof paasApps.$inferSelect;
@@ -35,7 +37,7 @@ export const DEFAULT_PLANS: PaasPlan[] = [
   { id: "db-xlarge", kind: "db", name: "خیلی بزرگ", cpu: 4, ramMb: 8192, diskGb: 100, price: 4_790_000, active: true },
 ];
 
-export const seedPlans = (db: DB) => db.insert(paasPlans).values(DEFAULT_PLANS.map((p, i) => ({ ...p, position: i, ...PLAN_LIMITS[p.id] }))).onConflictDoNothing();
+export const seedPlans = (db: DB) => db.insert(paasPlans).values(DEFAULT_PLANS.map((p, i) => ({ ...p, position: i, ...PLAN_LIMITS[p.id], logDays: PLAN_LOG_DAYS[p.id] ?? 7 }))).onConflictDoNothing();
 export const loadPlans = (db: DB | Tx) => db.select().from(paasPlans).orderBy(asc(paasPlans.position));
 
 /** apps live under a separate domain (never a subdomain of the main site: cookie isolation) */
@@ -54,7 +56,7 @@ export function previewSpec(spec: AppSpec, branch = ""): AppSpec {
   const domain = spec.hosts[0].slice(spec.name.length + 1);
   return {
     ...spec, id: spec.id + "-pv", name: spec.name + "-preview", hosts: [previewHost(spec.name, domain)], gitBranch: branch || spec.gitBranch,
-    instances: 1, autoscale: false, maxInstances: 1, diskGb: 0, processes: [], crons: [], releaseCommand: "", cdn: false,
+    instances: 1, autoscale: false, maxInstances: 1, diskGb: 0, disks: [], sftp: undefined, processes: [], crons: [], releaseCommand: "", cdn: false,
     env: { ...spec.env, GEREH_PREVIEW: "1" },
     runtime: spec.runtime && { ...spec.runtime, defaultDomain: true, redirects: [] },
   };
@@ -90,7 +92,7 @@ export const defaultEnvKey = defaultEnvKeyFor;
 
 /** everything the driver needs to run an app: plan size, decrypted env, linked database URLs, hosts */
 export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
-  const [[plan], env, links, domains, base, processes, crons, runtime] = await Promise.all([
+  const [[plan], env, links, domains, base, processes, crons, runtime, tools] = await Promise.all([
     db.select().from(paasPlans).where(eq(paasPlans.id, app.planId)),
     db.select().from(paasEnv).where(eq(paasEnv.appId, app.id)),
     db.select({ l: paasLinks, d: paasDbs }).from(paasLinks).innerJoin(paasDbs, eq(paasDbs.id, paasLinks.dbId)).where(eq(paasLinks.appId, app.id)),
@@ -99,6 +101,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     db.select().from(paasProcesses).where(eq(paasProcesses.appId, app.id)).orderBy(asc(paasProcesses.name)),
     db.select().from(paasCrons).where(eq(paasCrons.appId, app.id)).orderBy(asc(paasCrons.name)),
     runtimeSpec(db, app),
+    toolsSpec(db, app),
   ]);
   const vars: Record<string, string> = {};
   for (const e of env) vars[e.key] = open(e.valueEnc) ?? "";
@@ -123,6 +126,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     processes: processes.map((x) => ({ name: x.name, command: x.command, instances: x.instances })),
     crons: crons.map((x) => ({ name: x.name, schedule: x.schedule, command: x.command, enabled: x.enabled })),
     runtime,
+    ...tools,
   };
 }
 

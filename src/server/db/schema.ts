@@ -2,7 +2,7 @@
    Timestamps are timestamptz; the UI formats them in the Jalali calendar. Text ids keep the
    human-readable prefixes the panel shows (srv-…, INV-…, TK-…). */
 import { sql } from "drizzle-orm";
-import { bigint, boolean, index, integer, jsonb, pgTable, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, bigserial, boolean, index, integer, jsonb, pgTable, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 const money = (name: string) => bigint(name, { mode: "number" });
@@ -492,6 +492,8 @@ export const paasPlans = pgTable("paas_plans", {
   /** app plans: builds per app per 24 hours (0 = unlimited) and the longest build allowed */
   deploysPerDay: integer("deploys_per_day").notNull().default(0),
   maxBuildMinutes: integer("max_build_minutes").notNull().default(30),
+  /** app plans: days of application logs kept for search (7, 30 or 60) */
+  logDays: integer("log_days").notNull().default(7),
 });
 
 export const paasApps = pgTable("paas_apps", {
@@ -1207,6 +1209,96 @@ export const paasDomainRedirects = pgTable("paas_domain_redirects", {
   /** append the request path and query to the target */
   keepPath: boolean("keep_path").notNull().default(true),
 });
+
+/* ---------- Gereh Apps: operator tools (0021_paas_tools) ---------- */
+/** named persistent disks of an app. paas_apps.disk_gb stays the total (billing) and disk_mount the
+    "data" disk's path; an app with disk_gb > 0 and no rows here has one implicit "data" disk */
+export const paasDisks = pgTable("paas_disks", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  mountPath: text("mount_path").notNull(),
+  sizeGb: integer("size_gb").notNull(),
+  /** daily automatic backup (the last 3 are kept) */
+  backups: boolean("backups").notNull().default(true),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_disk_uq").on(t.appId, t.name), uniqueIndex("paas_disk_mount_uq").on(t.appId, t.mountPath)]);
+
+/** tar.gz snapshots of a disk in the platform backup bucket */
+export const paasDiskBackups = pgTable("paas_disk_backups", {
+  id: text("id").primaryKey(),
+  diskId: text("disk_id").notNull().references(() => paasDisks.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["auto", "manual"] }).notNull(),
+  status: text("status", { enum: ["running", "done", "failed", "restoring"] }).notNull().default("running"),
+  sizeMb: real("size_mb").notNull().default(0),
+  location: text("location").notNull().default(""),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("paas_disk_backup_ix").on(t.diskId, t.createdAt)]);
+
+/** SFTP accounts, each confined to one disk; the password is sealed (shown again on request) */
+export const paasSftpUsers = pgTable("paas_sftp_users", {
+  id: text("id").primaryKey(),
+  diskId: text("disk_id").notNull().references(() => paasDisks.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  passwordEnc: text("password_enc").notNull(),
+  access: text("access", { enum: ["ro", "rw"] }).notNull().default("rw"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_sftp_user_uq").on(t.username), index("paas_sftp_disk_ix").on(t.diskId)]);
+
+/** per-app tool state: the SFTP NodePort and host key, and how far logs were collected */
+export const paasAppTools = pgTable("paas_app_tools", {
+  appId: text("app_id").primaryKey().references(() => paasApps.id, { onDelete: "cascade" }),
+  sftpPort: integer("sftp_port"),
+  /** sealed PEM; stable across restarts so clients keep trusting the host */
+  sftpHostKey: text("sftp_host_key").notNull().default(""),
+  logsCursor: ts("logs_cursor"),
+});
+
+/** application log lines, kept for the plan's log_days */
+export const paasLogs = pgTable("paas_logs", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  at: ts("at").notNull(),
+  level: text("level", { enum: ["debug", "info", "warn", "error"] }).notNull().default("info"),
+  instance: text("instance").notNull().default(""),
+  line: text("line").notNull(),
+}, (t) => [index("paas_log_app_ix").on(t.appId, t.at)]);
+
+/** ingress bytes per app every 5 minutes (kept 8 days, like paas_metrics) */
+export const paasNetSamples = pgTable("paas_net_samples", {
+  id: serial("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  bytes: money("bytes").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("paas_net_ix").on(t.appId, t.createdAt)]);
+
+/** hourly averages of paas_metrics plus traffic, for the 30-day charts (kept 31 days) */
+export const paasMetricsHourly = pgTable("paas_metrics_hourly", {
+  target: text("target").notNull(),
+  hour: ts("hour").notNull(),
+  cpu: real("cpu").notNull().default(0),
+  ramMb: real("ram_mb").notNull().default(0),
+  rpm: real("rpm").notNull().default(0),
+  netBytes: money("net_bytes").notNull().default(0),
+}, (t) => [uniqueIndex("paas_metric_hour_uq").on(t.target, t.hour)]);
+
+/** web console sessions and one-off commands in a running instance (audit trail) */
+export const paasConsoleSessions = pgTable("paas_console_sessions", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  /** the person (team members included), not the account owner */
+  userId: text("user_id").notNull(),
+  kind: text("kind", { enum: ["shell", "run"] }).notNull(),
+  instance: text("instance").notNull().default(""),
+  command: text("command").notNull().default(""),
+  exitCode: integer("exit_code"),
+  /** run: the output tail */
+  output: text("output").notNull().default(""),
+  ip: text("ip").notNull().default(""),
+  startedAt: ts("started_at").notNull().defaultNow(),
+  endedAt: ts("ended_at"),
+}, (t) => [index("paas_console_app_ix").on(t.appId, t.startedAt)]);
 
 /* ---------------- AI plus: projects, settings, request bodies, web chat, knowledge bases ---------------- */
 export const aiProjects = pgTable("ai_projects", {

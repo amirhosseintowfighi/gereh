@@ -9,7 +9,9 @@ import { api, useDB, useMyId, useSession } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
 import { zipFolder } from "@/lib/zip-client";
 import { useApp } from "../app-context";
+import { AppConsole, AppDisks } from "./paas-console";
 import { AppJobs } from "./paas-jobs";
+import { AppLogsPro, AppMetrics, AppReleases, EnvBulk } from "./paas-observe";
 import { AppEvents, AppRuntime, AppUsage, CiTemplates, CloneApp, DeployNoCache, DomainOptions, FailureHint } from "./paas-runtime";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
@@ -195,9 +197,9 @@ export function NewApp() {
 
 /* ================= detail ================= */
 const TABS = [
-  { id: "overview", label: "نمای کلی", icon: "layout-dashboard" }, { id: "deploys", label: "استقرارها", icon: "rocket" }, { id: "logs", label: "لاگ‌ها", icon: "terminal" },
+  { id: "overview", label: "نمای کلی", icon: "layout-dashboard" }, { id: "deploys", label: "استقرارها", icon: "rocket" }, { id: "logs", label: "لاگ‌ها", icon: "scroll-text" }, { id: "console", label: "کنسول", icon: "terminal" }, { id: "metrics", label: "پایش", icon: "chart-line" },
   { id: "env", label: "متغیرها", icon: "sliders-horizontal" }, { id: "domains", label: "دامنه‌ها", icon: "globe" }, { id: "dbs", label: "پایگاه داده", icon: "database" },
-  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "jobs", label: "پردازش و زمان‌بندی", icon: "clock" },
+  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "disks", label: "دیسک", icon: "hard-drive" }, { id: "jobs", label: "پردازش و زمان‌بندی", icon: "clock" },
   { id: "runtime", label: "بیلد و اجرا", icon: "hammer" }, { id: "usage", label: "مصرف و بودجه", icon: "wallet" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 
@@ -233,9 +235,12 @@ export function AppDetail({ id }: { id: string }) {
       <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های اپ" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <AppOverview app={app} onLog={setLogDep} />}
-        {tab === "deploys" && <AppDeploys app={app} onLog={setLogDep} />}
-        {tab === "logs" && <AppLogs app={app} />}
-        {tab === "env" && <AppEnv app={app} />}
+        {tab === "deploys" && <><AppDeploys app={app} onLog={setLogDep} /><AppReleases app={app} /></>}
+        {tab === "logs" && <AppLogsPro app={app} />}
+        {tab === "console" && <AppConsole app={app} />}
+        {tab === "metrics" && <AppMetrics app={app} />}
+        {tab === "disks" && <AppDisks app={app} />}
+        {tab === "env" && <><AppEnv key={app.env.map((e) => e.key + (e.value ?? "")).join("|")} app={app} /><EnvBulk app={app} /></>}
         {tab === "domains" && <AppDomains app={app} />}
         {tab === "dbs" && <AppDbs app={app} />}
         {tab === "scale" && <AppScale app={app} />}
@@ -412,33 +417,6 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
       )}
     </Card>
     </>
-  );
-}
-
-function AppLogs({ app }: { app: PaasApp }) {
-  const [lines, setLines] = useState<string[] | null>(null);
-  const [follow, setFollow] = useState(true);
-  const [q, setQ] = useState("");
-  const pre = useRef<HTMLPreElement>(null);
-  useEffect(() => {
-    let live = true;
-    const load = async () => { const l = await api.paas.logs(app.id, 300).catch(() => []); if (live) { setLines(l); if (follow) requestAnimationFrame(() => pre.current?.scrollTo({ top: pre.current.scrollHeight })); } };
-    void load();
-    const t = follow ? setInterval(load, 5000) : undefined;
-    return () => { live = false; if (t) clearInterval(t); };
-  }, [app.id, follow]);
-  const shown = (lines ?? []).filter((l) => !q || l.toLowerCase().includes(q.toLowerCase()));
-  return (
-    <Card pad="p-4">
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <label className="sr-only" htmlFor="log-q">جستجو در لاگ</label>
-        <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="filter…" className={INPUT + " h-9 max-w-xs text-left"} />
-        <span className="flex items-center gap-2 text-xs text-white/70"><Switch on={follow} onChange={setFollow} label="دنبال کردن زنده" />دنبال کردن زنده</span>
-      </div>
-      <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ اپ" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[60vh] overflow-auto whitespace-pre-wrap">
-        {lines === null ? "…" : shown.length ? shown.join("\n") : app.status === "running" ? "لاگی پیدا نشد." : "اپ در حال اجرا نیست."}
-      </pre>
-    </Card>
   );
 }
 
