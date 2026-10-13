@@ -134,6 +134,13 @@
       "when": 1791600019000,
       "tag": "0019_dbaas_plus",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791600020000,
+      "tag": "0020_ai_plus",
+      "breakpoints": true
     }
   ]
 }
