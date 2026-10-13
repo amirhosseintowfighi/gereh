@@ -10,7 +10,6 @@ import { mkdir, rm, stat } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import type { AppSpec } from "./driver";
 import type { PodShell } from "./exec";
 
@@ -61,8 +60,8 @@ const abs = (disk: DiskRef, rel: string) => disk.mount + (rel ? "/" + rel : "");
 type Node = { dir: boolean; data: Buffer; mtime: number };
 type Vol = Map<string, Node>;
 const g = globalThis as unknown as { __gerehSimFs?: Map<string, Vol>; __gerehSimBackups?: Map<string, Vol> };
-const volumes = (g.__gerehSimFs ??= new Map());
-const snapshots = (g.__gerehSimBackups ??= new Map());
+const volumes: Map<string, Vol> = (g.__gerehSimFs ??= new Map());
+const snapshots: Map<string, Vol> = (g.__gerehSimBackups ??= new Map());
 export const resetSimTools = () => { volumes.clear(); snapshots.clear(); };
 
 function vol(app: Pick<AppSpec, "id">, disk: string): Vol {

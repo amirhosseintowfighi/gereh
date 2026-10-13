@@ -6,10 +6,10 @@ export type Term = { lines: string[]; col: number; pending: string };
 export const MAX_TERM_LINES = 2000;
 export const newTerm = (): Term => ({ lines: [""], col: 0, pending: "" });
 
-/** applies output to the terminal (returns a new object; the lines array is reused) */
+/** applies output to the terminal (returns a new state) */
 export function feed(t: Term, chunk: string): Term {
   const s = t.pending + chunk;
-  const lines = t.lines;
+  const lines = t.lines.slice();
   let col = t.col, i = 0, pending = "";
   const put = (ch: string) => {
     const cur = lines[lines.length - 1];

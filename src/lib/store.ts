@@ -93,11 +93,21 @@ export type PaasRuntimeView = {
   egressIps: string[];
   limits: { deploysPerDay: number; maxBuildMinutes: number; deploysToday: number };
 };
+export type PaasFsEntry = { name: string; dir: boolean; size: number; mtime: number; editable: boolean };
+export type PaasDisksView = {
+  running: boolean; diskPrice: number; maxDisks: number; sftp: { host: string; port: number | null };
+  disks: { id: string; name: string; mount: string; sizeGb: number; backups: boolean; usedBytes: number | null;
+    backupList: { id: string; kind: "auto" | "manual"; status: "running" | "done" | "failed" | "restoring"; sizeMb: number; error: string; at: string }[];
+    sftpUsers: { id: string; username: string; access: "ro" | "rw"; at: string }[] }[];
+};
+export type PaasLogLine = { id: number; at: string; level: "debug" | "info" | "warn" | "error"; instance: string; line: string };
+export type PaasRelease = { id: string; status: string; trigger: string; target: string; branch: string; ref: string; message: string; at: string; live: boolean; image: string; commitUrl: string; archiveUrl: string; source: string; seconds: number | null };
+export type PaasConsoleRecord = { id: string; kind: "shell" | "run"; instance: string; command: string; exitCode: number | null; at: string; ended: string; minutes: number | null };
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips: string[]; routing: "" | "price" | "throughput" | "latency"; projectId: string | null };
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -275,6 +285,52 @@ export const api = {
     cloneApp: (appId: string, name: string) => rpc<string>("paas.cloneApp", appId, name),
     adminPlanLimits: () => rpc<{ id: string; name: string; deploysPerDay: number; maxBuildMinutes: number }[]>("paas.adminPlanLimits"),
     adminSetPlanLimits: (id: string, l: { deploysPerDay: number; maxBuildMinutes: number }) => rpc("paas.adminSetPlanLimits", id, l),
+    instances: (appId: string) => rpc<{ name: string; ready: boolean; since: string }[]>("paas.instances", appId),
+    consoleOpen: (appId: string, o: { instance?: string; cols?: number; rows?: number }) => rpc<{ sessionId: string; instance: string }>("paas.consoleOpen", appId, o),
+    consoleInput: (sessionId: string, data: string) => rpc("paas.consoleInput", sessionId, data),
+    consoleResize: (sessionId: string, cols: number, rows: number) => rpc("paas.consoleResize", sessionId, cols, rows),
+    consoleClose: (sessionId: string) => rpc("paas.consoleClose", sessionId),
+    consoleRun: (appId: string, command: string, instance?: string) => rpc<{ instance: string; code: number; output: string }>("paas.consoleRun", appId, command, instance),
+    consoleHistory: (appId: string) => rpc<PaasConsoleRecord[]>("paas.consoleHistory", appId),
+    disks: (appId: string) => rpc<PaasDisksView>("paas.disks", appId),
+    addDisk: (appId: string, d: { name: string; mount: string; sizeGb: number }) => rpc<string>("paas.addDisk", appId, d),
+    updateDisk: (diskId: string, p: { sizeGb?: number; mount?: string; backups?: boolean }) => rpc<string | null>("paas.updateDisk", diskId, p),
+    deleteDisk: (diskId: string, confirm: string) => rpc("paas.deleteDisk", diskId, confirm),
+    fsList: (diskId: string, path: string) => rpc<{ path: string; entries: PaasFsEntry[] }>("paas.fsList", diskId, path),
+    fsRead: (diskId: string, path: string) => rpc<string>("paas.fsRead", diskId, path),
+    fsWrite: (diskId: string, path: string, content: string) => rpc("paas.fsWrite", diskId, path, content),
+    fsMkdir: (diskId: string, path: string) => rpc("paas.fsMkdir", diskId, path),
+    fsRename: (diskId: string, from: string, to: string) => rpc("paas.fsRename", diskId, from, to),
+    fsDelete: (diskId: string, paths: string[]) => rpc("paas.fsDelete", diskId, paths),
+    fsSearch: (diskId: string, path: string, q: string) => rpc<{ path: string; dir: boolean }[]>("paas.fsSearch", diskId, path, q),
+    fsExtract: (diskId: string, zipPath: string, dest: string) => rpc<number>("paas.fsExtract", diskId, zipPath, dest),
+    /** streams one file to a disk path */
+    fsUpload: (diskId: string, path: string, file: File, onProgress?: (pct: number) => void) => new Promise<void>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", "/api/paas/files/" + encodeURIComponent(diskId) + "?path=" + encodeURIComponent(path));
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+      x.onload = () => {
+        let j: { error?: string } = {};
+        try { j = JSON.parse(x.responseText); } catch { /* not JSON */ }
+        if (x.status >= 200 && x.status < 300) resolve(); else reject(new Error(j.error || "بارگذاری ناموفق بود."));
+      };
+      x.onerror = () => reject(new Error("ارتباط با سرور قطع شد."));
+      x.send(file);
+    }),
+    sftpCreate: (diskId: string, u: { username: string; access: "ro" | "rw" }) => rpc<{ password: string }>("paas.sftpCreate", diskId, u),
+    sftpUpdate: (userId: string, p: { access?: "ro" | "rw"; resetPassword?: boolean }) => rpc<{ password: string | null }>("paas.sftpUpdate", userId, p),
+    sftpReveal: (userId: string) => rpc<string>("paas.sftpReveal", userId),
+    sftpDelete: (userId: string) => rpc("paas.sftpDelete", userId),
+    diskBackup: (diskId: string) => rpc<string>("paas.diskBackup", diskId),
+    diskRestore: (backupId: string) => rpc("paas.diskRestore", backupId),
+    diskBackupLink: (backupId: string) => rpc<string>("paas.diskBackupLink", backupId),
+    diskBackupDelete: (backupId: string) => rpc("paas.diskBackupDelete", backupId),
+    logSearch: (appId: string, o: { q?: string; levels?: string[]; from?: string; to?: string; before?: number; limit?: number }) => rpc<{ retentionDays: number; more: boolean; cursor: number | null; lines: PaasLogLine[] }>("paas.logSearch", appId, o),
+    envFile: (appId: string) => rpc<string>("paas.envFile", appId),
+    releases: (appId: string) => rpc<PaasRelease[]>("paas.releases", appId),
+    metrics: (appId: string, range: "1h" | "24h" | "7d" | "30d") => rpc<{ range: string; ramLimitMb: number; points: { t: number; cpu: number; ramMb: number; rpm: number; netBytes: number }[] }>("paas.metrics", appId, range),
+    adminLogDays: () => rpc<{ id: string; name: string; logDays: number }[]>("paas.adminLogDays"),
+    adminSetLogDays: (planId: string, days: number) => rpc("paas.adminSetLogDays", planId, days),
     /** uploads a project ZIP; resolves with the detected stack */
     upload: async (file: File, rootDir = "", onProgress?: (pct: number) => void) => new Promise<{ uploadId: string; stack: string | null; files: number; bytes: number }>((resolve, reject) => {
       const x = new XMLHttpRequest();

@@ -20,7 +20,7 @@ export type Session = {
   closed: boolean; exitCode: number | null; startedAt: number; lastInput: number; timer: ReturnType<typeof setInterval>;
 };
 const g = globalThis as unknown as { __gerehConsoles?: Map<string, Session> };
-export const sessions = (g.__gerehConsoles ??= new Map());
+export const sessions: Map<string, Session> = (g.__gerehConsoles ??= new Map());
 
 export function startSession(db: DB, s: Omit<Session, "chunks" | "seq" | "bytes" | "listeners" | "closed" | "exitCode" | "startedAt" | "lastInput" | "timer">) {
   const sess: Session = { ...s, chunks: [], seq: 0, bytes: 0, listeners: new Set(), closed: false, exitCode: null, startedAt: Date.now(), lastInput: Date.now(), timer: setInterval(() => {

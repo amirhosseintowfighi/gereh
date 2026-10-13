@@ -297,7 +297,7 @@ export const paasToolsRpc = {
     const pw = password();
     await sftpHostKey(ctx.db, app.id);
     await ctx.db.insert(paasSftpUsers).values({ id: rid("sftp"), diskId: d.id, username: i.username, passwordEnc: seal(pw), access: i.access });
-    await logActivity(ctx.db, a.uid, "folder-key", "حساب SFTP " + i.username + " برای دیسک " + d.name + " اپ " + app.name, ctx.ip);
+    await logActivity(ctx.db, a.uid, "key-round", "حساب SFTP " + i.username + " برای دیسک " + d.name + " اپ " + app.name, ctx.ip);
     await redeployConfig(ctx.db, app, "حساب SFTP " + i.username);
     return { password: pw };
   }),
@@ -305,7 +305,7 @@ export const paasToolsRpc = {
     const { a, u, app } = await ownSftp(ctx, userId);
     const pw = p.resetPassword ? password() : null;
     await ctx.db.update(paasSftpUsers).set({ ...(p.access ? { access: p.access } : {}), ...(pw ? { passwordEnc: seal(pw) } : {}) }).where(eq(paasSftpUsers.id, u.id));
-    await logActivity(ctx.db, a.uid, "folder-key", (pw ? "رمز جدید" : "تغییر دسترسی") + " حساب SFTP " + u.username, ctx.ip);
+    await logActivity(ctx.db, a.uid, "key-round", (pw ? "رمز جدید" : "تغییر دسترسی") + " حساب SFTP " + u.username, ctx.ip);
     await redeployConfig(ctx.db, app, "تغییر حساب SFTP " + u.username);
     return { password: pw };
   }),
@@ -378,7 +378,7 @@ export const paasToolsRpc = {
     const { a, app } = await ownApp(ctx, appId);
     const rows = await ctx.db.select().from(paasEnv).where(and(eq(paasEnv.appId, app.id), isNull(paasEnv.managedBy))).orderBy(paasEnv.key);
     const linked = new Set((await ctx.db.select({ k: paasLinks.envKey }).from(paasLinks).where(eq(paasLinks.appId, app.id))).map((l) => l.k));
-    await logActivity(ctx.db, a.uid, "file-down", "خروجی ‎.env‎ اپ " + app.name, ctx.ip);
+    await logActivity(ctx.db, a.uid, "download", "خروجی ‎.env‎ اپ " + app.name, ctx.ip);
     return toDotenv(rows.filter((r) => !linked.has(r.key)).map((r) => ({ key: r.key, value: open(r.valueEnc) ?? "" })));
   }),
 
@@ -407,6 +407,10 @@ export const paasToolsRpc = {
   }),
 
   /* ---------------- staff ---------------- */
+  "paas.adminLogDays": method(z.tuple([]), async (ctx) => {
+    needStaff(ctx, "products");
+    return ctx.db.select({ id: paasPlans.id, name: paasPlans.name, logDays: paasPlans.logDays }).from(paasPlans).where(eq(paasPlans.kind, "app")).orderBy(paasPlans.position);
+  }),
   "paas.adminSetLogDays": method(z.tuple([id, z.number().int()]), async (ctx, [planId, days]) => {
     needStaff(ctx, "products");
     if (!LOG_DAYS.includes(days)) fail("نگهداری لاگ باید ۷، ۳۰ یا ۶۰ روز باشد.");
