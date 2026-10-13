@@ -3,15 +3,16 @@ import { NotifMatrix, SecurityExtras, TeamExtras } from "./billing-extras";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { TLDS, locLabel } from "@/lib/catalog";
+import { locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
 import { SITE_URL } from "@/lib/seo";
-import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type DnsRecord, type Invoice, type Server, type Ticket } from "@/lib/store";
+import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type Invoice, type Server, type Ticket } from "@/lib/store";
 import { newSecret, otpauthUrl } from "@/lib/totp";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
 import { AgentConnect } from "./agents";
+import { DomainManage, IrnicHandle, TransferInButton, TransferList } from "./domains";
 import { NotifyChannels } from "./channels";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
@@ -186,147 +187,25 @@ export function UserHosting({ id }: { id?: string }) {
 }
 
 /* ================= domains ================= */
-const DNS_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "CAA"];
-const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const HOST = /^(?=.{1,253}\.?$)([a-z0-9_](?:[a-z0-9-_]{0,61}[a-z0-9_])?\.)+[a-z]{2,63}\.?$/i;
-function validateRecord(r: Omit<DnsRecord, "id"> & { id?: string }) {
-  if (!r.name.trim()) return "نام را وارد کنید (برای خود دامنه @).";
-  if (!/^(@|\*|[a-z0-9_*]([a-z0-9-_.]*[a-z0-9_])?)$/i.test(r.name.trim())) return "نام رکورد معتبر نیست.";
-  const v = r.value.trim();
-  if (!v) return "مقدار را وارد کنید.";
-  if (r.type === "A" && !IPV4.test(v)) return "برای رکورد A یک آدرس IPv4 معتبر لازم است.";
-  if (r.type === "AAAA" && !(/^[0-9a-f:]+$/i.test(v) && v.includes(":"))) return "برای رکورد AAAA یک آدرس IPv6 معتبر لازم است.";
-  if ((r.type === "CNAME" || r.type === "MX" || r.type === "NS") && !HOST.test(v)) return "مقدار باید یک نام میزبان معتبر باشد؛ مثل mail.example.com";
-  if (r.type === "MX" && !(Number(r.priority) >= 0 && Number(r.priority) <= 65535)) return "اولویت MX باید عددی بین ۰ تا ۶۵۵۳۵ باشد.";
-  return "";
-}
-
 export function UserDomains({ id }: { id?: string }) {
   const db = useDB(); const myId = useMyId(); const router = useRouter();
-  const { notify, confirm } = useApp();
+  const [version, setVersion] = useState(0);
+  if (id) return <DomainManage id={id} />;
   const rows = db.domains.filter((d) => d.userId === myId);
-  const d = id ? rows.find((x) => x.id === id) : undefined;
-  const [tab, setTab] = useState("dns");
-  const [rec, setRec] = useState<(Omit<DnsRecord, "id"> & { id?: string }) | null>(null);
-  const [ns, setNs] = useState<string[] | null>(null);
-  const [years, setYears] = useState(1);
-  const [showCode, setShowCode] = useState(false);
-  if (id && !d) return <Card><Empty icon="globe" title="دامنه پیدا نشد" action={<Link href="/panel/domains" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
-  if (!d) return (
+  return (
     <div>
-      <PageTitle title="دامنه‌ها" sub={fa(rows.length) + " دامنه"} action={newBtn("/domains", "ثبت دامنه")} />
+      <PageTitle title="دامنه‌ها" sub={fa(rows.length) + " دامنه"} action={<div className="flex gap-2"><TransferInButton onDone={() => setVersion((v) => v + 1)} />{newBtn("/domains", "ثبت دامنه")}</div>} />
+      <TransferList version={version} />
       <DataTable rows={rows} searchKeys={["name"]} onRowClick={(r) => router.push(("/panel/domains/" + r.id) as never)} empty="دامنه‌ای ندارید."
         columns={[
           { key: "name", label: "دامنه", sortable: true, render: (r) => <span className="font-bold ltr">{r.name}</span> },
           { key: "expires", label: "سررسید", sortable: true },
           { key: "autoRenew", label: "تمدید خودکار", render: (r) => r.autoRenew ? <Badge tone="green">فعال</Badge> : <Badge>خاموش</Badge> },
           { key: "ns", label: "نام‌سرور", render: (r) => <span className="mono text-xs text-white/55">{r.ns[0]}</span> },
+          { key: "cdn", label: "CDN", render: (r) => r.dns.some((x) => x.proxied) ? <Badge tone="amber">پروکسی</Badge> : <span className="text-white/30">—</span> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
         ]} />
-    </div>
-  );
-  const t = TLDS.slice().sort((a, b) => b.tld.length - a.tld.length).find((x) => d.name.endsWith(x.tld)) || TLDS[0];
-  const curNs = ns || d.ns;
-  const [ey, ...rest] = d.expires.split("/");
-  const newExpiry = fa(Number(toEnDigits(ey)) + years, 0).replace(/٬/g, "") + "/" + rest.join("/");
-  return (
-    <div>
-      <PageTitle back={["/panel/domains", "دامنه‌ها"]} title={<span className="ltr inline-block">{d.name}</span>} sub={<span className="flex gap-3 items-center"><StatusBadge s={d.status} />سررسید {d.expires}</span>} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های دامنه" options={[{ id: "dns", label: "رکوردهای DNS", icon: "settings-2" }, { id: "ns", label: "نام‌سرورها", icon: "server" }, { id: "settings", label: "امنیت و انتقال", icon: "lock" }, { id: "renew", label: "تمدید", icon: "refresh-cw" }]} /></div>
-      <div key={tab} className="fade-in" role="tabpanel">
-        {tab === "dns" && <>
-          <Card title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action={d.ns[0].includes("gereh") && <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> رکورد جدید</button>}>
-            {!d.ns[0].includes("gereh") ? <Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها در گره، نام‌سرورها را به ns1.gereh.net تغییر دهید."} />
-              : d.dns.length === 0 ? <Empty icon="settings-2" title="رکوردی ندارید" /> : (
-              <div className="overflow-x-auto"><table className="w-full text-sm min-w-[640px]">
-                <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
-                <tbody>{d.dns.map((r) => (
-                  <tr key={r.id} className="border-t border-white/[0.06] hover:bg-white/[0.02]">
-                    <td className="p-3"><Badge tone="blue">{r.type}</Badge></td><td className="p-3 mono ltr text-right">{r.name}</td>
-                    <td className="p-3 mono text-xs ltr text-right text-white/70 max-w-[280px] truncate">{r.priority !== undefined && r.type === "MX" ? r.priority + " " : ""}{r.value}</td><td className="p-3 tabular text-white/55">{fa(r.ttl)}</td>
-                    <td className="p-3 text-left whitespace-nowrap">
-                      <IconBtn icon="pencil" label={"ویرایش رکورد " + r.name} onClick={() => setRec({ ...r })} />
-                      <IconBtn icon="trash-2" label={"حذف رکورد " + r.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("رکورد " + r.type + " " + r.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.domains.removeRecord(d.id, r.id); notify("رکورد حذف شد"); } }} />
-                    </td>
-                  </tr>
-                ))}</tbody></table></div>
-            )}
-          </Card>
-          <Modal open={!!rec} onClose={() => setRec(null)} title={rec?.id ? "ویرایش رکورد" : "رکورد جدید"} icon="settings-2"
-            footer={<><button type="button" onClick={() => setRec(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
-              if (!rec) return;
-              const r = { ...rec, name: rec.name.trim(), value: rec.value.trim(), ...(rec.type === "MX" ? { priority: Number(rec.priority ?? 10) } : { priority: undefined }) };
-              const err = validateRecord(r); if (err) throw new Error(err);
-              if (r.id) await api.domains.updateRecord(d.id, r as DnsRecord); else await api.domains.addRecord(d.id, r);
-              setRec(null); notify("رکورد ذخیره شد");
-            }}>ذخیره</AsyncButton></>}>
-            {rec && <div className="grid grid-cols-2 gap-4">
-              <Field label="نوع"><Select value={rec.type} label="نوع رکورد" onChange={(v) => setRec((r) => r && { ...r, type: v })} options={DNS_TYPES} ltr /></Field>
-              <Field label="TTL"><Select value={String(rec.ttl)} label="TTL" onChange={(v) => setRec((r) => r && { ...r, ttl: +v })} options={[{ value: "300", label: "۵ دقیقه" }, { value: "3600", label: "۱ ساعت" }, { value: "86400", label: "۱ روز" }]} /></Field>
-              <Field label="نام" hint="@ برای خود دامنه"><input value={rec.name} onChange={(e) => setRec((r) => r && { ...r, name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-              {rec.type === "MX" ? <Field label="اولویت"><input value={rec.priority ?? 10} inputMode="numeric" onChange={(e) => setRec((r) => r && { ...r, priority: +toEnDigits(e.target.value).replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-left mono"} /></Field> : <div />}
-              <Field className="col-span-2" label="مقدار"><input value={rec.value} onChange={(e) => setRec((r) => r && { ...r, value: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={rec.type === "A" ? "185.143.232.17" : rec.type === "CNAME" ? "target.example.com" : ""} /></Field>
-            </div>}
-          </Modal>
-        </>}
-        {tab === "ns" && (
-          <Card title="نام‌سرورها" icon="server">
-            <div className="space-y-3 max-w-lg">
-              {curNs.map((n, i) => (
-                <Field key={i} label={"نام‌سرور " + fa(i + 1)}>
-                  <div className="flex gap-2">
-                    <input value={n} onChange={(e) => { const a = curNs.slice(); a[i] = e.target.value; setNs(a); }} dir="ltr" className={INPUT + " text-left mono"} />
-                    {curNs.length > 2 && <IconBtn icon="x" label={"حذف نام‌سرور " + fa(i + 1)} onClick={() => setNs(curNs.filter((_, k) => k !== i))} />}
-                  </div>
-                </Field>
-              ))}
-              {curNs.length < 4 && <button type="button" onClick={() => setNs([...curNs, ""])} className="text-xs text-white/55 hover:text-white flex items-center gap-1"><Icon name="plus" size={14} /> افزودن نام‌سرور</button>}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2 justify-end">
-              <button type="button" onClick={() => setNs(["ns1.gereh.net", "ns2.gereh.net"])} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به پیش‌فرض گره</button>
-              <AsyncButton onClick={async () => {
-                const list = curNs.map((x) => x.trim().toLowerCase()).filter(Boolean);
-                if (list.length < 2) throw new Error("حداقل دو نام‌سرور لازم است.");
-                if (list.some((x) => !HOST.test(x))) throw new Error("نام‌سرور معتبر نیست؛ مثل ns1.example.com");
-                if (new Set(list).size !== list.length) throw new Error("نام‌سرور تکراری است.");
-                await api.domains.setNs(d.id, list); setNs(null); notify("نام‌سرورها به‌روز شدند؛ اعمال تا ۲۴ ساعت");
-              }}>ذخیره تغییرات</AsyncButton>
-            </div>
-          </Card>
-        )}
-        {tab === "settings" && (
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card title="تنظیمات" icon="lock" pad="p-2 sm:p-3">
-              {([["autoRenew", "تمدید خودکار", "پیش از سررسید از کیف پول تمدید می‌شود."], ["privacy", "محافظت از اطلاعات مالک", "اطلاعات تماس در WHOIS نمایش داده نمی‌شود."], ["locked", "قفل انتقال", "از انتقال بدون اجازه دامنه جلوگیری می‌کند."]] as const).map(([k, l, hint]) => (
-                <div key={k} className="flex items-center justify-between gap-4 p-3 rounded-xl">
-                  <div><div className="text-sm font-bold">{l}</div><div className="text-xs text-white/55 mt-1">{hint}</div></div>
-                  <Switch on={d[k]} label={l} onChange={async () => { await api.domains.toggle(d.id, k); notify(l + (d[k] ? " خاموش شد" : " فعال شد")); }} />
-                </div>
-              ))}
-            </Card>
-            <Card title="کد انتقال (EPP)" icon="key-round">
-              {d.locked ? <p className="text-sm text-white/55 leading-7">برای دریافت کد انتقال، ابتدا قفل انتقال را خاموش کنید.</p>
-                : !d.authCode ? <p className="text-sm text-white/55 leading-7">کد انتقال این دامنه از رجیستری دریافت نشده است؛ برای دریافت تیکت ثبت کنید.</p> : (
-                <div className="rounded-xl bg-black/30 border border-white/10 p-3 flex justify-between items-center">
-                  <span className="mono ltr">{showCode ? d.authCode : "••••••••••••"}</span>
-                  <div className="flex gap-1 items-center"><IconBtn icon={showCode ? "eye-off" : "eye"} label={showCode ? "پنهان کردن کد" : "نمایش کد"} onClick={() => setShowCode((x) => !x)} />{showCode && <CopyText text={d.authCode} className="text-xs" />}</div>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-        {tab === "renew" && (
-          <Card title="تمدید دامنه" icon="refresh-cw">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-2xl" role="radiogroup" aria-label="مدت تمدید">
-              {[1, 2, 3, 5, 10].map((y) => <button type="button" role="radio" aria-checked={years === y} key={y} onClick={() => setYears(y)} className={"rounded-xl p-4 border text-center transition " + (years === y ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}><div className="font-black">{fa(y)} سال</div><div className="text-[11px] text-white/55 mt-1 tabular">{toman(t.renew * y)}</div></button>)}
-            </div>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 max-w-2xl">
-              <div className="text-sm text-white/55">سررسید جدید پس از تمدید: <span className="text-white">{newExpiry}</span></div>
-              <AsyncButton onClick={async () => { const inv = await api.domains.renew(d.id, years); notify("صورتحساب " + inv.id + " صادر شد"); router.push("/panel/billing"); }}>صدور صورتحساب</AsyncButton>
-            </div>
-          </Card>
-        )}
-      </div>
+      <IrnicHandle />
     </div>
   );
 }

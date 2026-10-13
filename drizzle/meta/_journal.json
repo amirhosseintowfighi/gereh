@@ -150,6 +150,13 @@
       "breakpoints": true
     },
     {
+      "idx": 22,
+      "version": "7",
+      "when": 1791600022000,
+      "tag": "0022_domains_cdn",
+      "breakpoints": true
+    },
+    {
       "idx": 23,
       "version": "7",
       "when": 1791600023000,

@@ -146,6 +146,8 @@ export const dnsRecords = pgTable("dns_records", {
   type: text("type").notNull(), name: text("name").notNull(), value: text("value").notNull(),
   ttl: integer("ttl").notNull().default(3600), priority: integer("priority"),
   position: serial("position"),
+  /** answered by the CDN edge instead of the record's own address */
+  proxied: boolean("proxied").notNull().default(false),
 });
 
 export const invoices = pgTable("invoices", {
@@ -1380,6 +1382,92 @@ export const aiKbChunks = pgTable("ai_kb_chunks", {
   text: text("text").notNull(),
   embedding: real("embedding").array().notNull(),
 }, (t) => [index("ai_kb_chunk_kb_ix").on(t.kbId)]);
+
+/* ---------------- domains, DNS and CDN: transfers, DNSSEC, WHOIS cache, CDN settings and rules, traffic alerts ---------------- */
+export const domainTransfers = pgTable("domain_transfers", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  domain: text("domain").notNull(),
+  direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  /** in: pending → processing → completed | rejected | cancelled | failed; out: auth_sent */
+  status: text("status").notNull().default("pending"),
+  authCode: text("auth_code").notNull().default(""),
+  irnicHandle: text("irnic_handle").notNull().default(""),
+  /** Toman taken from the wallet when requested; refunded on reject, cancel or failure */
+  price: money("price").notNull().default(0),
+  domainId: text("domain_id"),
+  note: text("note").notNull().default(""),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("domain_transfer_user_ix").on(t.userId, t.createdAt), index("domain_transfer_status_ix").on(t.status)]);
+
+/** per-domain extras the registrar row does not carry */
+export const domainExtras = pgTable("domain_extras", {
+  domainId: text("domain_id").primaryKey().references(() => domains.id, { onDelete: "cascade" }),
+  dnssec: boolean("dnssec").notNull().default(false),
+  /** DS records to publish at the registry, presentation format */
+  ds: jsonb("ds").$type<string[]>().notNull().default([]),
+  irnicHandle: text("irnic_handle").notNull().default(""),
+});
+
+/** registrant contact used for new registrations (IRNIC handle for .ir) */
+export const domainContacts = pgTable("domain_contacts", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  irnicHandle: text("irnic_handle").notNull().default(""),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const whoisCache = pgTable("whois_cache", {
+  domain: text("domain").primaryKey(),
+  server: text("server").notNull(),
+  body: text("body").notNull(),
+  fetchedAt: ts("fetched_at").notNull().defaultNow(),
+});
+
+export const cdnSettings = pgTable("cdn_settings", {
+  domainId: text("domain_id").primaryKey().references(() => domains.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
+  /** origin address; empty = the first proxied record at @ or www */
+  originHost: text("origin_host").notNull().default(""),
+  originHostHeader: text("origin_host_header").notNull().default(""),
+  originHttps: boolean("origin_https").notNull().default(false),
+  forceHttps: boolean("force_https").notNull().default(true),
+  hstsMaxAge: integer("hsts_max_age").notNull().default(0),
+  hstsSub: boolean("hsts_sub").notNull().default(false),
+  hstsPreload: boolean("hsts_preload").notNull().default(false),
+  minTls: text("min_tls").notNull().default("1.2"),
+  /** seconds; 0 = keep the origin's Cache-Control */
+  browserTtl: integer("browser_ttl").notNull().default(0),
+  /** development mode: caching off until this time */
+  devUntil: ts("dev_until"),
+  underAttack: boolean("under_attack").notNull().default(false),
+  /** part of the cache key: bumping it purges everything */
+  cacheVersion: integer("cache_version").notNull().default(1),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+export const cdnRules = pgTable("cdn_rules", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => domains.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["cache", "redirect", "header", "auth", "access", "ratelimit"] }).notNull(),
+  /** the rule (CdnRule in src/lib/domains.ts) */
+  data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+  /** basic auth only: {SSHA} htpasswd line, never sent to the browser */
+  secret: text("secret").notNull().default(""),
+  position: serial("position"),
+  createdAt: created(),
+}, (t) => [index("cdn_rule_domain_ix").on(t.domainId)]);
+
+export const domainAlerts = pgTable("domain_alerts", {
+  id: text("id").primaryKey(),
+  domainId: text("domain_id").notNull().references(() => domains.id, { onDelete: "cascade" }),
+  metric: text("metric", { enum: ["requests", "bandwidth", "errors", "blocked"] }).notNull(),
+  threshold: real("threshold").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  lastValue: real("last_value").notNull().default(0),
+  firedAt: ts("fired_at"),
+  createdAt: created(),
+}, (t) => [index("domain_alert_domain_ix").on(t.domainId)]);
 
 /* ---------- Cloud server extras + billing and account extras (0023_vps_billing) ---------- */
 /** additional IPv4 addresses on a VPS, billed hourly from the wallet; rdns is the PTR of that address */

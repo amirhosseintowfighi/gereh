@@ -166,6 +166,7 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     ...Array.from({ length: 12 }, (_, i) => ({ id: "dom-" + (600 + i), userId: "u" + (2 + i), name: ["parsa", "nova", "arta", "sahand", "dena", "baran"][i % 6] + (i + 1) + TLDS[i % 6].tld, registeredAt: J("۱۴۰۳/۰۱/۰۱"), expiresAt: J("۱۴۰۵/۰" + fa(1 + (i % 9)) + "/۲۰"), autoRenew: i % 2 === 0, privacy: i % 3 === 0, locked: true, status: i % 7 === 3 ? "expired" : "active", ns: NS })),
   ]).onConflictDoNothing();
   await db.insert(t.dnsRecords).values([...dns("dom-501"), ...dns("dom-502")]).onConflictDoNothing();
+  await db.insert(t.domainContacts).values({ userId: "u1", irnicHandle: "am1234-irnic" }).onConflictDoNothing();
 
   const inv = (id: string, userId: string, date: string, due: string, status: string, items: [string, number][]) => ({ id, userId, date, due, status, items });
   const invs = [

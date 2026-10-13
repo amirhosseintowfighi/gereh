@@ -14,6 +14,7 @@ import { invGross, invTotal } from "./money";
 import type { RuntimeConfig } from "./paas-runtime";
 import type { AiKind } from "./ai";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
+import type { AlertMetric, CdnPoint, CdnRule, CdnView, DnsSuggestion, DomainAlertView, TransferView, WhoisView } from "./domains";
 import type { Dmarc, MailAdminList, MailDomainDetail, MailMessageView, MailMsgRow, MailOverview, MailSendInput, MailStats } from "./mail";
 
 export type { CartItem, ClientDB, Coupon, DnsRecord, FwRule, Hosting, Invoice, Server, Session, Ticket, User } from "./types";
@@ -107,7 +108,7 @@ export type AiKeyInput = { name: string; models: string[]; dailyCap: number; mon
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -176,6 +177,34 @@ export const api = {
     toggle: (id: string, key: "autoRenew" | "privacy" | "locked") => rpc("domains.toggle", id, key),
     renew: (id: string, years: number) => rpc<Invoice>("domains.renew", id, years),
     check: (name: string) => rpc<{ tld: string; available: boolean }[]>("domains.check", name),
+    setProxied: (id: string, recId: string, on: boolean) => rpc("domains.setProxied", id, recId, on),
+    importZone: (id: string, text: string, mode: "merge" | "replace") => rpc<{ added: number; skipped: number; errors: string[] }>("domains.importZone", id, text, mode),
+    exportZone: (id: string) => rpc<string>("domains.exportZone", id),
+    nsCheck: (id: string) => rpc<{ ok: boolean; seen: string[]; expected: string[]; managed: boolean }>("domains.nsCheck", id),
+    extras: (id: string) => rpc<{ dnssec: boolean; ds: string[]; irnicHandle: string; ir: boolean }>("domains.extras", id),
+    setDnssec: (id: string, on: boolean) => rpc<string[]>("domains.setDnssec", id, on),
+    suggestions: (id: string) => rpc<DnsSuggestion[]>("domains.suggestions", id),
+    applySuggestion: (id: string, key: string) => rpc<{ added: number; replaced: number }>("domains.applySuggestion", id, key),
+    whois: (name: string, fresh?: boolean) => rpc<WhoisView>("domains.whois", name, ...(fresh ? [true] : [])),
+    contact: () => rpc<{ irnicHandle: string }>("domains.contact"),
+    setContact: (c: { irnicHandle: string }) => rpc("domains.setContact", c),
+    transfers: () => rpc<TransferView[]>("domains.transfers"),
+    transferIn: (i: { domain: string; authCode: string; irnicHandle: string }) => rpc<string>("domains.transferIn", i),
+    cancelTransfer: (id: string) => rpc("domains.cancelTransfer", id),
+    transferOut: (id: string) => rpc<{ authCode: string; ir: boolean }>("domains.transferOut", id),
+    cdn: (id: string) => rpc<CdnView>("domains.cdn", id),
+    cdnUpdate: (id: string, patch: Partial<Omit<CdnView["config"], "devUntil" | "cacheVersion">>) => rpc("domains.cdnUpdate", id, patch),
+    cdnAddRule: (id: string, rule: CdnRule & { password?: string }) => rpc<string>("domains.cdnAddRule", id, rule),
+    cdnRemoveRule: (id: string, ruleId: string) => rpc("domains.cdnRemoveRule", id, ruleId),
+    cdnPurge: (id: string, target: { all: true } | { urls: string[] } | { prefix: string }) => rpc<{ all: boolean }>("domains.cdnPurge", id, target),
+    cdnAnalytics: (id: string, hours: number) => rpc<CdnPoint[]>("domains.cdnAnalytics", id, hours),
+    alerts: (id: string) => rpc<DomainAlertView[]>("domains.alerts", id),
+    addAlert: (id: string, a: { metric: AlertMetric; threshold: number }) => rpc("domains.addAlert", id, a),
+    toggleAlert: (id: string, alertId: string, on: boolean) => rpc("domains.toggleAlert", id, alertId, on),
+    removeAlert: (id: string, alertId: string) => rpc("domains.removeAlert", id, alertId),
+    adminTransfers: () => rpc<TransferView[]>("domains.adminTransfers"),
+    adminApprove: (id: string) => rpc<{ ok: boolean }>("domains.adminApprove", id),
+    adminReject: (id: string, reason: string) => rpc("domains.adminReject", id, reason),
   },
   billing: {
     quote: (code: string, subtotal: number) => rpc<Quote>("billing.quote", code, subtotal),

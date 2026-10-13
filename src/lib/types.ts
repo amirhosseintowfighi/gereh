@@ -22,7 +22,7 @@ export type Server = {
   usage: { at: string; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number }[];
 };
 export type Hosting = { id: string; userId: string; domain: string; plan: string; diskUsed: number; diskTotal: number; bwUsed: number; bwTotal: number; emails: number; dbs: number; status: Status; expires: string; price: number; panel: string; server: string; autoRenew: boolean };
-export type DnsRecord = { id: string; type: string; name: string; value: string; ttl: number; priority?: number };
+export type DnsRecord = { id: string; type: string; name: string; value: string; ttl: number; priority?: number; proxied?: boolean };
 export type Domain = { id: string; userId: string; name: string; registered: string; expires: string; autoRenew: boolean; privacy: boolean; locked: boolean; status: Status; ns: string[]; dns: DnsRecord[]; authCode: string };
 export type Invoice = { id: string; userId: string; date: string; due: string; status: Status; items: { desc: string; amount: number }[]; tax: number; official: Official | null; paidAt: string };
 export type Transaction = { id: string; userId: string; date: string; type: "topup" | "payment" | "refund" | "commission" | "usage"; amount: number; method: string; desc: string };

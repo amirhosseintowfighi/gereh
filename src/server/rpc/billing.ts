@@ -5,7 +5,7 @@ import { priceSku, type CatalogView, type Plan, type Sku } from "@/lib/catalog";
 import { couponDiscount, invGross } from "@/lib/money";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import type { DB, Tx } from "../db/client";
-import { coupons, invoiceItems, invoices, payments, plans, tlds, transactions, users } from "../db/schema";
+import { coupons, domainContacts, invoiceItems, invoices, payments, plans, tlds, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { getLocations } from "../locations";
 import { gatewayById, gatewaysFor } from "../pay/gateways";
@@ -157,6 +157,10 @@ export const billingRpc = {
     const a = needUser(ctx);
     const cat = await catalog(ctx.db);
     const priced = skus.map((s) => { const p = priceSku(s, cat); if ("error" in p) fail(p.error); return p as Exclude<typeof p, { error: string }>; });
+    if (skus.some((s) => s.t === "domain" && /\.ir$/i.test(s.name))) {
+      const [c] = await ctx.db.select().from(domainContacts).where(eq(domainContacts.userId, a.uid));
+      if (!c?.irnicHandle) fail("برای ثبت دامنه .ir شناسه ایرنیک مالک لازم است؛ آن را در پنل، بخش دامنه‌ها ثبت کنید (مثل ab1234-irnic).");
+    }
     return ctx.db.transaction(async (tx) => {
       const items = priced.map((p) => ({ desc: p.title + (p.meta ? "، " + p.meta : ""), amount: p.base }));
       const subtotal = items.reduce((s, i) => s + i.amount, 0);

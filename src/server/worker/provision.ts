@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { BILLING, HOSTING, LOCS, OSES, PLAN_NUMS, VPS, type Plan, type Sku } from "@/lib/catalog";
 import { addMonths } from "@/lib/jalali";
 import type { DB } from "../db/client";
-import { dnsRecords, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users } from "../db/schema";
+import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
@@ -142,7 +142,9 @@ export async function provisionDomain(db: DB, p: Payload & { renew?: string; yea
     await openStaffTicket(db, p.userId, "دامنه " + name + " قابل ثبت نبود", "دامنه پیش از تکمیل سفارش " + p.invoiceId + " ثبت شده بود. مبلغ به کیف پول بازگردانده شود.");
     return;
   }
-  const { authCode } = await reg.register(name, sku.years, NS);
+  // .ir needs the holder's IRNIC handle (checked at checkout, saved under the domains page)
+  const irnicHandle = /\.ir$/.test(name) ? (await db.select().from(domainContacts).where(eq(domainContacts.userId, p.userId)))[0]?.irnicHandle ?? "" : "";
+  const { authCode } = await reg.register(name, sku.years, NS, irnicHandle ? { irnicHandle } : undefined);
   const did = await nextId(db, "dom", 700);
   await db.transaction(async (tx) => {
     await tx.insert(domains).values({ id: did, userId: p.userId, name, registeredAt: new Date(), expiresAt: addMonths(new Date(), 12 * sku.years), ns: NS, authCode, orderRef: ref(p) });
@@ -150,6 +152,7 @@ export async function provisionDomain(db: DB, p: Payload & { renew?: string; yea
       { id: rid("r"), domainId: did, type: "A", name: "@", value: "185.143.232.10", ttl: 3600 },
       { id: rid("r"), domainId: did, type: "CNAME", name: "www", value: name, ttl: 3600 },
     ]);
+    if (irnicHandle) await tx.insert(domainExtras).values({ domainId: did, irnicHandle });
   });
   await (await providers()).dns.sync(db, did);
   await logActivity(db, p.userId, "globe", "دامنه " + name + " ثبت شد");
