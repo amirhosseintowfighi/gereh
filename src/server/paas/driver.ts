@@ -23,6 +23,10 @@ export type AppSpec = {
   runtime?: RuntimeSpec;
   /** this build only: skip the layer cache */
   noCache?: boolean;
+  /** named disks (absent: one "data" disk of diskGb at diskMount when diskGb > 0) */
+  disks?: { name: string; mount: string; sizeGb: number }[];
+  /** SFTP sidecar accounts, each confined to one disk */
+  sftp?: { users: { name: string; password: string; access: "ro" | "rw"; disk: string }[]; hostKey: string };
 };
 export type RuntimeSpec = {
   preBuild: string; postBuild: string; preStart: string;

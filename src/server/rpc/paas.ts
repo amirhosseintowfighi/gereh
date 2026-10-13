@@ -9,6 +9,7 @@ import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomai
 import { enqueue } from "../jobs";
 import { afterCreateDb } from "../paas/dbaas-service";
 import { paas } from "../paas/driver";
+import { growFromScale } from "../paas/disks";
 import { checkDeployQuota, logEvent } from "../paas/runtime";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
 import { templateOf } from "@/lib/paas-templates";
@@ -331,6 +332,8 @@ export const paasRpc = {
     const grow = appMonthly(p, s.autoscale ? s.maxInstances : s.instances, s.diskGb) - appMonthly(cur ?? p, app.instances, app.diskGb);
     if (grow > 0) await needCredit(ctx, a.uid, grow);
     const [next] = await ctx.db.update(paasApps).set({ planId: p.id, instances: s.instances, autoscale: s.autoscale, maxInstances: s.maxInstances, diskGb: s.diskGb, ...(s.autoscaleCpu ? { autoscaleCpu: s.autoscaleCpu } : {}) }).where(eq(paasApps.id, app.id)).returning();
+    // named disks: the "data" disk takes the growth
+    await growFromScale(ctx.db, next, app.diskGb);
     await logEvent(ctx.db, app.id, "scale", p.name + " × " + s.instances + (s.autoscale ? " (خودکار تا " + s.maxInstances + ")" : "") + (s.diskGb ? "، دیسک " + s.diskGb + " گیگ" : ""));
     await logActivity(ctx.db, a.uid, "sliders-horizontal", "تغییر منابع " + app.name + " به " + p.name + " × " + s.instances, ctx.ip);
     return redeployConfig(ctx.db, next, "تغییر منابع");

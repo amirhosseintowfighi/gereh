@@ -10,7 +10,7 @@ export type JobType =
   | "provision.server" | "provision.hosting" | "provision.domain" | "provision.ip"
   | "billing.renewals" | "billing.hourly" | "billing.overdue" | "billing.reminders"
   | "usage.collect" | "usage.alerts" | "virt.reconcile" | "tickets.sla" | "notify.send" | "devops.billing"
-  | "paas.build" | "paas.poll" | "paas.job" | "wp.import" | "notify.channel" | "paas.scan" | "paas.verify" | "paas.db" | "paas.backup" | "paas.billing" | "paas.collect" | "paas.daily"
+  | "paas.build" | "paas.poll" | "paas.job" | "wp.import" | "notify.channel" | "paas.scan" | "paas.verify" | "paas.db" | "paas.backup" | "paas.billing" | "paas.collect" | "paas.daily" | "paas.tools" | "paas.toolsDaily" | "paas.diskBackup"
   | "inquiry.settle" | "geo.billing" | "geo.health" | "geo.ns" | "ai.settle"
   | "dbaas.init" | "dbaas.import" | "dbaas.expire"
   | "storage.billing" | "storage.collect"

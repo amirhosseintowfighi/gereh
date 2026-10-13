@@ -13,6 +13,7 @@ import { actor, method, needStaff, needUser } from "../ctx";
 import { paasApps, paasCrons, paasDeployments, paasDomainRedirects, paasDomains, paasEnv, paasEvents, paasPlans, paasProcesses, paasRuntime, paasSpend, paasTraffic } from "../db/schema";
 import { paas } from "../paas/driver";
 import { egressIps, htpasswdLine, loadRuntime, saveRuntime } from "../paas/runtime";
+import { copyDisks } from "../paas/disks";
 import { appSpec, queueDeployment, redeployConfig } from "../paas/service";
 import { fail, logActivity, logAudit, rid } from "../util";
 import { checkName, needCredit, ownApp } from "./paas";
@@ -188,6 +189,7 @@ export const paasRuntimeRpc = {
       if (env.length) await tx.insert(paasEnv).values(env.map((e) => ({ appId: newId, key: e.key, valueEnc: e.valueEnc, secret: e.secret })));
       if (procs.length) await tx.insert(paasProcesses).values(procs.map((p) => ({ appId: newId, name: p.name, command: p.command, instances: p.instances })));
       if (crons.length) await tx.insert(paasCrons).values(crons.map((c) => ({ id: rid("cron"), appId: newId, name: c.name, schedule: c.schedule, command: c.command, enabled: c.enabled })));
+      await copyDisks(tx, app, newId);
       if (rt) await tx.insert(paasRuntime).values({ ...rt, appId: newId, defaultDomain: true, budgetNotified: "", trafficNotified: "", updatedAt: new Date() });
       await queueDeployment(tx, { id: newId }, { trigger: "create", image: image || undefined, message: "کپی از " + app.name });
     });
