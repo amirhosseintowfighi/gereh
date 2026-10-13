@@ -38,13 +38,39 @@ export const STACKS: Stack[] = [
 ];
 export const stackOf = (id: string) => STACKS.find((s) => s.id === id);
 
-export type DbEngine = "postgres" | "mysql" | "mariadb" | "mongodb" | "redis";
-export const DB_ENGINES: { id: DbEngine; label: string; versions: string[]; port: number; icon: string; hint: string }[] = [
-  { id: "postgres", label: "PostgreSQL", versions: ["17", "16", "15"], port: 5432, icon: "database", hint: "قابل اعتماد و همه‌کاره، با PostGIS و pgvector" },
-  { id: "mysql", label: "MySQL", versions: ["8.4", "8.0"], port: 3306, icon: "database", hint: "محبوب‌ترین پایگاه داده وب" },
-  { id: "mariadb", label: "MariaDB", versions: ["11.4", "10.11"], port: 3306, icon: "database", hint: "جایگزین سازگار با MySQL" },
-  { id: "mongodb", label: "MongoDB", versions: ["7.0", "6.0"], port: 27017, icon: "database", hint: "پایگاه داده سندمحور" },
-  { id: "redis", label: "Redis", versions: ["7.4"], port: 6379, icon: "zap", hint: "کش، صف و نشست" },
+export type DbEngine =
+  | "postgres" | "mysql" | "mariadb" | "mongodb" | "redis" | "mssql" | "elasticsearch" | "rabbitmq" | "clickhouse"
+  | "cassandra" | "couchdb" | "influxdb" | "neo4j" | "arangodb" | "rethinkdb" | "prometheus";
+export type DbEngineInfo = {
+  id: DbEngine; label: string; versions: string[]; port: number; icon: string; hint: string; group: string;
+  /** env variable a linked app gets by default */
+  envKey: string;
+  /** nightly/manual dumps, restore, download and import */
+  backups: boolean;
+  /** smallest plan (MB of RAM) the engine runs on */
+  minRamMb?: number;
+  /** false: no authentication of its own, so only the customer's apps reach it */
+  publicOk?: boolean;
+  /** fixed admin user (the engine does not let us choose one); "" = no user */
+  user?: string;
+};
+export const DB_ENGINES: DbEngineInfo[] = [
+  { id: "postgres", label: "PostgreSQL", versions: ["18", "17", "16", "15", "14", "13", "12", "11"], port: 5432, icon: "database", group: "رابطه‌ای", envKey: "DATABASE_URL", backups: true, hint: "قابل اعتماد و همه‌کاره، با PostGIS و pgvector" },
+  { id: "mysql", label: "MySQL", versions: ["9.0", "8.4", "8.0", "5.7"], port: 3306, icon: "database", group: "رابطه‌ای", envKey: "DATABASE_URL", backups: true, hint: "محبوب‌ترین پایگاه داده وب" },
+  { id: "mariadb", label: "MariaDB", versions: ["11.4", "10.11", "10.6"], port: 3306, icon: "database", group: "رابطه‌ای", envKey: "DATABASE_URL", backups: true, hint: "جایگزین سازگار با MySQL" },
+  { id: "mssql", label: "SQL Server", versions: ["2022", "2019"], port: 1433, icon: "database", group: "رابطه‌ای", envKey: "DATABASE_URL", backups: true, minRamMb: 2048, user: "sa", hint: "Microsoft SQL Server (ویرایش Express)" },
+  { id: "mongodb", label: "MongoDB", versions: ["8.0", "7.0", "6.0"], port: 27017, icon: "database", group: "سندمحور", envKey: "MONGODB_URI", backups: true, hint: "پایگاه داده سندمحور" },
+  { id: "couchdb", label: "CouchDB", versions: ["3.4", "3.3"], port: 5984, icon: "database", group: "سندمحور", envKey: "COUCHDB_URL", backups: false, hint: "سندمحور با API ‏HTTP و همگام‌سازی" },
+  { id: "arangodb", label: "ArangoDB", versions: ["3.12", "3.11"], port: 8529, icon: "database", group: "سندمحور", envKey: "ARANGODB_URL", backups: false, user: "root", hint: "چندمدلی: سند، گراف و کلید-مقدار" },
+  { id: "rethinkdb", label: "RethinkDB", versions: ["2.4"], port: 28015, icon: "database", group: "سندمحور", envKey: "RETHINKDB_URL", backups: false, user: "admin", hint: "سندمحور بلادرنگ با changefeed" },
+  { id: "redis", label: "Redis", versions: ["7.4", "7.2"], port: 6379, icon: "zap", group: "کلید-مقدار و صف", envKey: "REDIS_URL", backups: true, user: "default", hint: "کش، صف و نشست" },
+  { id: "rabbitmq", label: "RabbitMQ", versions: ["4.0", "3.13"], port: 5672, icon: "send", group: "کلید-مقدار و صف", envKey: "AMQP_URL", backups: false, hint: "صف پیام AMQP با پنل مدیریت" },
+  { id: "elasticsearch", label: "Elasticsearch", versions: ["8.15", "7.17"], port: 9200, icon: "search", group: "جست‌وجو و تحلیل", envKey: "ELASTICSEARCH_URL", backups: false, minRamMb: 2048, user: "elastic", hint: "جست‌وجوی متن کامل و لاگ" },
+  { id: "clickhouse", label: "ClickHouse", versions: ["24.8", "24.3"], port: 8123, icon: "chart-column", group: "جست‌وجو و تحلیل", envKey: "CLICKHOUSE_URL", backups: false, minRamMb: 1024, hint: "تحلیل ستونی بسیار سریع" },
+  { id: "cassandra", label: "Cassandra", versions: ["5.0", "4.1"], port: 9042, icon: "layers", group: "جست‌وجو و تحلیل", envKey: "CASSANDRA_URL", backups: false, minRamMb: 2048, hint: "ستون‌گسترده با نوشتن بسیار سریع" },
+  { id: "influxdb", label: "InfluxDB", versions: ["2.7"], port: 8086, icon: "trending-up", group: "سری زمانی و گراف", envKey: "INFLUXDB_URL", backups: false, hint: "داده‌های سری زمانی و IoT" },
+  { id: "prometheus", label: "Prometheus", versions: ["3.0", "2.54"], port: 9090, icon: "gauge", group: "سری زمانی و گراف", envKey: "PROMETHEUS_URL", backups: false, publicOk: false, user: "", hint: "متریک با remote write؛ فقط از داخل" },
+  { id: "neo4j", label: "Neo4j", versions: ["5.24", "4.4"], port: 7687, icon: "share-2", group: "سری زمانی و گراف", envKey: "NEO4J_URI", backups: false, minRamMb: 1024, user: "neo4j", hint: "پایگاه داده گراف (Cypher)" },
 ];
 export const engineOf = (id: string) => DB_ENGINES.find((e) => e.id === id);
 
@@ -145,4 +171,4 @@ export function cronError(expr: string): string | null {
 }
 
 /** env variable a linked database is exposed as by default */
-export const defaultEnvKeyFor = (engine: string) => (engine === "redis" ? "REDIS_URL" : engine === "mongodb" ? "MONGODB_URI" : "DATABASE_URL");
+export const defaultEnvKeyFor = (engine: string) => engineOf(engine)?.envKey ?? "DATABASE_URL";

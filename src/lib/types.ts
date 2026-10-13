@@ -66,6 +66,15 @@ export type PaasDb = {
   pitr: boolean;
   /** point-in-time copy: source database and moment */
   restoredFrom: string; restoredAt: string;
+} & DbExtra;
+/** managed database extras (src/lib/dbaas.ts) */
+export type DbExtra = {
+  config: { params: Record<string, string>; extensions: string[]; allowlist: string[]; replicaSet: boolean; extImage: boolean; initialized: boolean; seed: { from: string; status: string; detail: string } | null };
+  users: { id: string; username: string; grants: { db: string; access: "ro" | "rw" }[]; at: string }[];
+  databases: { id: string; name: string; at: string }[];
+  panels: { id: string; tool: string; url: string; username: string; status: string; expiresAt: string; minutesLeft: number }[];
+  imports: { id: string; format: string; status: string; output: string; sizeMb: number; at: string }[];
+  events: { id: number; level: string; message: string; at: string }[];
 };
 export type InquiryAccess = "open" | "none" | "pending" | "approved" | "rejected";
 export type InquiryState = {

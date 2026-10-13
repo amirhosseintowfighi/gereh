@@ -587,7 +587,7 @@ export const paasDbs = pgTable("paas_dbs", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
-  engine: text("engine", { enum: ["postgres", "mysql", "mariadb", "mongodb", "redis"] }).notNull(),
+  engine: text("engine", { enum: ["postgres", "mysql", "mariadb", "mongodb", "redis", "mssql", "elasticsearch", "rabbitmq", "clickhouse", "cassandra", "couchdb", "influxdb", "neo4j", "arangodb", "rethinkdb", "prometheus"] }).notNull(),
   version: text("version").notNull(),
   planId: text("plan_id").notNull().references(() => paasPlans.id),
   status: text("status", { enum: ["creating", "running", "stopped", "failed", "suspended"] }).notNull().default("creating"),
@@ -834,3 +834,77 @@ export const aiUsage = pgTable("ai_usage", {
   error: text("error").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed)]);
+
+/* ---------- Managed databases (DBaaS extras) ---------- */
+/** per-database settings beyond the plan: tuning, extensions, firewall, replica set, seeding */
+export const paasDbConfig = pgTable("paas_db_config", {
+  dbId: text("db_id").primaryKey().references(() => paasDbs.id, { onDelete: "cascade" }),
+  /** engine parameters (validated against src/lib/dbaas.ts DB_PARAMS) */
+  params: jsonb("params").$type<Record<string, string>>().notNull().default({}),
+  /** PostgreSQL extensions the customer switched on */
+  extensions: jsonb("extensions").$type<string[]>().notNull().default([]),
+  /** public access is limited to these IPv4 CIDRs; empty = anyone */
+  allowlist: jsonb("allowlist").$type<string[]>().notNull().default([]),
+  /** MongoDB: single-member replica set (transactions, change streams) */
+  replicaSet: boolean("replica_set").notNull().default(false),
+  /** PostgreSQL: runs the Gereh image with PostGIS and pgvector */
+  extImage: boolean("ext_image").notNull().default(false),
+  /** one-off restore of another database's backup once this one is ready */
+  seed: jsonb("seed").$type<{ location: string; from: string; status: "pending" | "done" | "failed"; detail?: string } | null>(),
+  /** engine-specific first-run setup (users, databases, replica set) is done */
+  initialized: boolean("initialized").notNull().default(false),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** extra login users of a database, with read-only or read-write access per database */
+export const paasDbUsers = pgTable("paas_db_users", {
+  id: text("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  passwordEnc: text("password_enc").notNull(),
+  grants: jsonb("grants").$type<{ db: string; access: "ro" | "rw" }[]>().notNull().default([]),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_db_user_uq").on(t.dbId, t.username)]);
+
+/** extra databases (RabbitMQ: vhosts) inside one managed server */
+export const paasDbDatabases = pgTable("paas_db_databases", {
+  id: text("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: created(),
+}, (t) => [uniqueIndex("paas_db_database_uq").on(t.dbId, t.name)]);
+
+/** temporary web admin panels (phpMyAdmin, pgAdmin…) behind basic auth; removed when they expire */
+export const paasDbPanels = pgTable("paas_db_panels", {
+  id: text("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  tool: text("tool").notNull(),
+  host: text("host").notNull(),
+  username: text("username").notNull(),
+  passwordEnc: text("password_enc").notNull(),
+  status: text("status", { enum: ["ready", "failed", "expired"] }).notNull().default("ready"),
+  expiresAt: ts("expires_at").notNull(),
+  createdAt: created(),
+}, (t) => [index("paas_db_panel_ix").on(t.status, t.expiresAt), index("paas_db_panel_db_ix").on(t.dbId)]);
+
+/** uploaded dumps loaded into a database */
+export const paasDbImports = pgTable("paas_db_imports", {
+  id: text("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  format: text("format").notNull(),
+  filePath: text("file_path").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+  status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
+  output: text("output").notNull().default(""),
+  createdAt: created(),
+  finishedAt: ts("finished_at"),
+}, (t) => [index("paas_db_import_ix").on(t.dbId, t.createdAt)]);
+
+/** what happened to a database (ready, restarts, users, imports…) for the panel's timeline */
+export const paasDbEvents = pgTable("paas_db_events", {
+  id: serial("id").primaryKey(),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  level: text("level", { enum: ["info", "warn", "error"] }).notNull().default("info"),
+  message: text("message").notNull(),
+  createdAt: created(),
+}, (t) => [index("paas_db_event_ix").on(t.dbId, t.createdAt)]);

@@ -11,6 +11,7 @@ import { geoMethods } from "./geo";
 import { aiMethods } from "./ai";
 import { inquiryMethods } from "./inquiry";
 import { paasRpc } from "./paas";
+import { dbaasRpc } from "./dbaas";
 import { wordpressRpc } from "./wordpress";
 import { notifyRpc } from "./notify";
 import { serversRpc } from "./servers";
@@ -19,4 +20,4 @@ import { supportRpc } from "./support";
 import { teamRpc } from "./team";
 
 /** every callable method, keyed "group.name" exactly like the client's api.group.name */
-export const registry: Record<string, Method> = { ...authRpc, ...serversRpc, ...servicesRpc, ...billingRpc, ...supportRpc, ...accountRpc, ...adminRpc, ...teamRpc, ...chatRpc, ...blogRpc, ...devopsRpc, ...paasRpc, ...inquiryMethods, ...geoMethods, ...aiMethods, ...wordpressRpc, ...notifyRpc };
+export const registry: Record<string, Method> = { ...authRpc, ...serversRpc, ...servicesRpc, ...billingRpc, ...supportRpc, ...accountRpc, ...adminRpc, ...teamRpc, ...chatRpc, ...blogRpc, ...devopsRpc, ...paasRpc, ...dbaasRpc,...inquiryMethods, ...geoMethods, ...aiMethods, ...wordpressRpc, ...notifyRpc };
