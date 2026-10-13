@@ -12,6 +12,7 @@ import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
 import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
+import type { Dmarc, MailAdminList, MailDomainDetail, MailMessageView, MailMsgRow, MailOverview, MailSendInput, MailStats } from "./mail";
 
 export type { CartItem, ClientDB, Coupon, DnsRecord, FwRule, Hosting, Invoice, Server, Session, Ticket, User } from "./types";
 export { invGross, invTotal };
@@ -85,7 +86,7 @@ export type AiKeyInput = { name: string; models: string[]; dailyCap: number; mon
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest"]);
+const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -360,6 +361,42 @@ export const api = {
     adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("storage.adminPlan", id, patch),
     adminSuspend: (id: string, on: boolean) => rpc("storage.adminSuspend", id, on),
     adminTest: () => rpc<{ driver: string; version: string }>("storage.adminTest"),
+  },
+  mail: {
+    overview: () => rpc<MailOverview>("mail.overview"),
+    domain: (id: string) => rpc<MailDomainDetail>("mail.domain", id),
+    messages: (id: string, f: { direction: "out" | "in"; status?: string; tag?: string; q?: string; mailboxId?: string; offset?: number }) => rpc<{ total: number; rows: MailMsgRow[] }>("mail.messages", id, f),
+    message: (id: string, msgId: string) => rpc<MailMessageView>("mail.message", id, msgId),
+    stats: (id: string) => rpc<MailStats>("mail.stats", id),
+    create: (d: { domain: string; planId: string }) => rpc<{ id: string; apiKey: string }>("mail.create", d),
+    remove: (id: string, confirm: string) => rpc("mail.remove", id, confirm),
+    setMode: (id: string, mode: "dev" | "live") => rpc("mail.setMode", id, mode),
+    setPlan: (id: string, planId: string) => rpc("mail.setPlan", id, planId),
+    checkDns: (id: string) => rpc<{ verified: boolean; ok: Record<string, boolean> }>("mail.checkDns", id),
+    autoDns: (id: string) => rpc<{ zone: string; added: number; replaced: number; verified: boolean }>("mail.autoDns", id),
+    setDmarc: (id: string, d: Dmarc) => rpc("mail.setDmarc", id, d),
+    rotateKey: (id: string) => rpc<string>("mail.rotateKey", id),
+    rotateDkim: (id: string) => rpc("mail.rotateDkim", id),
+    smtpCreate: (id: string) => rpc<{ username: string; password: string }>("mail.smtpCreate", id),
+    smtpReveal: (id: string, smtpId: string) => rpc<string>("mail.smtpReveal", id, smtpId),
+    smtpRegenerate: (id: string, smtpId: string) => rpc<string>("mail.smtpRegenerate", id, smtpId),
+    smtpRemove: (id: string, smtpId: string) => rpc("mail.smtpRemove", id, smtpId),
+    mailboxCreate: (id: string, b: { local: string; name: string; password: string; quotaMb: number }) => rpc("mail.mailboxCreate", id, b),
+    mailboxUpdate: (id: string, boxId: string, p: { name?: string; password?: string; quotaMb?: number; active?: boolean }) => rpc("mail.mailboxUpdate", id, boxId, p),
+    mailboxRemove: (id: string, boxId: string) => rpc("mail.mailboxRemove", id, boxId),
+    aliasSave: (id: string, a: { local: string; destinations: string[] }) => rpc("mail.aliasSave", id, a),
+    aliasRemove: (id: string, aliasId: string) => rpc("mail.aliasRemove", id, aliasId),
+    setInbound: (id: string, p: { catchAll?: string; spamThreshold?: number }) => rpc("mail.setInbound", id, p),
+    ruleAdd: (id: string, r: { field: "from" | "to" | "subject"; op: "contains" | "equals" | "ends"; value: string; action: "forward" | "drop"; target: string }) => rpc("mail.ruleAdd", id, r),
+    ruleRemove: (id: string, ruleId: string) => rpc("mail.ruleRemove", id, ruleId),
+    blockAdd: (id: string, pattern: string) => rpc("mail.blockAdd", id, pattern),
+    blockRemove: (id: string, blockId: string) => rpc("mail.blockRemove", id, blockId),
+    send: (id: string, m: MailSendInput) => rpc<{ id: string; status: string }>("mail.send", id, m),
+    testInbound: (id: string, m: { from: string; to: string; subject: string; text: string }) => rpc<{ action: string; id?: string }>("mail.testInbound", id, m),
+    adminList: () => rpc<MailAdminList>("mail.adminList"),
+    adminPlan: (id: string, patch: { name?: string; price?: number; dailyLimit?: number; monthlyLimit?: number; mailboxes?: number; quotaMb?: number; active?: boolean }) => rpc("mail.adminPlan", id, patch),
+    adminDomain: (id: string, p: { suspend: boolean }) => rpc("mail.adminDomain", id, p),
+    adminTest: () => rpc<{ driver: string; detail: string }>("mail.adminTest"),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),
