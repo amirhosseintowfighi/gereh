@@ -5,7 +5,7 @@ import { MAX_DOMAIN_YEARS } from "@/lib/catalog";
 import { actor, isStaff, method, needStaff, needUser, type Ctx } from "../ctx";
 import { domains, hosting, tlds } from "../db/schema";
 import { providers } from "../providers";
-import { fail, logActivity, logAudit, randomSecret, rid } from "../util";
+import { fail, logActivity, logAudit, randomSecret } from "../util";
 import { createInvoice } from "./billing";
 
 const id = z.string().max(40);

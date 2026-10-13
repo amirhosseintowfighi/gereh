@@ -38,6 +38,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: "layout-dashboard" },
   { href: "/admin/users", label: "کاربران", icon: "users" },
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
+  { href: "/admin/domains", label: "دامنه‌ها و انتقال", icon: "globe" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
   { href: "/admin/reports", label: "گزارش‌ها", icon: "chart-column" },
   { href: "/admin/paas", label: "گره اپ (PaaS)", icon: "rocket" },
