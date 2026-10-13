@@ -34,14 +34,14 @@ export function listZip(buf: Buffer): ZipEntry[] {
   return out;
 }
 
-export function readEntry(buf: Buffer, e: ZipEntry): Buffer {
-  if (e.usize > ZIP_LIMITS.readBytes) throw new ZipError("فایل " + e.name + " برای خواندن بزرگ است.");
+export function readEntry(buf: Buffer, e: ZipEntry, max = ZIP_LIMITS.readBytes): Buffer {
+  if (e.usize > max) throw new ZipError("فایل " + e.name + " برای خواندن بزرگ است.");
   const h = e.offset;
   if (buf.readUInt32LE(h) !== 0x04034b50) throw new ZipError("ساختار ZIP خراب است.");
   const start = h + 30 + buf.readUInt16LE(h + 26) + buf.readUInt16LE(h + 28);
   const data = buf.subarray(start, start + e.csize);
   if (e.method === 0) return Buffer.from(data);
-  if (e.method === 8) return inflateRawSync(data, { maxOutputLength: ZIP_LIMITS.readBytes });
+  if (e.method === 8) return inflateRawSync(data, { maxOutputLength: Math.max(1, e.usize) });
   throw new ZipError("روش فشرده‌سازی " + e.method + " پشتیبانی نمی‌شود.");
 }
 

@@ -134,6 +134,13 @@
       "when": 1791600019000,
       "tag": "0019_dbaas_plus",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791600021000,
+      "tag": "0021_paas_tools",
+      "breakpoints": true
     }
   ]
 }
