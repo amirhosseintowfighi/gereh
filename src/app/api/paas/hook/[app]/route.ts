@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { rateLimit } from "@/server/auth";
 import { db } from "@/server/ctx";
 import { paasApps, paasDeployments } from "@/server/db/schema";
+import { checkDeployQuota } from "@/server/paas/runtime";
 import { queueDeployment } from "@/server/paas/service";
 
 const same = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
@@ -25,6 +26,7 @@ export async function POST(req: Request, { params }: RouteContext<"/api/paas/hoo
   const sha = (commit?.id || body.checkout_sha || body.after || "").slice(0, 7);
   const message = (commit?.message || "push").split("\n")[0].slice(0, 200);
   if (app.source !== "git" || ["suspended", "stopped"].includes(app.status)) return NextResponse.json({ ok: true, skipped: "app is not running" });
+  try { await checkDeployQuota(d, app); } catch { return NextResponse.json({ error: "the plan's daily deploy limit is reached" }, { status: 429 }); }
   // other branches: a preview when the app has previews on
   if (branch && branch !== app.gitBranch) {
     if (!app.previews || !/^[\w./-]{1,100}$/.test(branch)) return NextResponse.json({ ok: true, skipped: "branch " + branch });

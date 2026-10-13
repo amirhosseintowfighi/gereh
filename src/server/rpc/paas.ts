@@ -8,6 +8,7 @@ import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { paas } from "../paas/driver";
+import { checkDeployQuota, logEvent } from "../paas/runtime";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
 import { templateOf } from "@/lib/paas-templates";
 import { open, seal } from "../secrets";
@@ -15,12 +16,12 @@ import { checkDomain } from "../worker/paas";
 import { fail, logActivity, logAudit, rid } from "../util";
 
 const id = z.string().max(40);
-const HOST_RE = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
+export const HOST_RE = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 const GIT_RE = /^(https:\/\/[\w.-]+(:\d+)?\/[\w./~-]+?(\.git)?|git@[\w.-]+:[\w./~-]+?(\.git)?)$/;
 const IMAGE_RE = /^[a-z0-9]+([._/-][a-z0-9]+)*(:[\w.-]{1,128})?(@sha256:[a-f0-9]{64})?$/;
 const envItem = z.object({ key: z.string().max(128), value: z.string().max(32_768), secret: z.boolean().default(false) });
 
-async function ownApp(ctx: Ctx, appId: string) {
+export async function ownApp(ctx: Ctx, appId: string) {
   const a = needUser(ctx);
   const [app] = await ctx.db.select().from(paasApps).where(and(eq(paasApps.id, appId), eq(paasApps.userId, a.uid)));
   if (!app) fail("اپ پیدا نشد.", 404);
@@ -40,12 +41,12 @@ async function plan(ctx: Ctx, planId: string, kind: "app" | "db") {
   return p!;
 }
 /** creating or growing a resource needs 24 hours of its cost in the wallet */
-async function needCredit(ctx: Ctx, uid: string, monthly: number) {
+export async function needCredit(ctx: Ctx, uid: string, monthly: number) {
   const [u] = await ctx.db.select({ balance: users.balance }).from(users).where(eq(users.id, uid));
   const need = 24 * hourlyOf(monthly);
   if ((u?.balance ?? 0) < need) fail("موجودی کیف پول کافی نیست؛ برای شروع دست‌کم " + need.toLocaleString("fa-IR") + " تومان (هزینه ۲۴ ساعت) لازم است.", 402);
 }
-function checkName(name: string) {
+export function checkName(name: string) {
   if (!PAAS_NAME_RE.test(name)) fail("نام فقط حروف کوچک انگلیسی، عدد و خط تیره؛ ۳ تا ۳۰ نویسه و با حرف شروع شود.");
   if (PAAS_RESERVED.has(name)) fail("این نام رزرو شده است.");
   if (name.endsWith("-preview")) fail("نام اپ نمی‌تواند با ‎-preview‎ تمام شود (برای پیش‌نمایش‌ها رزرو است).");
@@ -137,14 +138,15 @@ export const paasRpc = {
     return { appId, credentials: (t!.show ?? []).map((s) => ({ label: s.label, value: env.find((e) => e.key === s.key)?.value ?? "" })) };
   }),
 
-  "paas.deploy": method(z.tuple([id, z.object({ uploadId: z.string().max(64).optional(), message: z.string().max(200).optional(), via: z.enum(["manual", "api", "cli"]).optional() })]), async (ctx, [appId, o]) => {
+  "paas.deploy": method(z.tuple([id, z.object({ uploadId: z.string().max(64).optional(), message: z.string().max(200).optional(), via: z.enum(["manual", "api", "cli"]).optional(), noCache: z.boolean().optional() })]), async (ctx, [appId, o]) => {
     const { a, app } = await ownApp(ctx, appId);
     if (app.status === "stopped") fail("اپ متوقف است؛ اول آن را روشن کنید.");
     const uploadPath = await uploaded(a.uid, o.uploadId);
     if ((app.source === "zip" || app.source === "compose") && !uploadPath) fail("فایل نسخه جدید را بارگذاری کنید.");
     const [busy] = await ctx.db.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), inArray(paasDeployments.status, ["queued", "building"])));
     if (busy) fail("یک استقرار در جریان است؛ تا پایان آن صبر کنید.");
-    return queueDeployment(ctx.db, app, { trigger: o.via ?? "manual", uploadPath, message: o.message?.trim() || (o.via === "cli" ? "استقرار از CLI" : o.via === "api" ? "استقرار از API" : "استقرار دستی") });
+    await checkDeployQuota(ctx.db, app);
+    return queueDeployment(ctx.db, app, { trigger: o.via ?? "manual", uploadPath, noCache: o.noCache, message: o.message?.trim() || (o.via === "cli" ? "استقرار از CLI" : o.via === "api" ? "استقرار از API" : "استقرار دستی") });
   }),
 
   /** builds a branch (Git) or an upload (ZIP) into the app's preview: <name>-preview.<apps domain> */
@@ -156,6 +158,7 @@ export const paasRpc = {
     if (app.source === "zip" && !uploadPath) fail("فایل نسخه پیش‌نمایش را بارگذاری کنید.");
     const [busy] = await ctx.db.select({ id: paasDeployments.id }).from(paasDeployments).where(and(eq(paasDeployments.appId, app.id), eq(paasDeployments.target, "preview"), inArray(paasDeployments.status, ["queued", "building", "deploying"])));
     if (busy) fail("یک پیش‌نمایش در حال ساخت است؛ تا پایان آن صبر کنید.");
+    await checkDeployQuota(ctx.db, app);
     if (!app.previewDeployment) { const [p] = await ctx.db.select().from(paasPlans).where(eq(paasPlans.id, app.planId)); if (p) await needCredit(ctx, a.uid, p.price); }
     const branch = app.source === "git" ? (o.branch || app.gitBranch) : "";
     const trig = o.via === "git" ? "git" : o.via ?? "manual";
@@ -196,7 +199,7 @@ export const paasRpc = {
     const a = needUser(ctx);
     const [row] = await ctx.db.select({ d: paasDeployments, userId: paasApps.userId }).from(paasDeployments).innerJoin(paasApps, eq(paasApps.id, paasDeployments.appId)).where(eq(paasDeployments.id, depId));
     if (!row || (row.userId !== a.uid && !(a.user.role === "admin"))) fail("استقرار پیدا نشد.", 404);
-    return { status: row!.d.status, log: row!.d.log };
+    return { status: row!.d.status, log: row!.d.log, failure: row!.d.failure };
   }),
 
   "paas.logs": method(z.tuple([id, z.number().int().min(10).max(1000).default(200)]), async (ctx, [appId, tail]) => {
@@ -327,6 +330,7 @@ export const paasRpc = {
     const grow = appMonthly(p, s.autoscale ? s.maxInstances : s.instances, s.diskGb) - appMonthly(cur ?? p, app.instances, app.diskGb);
     if (grow > 0) await needCredit(ctx, a.uid, grow);
     const [next] = await ctx.db.update(paasApps).set({ planId: p.id, instances: s.instances, autoscale: s.autoscale, maxInstances: s.maxInstances, diskGb: s.diskGb, ...(s.autoscaleCpu ? { autoscaleCpu: s.autoscaleCpu } : {}) }).where(eq(paasApps.id, app.id)).returning();
+    await logEvent(ctx.db, app.id, "scale", p.name + " × " + s.instances + (s.autoscale ? " (خودکار تا " + s.maxInstances + ")" : "") + (s.diskGb ? "، دیسک " + s.diskGb + " گیگ" : ""));
     await logActivity(ctx.db, a.uid, "sliders-horizontal", "تغییر منابع " + app.name + " به " + p.name + " × " + s.instances, ctx.ip);
     return redeployConfig(ctx.db, next, "تغییر منابع");
   }),
@@ -340,6 +344,7 @@ export const paasRpc = {
     }
     await (await paas()).setState(await appSpec(ctx.db, app), action);
     await ctx.db.update(paasApps).set({ status: action === "stop" ? "stopped" : "running" }).where(eq(paasApps.id, app.id));
+    await logEvent(ctx.db, app.id, action, ({ start: "روشن شد", stop: "خاموش شد", restart: "راه‌اندازی مجدد" })[action]);
     await logActivity(ctx.db, a.uid, "power", ({ start: "روشن کردن", stop: "خاموش کردن", restart: "راه‌اندازی مجدد" })[action] + " اپ " + app.name, ctx.ip);
   }),
 
@@ -360,7 +365,8 @@ export const paasRpc = {
 
   "paas.addDomain": method(z.tuple([id, z.string().trim().toLowerCase().max(253)]), async (ctx, [appId, host]) => {
     const { app } = await ownApp(ctx, appId);
-    if (!HOST_RE.test(host)) fail("دامنه معتبر نیست؛ مثل app.example.com");
+    // "*.example.com": a wildcard (every subdomain); its certificate needs a DNS-01 issuer
+    if (!HOST_RE.test(host.startsWith("*.") ? host.slice(2) : host)) fail("دامنه معتبر نیست؛ مثل app.example.com یا ‎*.example.com‎ برای همه زیردامنه‌ها");
     const base = await appsDomain(ctx.db);
     if (host === base || host.endsWith("." + base)) fail("زیردامنه‌های پلتفرم را نمی‌توان اضافه کرد.");
     const count = await ctx.db.select({ id: paasDomains.id }).from(paasDomains).where(eq(paasDomains.appId, app.id));
