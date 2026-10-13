@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
-import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, STACKS, stackOf } from "@/lib/paas";
+import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, RUNTIMES, STACKS, stackOf, stackVersions } from "@/lib/paas";
 import { api, useDB, useMyId, useSession } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
 import { zipFolder } from "@/lib/zip-client";
@@ -62,7 +62,7 @@ export function NewApp() {
   const me = db.users.find((u) => u.id === session?.userId);
   const plans = db.paasPlans.filter((p) => p.kind === "app");
   const [source, setSource] = useState<"git" | "zip" | "image" | "compose">("git");
-  const [f, setF] = useState({ name: "", gitUrl: "", gitBranch: "main", image: "", rootDir: "", buildCommand: "", startCommand: "", stack: "node", port: 3000, planId: "app-micro", instances: 1, diskGb: 0 });
+  const [f, setF] = useState({ name: "", gitUrl: "", gitBranch: "main", image: "", rootDir: "", buildCommand: "", startCommand: "", stack: "node", version: "", port: 3000, planId: "app-micro", instances: 1, diskGb: 0 });
   const [env, setEnv] = useState<EnvRow[]>([]);
   const [upload, setUpload] = useState<{ uploadId: string; stack: string | null; files: number; bytes: number; name: string } | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -74,7 +74,8 @@ export function NewApp() {
   const monthly = plan ? appMonthly(plan, f.instances, f.diskGb) : 0;
   const domain = db.settings.paasDomain || "gereh.dev";
   const nameError = f.name && (!PAAS_NAME_RE.test(f.name) ? "حروف کوچک انگلیسی، عدد و خط تیره؛ ۳ تا ۳۰ نویسه" : PAAS_RESERVED.has(f.name) ? "این نام رزرو شده است" : "");
-  const pickStack = (id: string) => set({ stack: id, port: stackOf(id)?.port ?? 3000 });
+  const pickStack = (id: string) => set({ stack: id, port: stackOf(id)?.port ?? 3000, version: "" });
+  const versions = source === "git" || source === "zip" ? stackVersions(f.stack) : [];
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -92,7 +93,7 @@ export function NewApp() {
     if (envErr) return setError(envErr);
     setBusy(true);
     try {
-      const id = await api.paas.createApp({ ...f, source, uploadId: upload?.uploadId, env: env.filter((e) => e.key.trim()).map((e) => ({ key: e.key.trim(), value: e.value, secret: e.secret })) });
+      const id = await api.paas.createApp({ ...f, version: versions.includes(f.version) ? f.version : undefined, source, uploadId: upload?.uploadId, env: env.filter((e) => e.key.trim()).map((e) => ({ key: e.key.trim(), value: e.value, secret: e.secret })) });
       notify("اپ ساخته شد؛ بیلد شروع شد", "rocket");
       router.push(("/panel/apps/" + id) as never);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
@@ -145,13 +146,18 @@ export function NewApp() {
           <Card title="۲. پشته و اجرا" icon="terminal">
             {source !== "image" && source !== "compose" && (
               <div role="radiogroup" aria-label="پشته" className="flex flex-wrap gap-1.5 mb-4">
-                {STACKS.filter((s) => s.id !== "compose").map((s) => (
+                {STACKS.filter((s) => s.id !== "compose").map((s) => s.template ? (
+                  <Link key={s.id} href={"/panel/apps/templates" as never} title={s.hint} className="h-9 px-3 rounded-xl text-xs border border-dashed border-white/[0.15] text-white/70 hover:text-white inline-flex items-center gap-1"><Icon name="sparkles" size={12} />{s.label}</Link>
+                ) : (
                   <button key={s.id} type="button" role="radio" aria-checked={f.stack === s.id} onClick={() => pickStack(s.id)} title={s.hint}
                     className={"h-9 px-3 rounded-xl text-xs border transition " + (f.stack === s.id ? "bg-sky-400/15 border-sky-300/50 text-white font-bold" : "border-white/[0.12] text-white/70 hover:text-white")}>{s.label}</button>
                 ))}
               </div>
             )}
             <div className="grid sm:grid-cols-3 gap-3">
+              {versions.length > 0 && <Field label={"نسخه " + (RUNTIMES[stackOf(f.stack)!.runtime!].label)} hint="خالی = تشخیص از پروژه (.nvmrc، composer.json…)">
+                <Select label="نسخه" value={f.version} onChange={(v) => set({ version: v })} options={[{ value: "", label: "خودکار" }, ...versions.map((v) => ({ value: v, label: v }))]} />
+              </Field>}
               <Field label="پورت اپ" hint="اپ باید روی 0.0.0.0 و این پورت گوش دهد (متغیر PORT هم تنظیم می‌شود)"><input value={f.port} inputMode="numeric" onChange={(e) => set({ port: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>
               <Field label="پوشه ریشه (اختیاری)" hint="برای monorepo"><input value={f.rootDir} onChange={(e) => set({ rootDir: e.target.value.trim() })} dir="ltr" placeholder="apps/web" className={INPUT + " text-left"} /></Field>
             </div>

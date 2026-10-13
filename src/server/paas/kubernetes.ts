@@ -22,6 +22,8 @@ import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import { mirrorEnv, mirrorHost } from "@/lib/mirror";
+import { VERSION_ARG } from "@/lib/paas";
+import { versionBuild } from "@/lib/paas-build";
 import { expandCodes, NGINX_STACKS, PHP_STACKS } from "@/lib/paas-runtime";
 import { diskClaim, diskVolume } from "@/lib/paas-tools";
 import type { ComposeService } from "./compose";
@@ -507,7 +509,9 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
   const args = service ? {} : rt?.build.args ?? {};
   const run = (cmd: string) => (cmd ? JSON.stringify(["/bin/sh", "-c", cmd]) : "");
   const pre = service ? "" : rt?.preBuild ?? "", post = service ? "" : rt?.postBuild ?? "";
-  const nixEnv = Object.entries(mirror).map(([k, v]) => "--env " + shq(k + "=" + v)).join(" ");
+  // a pinned runtime version: a Nixpacks variable, or a Dockerfile from the official image (src/lib/paas-build.ts)
+  const pinned = service || app.stack === "docker" ? null : versionBuild(app.stack, args[VERSION_ARG], { build: app.buildCommand, start: app.startCommand });
+  const nixEnv = Object.entries({ ...mirror, ...pinned?.nixEnv }).map(([k, v]) => "--env " + shq(k + "=" + v)).join(" ");
   const prepare = [
     "set -eu", "cd /workspace",
     app.source === "git"
@@ -516,7 +520,8 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
     `cd src/${root}`,
     `if [ -f gereh.json ] && [ "$(wc -c < gereh.json)" -lt 65536 ]; then echo "MANIFEST=$(base64 gereh.json | tr -d '\\n')"; fi`,
     `GEN=0; if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
-    `  echo '==> Detecting stack with Nixpacks'; GEN=1; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
+    ...(pinned?.dockerfile ? [`  echo ${shq("==> " + pinned.runtime + " " + pinned.version + " from the official image")}; printf '%s' ${shq(pinned.dockerfile)} > /workspace/Dockerfile.gereh; else`] : []),
+    `  echo '==> Detecting stack with Nixpacks${pinned?.nixEnv ? " (" + pinned.runtime + " " + pinned.version + ")" : ""}'; GEN=1; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
     ...(service ? [] : buildHooks(pre, run(pre), run(post))),
   ].join("\n");
   return {

@@ -4,7 +4,8 @@
    - SimulatorDriver (below): in-process stand-in with realistic timings and logs for dev, CI and demos.
    Long operations are split into start + poll so the worker never blocks on a build. */
 import "server-only";
-import { engineOf, stackOf } from "@/lib/paas";
+import { engineOf, stackOf, VERSION_ARG } from "@/lib/paas";
+import { versionBuild } from "@/lib/paas-build";
 import type { ComposeService } from "./compose";
 
 export type AppSpec = {
@@ -138,12 +139,22 @@ function buildScript(app: AppSpec): string[] {
     angular: ["==> Detected Angular", "$ npm ci", "$ npm run build", "   Application bundle generation complete.", "==> Serving dist/ with nginx"],
     bun: ["==> Detected Bun 1.2", "$ bun install", "   124 packages installed"],
     deno: ["==> Detected Deno 2", "$ deno install", "$ deno task build"],
+    vue: ["==> Detected Vue (Vite)", "$ npm ci", "$ npm run build", "   ✓ built in 2.8s", "==> Serving dist/ with nginx"],
+    gatsby: ["==> Detected Gatsby", "$ npm ci", "$ npm run build", "   success Building static HTML for pages", "==> Serving public/ with nginx"],
+    eleventy: ["==> Detected Eleventy", "$ npm ci", "$ npm run build", "   [11ty] Wrote 42 files", "==> Serving _site/ with nginx"],
+    hugo: ["==> Hugo extended from the official release", "$ hugo --minify", "   Total in 412 ms", "==> Serving with nginx"],
+    jekyll: ["==> Detected Jekyll", "$ bundle install", "$ bundle exec jekyll build", "   done in 1.9 seconds.", "==> Serving _site/ with nginx"],
+    elixir: ["==> Detected Elixir (Phoenix)", "$ mix deps.get --only prod", "$ mix assets.deploy", "$ mix release", "   Release created at _build/prod/rel/app"],
     rust: ["==> Detected Rust (cargo)", "$ cargo build --release", "   Compiling app v0.1.0", "    Finished `release` profile [optimized]"],
     docker: ["==> Building Dockerfile", "#1 [internal] load build definition from Dockerfile", "#7 exporting layers done"],
     compose: ["==> Building services from docker-compose.yml", "   web: build done", "   worker: build done"],
   };
   const rt = app.runtime;
-  const body = lang[app.stack] ?? ["==> Building"];
+  const pinned = app.source === "git" || app.source === "zip" ? versionBuild(app.stack, rt?.build.args[VERSION_ARG], { build: app.buildCommand, start: app.startCommand }) : null;
+  const body = [
+    ...(pinned ? [pinned.dockerfile ? "==> " + pinned.runtime + " " + pinned.version + " from the official image (generated Dockerfile)" : "==> " + pinned.runtime + " " + pinned.version + " (Nixpacks)"] : []),
+    ...(lang[app.stack] ?? ["==> Building"]),
+  ];
   const opts = rt ? [
     app.noCache || !rt.build.cache ? "==> Build cache disabled" : "==> Using build cache",
     ...(rt.build.mirror && app.source !== "image" ? ["==> Package mirror: npm, pip, composer and Go through mirror.gereh.net"] : []),

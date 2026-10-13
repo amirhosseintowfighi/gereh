@@ -19,7 +19,7 @@ describe("one-click apps", () => {
     expect(new Set(PAAS_TEMPLATES.map((t) => t.id)).size).toBe(PAAS_TEMPLATES.length);
     for (const t of PAAS_TEMPLATES) {
       for (const k of Object.keys(t.env)) expect(ENV_KEY_RE.test(k), t.id + " " + k).toBe(true);
-      for (const s of t.show ?? []) expect(t.env[s.key], t.id).toContain("${secret}");
+      for (const s of t.show ?? []) expect(t.env[s.key], t.id).toMatch(/\$\{(secret|hex|hex32)\}/);
       if (t.diskGb) expect(t.diskMount.startsWith("/")).toBe(true);
     }
   });

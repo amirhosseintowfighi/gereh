@@ -266,10 +266,11 @@ export const api = {
     leave: (ownerId: string) => rpc("team.leave", ownerId),
   },
   paas: {
-    createApp: (a: { name: string; stack: string; source: string; gitUrl?: string; gitBranch?: string; image?: string; uploadId?: string; rootDir?: string; buildCommand?: string; startCommand?: string; port: number; planId: string; instances?: number; diskGb?: number; env?: { key: string; value: string; secret: boolean }[] }) => rpc<string>("paas.createApp", a),
+    createApp: (a: { name: string; stack: string; source: string; gitUrl?: string; gitBranch?: string; image?: string; uploadId?: string; rootDir?: string; buildCommand?: string; startCommand?: string; port: number; planId: string; instances?: number; diskGb?: number; env?: { key: string; value: string; secret: boolean }[]; version?: string }) => rpc<string>("paas.createApp", a),
     deploy: (appId: string, o: { uploadId?: string; message?: string; noCache?: boolean } = {}) => rpc<string>("paas.deploy", appId, o),
     rollback: (appId: string, depId: string) => rpc<string>("paas.rollback", appId, depId),
-    createFromTemplate: (templateId: string, name: string, planId?: string) => rpc<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", templateId, name, planId),
+    createFromTemplate: (templateId: string, name: string, planId?: string, version?: string) => rpc<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", templateId, name, ...(planId || version ? [planId || ""] : []), ...(version ? [version] : [])),
+    createStack: (yaml: string, name: string) => rpc<{ appIds: string[]; dbIds: string[]; warnings: string[] }>("paas.createStack", yaml, name),
     deployPreview: (appId: string, o: { branch?: string; uploadId?: string; message?: string }) => rpc<string>("paas.deployPreview", appId, o),
     promote: (appId: string, depId: string) => rpc<string>("paas.promote", appId, depId),
     removePreview: (appId: string) => rpc("paas.removePreview", appId),

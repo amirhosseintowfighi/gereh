@@ -5,7 +5,9 @@
 #
 # Ubuntu 22.04/24.04 or Debian 12, 4+ GB RAM, a large disk (the cache grows with use: start with
 # 200 GB and watch `df -h /srv/nexus`). Safe to re-run: existing repositories are left alone.
-# Repositories: npm, pypi, docker (Docker Hub), go, maven, rubygems, nuget, ubuntu, debian, alpine.
+# Repositories: npm, pypi, composer, go, maven, rubygems, nuget, crates; Docker Hub, GHCR, Quay,
+# registry.k8s.io and MCR; ubuntu, debian, fedora, centos (Stream), rocky, almalinux, opensuse, alpine,
+# archlinux and manjaro. Registries other than Docker Hub are pulled as $HOST/<ghcr|quay|k8s|mcr>/<image>.
 set -Eeuo pipefail
 HOST=${1:?usage: setup.sh HOST EMAIL}
 EMAIL=${2:?usage: setup.sh HOST EMAIL}
@@ -26,9 +28,11 @@ say "Nexus ($IMAGE)"
 mkdir -p "$DATA" && chown -R 200:200 "$DATA"
 if ! docker ps -a --format '{{.Names}}' | grep -qx nexus; then
   docker run -d --name nexus --restart unless-stopped \
-    -p 127.0.0.1:8081:8081 -p 127.0.0.1:8082:8082 \
+    -p 127.0.0.1:8081:8081 -p 127.0.0.1:8082-8086:8082-8086 \
     -e INSTALL4J_ADD_VM_PARAMS="-Xms1200m -Xmx1200m -XX:MaxDirectMemorySize=2g" \
     -v "$DATA":/nexus-data "$IMAGE" >/dev/null
+elif ! docker port nexus 8083 >/dev/null 2>&1; then
+  echo "!! the nexus container predates the GHCR/Quay/k8s/MCR connectors: docker rm -f nexus and re-run (data in $DATA is kept)"
 fi
 for _ in $(seq 1 120); do curl -fs "$NX/service/rest/v1/status/writable" >/dev/null && break; sleep 5; done
 curl -fs "$NX/service/rest/v1/status/writable" >/dev/null || die "Nexus did not start; docker logs nexus"
@@ -63,7 +67,21 @@ proxy nuget nuget https://api.nuget.org/v3/index.json '"nugetProxy":{"queryCache
 proxy apt ubuntu http://archive.ubuntu.com/ubuntu/ '"apt":{"distribution":"noble","flat":false}'
 proxy apt debian http://deb.debian.org/debian/ '"apt":{"distribution":"bookworm","flat":false}'
 proxy raw alpine https://dl-cdn.alpinelinux.org/alpine/
+proxy yum fedora https://dl.fedoraproject.org/pub/fedora/linux/
+proxy yum centos https://mirror.stream.centos.org/
+proxy yum rocky https://dl.rockylinux.org/pub/rocky/
+proxy yum almalinux https://repo.almalinux.org/almalinux/
+proxy raw opensuse https://download.opensuse.org/
+proxy raw archlinux https://geo.mirror.pkgbuild.com/
+proxy raw manjaro https://repo.manjaro.org/repo/
+proxy raw composer https://repo.packagist.org/
+proxy raw crates https://index.crates.io/
+proxy raw crates-dl https://static.crates.io/
 proxy docker docker https://registry-1.docker.io '"docker":{"v1Enabled":false,"forceBasicAuth":false,"httpPort":8082},"dockerProxy":{"indexType":"HUB"}'
+proxy docker ghcr https://ghcr.io '"docker":{"v1Enabled":false,"forceBasicAuth":false,"httpPort":8083},"dockerProxy":{"indexType":"REGISTRY"}'
+proxy docker quay https://quay.io '"docker":{"v1Enabled":false,"forceBasicAuth":false,"httpPort":8084},"dockerProxy":{"indexType":"REGISTRY"}'
+proxy docker k8s https://registry.k8s.io '"docker":{"v1Enabled":false,"forceBasicAuth":false,"httpPort":8085},"dockerProxy":{"indexType":"REGISTRY"}'
+proxy docker mcr https://mcr.microsoft.com '"docker":{"v1Enabled":false,"forceBasicAuth":false,"httpPort":8086},"dockerProxy":{"indexType":"REGISTRY"}'
 
 say "Nginx ($HOST)"
 cat > /etc/nginx/sites-available/gereh-mirror <<NGINX
@@ -80,6 +98,13 @@ server {
 
     location = / { default_type text/plain; return 200 "Gereh package mirror — https://gereh.net/mirror\n"; }
 
+    # other registries: $HOST/<prefix>/<image> → that registry's connector (containerd: override_path)
+    location /v2/ghcr/ { rewrite ^/v2/ghcr/(.*)\$ /v2/\$1 break; proxy_pass http://127.0.0.1:8083; proxy_set_header Host \$host; proxy_set_header X-Forwarded-Proto \$scheme; proxy_buffering off; }
+    location /v2/quay/ { rewrite ^/v2/quay/(.*)\$ /v2/\$1 break; proxy_pass http://127.0.0.1:8084; proxy_set_header Host \$host; proxy_set_header X-Forwarded-Proto \$scheme; proxy_buffering off; }
+    location /v2/k8s/ { rewrite ^/v2/k8s/(.*)\$ /v2/\$1 break; proxy_pass http://127.0.0.1:8085; proxy_set_header Host \$host; proxy_set_header X-Forwarded-Proto \$scheme; proxy_buffering off; }
+    location /v2/mcr/ { rewrite ^/v2/mcr/(.*)\$ /v2/\$1 break; proxy_pass http://127.0.0.1:8086; proxy_set_header Host \$host; proxy_set_header X-Forwarded-Proto \$scheme; proxy_buffering off; }
+    # Cargo sparse index: crate downloads also go through the mirror
+    location = /repository/crates/config.json { default_type application/json; return 200 '{"dl":"https://$HOST/repository/crates-dl/crates/{crate}/{crate}-{version}.crate","api":"https://crates.io"}'; }
     # Docker registry API (registry-mirrors) → the Docker connector
     location /v2/ {
         proxy_pass http://127.0.0.1:8082;

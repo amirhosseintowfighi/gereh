@@ -3,24 +3,22 @@ import { randomBytes } from "node:crypto";
 import { access } from "node:fs/promises";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, MAX_CRONS, MAX_PROCESSES, PAAS_NAME_RE, PAAS_RESERVED, PROC_NAME_RE, STACKS, appMonthly, cronError, hourlyOf } from "@/lib/paas";
+import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, GIT_URL_RE, IMAGE_RE, MAX_CRONS, MAX_PROCESSES, PAAS_NAME_RE, PAAS_RESERVED, PROC_NAME_RE, STACKS, VERSION_ARG, appMonthly, cronError, hourlyOf, stackOf, stackVersions } from "@/lib/paas";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { afterCreateDb } from "../paas/dbaas-service";
 import { paas } from "../paas/driver";
 import { growFromScale } from "../paas/disks";
-import { checkDeployQuota, logEvent } from "../paas/runtime";
+import { checkDeployQuota, logEvent, saveRuntime } from "../paas/runtime";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
-import { templateOf } from "@/lib/paas-templates";
+import { fillTemplate, templateImage, templateOf } from "@/lib/paas-templates";
 import { open, seal } from "../secrets";
 import { checkDomain } from "../worker/paas";
 import { fail, logActivity, logAudit, rid } from "../util";
 
 const id = z.string().max(40);
 export const HOST_RE = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
-const GIT_RE = /^(https:\/\/[\w.-]+(:\d+)?\/[\w./~-]+?(\.git)?|git@[\w.-]+:[\w./~-]+?(\.git)?)$/;
-const IMAGE_RE = /^[a-z0-9]+([._/-][a-z0-9]+)*(:[\w.-]{1,128})?(@sha256:[a-f0-9]{64})?$/;
 const envItem = z.object({ key: z.string().max(128), value: z.string().max(32_768), secret: z.boolean().default(false) });
 
 export async function ownApp(ctx: Ctx, appId: string) {
@@ -88,6 +86,8 @@ const appInput = z.object({
   image: z.string().trim().max(300).default(""), uploadId: z.string().max(64).optional(), rootDir: z.string().trim().max(200).default(""),
   buildCommand: z.string().max(500).default(""), startCommand: z.string().max(500).default(""), port: z.number().int().min(1).max(65535),
   planId: id, instances: z.number().int().min(1).max(10).default(1), diskGb: z.number().int().min(0).max(500).default(0), env: z.array(envItem).max(100).default([]),
+  /** runtime version for Git/ZIP builds (stackVersions) */
+  version: z.string().trim().max(20).optional(),
 });
 
 export const paasRpc = {
@@ -96,11 +96,13 @@ export const paasRpc = {
     const a = needUser(ctx);
     checkName(i.name);
     const p = await plan(ctx, i.planId, "app");
-    if (i.source === "git" && !GIT_RE.test(i.gitUrl)) fail("نشانی مخزن گیت معتبر نیست؛ مثل https://github.com/user/repo.git");
+    if (i.source === "git" && !GIT_URL_RE.test(i.gitUrl)) fail("نشانی مخزن گیت معتبر نیست؛ مثل https://github.com/user/repo.git");
     if (i.source === "git" && !/^[\w./-]{1,100}$/.test(i.gitBranch)) fail("نام شاخه معتبر نیست.");
     if (i.source === "image" && !IMAGE_RE.test(i.image)) fail("نام ایمیج معتبر نیست؛ مثل nginx:1.27 یا ghcr.io/user/app:latest");
     if ((i.source === "zip" || i.source === "compose") && !i.uploadId) fail("فایل پروژه را بارگذاری کنید.");
     if (i.rootDir && !/^[\w./-]+$/.test(i.rootDir) || i.rootDir.includes("..")) fail("پوشه ریشه معتبر نیست.");
+    if (stackOf(i.stack)?.template) fail("برای " + stackOf(i.stack)!.label + " از «اپ‌های آماده» استفاده کنید.");
+    if (i.version && (i.source === "image" || i.source === "compose" || !stackVersions(i.stack).includes(i.version))) fail("نسخه انتخابی برای این پشته پشتیبانی نمی‌شود.");
     checkEnv(i.env);
     await needCredit(ctx, a.uid, appMonthly(p, i.instances, i.diskGb));
     const [taken] = await ctx.db.select({ id: paasApps.id }).from(paasApps).where(eq(paasApps.name, i.name));
@@ -113,6 +115,7 @@ export const paasRpc = {
         buildCommand: i.buildCommand, startCommand: i.startCommand, port: i.port, planId: p.id, instances: i.instances, diskGb: i.diskGb, hookToken: randomBytes(24).toString("base64url"),
       });
       for (const v of i.env) await setEnvValue(tx, appId, v.key, v.value, v.secret);
+      if (i.version) await saveRuntime(tx, appId, { buildArgs: { [VERSION_ARG]: i.version } });
       await queueDeployment(tx, { id: appId }, { trigger: "create", uploadPath, message: "اولین استقرار" });
     });
     await logActivity(ctx.db, a.uid, "rocket", "ساخت اپ " + i.name, ctx.ip);
@@ -120,24 +123,31 @@ export const paasRpc = {
   }),
 
   /** one-click app: official image + disk + (optionally) a linked managed database + generated secrets */
-  "paas.createFromTemplate": method(z.tuple([z.string().max(40), z.string().trim().toLowerCase().max(30), id.optional()]), async (ctx, [templateId, name, planId]): Promise<{ appId: string; credentials: { label: string; value: string }[] }> => {
+  "paas.createFromTemplate": method(z.tuple([z.string().max(40), z.string().trim().toLowerCase().max(30), id.optional(), z.string().max(64).optional()]), async (ctx, [templateId, name, planId, version]): Promise<{ appId: string; credentials: { label: string; value: string }[] }> => {
     const run = (m: string, args: unknown[]) => (paasRpc as unknown as Record<string, { run: (c: Ctx, a: unknown) => Promise<unknown> }>)[m].run(ctx, args) as Promise<string>;
     const a = needUser(ctx);
     const t = templateOf(templateId);
     if (!t) fail("این اپ آماده پیدا نشد.", 404);
+    if (version && !t!.versions?.includes(version)) fail("نسخه انتخابی برای این اپ در دسترس نیست.");
     checkName(name);
     const p = await plan(ctx, planId || t!.planId, "app");
     const dbPlan = t!.db ? await plan(ctx, t!.db.planId, "db") : null;
     await needCredit(ctx, a.uid, appMonthly(p, 1, t!.diskGb) + (dbPlan?.price ?? 0));
-    const base = await appsDomain(ctx.db);
-    const fill = (v: string) => v.replaceAll("${url}", "https://" + name + "." + base).replaceAll("${email}", a.user.email).replace(/\$\{secret\}/g, () => randomBytes(24).toString("base64url"));
-    const env = Object.entries(t!.env).map(([key, v]) => ({ key, value: fill(v), secret: v.includes("${secret}") }));
+    const host = name + "." + (await appsDomain(ctx.db));
+    const env = Object.entries(t!.env).map(([key, v]) => ({ key, value: fillTemplate(v, { url: "https://" + host, host, email: a.user.email }), secret: /\$\{(secret|hex|hex32)\}/.test(v) }));
     let dbId: string | undefined;
     if (t!.db) dbId = await run("paas.createDb", [{ name: (name + "-db").slice(0, 30), engine: t!.db.engine, version: t!.db.version, planId: dbPlan!.id, publicAccess: false, backups: true }]);
-    const appId = await run("paas.createApp", [{ name, stack: "docker", source: "image", gitUrl: "", gitBranch: "main", image: t!.image, rootDir: "", buildCommand: "", startCommand: "", port: t!.port, planId: p.id, instances: 1, diskGb: t!.diskGb, env }]);
+    const appId = await run("paas.createApp", [{ name, stack: "docker", source: "image", gitUrl: "", gitBranch: "main", image: templateImage(t!, version), rootDir: "", buildCommand: "", startCommand: t!.start ?? "", port: t!.port, planId: p.id, instances: 1, diskGb: t!.diskGb, env }]);
     await ctx.db.update(paasApps).set({ diskMount: t!.diskMount, ...(t!.health ? { healthPath: t!.health } : {}) }).where(eq(paasApps.id, appId));
     if (dbId) await ctx.db.insert(paasLinks).values({ appId, dbId, envKey: t!.db!.envKey }).onConflictDoNothing();
-    return { appId, credentials: (t!.show ?? []).map((s) => ({ label: s.label, value: env.find((e) => e.key === s.key)?.value ?? "" })) };
+    const credentials = (t!.show ?? []).map((s) => ({ label: s.label, value: env.find((e) => e.key === s.key)?.value ?? "" }));
+    if (t!.auth) {
+      const password = randomBytes(15).toString("base64url");
+      const { paasRuntimeRpc } = await import("./paas-runtime");
+      await paasRuntimeRpc["paas.setBasicAuth"].run(ctx, [appId, { path: "/", user: "admin", password }]);
+      credentials.push({ label: "رمز ورود (کاربر admin)", value: password });
+    }
+    return { appId, credentials };
   }),
 
   "paas.deploy": method(z.tuple([id, z.object({ uploadId: z.string().max(64).optional(), message: z.string().max(200).optional(), via: z.enum(["manual", "api", "cli"]).optional(), noCache: z.boolean().optional() })]), async (ctx, [appId, o]) => {
@@ -219,7 +229,7 @@ export const paasRpc = {
     releaseCommand: z.string().max(500).optional(), previews: z.boolean().optional(),
   })]), async (ctx, [appId, patch]) => {
     const { app } = await ownApp(ctx, appId);
-    if (patch.gitUrl !== undefined && app.source === "git" && !GIT_RE.test(patch.gitUrl)) fail("نشانی مخزن گیت معتبر نیست.");
+    if (patch.gitUrl !== undefined && app.source === "git" && !GIT_URL_RE.test(patch.gitUrl)) fail("نشانی مخزن گیت معتبر نیست.");
     if (patch.image !== undefined && app.source === "image" && !IMAGE_RE.test(patch.image)) fail("نام ایمیج معتبر نیست.");
     if (patch.rootDir && (!/^[\w./-]+$/.test(patch.rootDir) || patch.rootDir.includes(".."))) fail("پوشه ریشه معتبر نیست.");
     const [next] = await ctx.db.update(paasApps).set(patch).where(eq(paasApps.id, app.id)).returning();

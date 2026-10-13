@@ -6,6 +6,7 @@ import path from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { appMonthly, defaultEnvKeyFor, hourlyOf, type PaasPlan } from "@/lib/paas";
 import { PHP_STACKS } from "@/lib/paas-runtime";
+import { parseDbMap, type DbField } from "@/lib/paas-templates";
 import { PLAN_LOG_DAYS } from "@/lib/paas-tools";
 import type { DB, Tx } from "../db/client";
 import { paasApps, paasCrons, paasDbConfig, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
@@ -65,6 +66,19 @@ export const dbHourly = (d: Pick<DbRow, "status">, plan: Pick<PaasPlan, "price" 
   d.status === "stopped" ? hourlyOf(plan.diskGb * 3_000) : hourlyOf(plan.price);
 
 /* ---------- env & database wiring ---------- */
+/** one field of a linked database, for "@map:" links (template images that take host, port… separately) */
+export function dbField(d: Pick<DbRow, "engine" | "host" | "port" | "username" | "dbName">, password: string, field: DbField, query = "") {
+  switch (field) {
+    case "host": return d.host;
+    case "port": return String(d.port);
+    case "hostport": return d.host + ":" + d.port;
+    case "user": return d.username;
+    case "password": return password;
+    case "name": return d.dbName;
+    case "jdbc": return "jdbc:" + (d.engine === "postgres" ? "postgresql" : d.engine) + "://" + d.host + ":" + d.port + "/" + d.dbName;
+    case "url": { const u = connectionUrl(d, password); return query ? u + (u.includes("?") ? "&" : "?") + query : u; }
+  }
+}
 export function connectionUrl(d: Pick<DbRow, "engine" | "host" | "port" | "username" | "dbName">, password: string) {
   const u = encodeURIComponent(d.username), p = encodeURIComponent(password);
   switch (d.engine) {
@@ -111,6 +125,8 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     if (l.envKey.startsWith("@parts:")) {
       const p = l.envKey.slice(7);
       Object.assign(vars, { [p + "HOST"]: d.host + ":" + d.port, [p + "USER"]: d.username, [p + "PASSWORD"]: open(d.passwordEnc) ?? "", [p + "NAME"]: d.dbName });
+    } else if (l.envKey.startsWith("@map:")) {
+      for (const m of parseDbMap(l.envKey) ?? []) vars[m.env] = dbField(d, open(d.passwordEnc) ?? "", m.field, m.query);
     } else vars[l.envKey] = connectionUrl(d, open(d.passwordEnc) ?? "");
   }
   vars.PORT = String(app.port);
