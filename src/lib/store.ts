@@ -83,7 +83,7 @@ export const genPassword = () => {
 
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
+const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -269,6 +269,40 @@ export const api = {
       };
       x.onerror = () => reject(new Error("ارتباط با سرور برقرار نشد."));
       x.send(form);
+    }),
+  },
+  dbaas: {
+    createUser: (dbId: string, u: { username: string; grants: { db: string; access: "ro" | "rw" }[] }) => rpc<{ id: string; password: string; url: string }>("dbaas.createUser", dbId, u),
+    setGrants: (dbId: string, userId: string, grants: { db: string; access: "ro" | "rw" }[]) => rpc("dbaas.setGrants", dbId, userId, grants),
+    userCredentials: (dbId: string, userId: string) => rpc<{ password: string; url: string }>("dbaas.userCredentials", dbId, userId),
+    resetUserPassword: (dbId: string, userId: string) => rpc<{ password: string; url: string }>("dbaas.resetUserPassword", dbId, userId),
+    dropUser: (dbId: string, userId: string) => rpc("dbaas.dropUser", dbId, userId),
+    createDatabase: (dbId: string, name: string) => rpc("dbaas.createDatabase", dbId, name),
+    dropDatabase: (dbId: string, name: string, confirm: string) => rpc("dbaas.dropDatabase", dbId, name, confirm),
+    openPanel: (dbId: string, tool: string, hours: number) => rpc<{ id: string; url: string; username: string; password: string; expiresAt: string }>("dbaas.openPanel", dbId, tool, hours),
+    panelCredentials: (panelId: string) => rpc<{ url: string; username: string; password: string }>("dbaas.panelCredentials", panelId),
+    closePanel: (panelId: string) => rpc("dbaas.closePanel", panelId),
+    setAllowlist: (dbId: string, list: string[]) => rpc<string[]>("dbaas.setAllowlist", dbId, list),
+    setParams: (dbId: string, values: Record<string, string>) => rpc("dbaas.setParams", dbId, values),
+    setExtensions: (dbId: string, list: string[]) => rpc("dbaas.setExtensions", dbId, list),
+    setReplicaSet: (dbId: string, on: boolean) => rpc("dbaas.setReplicaSet", dbId, on),
+    restoreToNew: (backupId: string, name: string) => rpc<string>("dbaas.restoreToNew", backupId, name),
+    backupLink: (backupId: string) => rpc<string>("dbaas.backupLink", backupId),
+    importDump: (dbId: string, uploadId: string) => rpc<string>("dbaas.importDump", dbId, uploadId),
+    inspect: <T = { databases?: string[]; tables?: { name: string; rows: number }[]; grid?: { columns: string[]; rows: (string | null)[][]; hasMore: boolean }; docs?: string[]; hasMore?: boolean }>(dbId: string, req: Record<string, unknown>) => rpc<T>("dbaas.inspect", dbId, req),
+    stats: (dbId: string) => rpc<{ connections: number | null; sizeMb: number | null; uptime: number | null }>("dbaas.stats", dbId),
+    /** streams a dump file to the server */
+    upload: (file: File, onProgress?: (pct: number) => void) => new Promise<{ uploadId: string; bytes: number }>((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", "/api/dbaas/upload");
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100)); };
+      x.onload = () => {
+        let j: { result?: { uploadId: string; bytes: number }; error?: string } = {};
+        try { j = JSON.parse(x.responseText); } catch { /* not JSON */ }
+        if (x.status >= 200 && x.status < 300 && j.result) resolve(j.result); else reject(new Error(j.error || "بارگذاری ناموفق بود."));
+      };
+      x.onerror = () => reject(new Error("ارتباط با سرور قطع شد."));
+      x.send(file);
     }),
   },
   ai: {
