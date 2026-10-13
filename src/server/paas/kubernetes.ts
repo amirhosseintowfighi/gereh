@@ -11,15 +11,20 @@
      has no Dockerfile, writes one with Nixpacks; Kaniko then builds and pushes it to the registry
    - apps: Secret (env) + Deployment + Service + Ingress (+ PVC, HPA); the default host uses the
      controller's default wildcard certificate, custom domains get their own cert from cert-manager
-   - databases: StatefulSet with the official image + Service (+ NodePort for public access) */
+   - databases: StatefulSet with the official image + Service (+ NodePort for public access)
+   - runtime options (AppSpec.runtime): health probes, rollout strategy, pre-start hook, read-only root,
+     custom DNS, nginx/php.ini overrides (ConfigMap), extra Ingresses for wildcard hosts, redirects and
+     path basic auth */
 import "server-only";
+import { createHash } from "node:crypto";
 import { resolve4, resolveCname } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import { mirrorEnv, mirrorHost } from "@/lib/mirror";
+import { expandCodes, NGINX_STACKS, PHP_STACKS } from "@/lib/paas-runtime";
 import type { ComposeService } from "./compose";
-import type { AppSpec, BuildState, DbSpec, PaasDriver } from "./driver";
+import type { AppEvent, AppSpec, BuildState, DbSpec, PaasDriver, RolloutProblem } from "./driver";
 import { enginePort, engineK8s, pgArgs } from "./engines";
 
 type Obj = Record<string, unknown>;
@@ -34,6 +39,10 @@ export const cfg = () => ({
   ingressNs: env("PAAS_INGRESS_NAMESPACE", "ingress-nginx"),
   ingressClass: env("PAAS_INGRESS_CLASS", "nginx"),
   issuer: env("PAAS_CLUSTER_ISSUER", "letsencrypt"),
+  // wildcard certificates need a DNS-01 issuer
+  wildcardIssuer: env("PAAS_WILDCARD_ISSUER", "letsencrypt-dns"),
+  // where a customer's nginx override is mounted in nginx-based images
+  nginxConfPath: env("PAAS_NGINX_CONF_PATH", "/etc/nginx/conf.d/default.conf"),
   registry: env("PAAS_REGISTRY", "registry.gereh.net"),
   pullSecret: env("PAAS_REGISTRY_PULL_SECRET"), // base64 .dockerconfigjson, copied into each customer namespace
   storageClass: env("PAAS_STORAGE_CLASS"),
@@ -115,7 +124,7 @@ const ignore404 = (p: Promise<unknown>) => p.catch((e) => { if (!notFound(e)) th
 
 /** REST path for a namespaced object */
 function pathOf(apiVersion: string, kind: string, ns: string | null, name?: string) {
-  const plural = ({ Namespace: "namespaces", Secret: "secrets", Service: "services", PersistentVolumeClaim: "persistentvolumeclaims", Pod: "pods", NetworkPolicy: "networkpolicies", ResourceQuota: "resourcequotas", LimitRange: "limitranges",
+  const plural = ({ Namespace: "namespaces", Secret: "secrets", ConfigMap: "configmaps", Service: "services", PersistentVolumeClaim: "persistentvolumeclaims", Pod: "pods", NetworkPolicy: "networkpolicies", ResourceQuota: "resourcequotas", LimitRange: "limitranges",
     Deployment: "deployments", StatefulSet: "statefulsets", Ingress: "ingresses", Job: "jobs", CronJob: "cronjobs", HorizontalPodAutoscaler: "horizontalpodautoscalers", PodDisruptionBudget: "poddisruptionbudgets" } as Record<string, string>)[kind];
   const base = apiVersion.includes("/") ? "/apis/" + apiVersion : "/api/" + apiVersion;
   return base + (ns ? "/namespaces/" + ns : "") + "/" + plural + (name ? "/" + name : "");
@@ -144,15 +153,62 @@ export function namespaceObjects(userId: string): Obj[] {
 
 type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[]; own?: boolean };
 
+/** shell check of an HTTP status against an allowed list (curl, else busybox/GNU wget) */
+export function httpCheckScript(port: number, path: string, codes: number[]) {
+  const url = shq("http://127.0.0.1:" + port + path);
+  return `c=$( (curl -s -o /dev/null -w '%{http_code}' ${url}) 2>/dev/null || (wget -q -S -O /dev/null ${url} 2>&1 | awk '/HTTP\\//{c=$2} END{print c}') ); case "$c" in ${codes.join("|")}) exit 0;; esac; echo "status $c"; exit 1`;
+}
+/** readiness/liveness probe: the runtime health check, or an HTTP GET of healthPath */
+export function healthProbe(app: AppSpec, port: number): Obj {
+  const h = app.runtime?.health;
+  const timing = { periodSeconds: h?.interval ?? 5, timeoutSeconds: h?.timeout ?? 3, failureThreshold: h?.retries ?? 3 };
+  if (h?.type === "command" && h.command.trim()) return { exec: { command: ["/bin/sh", "-c", h.command] }, ...timing };
+  if (h?.type === "tcp") return { tcpSocket: { port }, ...timing };
+  const path = app.healthPath || "/", codes = h ? expandCodes(h.codes) : null;
+  // the kubelet's own HTTP check accepts 200-399
+  if (!codes || (codes[0] === 200 && codes.at(-1) === 399 && codes.length === 200)) return { httpGet: { path, port }, ...timing };
+  return { exec: { command: ["/bin/sh", "-c", httpCheckScript(port, path, codes)] }, ...timing };
+}
+/** read-only root: writable scratch directories the common runtimes need */
+const scratchDirs = (app: AppSpec) => ["/tmp", ...(NGINX_STACKS.has(app.stack) ? ["/run", "/var/cache/nginx", "/var/lib/nginx"] : [])];
+/** nginx override / php.ini (non-compose apps of the matching stacks) */
+export const confData = (app: AppSpec): Record<string, string> => {
+  const rt = app.runtime;
+  if (!rt || app.source === "compose") return {};
+  return { ...(rt.nginxConf && NGINX_STACKS.has(app.stack) ? { "nginx.conf": rt.nginxConf } : {}), ...(rt.phpIni && PHP_STACKS.has(app.stack) ? { "php.ini": rt.phpIni } : {}) };
+};
+
 function deployment(app: AppSpec, w: Workload, deploymentId: string, share: number): Obj {
   const c = cfg(), ns = nsOf(app.userId), labels = { ...appLabels(app), "app.kubernetes.io/name": w.name, "gereh.net/service": w.service };
-  const probe = w.port ? { httpGet: { path: app.healthPath || "/", port: w.port }, periodSeconds: 5, timeoutSeconds: 3, failureThreshold: 3 } : undefined;
+  const rt = app.runtime;
+  const probe = w.port ? healthProbe(app, w.port) : undefined;
   const disk = w.primary && app.diskGb > 0;
+  const web = w.primary && w.service === "app";
+  const preStart = web && rt?.preStart.trim() ? rt.preStart : "";
+  const command = w.command && preStart ? "set -e\n" + preStart + "\n" + w.command : w.command;
+  const conf = web ? confData(app) : {};
+  const scratch = rt?.readOnlyFs ? scratchDirs(app) : [];
+  const mounts = [
+    ...(disk ? [{ name: "data", mountPath: app.diskMount || "/data" }] : []),
+    ...scratch.map((dir, i) => ({ name: "scratch-" + i, mountPath: dir })),
+    ...(conf["nginx.conf"] ? [{ name: "conf", mountPath: c.nginxConfPath, subPath: "nginx.conf", readOnly: true }] : []),
+    ...(conf["php.ini"] ? [{ name: "conf", mountPath: "/etc/gereh/php/zz-gereh.ini", subPath: "php.ini", readOnly: true }] : []),
+  ];
+  const volumes = [
+    ...(disk ? [{ name: "data", persistentVolumeClaim: { claimName: app.name + "-data" } }] : []),
+    ...scratch.map((_, i) => ({ name: "scratch-" + i, emptyDir: { sizeLimit: "512Mi" } })),
+    ...(Object.keys(conf).length ? [{ name: "conf", configMap: { name: app.name + "-conf" } }] : []),
+  ];
+  const security = { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" }, ...(rt?.readOnlyFs ? { readOnlyRootFilesystem: true } : {}) };
+  const resources = { requests: { cpu: cpuQty(app.cpu / 2 / share), memory: memQty(Math.ceil(app.ramMb / share)) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } };
+  const dns = rt?.dns.length ? rt.dns : null;
   return { apiVersion: "apps/v1", kind: "Deployment", metadata: { name: w.name, namespace: ns, labels }, spec: {
     ...(w.primary && app.autoscale ? {} : { replicas: w.replicas }),
     revisionHistoryLimit: 3,
     selector: { matchLabels: { "app.kubernetes.io/name": w.name } },
-    strategy: disk ? { type: "Recreate" } : { type: "RollingUpdate", rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } },
+    strategy: disk || (rt && !rt.zeroDowntime) ? { type: "Recreate" } : { type: "RollingUpdate", rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } },
+    // zero downtime: a new pod must stay ready a moment before the old one is drained
+    ...(rt?.zeroDowntime && !disk && w.port ? { minReadySeconds: 3 } : {}),
     template: {
       metadata: { labels, annotations: { "gereh.net/deployment": deploymentId } },
       spec: {
@@ -160,26 +216,33 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
         enableServiceLinks: false,
         ...(c.pullSecret ? { imagePullSecrets: [{ name: "gereh-registry" }] } : {}),
         ...(w.aliases?.length ? { hostAliases: w.aliases } : {}),
+        // custom resolvers replace the cluster DNS (Kubernetes takes at most 3); in-namespace names come from hostAliases (release())
+        ...(dns ? { dnsPolicy: "None", dnsConfig: { nameservers: dns.slice(0, 3), searches: [ns + ".svc.cluster.local", "svc.cluster.local", "cluster.local"], options: [{ name: "ndots", value: "2" }] } } : {}),
         // high availability: replicas of one workload land on different nodes when the cluster has them
         ...((w.primary && (app.instances > 1 || app.autoscale)) || w.replicas > 1 ? {
           topologySpreadConstraints: [{ maxSkew: 1, topologyKey: "kubernetes.io/hostname", whenUnsatisfiable: "ScheduleAnyway", labelSelector: { matchLabels: { "app.kubernetes.io/name": w.name } } }],
           affinity: { podAntiAffinity: { preferredDuringSchedulingIgnoredDuringExecution: [{ weight: 100, podAffinityTerm: { topologyKey: "kubernetes.io/hostname", labelSelector: { matchLabels: { "app.kubernetes.io/name": w.name } } } }] } },
         } : {}),
         terminationGracePeriodSeconds: 30,
+        // pre-start hook without a start command: an init container from the same image
+        ...(preStart && !w.command ? { initContainers: [{ name: "pre-start", image: w.image, imagePullPolicy: "IfNotPresent", command: ["/bin/sh", "-c", preStart], envFrom: [{ secretRef: { name: app.name + "-env" } }], resources, securityContext: security, ...(mounts.length ? { volumeMounts: mounts } : {}) }] } : {}),
         containers: [{
           name: "app", image: w.image, imagePullPolicy: "IfNotPresent",
-          ...(w.command ? { command: ["/bin/sh", "-c", w.command] } : {}),
+          ...(command ? { command: ["/bin/sh", "-c", command] } : {}),
           ...(w.port ? { ports: [{ name: "http", containerPort: w.port }] } : {}),
           envFrom: [{ secretRef: { name: app.name + "-env" } }],
           ...(w.env && Object.keys(w.env).length ? { env: Object.entries(w.env).map(([name, value]) => ({ name, value })) } : {}),
           // compose services share the plan: each may burst to the full limit, requests are split
-          resources: { requests: { cpu: cpuQty(app.cpu / 2 / share), memory: memQty(Math.ceil(app.ramMb / share)) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } },
-          ...(w.primary && probe ? { readinessProbe: probe, startupProbe: { ...probe, failureThreshold: 60 } } : {}),
-          ...(w.port ? { livenessProbe: { tcpSocket: { port: w.port }, periodSeconds: 20, failureThreshold: 3, initialDelaySeconds: w.primary ? 0 : 30 } } : {}),
-          securityContext: { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" } },
-          ...(disk ? { volumeMounts: [{ name: "data", mountPath: app.diskMount || "/data" }] } : {}),
+          resources,
+          ...(w.primary && probe ? { readinessProbe: probe, startupProbe: { ...probe, periodSeconds: 5, failureThreshold: rt?.health.startPeriod ? Math.ceil(rt.health.startPeriod / 5) + rt.health.retries : 60 } } : {}),
+          ...(w.port ? { livenessProbe: rt && w.primary && probe
+            ? { ...probe, periodSeconds: Math.max(10, rt.health.interval), failureThreshold: Math.max(3, rt.health.retries) }
+            : { tcpSocket: { port: w.port }, periodSeconds: 20, failureThreshold: 3, initialDelaySeconds: w.primary ? 0 : 30 } } : {}),
+          ...(rt?.zeroDowntime && w.port ? { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } } } : {}),
+          securityContext: security,
+          ...(mounts.length ? { volumeMounts: mounts } : {}),
         }],
-        ...(disk ? { volumes: [{ name: "data", persistentVolumeClaim: { claimName: app.name + "-data" } }] } : {}),
+        ...(volumes.length ? { volumes } : {}),
       },
     },
   } };
@@ -301,11 +364,51 @@ export function importJobObject(app: AppSpec, d: DbSpec, sourceUrl: string, jobI
 }
 
 /** everything but the Services; `ips` maps compose service name → cluster IP */
-export function appObjects(app: AppSpec, image: string, deploymentId: string, ips: Record<string, string> = {}): Obj[] {
+/** the app's Ingresses: main, wildcard hosts (DNS-01 certificate), one per redirecting domain, and the
+    basic-auth path (same hosts, the longer prefix wins) */
+export function ingressObjects(app: AppSpec): Obj[] {
+  const c = cfg(), ns = nsOf(app.userId), labels = appLabels(app), rt = app.runtime;
+  const redirect = new Map((rt?.redirects ?? []).map((r) => [r.host, r]));
+  const served = app.hosts.filter((h, i) => !(i === 0 && rt && !rt.defaultDomain) && !redirect.has(h));
+  const plain = served.filter((h) => !h.startsWith("*.")), wild = served.filter((h) => h.startsWith("*."));
+  const custom = plain.filter((h) => h !== app.hosts[0]);
+  const base = {
+    "nginx.ingress.kubernetes.io/proxy-body-size": "50m", "nginx.ingress.kubernetes.io/proxy-read-timeout": "120",
+    ...(app.cdn ? { "nginx.ingress.kubernetes.io/configuration-snippet": cdnSnippet(app.cacheVersion) } : {}),
+  };
+  const tlsFor = (hosts: string[]) => [
+    ...(hosts.includes(app.hosts[0]) ? [{ hosts: [app.hosts[0]] }] : []),
+    ...(hosts.some((h) => custom.includes(h)) ? [{ hosts: hosts.filter((h) => custom.includes(h)), secretName: app.name + "-tls" }] : []),
+    ...(hosts.some((h) => h.startsWith("*.")) ? [{ hosts: hosts.filter((h) => h.startsWith("*.")), secretName: app.name + "-wild-tls" }] : []),
+  ];
+  const ing = (name: string, annotations: Record<string, string>, hosts: string[], tls: Obj[], path = "/"): Obj => ({
+    apiVersion: "networking.k8s.io/v1", kind: "Ingress", metadata: { name, namespace: ns, labels, annotations },
+    spec: { ingressClassName: c.ingressClass, tls, rules: hosts.map((host) => ({ host, http: { paths: [{ path, pathType: "Prefix", backend: { service: { name: app.name, port: { name: "http" } } } }] } })) },
+  });
+  const out: Obj[] = [];
+  // the default host has no secretName: the controller serves its default (wildcard) certificate
+  if (plain.length) out.push(ing(app.name, { ...(custom.length ? { "cert-manager.io/cluster-issuer": c.issuer } : {}), ...base }, plain, tlsFor(plain)));
+  if (wild.length) out.push(ing(app.name + "-wild", { "cert-manager.io/cluster-issuer": c.wildcardIssuer, ...base }, wild, tlsFor(wild)));
+  if (rt?.basicAuth && served.length) out.push(ing(app.name + "-auth", {
+    ...base, "nginx.ingress.kubernetes.io/auth-type": "basic", "nginx.ingress.kubernetes.io/auth-secret": app.name + "-basic-auth", "nginx.ingress.kubernetes.io/auth-realm": "Restricted",
+  }, served, tlsFor(served), rt.basicAuth.path));
+  for (const r of redirect.values()) {
+    const name = redirectName(app, r.host);
+    out.push(ing(name, {
+      "cert-manager.io/cluster-issuer": r.host.startsWith("*.") ? c.wildcardIssuer : c.issuer,
+      [r.code === 302 ? "nginx.ingress.kubernetes.io/temporal-redirect" : "nginx.ingress.kubernetes.io/permanent-redirect"]: r.target.replace(/\/$/, "") + (r.keepPath ? "$request_uri" : ""),
+    }, [r.host], [{ hosts: [r.host], secretName: name + "-tls" }]));
+  }
+  return out;
+}
+export const redirectName = (app: Pick<AppSpec, "name">, host: string) => app.name + "-r-" + createHash("sha1").update(host).digest("hex").slice(0, 8);
+
+/** everything but the Services; `ips` maps compose service name → cluster IP; `nsAliases` resolve the
+    namespace's services when the app uses its own DNS servers */
+export function appObjects(app: AppSpec, image: string, deploymentId: string, ips: Record<string, string> = {}, nsAliases: { ip: string; hostnames: string[] }[] = []): Obj[] {
   const c = cfg(), ns = nsOf(app.userId), labels = appLabels(app);
-  const custom = app.hosts.slice(1);
   const compose = composeOf(image);
-  const aliases = Object.entries(ips).map(([name, ip]) => ({ ip, hostnames: [name] }));
+  const aliases = [...Object.entries(ips).map(([name, ip]) => ({ ip, hostnames: [name] })), ...nsAliases];
   const workloads: Workload[] = compose
     ? compose.map((s) => ({
         name: s.public ? app.name : app.name + "-" + s.name, image: s.image!, port: s.port, service: s.name, primary: s.public,
@@ -313,22 +416,16 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
         // panel variables win over compose defaults (container env would otherwise shadow envFrom)
         env: Object.fromEntries(Object.entries(s.env).filter(([k]) => !(k in app.env))),
       }))
-    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app" },
+    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app", aliases },
         // background processes get the plan's full size each (they are billed per instance)
-        ...(app.processes ?? []).filter((p) => p.instances > 0).map((p) => ({ name: procName(app, p.name), image, command: p.command, replicas: p.instances, primary: false, service: "proc-" + p.name, own: true }))];
+        ...(app.processes ?? []).filter((p) => p.instances > 0).map((p) => ({ name: procName(app, p.name), image, command: p.command, replicas: p.instances, primary: false, service: "proc-" + p.name, own: true, aliases }))];
+  const conf = confData(app);
   const out: Obj[] = [
     { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, ...(compose ? { PORT: String(compose.find((x) => x.public)!.port) } : {}), GEREH_DEPLOYMENT: deploymentId } },
+    ...(Object.keys(conf).length ? [{ apiVersion: "v1", kind: "ConfigMap", metadata: { name: app.name + "-conf", namespace: ns, labels }, data: conf }] : []),
     ...workloads.map((w) => deployment(app, w, deploymentId, w.own ? 1 : workloads.filter((x) => !x.own).length)),
-    { apiVersion: "networking.k8s.io/v1", kind: "Ingress", metadata: { name: app.name, namespace: ns, labels, annotations: {
-      ...(custom.length ? { "cert-manager.io/cluster-issuer": c.issuer } : {}),
-      "nginx.ingress.kubernetes.io/proxy-body-size": "50m", "nginx.ingress.kubernetes.io/proxy-read-timeout": "120",
-      ...(app.cdn ? { "nginx.ingress.kubernetes.io/configuration-snippet": cdnSnippet(app.cacheVersion) } : {}),
-    } }, spec: {
-      ingressClassName: c.ingressClass,
-      // the default host has no secretName: the controller serves its default (wildcard) certificate
-      tls: [{ hosts: [app.hosts[0]] }, ...(custom.length ? [{ hosts: custom, secretName: app.name + "-tls" }] : [])],
-      rules: app.hosts.map((host) => ({ host, http: { paths: [{ path: "/", pathType: "Prefix", backend: { service: { name: app.name, port: { name: "http" } } } }] } })),
-    } },
+    ...(app.runtime?.basicAuth ? [{ apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-basic-auth", namespace: ns, labels }, type: "Opaque", stringData: { auth: app.runtime.basicAuth.htpasswd + "\n" } }] : []),
+    ...ingressObjects(app),
   ];
   if (!compose && image) for (const cr of app.crons ?? []) out.push(cronJobObject(app, cr, image));
   if (app.diskGb) out.push({ apiVersion: "v1", kind: "PersistentVolumeClaim", metadata: { name: app.name + "-data", namespace: ns, labels }, spec: { accessModes: ["ReadWriteOnce"], resources: { requests: { storage: app.diskGb + "Gi" } }, ...(c.storageClass ? { storageClassName: c.storageClass } : {}) } });
@@ -343,13 +440,35 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
   return out;
 }
 
+/* build hooks, appended to the prepare script once Dockerfile.gereh exists. Panel hooks win; otherwise
+   gereh.json "hooks" are read with jq. pre-build: a RUN after the source is copied in the Nixpacks build
+   phase, or (own Dockerfile) a step in the source folder before the image build; post-build: a RUN at
+   the end of the final stage. RUN lines use the JSON (exec) form, so any command text is safe. */
+export function buildHooks(pre: string, preRun: string, postRun: string) {
+  const runOf = `jq -Rsc '["/bin/sh","-c",.]'`;
+  return [
+    `PRE=${shq(pre)}; PRE_RUN=${shq(preRun)}; POST_RUN=${shq(postRun)}`,
+    `if [ -f gereh.json ] && command -v jq >/dev/null 2>&1; then`,
+    `  [ -n "$PRE" ] || { PRE=$(jq -r '.hooks.preBuild // empty' gereh.json 2>/dev/null || true); [ -z "$PRE" ] || PRE_RUN=$(printf '%s' "$PRE" | ${runOf}); }`,
+    `  [ -n "$POST_RUN" ] || { P=$(jq -r '.hooks.postBuild // empty' gereh.json 2>/dev/null || true); [ -z "$P" ] || POST_RUN=$(printf '%s' "$P" | ${runOf}); }`,
+    `fi`,
+    `if [ -n "$PRE" ]; then echo '==> pre-build hook'; if [ "$GEN" = 1 ]; then L="RUN $PRE_RUN" awk '{print} /^# build phase/{b=1} b && !d && /^COPY /{print ENVIRON["L"]; d=1} END{if(!d) print ENVIRON["L"]}' /workspace/Dockerfile.gereh > /workspace/Dockerfile.tmp && mv /workspace/Dockerfile.tmp /workspace/Dockerfile.gereh; else sh -c "$PRE"; fi; fi`,
+    `if [ -n "$POST_RUN" ]; then echo '==> post-build hook'; printf '\nRUN %s\n' "$POST_RUN" >> /workspace/Dockerfile.gereh; fi`,
+  ];
+}
+
 /** the build Job: prepare (fetch + Nixpacks) → Kaniko */
 export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string, service?: ComposeService): Obj {
   const c = cfg(), dep = deploymentId.toLowerCase();
   const image = service ? imageFor({ userId: app.userId, name: app.name + "-" + service.name }, dep) : imageFor(app, dep);
   const root = [(app.rootDir || "").replace(/^\/+|\/+$/g, ""), service?.build?.context === "." ? "" : service?.build?.context ?? ""].filter(Boolean).join("/") || ".";
-  const dockerfile = service?.build?.dockerfile ?? "Dockerfile";
-  const mirror = c.mirror ? mirrorEnv(c.mirror) : {};
+  const rt = app.runtime;
+  const dockerfile = service?.build?.dockerfile ?? rt?.build.dockerfile ?? "Dockerfile";
+  const mirror = c.mirror && (rt?.build.mirror ?? true) ? mirrorEnv(c.mirror) : {};
+  const cache = !app.noCache && (rt?.build.cache ?? true);
+  const args = service ? {} : rt?.build.args ?? {};
+  const run = (cmd: string) => (cmd ? JSON.stringify(["/bin/sh", "-c", cmd]) : "");
+  const pre = service ? "" : rt?.preBuild ?? "", post = service ? "" : rt?.postBuild ?? "";
   const nixEnv = Object.entries(mirror).map(([k, v]) => "--env " + shq(k + "=" + v)).join(" ");
   const prepare = [
     "set -eu", "cd /workspace",
@@ -358,14 +477,15 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
       : `wget -q -O src.zip "$SOURCE_URL" && mkdir src && unzip -q src.zip -d src && rm src.zip && if [ "$(ls -A src | wc -l)" = 1 ] && [ -d "src/$(ls -A src)" ]; then d="src/$(ls -A src)"; mv "$d" src.tmp && rmdir src && mv src.tmp src; fi`,
     `cd src/${root}`,
     `if [ -f gereh.json ] && [ "$(wc -c < gereh.json)" -lt 65536 ]; then echo "MANIFEST=$(base64 gereh.json | tr -d '\\n')"; fi`,
-    `if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
-    `  echo '==> Detecting stack with Nixpacks'; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
+    `GEN=0; if [ -f ${shq(dockerfile)} ]; then echo '==> Using ${dockerfile.replace(/'/g, "")}'; cp ${shq(dockerfile)} /workspace/Dockerfile.gereh; else`,
+    `  echo '==> Detecting stack with Nixpacks'; GEN=1; nixpacks build . --out . ${nixEnv} ${!service && app.buildCommand ? "--build-cmd " + shq(app.buildCommand) : ""} ${!service && app.startCommand ? "--start-cmd " + shq(app.startCommand) : ""}; cp .nixpacks/Dockerfile /workspace/Dockerfile.gereh; fi`,
+    ...(service ? [] : buildHooks(pre, run(pre), run(post))),
   ].join("\n");
   return {
     apiVersion: "batch/v1", kind: "Job",
     metadata: { name: "build-" + dep + (service ? "-" + service.name : ""), namespace: c.system, labels: { ...appLabels(app), "gereh.net/deployment": deploymentId, "gereh.net/kind": "build" } },
     spec: {
-      backoffLimit: 0, activeDeadlineSeconds: 1800, ttlSecondsAfterFinished: 86_400,
+      backoffLimit: 0, activeDeadlineSeconds: (rt?.build.timeoutMin ?? 30) * 60, ttlSecondsAfterFinished: 86_400,
       template: {
         metadata: { labels: { "gereh.net/deployment": deploymentId, "gereh.net/kind": "build" } },
         spec: {
@@ -373,8 +493,9 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
           initContainers: [{ name: "prepare", image: c.builderImage, command: ["/bin/sh", "-c", prepare], env: sourceUrl ? [{ name: "SOURCE_URL", value: sourceUrl }] : [], volumeMounts: [{ name: "workspace", mountPath: "/workspace" }], resources: { limits: { cpu: "1", memory: "1Gi" } } }],
           containers: [{
             name: "kaniko", image: c.kanikoImage,
-            args: ["--context=dir:///workspace/src/" + root, "--dockerfile=/workspace/Dockerfile.gereh", "--destination=" + image, "--cache=true", "--cache-repo=" + c.registry + "/cache/" + dns1123(app.userId), "--snapshot-mode=redo", "--use-new-run", "--compressed-caching=false",
-              ...(c.mirror ? ["--registry-mirror=" + mirrorHost(c.mirror), ...Object.entries(mirror).map(([k, v]) => "--build-arg=" + k + "=" + v)] : [])],
+            args: ["--context=dir:///workspace/src/" + root, "--dockerfile=/workspace/Dockerfile.gereh", "--destination=" + image, "--cache=" + cache, "--cache-repo=" + c.registry + "/cache/" + dns1123(app.userId), "--snapshot-mode=redo", "--use-new-run", "--compressed-caching=false",
+              ...(c.mirror ? ["--registry-mirror=" + mirrorHost(c.mirror)] : []), ...Object.entries(mirror).map(([k, v]) => "--build-arg=" + k + "=" + v),
+              ...Object.entries(args).map(([k, v]) => "--build-arg=" + k + "=" + v)],
             volumeMounts: [{ name: "workspace", mountPath: "/workspace" }, { name: "registry", mountPath: "/kaniko/.docker" }],
             resources: { requests: { cpu: "500m", memory: "1Gi" }, limits: { cpu: "2", memory: "4Gi" } },
           }],
@@ -637,8 +758,8 @@ export class KubernetesDriver implements PaasDriver {
   }
 
   /* ----- apps ----- */
-  private async owned(ns: string, kind: "Deployment" | "Service" | "CronJob", appId: string) {
-    const r = await k8s("GET", pathOf(({ Deployment: "apps/v1", Service: "v1", CronJob: "batch/v1" })[kind], kind, ns) + "?labelSelector=" + encodeURIComponent("gereh.net/app=" + appId));
+  private async owned(ns: string, kind: "Deployment" | "Service" | "CronJob" | "Ingress", appId: string) {
+    const r = await k8s("GET", pathOf(({ Deployment: "apps/v1", Service: "v1", CronJob: "batch/v1", Ingress: "networking.k8s.io/v1" })[kind], kind, ns) + "?labelSelector=" + encodeURIComponent("gereh.net/app=" + appId));
     return (r.items as { metadata: { name: string; labels?: Record<string, string> }; spec: { replicas?: number }; status?: Record<string, number> }[]) ?? [];
   }
 
@@ -651,22 +772,36 @@ export class KubernetesDriver implements PaasDriver {
       const name = (o.metadata as { labels: Record<string, string> }).labels["gereh.net/service"];
       if (composeOf(image) && r.spec?.clusterIP && r.spec.clusterIP !== "None") ips[name] = r.spec.clusterIP;
     }
-    const objs = appObjects(app, image, deploymentId, ips);
+    const objs = appObjects(app, image, deploymentId, ips, app.runtime?.dns.length ? await this.serviceAliases(ns) : []);
     for (const o of objs) await apply(o as never);
     // services removed from docker-compose.yml since the last release
     const keep = new Set([...services, ...objs].map((o) => o.kind + "/" + (o.metadata as { name: string }).name));
     for (const d of await this.owned(ns, "Deployment", app.id)) if (!keep.has("Deployment/" + d.metadata.name)) await del("apps/v1", "Deployment", ns, d.metadata.name);
     for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
     for (const cj of await this.owned(ns, "CronJob", app.id)) if (!keep.has("CronJob/" + cj.metadata.name)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
+    await this.pruneRouting(ns, app, keep);
+    if (!keep.has("ConfigMap/" + app.name + "-conf")) await del("v1", "ConfigMap", ns, app.name + "-conf");
     if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     if (!objs.some((o) => o.kind === "PodDisruptionBudget")) await del("policy/v1", "PodDisruptionBudget", ns, app.name);
     if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
   }
 
-  /** routing only: the Ingress (domains, TLS, CDN) */
+  /** routing only: the Ingresses (domains, redirects, basic auth, TLS, CDN) */
   async updateRouting(app: AppSpec) {
-    const ing = appObjects(app, "", "").find((o) => o.kind === "Ingress");
-    if (ing) await apply(ing as never);
+    const objs = appObjects(app, "", "").filter((o) => o.kind === "Ingress" || (o.metadata as { name: string }).name === app.name + "-basic-auth");
+    for (const o of objs) await apply(o as never);
+    await this.pruneRouting(nsOf(app.userId), app, new Set(objs.map((o) => o.kind + "/" + (o.metadata as { name: string }).name)));
+  }
+  /** Ingresses (and the basic-auth Secret) the app no longer needs */
+  private async pruneRouting(ns: string, app: AppSpec, keep: Set<string>) {
+    for (const i of await this.owned(ns, "Ingress", app.id)) if (!keep.has("Ingress/" + i.metadata.name)) await del("networking.k8s.io/v1", "Ingress", ns, i.metadata.name);
+    if (!keep.has("Secret/" + app.name + "-basic-auth")) await del("v1", "Secret", ns, app.name + "-basic-auth");
+  }
+  /** hostAliases for every Service of the namespace (apps with custom DNS servers bypass the cluster DNS) */
+  private async serviceAliases(ns: string) {
+    const r = await k8s("GET", "/api/v1/namespaces/" + ns + "/services");
+    return ((r.items as { metadata: { name: string }; spec?: { clusterIP?: string } }[]) ?? []).filter((s) => s.spec?.clusterIP && s.spec.clusterIP !== "None")
+      .map((s) => ({ ip: s.spec!.clusterIP!, hostnames: [s.metadata.name, s.metadata.name + "." + ns, s.metadata.name + "." + ns + ".svc", s.metadata.name + "." + ns + ".svc.cluster.local"] }));
   }
 
   /** every workload of the app (one, or one per compose service) is fully rolled out */
@@ -704,6 +839,9 @@ export class KubernetesDriver implements PaasDriver {
   async remove(app: AppSpec) {
     const ns = nsOf(app.userId);
     await del("networking.k8s.io/v1", "Ingress", ns, app.name);
+    for (const i of await this.owned(ns, "Ingress", app.id)) await del("networking.k8s.io/v1", "Ingress", ns, i.metadata.name);
+    await del("v1", "ConfigMap", ns, app.name + "-conf");
+    await del("v1", "Secret", ns, app.name + "-basic-auth");
     await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
     await del("policy/v1", "PodDisruptionBudget", ns, app.name);
     for (const d of await this.owned(ns, "Deployment", app.id)) await del("apps/v1", "Deployment", ns, d.metadata.name);
@@ -714,6 +852,71 @@ export class KubernetesDriver implements PaasDriver {
     await del("v1", "Secret", ns, app.name + "-env");
     await del("v1", "Secret", ns, app.name + "-tls");
     await del("v1", "PersistentVolumeClaim", ns, app.name + "-data");
+  }
+
+  private async pods(app: AppSpec) {
+    const r = await k8s("GET", "/api/v1/namespaces/" + nsOf(app.userId) + "/pods?labelSelector=" + encodeURIComponent("gereh.net/app=" + app.id + ",gereh.net/service=app"));
+    return (r.items as PodInfo[]) ?? [];
+  }
+  private async unhealthy(app: AppSpec, pods: string[]) {
+    if (!pods.length) return [];
+    const r = await k8s("GET", "/api/v1/namespaces/" + nsOf(app.userId) + "/events?fieldSelector=" + encodeURIComponent("reason=Unhealthy")).catch(() => ({ items: [] }));
+    return ((r.items as { involvedObject: { name: string }; message?: string; lastTimestamp?: string; eventTime?: string }[]) ?? []).filter((e) => pods.includes(e.involvedObject.name));
+  }
+
+  async rolloutProblem(app: AppSpec): Promise<RolloutProblem | null> {
+    const ns = nsOf(app.userId), pods = await this.pods(app), lines: string[] = [];
+    let fatal = false;
+    for (const p of pods) for (const cs of p.status?.containerStatuses ?? []) {
+      const t = cs.lastState?.terminated, wait = cs.state?.waiting?.reason;
+      if (t?.reason === "OOMKilled") { lines.push("pod " + p.metadata.name + ": container " + cs.name + " OOMKilled (exit code 137), memory limit " + app.ramMb + "Mi; restarted " + cs.restartCount + " times"); if (cs.restartCount >= 2) fatal = true; }
+      else if (wait === "CrashLoopBackOff") {
+        const prev = await k8s("GET", `/api/v1/namespaces/${ns}/pods/${p.metadata.name}/log?container=${cs.name}&previous=true&tailLines=30`).catch(() => ({ text: "" }));
+        lines.push("pod " + p.metadata.name + ": crashing (exit code " + (t?.exitCode ?? "?") + ", " + cs.restartCount + " restarts)" + (prev.text ? "\n" + String(prev.text).trimEnd() : ""));
+        if (cs.restartCount >= 3) fatal = true;
+      } else if (wait && ["CreateContainerConfigError", "InvalidImageName", "ErrImageNeverPull"].includes(wait)) { lines.push("pod " + p.metadata.name + ": " + wait + " " + (cs.state?.waiting?.message ?? "")); fatal = true; }
+      else if (wait === "ImagePullBackOff" || wait === "ErrImagePull") lines.push("pod " + p.metadata.name + ": " + wait + " " + (cs.state?.waiting?.message ?? ""));
+    }
+    for (const e of (await this.unhealthy(app, pods.map((p) => p.metadata.name))).slice(-3)) lines.push("pod " + e.involvedObject.name + ": " + (e.message ?? "").trim());
+    return lines.length ? { fatal, log: lines.join("\n") } : null;
+  }
+
+  async appEvents(app: AppSpec, since: Date): Promise<AppEvent[]> {
+    const pods = await this.pods(app), out: AppEvent[] = [];
+    for (const p of pods) for (const cs of p.status?.containerStatuses ?? []) {
+      const t = cs.lastState?.terminated;
+      const at = t?.finishedAt ? new Date(t.finishedAt) : null;
+      if (!t || !at || at <= since) continue;
+      out.push({ kind: t.reason === "OOMKilled" ? "oom" : "crash", message: p.metadata.name + ": " + (t.reason || "Error") + " (exit code " + t.exitCode + "), restarted", at });
+    }
+    const seen = new Set<string>();
+    for (const e of await this.unhealthy(app, pods.map((p) => p.metadata.name))) {
+      const at = new Date(e.lastTimestamp || e.eventTime || 0);
+      if (at <= since || seen.has(e.involvedObject.name)) continue;
+      seen.add(e.involvedObject.name);
+      out.push({ kind: "health_failed", message: e.involvedObject.name + ": " + (e.message ?? "").trim().slice(0, 300), at });
+    }
+    return out;
+  }
+
+  /** request + response bytes per app over 5 minutes, from ingress-nginx metrics in Prometheus */
+  async traffic(targets: { id: string; owner: string; name: string }[]) {
+    const out = new Map<string, number>();
+    const m = /^([a-z0-9-]+)\/([a-z0-9-]+)(?::(\d+))?$/.exec(cfg().prometheus);
+    if (!m || !targets.length) return out;
+    const q = 'sum by (namespace, exported_namespace, ingress) (increase({__name__=~"nginx_ingress_controller_(request|response)_size_sum"}[5m]))';
+    const r = await k8s("GET", `/api/v1/namespaces/${m[1]}/services/${m[2]}:${m[3] ?? "80"}/proxy/api/v1/query?query=${encodeURIComponent(q)}`).catch(() => null) as
+      { data?: { result?: { metric: Record<string, string>; value: [number, string] }[] } } | null;
+    const by = new Map<string, number>();
+    for (const row of r?.data?.result ?? []) {
+      const ns = row.metric.exported_namespace || row.metric.namespace;
+      if (ns && row.metric.ingress) by.set(ns + "/" + row.metric.ingress, (by.get(ns + "/" + row.metric.ingress) ?? 0) + (Number(row.value[1]) || 0));
+    }
+    for (const t of targets) {
+      const ns = nsOf(t.owner), n = [t.name, t.name + "-wild", t.name + "-auth"].reduce((s, i) => s + (by.get(ns + "/" + i) ?? 0), 0);
+      if (n > 0) out.set(t.id, Math.round(n));
+    }
+    return out;
   }
 
   async runJob(app: AppSpec, image: string, jobId: string, command: string) {
@@ -959,6 +1162,11 @@ export class KubernetesDriver implements PaasDriver {
     }
   }
 }
+
+type PodInfo = { metadata: { name: string }; status?: { containerStatuses?: {
+  name: string; restartCount: number; state?: { waiting?: { reason?: string; message?: string } };
+  lastState?: { terminated?: { reason?: string; exitCode?: number; finishedAt?: string } };
+}[] } };
 
 /* quantities from metrics-server: "12345678n", "250m", "1"; "123456Ki", "512Mi" */
 export function parseCpu(q: string) {

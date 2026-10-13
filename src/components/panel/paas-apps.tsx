@@ -10,6 +10,7 @@ import type { PaasApp } from "@/lib/types";
 import { zipFolder } from "@/lib/zip-client";
 import { useApp } from "../app-context";
 import { AppJobs } from "./paas-jobs";
+import { AppEvents, AppRuntime, AppUsage, CiTemplates, CloneApp, DeployNoCache, DomainOptions, FailureHint } from "./paas-runtime";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
@@ -196,7 +197,8 @@ export function NewApp() {
 const TABS = [
   { id: "overview", label: "نمای کلی", icon: "layout-dashboard" }, { id: "deploys", label: "استقرارها", icon: "rocket" }, { id: "logs", label: "لاگ‌ها", icon: "terminal" },
   { id: "env", label: "متغیرها", icon: "sliders-horizontal" }, { id: "domains", label: "دامنه‌ها", icon: "globe" }, { id: "dbs", label: "پایگاه داده", icon: "database" },
-  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "jobs", label: "پردازش و زمان‌بندی", icon: "clock" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
+  { id: "scale", label: "منابع و مقیاس", icon: "gauge" }, { id: "jobs", label: "پردازش و زمان‌بندی", icon: "clock" },
+  { id: "runtime", label: "بیلد و اجرا", icon: "hammer" }, { id: "usage", label: "مصرف و بودجه", icon: "wallet" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 
 export function AppDetail({ id }: { id: string }) {
@@ -238,6 +240,8 @@ export function AppDetail({ id }: { id: string }) {
         {tab === "dbs" && <AppDbs app={app} />}
         {tab === "scale" && <AppScale app={app} />}
         {tab === "jobs" && <AppJobs app={app} />}
+        {tab === "runtime" && <AppRuntime app={app} />}
+        {tab === "usage" && <AppUsage app={app} />}
         {tab === "settings" && <AppSettings app={app} />}
       </div>
       <BuildLog depId={logDep} onClose={() => setLogDep(null)} />
@@ -256,7 +260,7 @@ function AutoRefresh({ active }: { active: boolean }) {
 }
 
 function BuildLog({ depId, onClose }: { depId: string | null; onClose: () => void }) {
-  const [data, setData] = useState<{ status: string; log: string } | null>(null);
+  const [data, setData] = useState<{ status: string; log: string; failure?: string } | null>(null);
   const pre = useRef<HTMLPreElement>(null);
   useEffect(() => {
     if (!depId) return;
@@ -274,7 +278,10 @@ function BuildLog({ depId, onClose }: { depId: string | null; onClose: () => voi
   return (
     <Modal open={!!depId} onClose={() => { setData(null); onClose(); }} title={"لاگ استقرار " + (depId ?? "")} icon="terminal" size="max-w-3xl">
       <div className="mb-3">{data ? <DeployPill s={data.status} /> : <Icon name="loader-circle" size={16} className="animate-spin" />}</div>
-      <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ بیلد" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[55vh] overflow-auto whitespace-pre-wrap">{data?.log || "در انتظار شروع…"}</pre>
+      <div className={data?.failure ? "grid md:grid-cols-[1fr_16rem] gap-3" : ""}>
+        <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ بیلد" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[55vh] overflow-auto whitespace-pre-wrap">{data?.log || "در انتظار شروع…"}</pre>
+        <FailureHint kind={data?.failure} />
+      </div>
     </Modal>
   );
 }
@@ -325,6 +332,7 @@ function AppOverview({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
           </dl>
         </Card>
       </div>
+      <AppEvents app={app} />
     </div>
   );
 }
@@ -384,6 +392,7 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
   return (
     <>
     <PreviewCard app={app} onLog={onLog} />
+    <div className="flex justify-end mb-3"><DeployNoCache app={app} onLog={onLog} /></div>
     <Card pad="p-0">
       {app.deployments.length === 0 ? <div className="p-6"><Empty icon="rocket" title="هنوز استقراری نیست" /></div> : (
         <ul className="divide-y divide-white/[0.06]">
@@ -495,6 +504,7 @@ function AppDomains({ app }: { app: PaasApp }) {
         </div>
         {app.cdn && <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />پاک کردن کش</AsyncButton>}
       </Card>
+      <DomainOptions app={app} />
     </div>
   );
 }
@@ -596,6 +606,8 @@ function AppSettings({ app }: { app: PaasApp }) {
             <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="آدرس فعلی از کار می‌افتد و باید در مخزن آدرس جدید را ثبت کنید. ادامه؟" onClick={async () => { await api.paas.regenHook(app.id); notify("آدرس جدید ساخته شد", "key-round"); }}>ساخت توکن جدید</AsyncButton>
           </Card>
         )}
+        <CiTemplates app={app} />
+        <CloneApp app={app} />
         <Card title="حذف اپ" icon="trash-2">
           <p className="text-sm text-white/65 leading-7">اپ، نسخه‌ها، دامنه‌ها و دیسک دائمی آن برای همیشه حذف می‌شوند. پایگاه‌های داده متصل حذف نمی‌شوند.</p>
           <label className="block text-xs text-white/60 mt-3" htmlFor="del-name">برای تأیید، نام اپ را بنویسید: <b dir="ltr">{app.name}</b></label>

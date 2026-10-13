@@ -487,6 +487,9 @@ export const paasPlans = pgTable("paas_plans", {
   price: bigint("price", { mode: "number" }).notNull(), // Toman per month, billed hourly
   active: boolean("active").notNull().default(true),
   position: integer("position").notNull().default(0),
+  /** app plans: builds per app per 24 hours (0 = unlimited) and the longest build allowed */
+  deploysPerDay: integer("deploys_per_day").notNull().default(0),
+  maxBuildMinutes: integer("max_build_minutes").notNull().default(30),
 });
 
 export const paasApps = pgTable("paas_apps", {
@@ -567,6 +570,10 @@ export const paasDeployments = pgTable("paas_deployments", {
   /** artifact to roll back to: built image reference */
   image: text("image").notNull().default(""),
   uploadPath: text("upload_path"),
+  /** build without the layer cache (this deployment only) */
+  noCache: boolean("no_cache").notNull().default(false),
+  /** why a failed deployment failed (src/lib/paas-runtime.ts FAILURES): port, oom, start, deps, health, timeout */
+  failure: text("failure").notNull().default(""),
   log: text("log").notNull().default(""),
   createdAt: created(),
   startedAt: ts("started_at"),
@@ -1105,3 +1112,82 @@ export const mailEvents = pgTable("mail_events", {
   detail: text("detail").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("mail_event_msg_ix").on(t.messageId)]);
+
+/* ---------- Gereh Apps: build and runtime options (0017_paas_runtime) ---------- */
+/** per-app build hooks, health check, build and runtime options, budget and alerts (one row per app,
+    created on first save; a missing row means the defaults in src/lib/paas-runtime.ts) */
+export const paasRuntime = pgTable("paas_runtime", {
+  appId: text("app_id").primaryKey().references(() => paasApps.id, { onDelete: "cascade" }),
+  preBuild: text("pre_build").notNull().default(""),
+  postBuild: text("post_build").notNull().default(""),
+  preStart: text("pre_start").notNull().default(""),
+  /** http (path from paas_apps.health_path), command (exit 0) or tcp (port open) */
+  healthType: text("health_type", { enum: ["http", "command", "tcp"] }).notNull().default("http"),
+  healthCommand: text("health_command").notNull().default(""),
+  /** allowed HTTP status codes: "200-399" or a list like "200,204,301-302" */
+  healthCodes: text("health_codes").notNull().default("200-399"),
+  healthInterval: integer("health_interval").notNull().default(5),
+  healthTimeout: integer("health_timeout").notNull().default(3),
+  healthRetries: integer("health_retries").notNull().default(3),
+  healthStartPeriod: integer("health_start_period").notNull().default(0),
+  /** rolling update behind the readiness check; off = stop the old version first */
+  zeroDowntime: boolean("zero_downtime").notNull().default(true),
+  buildCache: boolean("build_cache").notNull().default(true),
+  /** npm/pip/composer/Go installs through the Gereh package mirror */
+  mirror: boolean("mirror").notNull().default(true),
+  buildArgs: jsonb("build_args").$type<Record<string, string>>().notNull().default({}),
+  dockerfile: text("dockerfile").notNull().default("Dockerfile"),
+  timezone: text("timezone").notNull().default("Asia/Tehran"),
+  readOnlyFs: boolean("read_only_fs").notNull().default(false),
+  dnsServers: jsonb("dns_servers").$type<string[]>().notNull().default([]),
+  nginxConf: text("nginx_conf").notNull().default(""),
+  phpIni: text("php_ini").notNull().default(""),
+  /** <name>.<apps domain> answers; off when only custom domains should */
+  defaultDomain: boolean("default_domain").notNull().default(true),
+  /** HTTP basic auth on a path prefix ("" = off); the htpasswd line is {SSHA} hashed */
+  authPath: text("auth_path").notNull().default(""),
+  authUser: text("auth_user").notNull().default(""),
+  authHtpasswd: text("auth_htpasswd").notNull().default(""),
+  /** monthly spend cap in Toman (0 = none), alert at this percent, optionally stop the app at the cap */
+  budget: money("budget").notNull().default(0),
+  budgetAlertPct: integer("budget_alert_pct").notNull().default(80),
+  budgetStop: boolean("budget_stop").notNull().default(false),
+  /** "<month>:alert" / "<month>:cap": what was already sent this month */
+  budgetNotified: text("budget_notified").notNull().default(""),
+  /** monthly request + response traffic alert in GB (0 = none) */
+  trafficAlertGb: integer("traffic_alert_gb").notNull().default(0),
+  trafficNotified: text("traffic_notified").notNull().default(""),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** what happened to an app: deploys, power actions, crashes, OOM kills, scaling, failed health checks */
+export const paasEvents = pgTable("paas_events", {
+  id: serial("id").primaryKey(),
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["deploy", "deploy_failed", "start", "stop", "restart", "crash", "oom", "scale", "health_failed", "budget", "traffic"] }).notNull(),
+  message: text("message").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("paas_event_app_ix").on(t.appId, t.createdAt)]);
+
+/** hourly charges per app, summed per Jalali month ("1405-07") for budgets */
+export const paasSpend = pgTable("paas_spend", {
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  month: text("month").notNull(),
+  amount: money("amount").notNull().default(0),
+}, (t) => [uniqueIndex("paas_spend_uq").on(t.appId, t.month)]);
+
+/** request + response bytes through the ingress, per app and Tehran day ("2026-10-12") */
+export const paasTraffic = pgTable("paas_traffic", {
+  appId: text("app_id").notNull().references(() => paasApps.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  bytes: money("bytes").notNull().default(0),
+}, (t) => [uniqueIndex("paas_traffic_uq").on(t.appId, t.day)]);
+
+/** a custom domain that redirects (301/302) instead of serving the app */
+export const paasDomainRedirects = pgTable("paas_domain_redirects", {
+  domainId: text("domain_id").primaryKey().references(() => paasDomains.id, { onDelete: "cascade" }),
+  target: text("target").notNull(),
+  code: integer("code").notNull().default(301),
+  /** append the request path and query to the target */
+  keepPath: boolean("keep_path").notNull().default(true),
+});

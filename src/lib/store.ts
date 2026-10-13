@@ -11,6 +11,7 @@ import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
+import type { RuntimeConfig } from "./paas-runtime";
 import type { ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
 import type { Dmarc, MailAdminList, MailDomainDetail, MailMessageView, MailMsgRow, MailOverview, MailSendInput, MailStats } from "./mail";
 
@@ -82,11 +83,20 @@ export const genPassword = () => {
   return Array.from(crypto.getRandomValues(new Uint32Array(16)), (x) => abc[x % abc.length]).join("");
 };
 
+export type PaasRuntimeView = {
+  config: RuntimeConfig & { authOn: boolean };
+  events: { id: number; kind: string; message: string; at: string }[];
+  spend: { month: string; amount: number; history: { month: string; amount: number }[] };
+  traffic: { monthBytes: number; days: { day: string; bytes: number }[] };
+  redirects: { domainId: string; target: string; code: number; keepPath: boolean }[];
+  egressIps: string[];
+  limits: { deploysPerDay: number; maxBuildMinutes: number; deploysToday: number };
+};
 export type AiKeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number };
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -217,13 +227,13 @@ export const api = {
   },
   paas: {
     createApp: (a: { name: string; stack: string; source: string; gitUrl?: string; gitBranch?: string; image?: string; uploadId?: string; rootDir?: string; buildCommand?: string; startCommand?: string; port: number; planId: string; instances?: number; diskGb?: number; env?: { key: string; value: string; secret: boolean }[] }) => rpc<string>("paas.createApp", a),
-    deploy: (appId: string, o: { uploadId?: string; message?: string } = {}) => rpc<string>("paas.deploy", appId, o),
+    deploy: (appId: string, o: { uploadId?: string; message?: string; noCache?: boolean } = {}) => rpc<string>("paas.deploy", appId, o),
     rollback: (appId: string, depId: string) => rpc<string>("paas.rollback", appId, depId),
     createFromTemplate: (templateId: string, name: string, planId?: string) => rpc<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", templateId, name, planId),
     deployPreview: (appId: string, o: { branch?: string; uploadId?: string; message?: string }) => rpc<string>("paas.deployPreview", appId, o),
     promote: (appId: string, depId: string) => rpc<string>("paas.promote", appId, depId),
     removePreview: (appId: string) => rpc("paas.removePreview", appId),
-    deployment: (depId: string) => rpc<{ status: string; log: string }>("paas.deployment", depId),
+    deployment: (depId: string) => rpc<{ status: string; log: string; failure?: string }>("paas.deployment", depId),
     logs: (appId: string, tail = 200) => rpc<string[]>("paas.logs", appId, tail),
     updateApp: (appId: string, patch: Record<string, string | number | boolean>) => rpc("paas.updateApp", appId, patch),
     setEnv: (appId: string, set: { key: string; value: string; secret: boolean }[], remove: string[]) => rpc("paas.setEnv", appId, set, remove),
@@ -256,6 +266,14 @@ export const api = {
     adminPlan: (id: string, patch: { name?: string; price?: number; active?: boolean }) => rpc("paas.adminPlan", id, patch),
     adminSuspend: (kind: "app" | "db", id: string, on: boolean) => rpc("paas.adminSuspend", kind, id, on),
     adminTest: () => rpc<{ driver: string; version: string }>("paas.adminTest"),
+    runtime: (appId: string) => rpc<PaasRuntimeView>("paas.runtime", appId),
+    setRuntime: (appId: string, patch: Partial<RuntimeConfig>) => rpc<string | null>("paas.setRuntime", appId, patch),
+    setBasicAuth: (appId: string, o: { path: string; user: string; password: string } | null) => rpc("paas.setBasicAuth", appId, o),
+    setRedirect: (domId: string, o: { target: string; code: 301 | 302; keepPath: boolean } | null) => rpc("paas.setRedirect", domId, o),
+    moveDomain: (domId: string, toAppId: string) => rpc("paas.moveDomain", domId, toAppId),
+    cloneApp: (appId: string, name: string) => rpc<string>("paas.cloneApp", appId, name),
+    adminPlanLimits: () => rpc<{ id: string; name: string; deploysPerDay: number; maxBuildMinutes: number }[]>("paas.adminPlanLimits"),
+    adminSetPlanLimits: (id: string, l: { deploysPerDay: number; maxBuildMinutes: number }) => rpc("paas.adminSetPlanLimits", id, l),
     /** uploads a project ZIP; resolves with the detected stack */
     upload: async (file: File, rootDir = "", onProgress?: (pct: number) => void) => new Promise<{ uploadId: string; stack: string | null; files: number; bytes: number }>((resolve, reject) => {
       const x = new XMLHttpRequest();

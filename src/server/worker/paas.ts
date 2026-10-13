@@ -4,27 +4,33 @@ import "server-only";
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
 import { engineOf, hourlyOf } from "@/lib/paas";
+import { classifyFailure, FAILURES } from "@/lib/paas-runtime";
 import type { DB } from "../db/client";
 import { paasApps, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasJobs, paasLinks, paasMetrics, paasPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { type ComposeService, ComposeError, composeFromZip } from "../paas/compose";
 import { paas, type AppSpec, type PaasDriver } from "../paas/driver";
 import { applyManifest, manifestFromZip, parseManifest } from "../paas/manifest";
+import { logEvent } from "../paas/runtime";
 import { appHourly, appSpec, dbHourly, dbSpec, previewSpec, redeployConfig, signSource } from "../paas/service";
 import { notify, rid } from "../util";
 import { ZipError } from "../unzip";
+import { paasBudgets, paasRuntimeCollect, recordSpend } from "./paas-runtime";
 
 const MAX_LOG = 200_000;
 const BUILD_TIMEOUT_MS = 30 * 60_000;
+const buildTimeoutMs = (spec: AppSpec) => (spec.runtime?.build.timeoutMin ?? 30) * 60_000;
 const ROLLOUT_TIMEOUT_MS = 10 * 60_000;
 const pollMs = () => Number(process.env.PAAS_POLL_MS ?? 3000);
 const later = (ms: number) => new Date(Date.now() + ms);
 
 async function fail(db: DB, depId: string, appId: string, log: string) {
-  const [dep] = await db.update(paasDeployments).set({ status: "failed", log: log.slice(-MAX_LOG), finishedAt: new Date() }).where(eq(paasDeployments.id, depId)).returning();
+  const failure = classifyFailure(log);
+  const [dep] = await db.update(paasDeployments).set({ status: "failed", failure, log: log.slice(-MAX_LOG), finishedAt: new Date() }).where(eq(paasDeployments.id, depId)).returning();
   const [app] = await db.select().from(paasApps).where(eq(paasApps.id, appId));
   if (!app) return;
   const preview = dep?.target === "preview";
+  await logEvent(db, appId, failure === "health" || failure === "port" ? "health_failed" : failure === "oom" ? "oom" : "deploy_failed", (preview ? "پیش‌نمایش ناموفق" : "استقرار ناموفق") + " (" + depId + ")" + (failure ? ": " + FAILURES[failure].title : ""));
   // an app that was live keeps serving the previous deployment; a failed preview never touches production
   if (!preview) await db.update(paasApps).set({ status: app.liveDeployment ? "running" : "failed" }).where(eq(paasApps.id, appId));
   const what = preview ? "پیش‌نمایش " + app.name : "استقرار " + app.name;
@@ -34,7 +40,7 @@ async function fail(db: DB, depId: string, appId: string, log: string) {
 
 /** the spec a deployment runs with: production, or the preview workload built from its branch */
 async function specFor(db: DB, app: typeof paasApps.$inferSelect, dep: typeof paasDeployments.$inferSelect) {
-  const spec = await appSpec(db, app);
+  const spec = { ...await appSpec(db, app), noCache: dep.noCache };
   return dep.target === "preview" ? previewSpec(spec, dep.branch) : spec;
 }
 
@@ -95,7 +101,9 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     const b = await d.buildStatus(spec, p.handle!);
     if (p.notes) b.log = "==> Compose services\n" + p.notes + "\n" + b.log;
     if (b.state === "running") {
-      if (Date.now() - p.since > BUILD_TIMEOUT_MS) return fail(db, dep.id, app.id, b.log + "\nERROR: build timed out after 30 minutes");
+      if (Date.now() - p.since > buildTimeoutMs(spec)) {
+        return fail(db, dep.id, app.id, b.log + "\nERROR: build timed out after " + buildTimeoutMs(spec) / 60_000 + " minutes (the plan's build limit)");
+      }
       await db.update(paasDeployments).set({ log: b.log.slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
       await enqueue(db, "paas.poll", p, { runAt: later(pollMs()) });
       return;
@@ -131,7 +139,10 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     return;
   }
   if (!(await d.rolloutReady(spec))) {
-    if (Date.now() - p.since > ROLLOUT_TIMEOUT_MS) return fail(db, dep.id, app.id, dep.log + "\nERROR: the new version did not become healthy on " + app.healthPath + " within 10 minutes");
+    const problem = await d.rolloutProblem(spec).catch(() => null);
+    const what = spec.runtime?.health.type === "command" ? "the health command" : spec.runtime?.health.type === "tcp" ? "port " + spec.port : spec.healthPath;
+    if (problem?.fatal) return fail(db, dep.id, app.id, dep.log + "\n" + problem.log + "\nERROR: the new version did not become healthy on " + what + "; the previous version keeps serving");
+    if (Date.now() - p.since > ROLLOUT_TIMEOUT_MS) return fail(db, dep.id, app.id, dep.log + (problem ? "\n" + problem.log : "") + "\nERROR: the new version did not become healthy on " + what + " within 10 minutes");
     await enqueue(db, "paas.poll", p, { runAt: later(pollMs()) });
     return;
   }
@@ -147,6 +158,7 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
     try { await d.startScan(spec, done.image, dep.id); await enqueue(db, "paas.scan", { deploymentId: dep.id, since: Date.now() }, { runAt: later(pollMs() * 5) }); }
     catch (e) { await db.update(paasDeployments).set({ scanStatus: "failed", scanReport: (e as Error).message }).where(eq(paasDeployments.id, dep.id)); }
   }
+  if (!preview) await logEvent(db, app.id, "deploy", (dep.trigger === "config" ? "اعمال تنظیمات" : dep.trigger === "rollback" ? "بازگشت نسخه" : "استقرار نسخه جدید") + " (" + dep.id + ")" + (dep.message ? ": " + dep.message : ""));
   if (preview) await notify(db, app.userId, "eye", "پیش‌نمایش " + app.name + " آماده است: " + spec.hosts[0]);
   else if (dep.trigger !== "config") await notify(db, app.userId, "rocket", "نسخه جدید " + app.name + " فعال شد");
 }
@@ -264,7 +276,8 @@ export async function paasBilling(db: DB) {
   const dbs = await db.select().from(paasDbs).where(inArray(paasDbs.status, ["running", "stopped", "creating"]));
   const charges = new Map<string, { amount: number; items: string[] }>();
   const add = (uid: string, amount: number, item: string) => { if (amount <= 0) return; const c = charges.get(uid) ?? { amount: 0, items: [] }; c.amount += amount; c.items.push(item); charges.set(uid, c); };
-  for (const a of apps) { const pl = plans.get(a.planId); if (pl) add(a.userId, appHourly(a, pl), a.name); }
+  const perApp = new Map<string, { appId: string; amount: number }[]>();
+  for (const a of apps) { const pl = plans.get(a.planId); if (pl) { const h = appHourly(a, pl); add(a.userId, h, a.name); perApp.set(a.userId, [...(perApp.get(a.userId) ?? []), { appId: a.id, amount: h }]); } }
   for (const x of dbs) { const pl = plans.get(x.planId); if (pl) add(x.userId, dbHourly(x, pl), x.name); }
   const d = await paas();
   for (const [uid, c] of charges) {
@@ -274,7 +287,7 @@ export async function paasBilling(db: DB) {
       await tx.insert(transactions).values({ id: rid("TX"), userId: uid, type: "usage", amount: -c.amount, method: "کیف پول", desc: "مصرف ساعتی گره اپ: " + c.items.slice(0, 4).join("، ") + (c.items.length > 4 ? " و…" : "") });
       return true;
     });
-    if (ok) continue;
+    if (ok) { await recordSpend(db, perApp.get(uid) ?? []); continue; }
     // out of credit: stop everything this customer runs on the platform (data is kept)
     for (const a of apps.filter((x) => x.userId === uid)) { const sp = await appSpec(db, a); await d.setState(sp, "stop"); if (a.previewDeployment) await d.setState(previewSpec(sp), "stop"); await db.update(paasApps).set({ status: "suspended", suspendedAt: new Date() }).where(eq(paasApps.id, a.id)); }
     for (const x of dbs.filter((y) => y.userId === uid)) { await d.setDbState(await dbSpec(db, x), "stop"); await db.update(paasDbs).set({ status: "suspended", suspendedAt: new Date() }).where(eq(paasDbs.id, x.id)); }
@@ -299,6 +312,7 @@ export async function paasBilling(db: DB) {
     }
     await notify(db, uid, "play", "اپ‌ها و پایگاه‌های داده گره اپ دوباره فعال شدند");
   }
+  await paasBudgets(db);
 }
 
 /* ---------- every 5 minutes: metrics + custom domain checks ---------- */
@@ -316,6 +330,7 @@ export async function paasCollect(db: DB) {
     if (m.length) await db.insert(paasMetrics).values(m.map((x) => ({ target: x.id, cpu: x.cpu, ramMb: x.ramMb, rpm: x.rpm })));
   }
   await db.delete(paasMetrics).where(lt(paasMetrics.createdAt, new Date(Date.now() - 8 * 86400_000)));
+  await paasRuntimeCollect(db, apps);
 
   // pending custom domains: re-check DNS for up to 72 hours
   const pending = await db.select({ dm: paasDomains, a: paasApps }).from(paasDomains).innerJoin(paasApps, eq(paasApps.id, paasDomains.appId))
@@ -328,7 +343,8 @@ export async function checkDomain(db: DB, domainId: string, app: typeof paasApps
   const [dm] = await db.select().from(paasDomains).where(eq(paasDomains.id, domainId));
   if (!dm) return false;
   const d = await paas();
-  const ok = await d.verifyDomain(dm.host, app.name);
+  // a wildcard is checked through one name under it
+  const ok = await d.verifyDomain(dm.host.startsWith("*.") ? "gereh-check." + dm.host.slice(2) : dm.host, app.name);
   await db.update(paasDomains).set({ checkedAt: new Date(), ...(ok ? { status: "active" as const, ssl: "issued" as const } : {}) }).where(eq(paasDomains.id, dm.id));
   if (ok && dm.status !== "active") {
     // the ingress needs the new host

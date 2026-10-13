@@ -10,6 +10,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, PageTitle, StatCard, Switch, Tabs } from "../ui-client";
 import { cpuLabel, ramLabel, StatusPill } from "./paas-shared";
+import { PlanLimits } from "./paas-runtime";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 
@@ -101,6 +102,7 @@ export function AdminPaas() {
               <ul className="space-y-1">{db.paasPlans.filter((p) => p.kind === kind).map((p) => <PlanRow key={p.id} p={p} />)}</ul>
             </Card>
           ))}
+          <PlanLimits />
           <p className="text-[11px] text-white/50 lg:col-span-2">قیمت‌ها ماهانه است؛ کسر ساعتی = قیمت ÷ ۷۲۰ (رو به بالا). تغییر قیمت از ساعت بعد روی همه سرویس‌های همان پلن اعمال می‌شود. دیسک دائمی اپ‌ها ماهانه {toman(DISK_PRICE_GB)} هر گیگ.</p>
         </div>
       )}

@@ -19,7 +19,28 @@ export type AppSpec = {
   /** background processes from the same image (no HTTP) and scheduled commands (Tehran time) */
   processes: { name: string; command: string; instances: number }[];
   crons: { name: string; schedule: string; command: string; enabled: boolean }[];
+  /** build hooks, health check, build and runtime options (absent: platform defaults) */
+  runtime?: RuntimeSpec;
+  /** this build only: skip the layer cache */
+  noCache?: boolean;
 };
+export type RuntimeSpec = {
+  preBuild: string; postBuild: string; preStart: string;
+  /** http: GET the app's healthPath and accept `codes`; command: exit 0; tcp: the port accepts connections */
+  health: { type: "http" | "command" | "tcp"; command: string; codes: string; interval: number; timeout: number; retries: number; startPeriod: number };
+  /** rolling update gated by readiness; false = stop the old version first */
+  zeroDowntime: boolean;
+  build: { cache: boolean; mirror: boolean; args: Record<string, string>; dockerfile: string; timeoutMin: number };
+  timezone: string; readOnlyFs: boolean; dns: string[]; nginxConf: string; phpIni: string;
+  /** false: <name>.<apps domain> is not routed (hosts[0] stays in `hosts` for reference) */
+  defaultDomain: boolean;
+  basicAuth: { path: string; htpasswd: string } | null;
+  /** custom domains that answer with a redirect instead of the app */
+  redirects: { host: string; target: string; code: 301 | 302; keepPath: boolean }[];
+};
+export type AppEvent = { kind: "crash" | "oom" | "health_failed"; message: string; at: Date };
+/** why a rollout is not becoming ready; fatal = give up now instead of waiting for the timeout */
+export type RolloutProblem = { fatal: boolean; log: string };
 export type DbSpec = {
   id: string; userId: string; name: string; engine: string; version: string; cpu: number; ramMb: number; diskGb: number; username: string; password: string; dbName: string; publicAccess: boolean;
   /** PostgreSQL: continuous WAL archiving (point-in-time recovery) */
@@ -44,6 +65,12 @@ export interface PaasDriver {
   /** applies the app's workload with this image (create or update) */
   release(app: AppSpec, image: string, deploymentId: string): Promise<void>;
   rolloutReady(app: AppSpec): Promise<boolean>;
+  /** what keeps a rollout from becoming ready (crash loop, OOM, failing probe), or null */
+  rolloutProblem(app: AppSpec): Promise<RolloutProblem | null>;
+  /** crashes, OOM kills and failed health checks of the running app since `since` */
+  appEvents(app: AppSpec, since: Date): Promise<AppEvent[]>;
+  /** request + response bytes per app id over the last 5 minutes */
+  traffic(targets: { id: string; owner: string; name: string }[]): Promise<Map<string, number>>;
   /** re-applies routing only (domains, CDN); no restart */
   updateRouting(app: AppSpec): Promise<void>;
   setState(app: AppSpec, action: "start" | "stop" | "restart"): Promise<void>;
@@ -111,9 +138,21 @@ function buildScript(app: AppSpec): string[] {
     docker: ["==> Building Dockerfile", "#1 [internal] load build definition from Dockerfile", "#7 exporting layers done"],
     compose: ["==> Building services from docker-compose.yml", "   web: build done", "   worker: build done"],
   };
+  const rt = app.runtime;
+  const body = lang[app.stack] ?? ["==> Building"];
+  const opts = rt ? [
+    app.noCache || !rt.build.cache ? "==> Build cache disabled" : "==> Using build cache",
+    ...(rt.build.mirror && app.source !== "image" ? ["==> Package mirror: npm, pip, composer and Go through mirror.gereh.net"] : []),
+    ...Object.keys(rt.build.args).map((k) => "==> Build arg " + k),
+    ...(app.stack === "docker" && rt.build.dockerfile !== "Dockerfile" ? ["==> Dockerfile: " + rt.build.dockerfile] : []),
+  ] : [];
+  const hook = (label: string, cmd?: string) => (cmd ? ["==> " + label + " hook", "$ " + cmd] : []);
   return [
     ...src,
-    ...(lang[app.stack] ?? ["==> Building"]),
+    ...opts,
+    ...hook("pre-build", rt?.preBuild),
+    ...body,
+    ...hook("post-build", rt?.postBuild),
     "==> Pushing image registry.gereh.net/" + app.userId + "/" + app.name,
     "==> Build finished (" + (s?.label ?? app.stack) + ")",
   ];
@@ -137,6 +176,10 @@ export class SimulatorDriver implements PaasDriver {
     const shown = lines.slice(0, Math.max(1, Math.ceil(lines.length * frac)));
     const failing = /fail|broken/.test(app.gitUrl + app.image);
     if (frac >= 1 && failing) return { state: "failed", log: [...shown.slice(0, 3), "ERROR: build step exited with code 1"].join("\n") };
+    // keywords in the source name simulate the common failures (tests, demos)
+    const src = app.gitUrl + app.image;
+    if (frac >= 1 && /sim-nostart/.test(src)) return { state: "failed", log: [...shown.slice(0, 3), "Nixpacks was unable to generate a build plan for this app.", "No start command could be found", "ERROR: build step exited with code 1"].join("\n") };
+    if (frac >= 1 && /sim-baddeps/.test(src)) return { state: "failed", log: [...shown.slice(0, 3), "$ npm ci", "npm ERR! code ERESOLVE", "npm ERR! ERESOLVE unable to resolve dependency tree", "ERROR: build step exited with code 1"].join("\n") };
     if (frac < 1) return { state: "running", log: shown.join("\n") };
     started.delete(handle);
     const services = composed.get(handle);
@@ -147,7 +190,25 @@ export class SimulatorDriver implements PaasDriver {
     return { state: "succeeded", log: log.join("\n"), image, ref: app.source === "git" ? fakeSha(handle) : undefined };
   }
   async release() {}
-  async rolloutReady() { return true; }
+  async rolloutReady(app: AppSpec) { return !/sim-(oom|badport|unhealthy)/.test(app.gitUrl + app.image); }
+  async rolloutProblem(app: AppSpec): Promise<RolloutProblem | null> {
+    const src = app.gitUrl + app.image, pod = app.name + "-" + fakeSha(app.id).slice(0, 5);
+    if (/sim-oom/.test(src)) return { fatal: true, log: "pod " + pod + ": container app OOMKilled (exit code 137), memory limit " + app.ramMb + "Mi; restarted 3 times" };
+    if (/sim-badport/.test(src)) return { fatal: true, log: "pod " + pod + ": Readiness probe failed: Get \"http://10.42.0.17:" + app.port + app.healthPath + "\": dial tcp 10.42.0.17:" + app.port + ": connect: connection refused\npod " + pod + " log: listening on 0.0.0.0:" + (app.port === 8080 ? 3000 : 8080) };
+    if (/sim-unhealthy/.test(src)) return { fatal: true, log: "pod " + pod + ": Readiness probe failed: HTTP probe failed with statuscode: 503" };
+    return null;
+  }
+  async appEvents(app: AppSpec, since: Date): Promise<AppEvent[]> {
+    // "sim-crashy" apps restart now and then (demos, tests)
+    if (!/sim-crashy/.test(app.name)) return [];
+    const at = new Date(Math.max(since.getTime() + 1000, Date.now() - 60_000));
+    return [{ kind: "crash", message: app.name + ": container exited with code 1; restarted", at }];
+  }
+  async traffic(targets: { id: string }[]) {
+    const t = Math.floor(Date.now() / 300_000);
+    // about 40 requests a minute of ~30 KB each, varying per app and per 5 minutes
+    return new Map(targets.map((x) => { const s = [...x.id].reduce((h, c) => h + c.charCodeAt(0), 0); return [x.id, (150 + ((s * 7 + t) % 100)) * 30 * 1024]; }));
+  }
   async updateRouting() {}
   async setState() {}
   async remove() {}

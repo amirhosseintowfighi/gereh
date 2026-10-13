@@ -5,6 +5,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { appMonthly, defaultEnvKeyFor, hourlyOf, type PaasPlan } from "@/lib/paas";
+import { PHP_STACKS } from "@/lib/paas-runtime";
 import type { DB, Tx } from "../db/client";
 import { paasApps, paasCrons, paasDbConfig, paasDbs, paasDeployments, paasDomains, paasEnv, paasLinks, paasPlans, paasProcesses } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -12,6 +13,7 @@ import { open, seal } from "../secrets";
 import { getSettings } from "../state";
 import { rid } from "../util";
 import type { AppSpec, DbSpec } from "./driver";
+import { PLAN_LIMITS, runtimeSpec } from "./runtime";
 
 export type AppRow = typeof paasApps.$inferSelect;
 export type DbRow = typeof paasDbs.$inferSelect;
@@ -33,7 +35,7 @@ export const DEFAULT_PLANS: PaasPlan[] = [
   { id: "db-xlarge", kind: "db", name: "خیلی بزرگ", cpu: 4, ramMb: 8192, diskGb: 100, price: 4_790_000, active: true },
 ];
 
-export const seedPlans = (db: DB) => db.insert(paasPlans).values(DEFAULT_PLANS.map((p, i) => ({ ...p, position: i }))).onConflictDoNothing();
+export const seedPlans = (db: DB) => db.insert(paasPlans).values(DEFAULT_PLANS.map((p, i) => ({ ...p, position: i, ...PLAN_LIMITS[p.id] }))).onConflictDoNothing();
 export const loadPlans = (db: DB | Tx) => db.select().from(paasPlans).orderBy(asc(paasPlans.position));
 
 /** apps live under a separate domain (never a subdomain of the main site: cookie isolation) */
@@ -54,6 +56,7 @@ export function previewSpec(spec: AppSpec, branch = ""): AppSpec {
     ...spec, id: spec.id + "-pv", name: spec.name + "-preview", hosts: [previewHost(spec.name, domain)], gitBranch: branch || spec.gitBranch,
     instances: 1, autoscale: false, maxInstances: 1, diskGb: 0, processes: [], crons: [], releaseCommand: "", cdn: false,
     env: { ...spec.env, GEREH_PREVIEW: "1" },
+    runtime: spec.runtime && { ...spec.runtime, defaultDomain: true, redirects: [] },
   };
 }
 export const dbHourly = (d: Pick<DbRow, "status">, plan: Pick<PaasPlan, "price" | "diskGb">) =>
@@ -87,7 +90,7 @@ export const defaultEnvKey = defaultEnvKeyFor;
 
 /** everything the driver needs to run an app: plan size, decrypted env, linked database URLs, hosts */
 export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
-  const [[plan], env, links, domains, base, processes, crons] = await Promise.all([
+  const [[plan], env, links, domains, base, processes, crons, runtime] = await Promise.all([
     db.select().from(paasPlans).where(eq(paasPlans.id, app.planId)),
     db.select().from(paasEnv).where(eq(paasEnv.appId, app.id)),
     db.select({ l: paasLinks, d: paasDbs }).from(paasLinks).innerJoin(paasDbs, eq(paasDbs.id, paasLinks.dbId)).where(eq(paasLinks.appId, app.id)),
@@ -95,6 +98,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     appsDomain(db),
     db.select().from(paasProcesses).where(eq(paasProcesses.appId, app.id)).orderBy(asc(paasProcesses.name)),
     db.select().from(paasCrons).where(eq(paasCrons.appId, app.id)).orderBy(asc(paasCrons.name)),
+    runtimeSpec(db, app),
   ]);
   const vars: Record<string, string> = {};
   for (const e of env) vars[e.key] = open(e.valueEnc) ?? "";
@@ -108,6 +112,8 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
   }
   vars.PORT = String(app.port);
   vars.GEREH_APP = app.name;
+  if (!("TZ" in vars)) vars.TZ = runtime.timezone;
+  if (runtime.phpIni && PHP_STACKS.has(app.stack) && app.source !== "compose") vars.PHP_INI_SCAN_DIR = ":/etc/gereh/php";
   return {
     id: app.id, userId: app.userId, name: app.name, stack: app.stack, source: app.source, gitUrl: app.gitUrl, gitBranch: app.gitBranch, image: app.image,
     rootDir: app.rootDir, buildCommand: app.buildCommand, startCommand: app.startCommand, port: app.port, healthPath: app.healthPath,
@@ -116,6 +122,7 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
     cdn: app.cdn, cacheVersion: app.cacheVersion, releaseCommand: app.releaseCommand,
     processes: processes.map((x) => ({ name: x.name, command: x.command, instances: x.instances })),
     crons: crons.map((x) => ({ name: x.name, schedule: x.schedule, command: x.command, enabled: x.enabled })),
+    runtime,
   };
 }
 
@@ -130,9 +137,9 @@ export const setEnvValue = (tx: DB | Tx, appId: string, key: string, value: stri
   tx.insert(paasEnv).values({ appId, key, valueEnc: seal(value), secret, managedBy }).onConflictDoUpdate({ target: [paasEnv.appId, paasEnv.key], set: { valueEnc: seal(value), secret, managedBy } });
 
 /* ---------- deployments ---------- */
-export async function queueDeployment(tx: DB | Tx, app: Pick<AppRow, "id">, o: { trigger: (typeof paasDeployments.$inferInsert)["trigger"]; ref?: string; message?: string; image?: string; uploadPath?: string; target?: "production" | "preview"; branch?: string }) {
+export async function queueDeployment(tx: DB | Tx, app: Pick<AppRow, "id">, o: { trigger: (typeof paasDeployments.$inferInsert)["trigger"]; ref?: string; message?: string; image?: string; uploadPath?: string; target?: "production" | "preview"; branch?: string; noCache?: boolean }) {
   const id = rid("dep");
-  await tx.insert(paasDeployments).values({ id, appId: app.id, trigger: o.trigger, ref: o.ref ?? "", message: o.message ?? "", image: o.image ?? "", uploadPath: o.uploadPath ?? null, target: o.target ?? "production", branch: o.branch ?? "" });
+  await tx.insert(paasDeployments).values({ id, appId: app.id, trigger: o.trigger, ref: o.ref ?? "", message: o.message ?? "", image: o.image ?? "", uploadPath: o.uploadPath ?? null, target: o.target ?? "production", branch: o.branch ?? "", noCache: !!o.noCache });
   // config/rollback deployments reuse a built image and skip the build
   await enqueue(tx, "paas.build", { deploymentId: id });
   return id;
