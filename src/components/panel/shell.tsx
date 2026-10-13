@@ -53,6 +53,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/infra", label: "زیرساخت", icon: "radio-tower" },
   { href: "/admin/status", label: "وضعیت و رخدادها", icon: "activity" },
   { href: "/admin/virtualizor", label: "اتصال Virtualizor", icon: "network" },
+  { href: "/admin/vps-billing", label: "افزونه‌های سرور و کیف پول", icon: "wallet" },
   { href: "/admin/coupons", label: "کدهای تخفیف", icon: "badge-percent" },
   { href: "/admin/announcements", label: "اطلاعیه‌ها", icon: "megaphone" },
   { href: "/admin/blog", label: "بلاگ", icon: "newspaper" },
