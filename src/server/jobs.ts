@@ -11,7 +11,8 @@ export type JobType =
   | "billing.renewals" | "billing.hourly" | "billing.overdue" | "billing.reminders"
   | "usage.collect" | "usage.alerts" | "virt.reconcile" | "tickets.sla" | "notify.send" | "devops.billing"
   | "paas.build" | "paas.poll" | "paas.job" | "wp.import" | "notify.channel" | "paas.scan" | "paas.verify" | "paas.db" | "paas.backup" | "paas.billing" | "paas.collect" | "paas.daily"
-  | "inquiry.settle" | "geo.billing" | "geo.health" | "geo.ns" | "ai.settle";
+  | "inquiry.settle" | "geo.billing" | "geo.health" | "geo.ns" | "ai.settle"
+  | "mail.deliver" | "mail.billing" | "mail.dns" | "mail.daily";
 
 export async function enqueue(db: DB | Tx, type: JobType, payload: Record<string, unknown> = {}, opts: { runAt?: Date; dedupe?: string } = {}) {
   await db.insert(jobs).values({ type, payload, runAt: opts.runAt ?? new Date(), dedupe: opts.dedupe ?? null }).onConflictDoNothing();

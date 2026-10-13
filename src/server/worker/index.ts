@@ -14,6 +14,7 @@ import { settleInquiry } from "../inquiry/service";
 import { geoBilling, geoHealth, geoNsCheck } from "./geo";
 import { devopsBilling } from "../rpc/devops";
 import { wpImport } from "./wordpress";
+import { mailBilling, mailDaily, mailDeliver, mailDns } from "./mail";
 import { channelSend } from "../channels";
 import { paasBackup, paasBilling, paasBuild, paasCollect, paasDaily, paasDbCreate, paasJobPoll, paasPoll, paasScan, paasVerifyBackups } from "./paas";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
@@ -51,6 +52,10 @@ const handlers: Record<JobType, Handler> = {
   "geo.billing": (db) => geoBilling(db),
   "geo.health": (db) => geoHealth(db),
   "geo.ns": (db, p) => geoNsCheck(db, p as never),
+  "mail.deliver": (db, p) => mailDeliver(db, p as never),
+  "mail.billing": (db) => mailBilling(db),
+  "mail.dns": (db, p) => mailDns(db, p as never),
+  "mail.daily": (db) => mailDaily(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
@@ -58,6 +63,7 @@ export const SCHEDULE: [JobType, number][] = [
   ["usage.collect", 5], ["tickets.sla", 5], ["billing.hourly", 60],
   ["billing.renewals", 24 * 60], ["billing.overdue", 24 * 60], ["billing.reminders", 24 * 60], ["virt.reconcile", 24 * 60], ["devops.billing", 24 * 60], ["paas.billing", 60], ["paas.collect", 5], ["paas.daily", 24 * 60], ["paas.verify", 7 * 24 * 60],
   ["inquiry.settle", 10], ["ai.settle", 10], ["geo.billing", 24 * 60], ["geo.health", 5], ["geo.ns", 60],
+  ["mail.billing", 60], ["mail.dns", 60], ["mail.daily", 24 * 60],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */
