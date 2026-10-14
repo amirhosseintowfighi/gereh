@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { BTN_D, BTN_P, GLASS, INPUT } from "@/lib/cls";
 import { fa, strength, toEnDigits } from "@/lib/format";
 import { useApp } from "./app-context";
@@ -125,51 +126,91 @@ export function Select({ value, onChange, options, className = "", ltr = false, 
   );
 }
 
-/** Lock page scroll + Escape to close + return focus, shared by Modal and drawers. */
-export function useDialog(open: boolean, onClose: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
+/* open dialogs, innermost last: only the top one answers Escape/Tab, and the page stays locked until the last closes */
+const dialogStack: symbol[] = [];
+let lockedOverflow: [string, string] | null = null;
+function lockScroll() {
+  if (lockedOverflow) return;
+  const html = document.documentElement, body = document.body;
+  lockedOverflow = [html.style.overflow, body.style.overflow];
+  html.style.overflow = "hidden"; body.style.overflow = "hidden";
+}
+function unlockScroll() {
+  if (!lockedOverflow || dialogStack.length) return;
+  document.documentElement.style.overflow = lockedOverflow[0]; document.body.style.overflow = lockedOverflow[1];
+  lockedOverflow = null;
+}
+const FOCUSABLE = "a[href], button:not(:disabled), input:not(:disabled):not([type=hidden]), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex='-1'])";
+
+/** Lock page scroll + Escape to close + focus trap + return focus, shared by Modal and drawers. */
+export function useDialog<T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void) {
+  const ref = useRef<T>(null);
   const close = useRef(onClose);
   useEffect(() => { close.current = onClose; });
   useEffect(() => {
     if (!open) return;
+    const me = Symbol("dialog");
+    dialogStack.push(me);
     const prev = document.activeElement as HTMLElement | null;
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-    const first = ref.current?.querySelector<HTMLElement>("[autofocus], input, textarea, select, button:not([data-close])");
-    (first || ref.current)?.focus();
+    lockScroll();
+    const focusables = () => [...(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])].filter((el) => el.getClientRects().length > 0);
+    // a portalled dialog mounts in the same commit, but wait a frame so autofocus inside it wins
+    const raf = requestAnimationFrame(() => {
+      if (ref.current?.contains(document.activeElement)) return;
+      const first = ref.current?.querySelector<HTMLElement>("[autofocus]") || focusables().find((el) => !el.hasAttribute("data-close") && el.tagName !== "A");
+      (first || ref.current)?.focus({ preventScroll: true });
+    });
     const k = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); close.current(); }
+      if (dialogStack[dialogStack.length - 1] !== me) return;
+      if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close.current(); return; }
       if (e.key === "Tab" && ref.current) {
-        const f = ref.current.querySelectorAll<HTMLElement>("a[href], button:not(:disabled), input, textarea, select, [tabindex]:not([tabindex='-1'])");
-        if (!f.length) return;
-        const a = f[0], b = f[f.length - 1];
-        if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); }
-        else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); }
+        const f = focusables();
+        if (!f.length) { e.preventDefault(); ref.current.focus(); return; }
+        const a = f[0], b = f[f.length - 1], cur = document.activeElement;
+        if (!ref.current.contains(cur)) { e.preventDefault(); (e.shiftKey ? b : a).focus(); }
+        else if (e.shiftKey && (cur === a || cur === ref.current)) { e.preventDefault(); b.focus(); }
+        else if (!e.shiftKey && cur === b) { e.preventDefault(); a.focus(); }
       }
     };
     window.addEventListener("keydown", k);
-    return () => { window.removeEventListener("keydown", k); document.body.style.overflow = overflow; prev?.focus?.(); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", k);
+      dialogStack.splice(dialogStack.indexOf(me), 1);
+      unlockScroll();
+      if (prev?.isConnected) prev.focus?.({ preventScroll: true });
+    };
   }, [open]);
   return ref;
+}
+
+/** Renders overlays at the end of <body>. A `position: fixed` overlay inside a card with
+    backdrop-filter or transform is positioned and clipped by that card instead of the screen. */
+export function Portal({ children }: { children: React.ReactNode }) {
+  const hydrated = useHydrated();
+  return hydrated ? createPortal(children, document.body) : null;
 }
 
 export function Modal({ open, onClose, title, children, footer, size = "max-w-lg", icon }: { open: boolean; onClose: () => void; title: string; children?: React.ReactNode; footer?: React.ReactNode; size?: string; icon?: string }) {
   const ref = useDialog(open, onClose);
   const tid = useId();
   if (!open) return null;
+  // phones: a full-width bottom sheet; from sm up: a centred dialog. Header and footer stay put, the body scrolls.
   return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 fade-in">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={tid}
-        className={"pop-in relative w-full " + size + " max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl outline-none"}>
-        <div className="flex items-center justify-between gap-4 px-6 h-16 border-b border-white/[0.08] shrink-0">
-          <h2 id={tid} className="flex items-center gap-3 font-extrabold text-base">{icon && <Icon name={icon} size={19} className="acc" />}{title}</h2>
-          <button type="button" data-close onClick={onClose} className="w-9 h-9 grid place-items-center rounded-xl hover:bg-white/10" aria-label="بستن"><Icon name="x" size={18} /></button>
+    <Portal>
+      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 fade-in" style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 12px)" }}>
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+        <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={tid}
+          className={"dlg-max sheet-in relative w-full " + size + " flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#0b0d16] border border-white/[0.12] border-b-0 sm:border-b shadow-2xl outline-none overflow-hidden"}>
+          <div className="flex items-center justify-between gap-3 px-5 sm:px-6 min-h-16 py-3 border-b border-white/[0.08] shrink-0">
+            <h2 id={tid} className="flex items-center gap-3 font-extrabold text-base leading-7 min-w-0">{icon && <Icon name={icon} size={19} className="acc shrink-0" />}<span className="min-w-0 [overflow-wrap:anywhere]">{title}</span></h2>
+            <button type="button" data-close onClick={onClose} className="w-9 h-9 shrink-0 grid place-items-center rounded-xl hover:bg-white/10" aria-label="بستن"><Icon name="x" size={18} /></button>
+          </div>
+          <div className="p-5 sm:p-6 overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 flex-1" style={footer ? undefined : { paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))" }}>{children}</div>
+          {footer && <div className="px-5 sm:px-6 py-4 border-t border-white/[0.08] flex flex-wrap justify-end gap-2 shrink-0" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>{footer}</div>}
         </div>
-        <div className="p-6 overflow-auto">{children}</div>
-        {footer && <div className="px-6 py-4 border-t border-white/[0.08] flex flex-wrap justify-end gap-2 shrink-0">{footer}</div>}
       </div>
-    </div>
+    </Portal>
   );
 }
 
@@ -177,16 +218,19 @@ export function SideDrawer({ open, onClose, title, children, width = "w-[520px]"
   const ref = useDialog(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[75] fade-in">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
-      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={"drawer-in absolute left-0 top-0 bottom-0 " + width + " max-w-[94vw] bg-[#0b0d16]/95 backdrop-blur-2xl border-r border-white/[0.12] flex flex-col outline-none"}>
-        <div className="flex items-center justify-between px-6 h-16 border-b border-white/[0.08] shrink-0">
-          <h2 className="font-extrabold text-base">{title}</h2>
-          <button type="button" data-close onClick={onClose} className="w-9 h-9 grid place-items-center rounded-xl hover:bg-white/10" aria-label="بستن"><Icon name="x" size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-auto p-6">{children}</div>
-      </aside>
-    </div>
+    <Portal>
+      <div className="fixed inset-0 z-[95] fade-in">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+        <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={"drawer-in absolute left-0 top-0 bottom-0 " + width + " max-w-[94vw] bg-[#0b0d16] border-r border-white/[0.12] flex flex-col outline-none"}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+          <div className="flex items-center justify-between gap-3 px-5 sm:px-6 h-16 border-b border-white/[0.08] shrink-0">
+            <h2 className="font-extrabold text-base truncate min-w-0">{title}</h2>
+            <button type="button" data-close onClick={onClose} className="w-9 h-9 shrink-0 grid place-items-center rounded-xl hover:bg-white/10" aria-label="بستن"><Icon name="x" size={18} /></button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6">{children}</div>
+        </aside>
+      </div>
+    </Portal>
   );
 }
 
@@ -218,12 +262,40 @@ export function useCopy() {
     try { await navigator.clipboard.writeText(text); notify(label, "check"); } catch { notify("کپی ممکن نشد؛ دستی انتخاب کنید", "circle-alert"); }
   };
 }
-export function CopyText({ text, className = "" }: { text: string; className?: string }) {
+/** A short value (IP, key, host…) shown as LTR text that copies itself on click. Long values wrap
+    instead of widening their container; `label` names what is copied for screen readers. */
+export function CopyText({ text, className = "", label }: { text: string; className?: string; label?: string }) {
   const copy = useCopy();
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); copy(text); }} className={"group inline-flex items-center gap-1.5 ltr hover:text-white transition " + className} title="کپی" aria-label={"کپی " + text}>
-      <span>{text}</span><Icon name="copy" size={13} className="opacity-40 group-hover:opacity-100" />
+    <button type="button" dir="ltr" onClick={(e) => { e.stopPropagation(); copy(text); }} title="کپی" aria-label={"کپی " + (label ?? (text.length > 80 ? text.slice(0, 60) + "…" : text))}
+      className={"group inline-flex max-w-full min-w-0 items-center gap-1.5 text-left align-middle hover:text-white transition " + className}>
+      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span><Icon name="copy" size={13} className="shrink-0 opacity-40 group-hover:opacity-100" />
     </button>
+  );
+}
+
+/** An icon-and-word copy button, for code blocks and long secrets whose text is shown elsewhere. */
+export function CopyButton({ text, label = "کپی", className = "" }: { text: string; label?: string; className?: string }) {
+  const copy = useCopy();
+  return (
+    <button type="button" onClick={(e) => { e.stopPropagation(); copy(text); }} aria-label={label} title={label}
+      className={"inline-flex shrink-0 items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] text-white/70 bg-white/[0.06] border border-white/10 hover:text-white hover:bg-white/[0.12] transition " + className}>
+      <Icon name="copy" size={13} />کپی
+    </button>
+  );
+}
+
+/** A code sample: LTR and monospace, scrolls sideways inside itself, and lays out each line with its
+    own direction so Persian comments read correctly. The copy button sits in a bar above the code. */
+export function CodeBlock({ code, label, title, className = "", wrap = false, maxH = "" }: { code: string; label: string; title?: React.ReactNode; className?: string; wrap?: boolean; maxH?: string }) {
+  return (
+    <div className={"min-w-0 rounded-xl bg-black/40 border border-white/[0.06] overflow-hidden " + className}>
+      <div className="flex items-center justify-between gap-2 ps-3 pe-1.5 py-1.5 border-b border-white/[0.06]">
+        <span className="min-w-0 truncate text-[11px] text-white/50">{title}</span>
+        <CopyButton text={code} label={"کپی " + label} />
+      </div>
+      <pre dir="ltr" tabIndex={0} aria-label={label} className={"code text-[12px] leading-6 p-4 overflow-auto " + maxH + (wrap ? " whitespace-pre-wrap [overflow-wrap:anywhere]" : "")}>{code}</pre>
+    </div>
   );
 }
 
