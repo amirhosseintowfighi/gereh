@@ -90,9 +90,26 @@ export function Tabs({ options, value, onChange, full = false, size = "md", labe
     const next = options[(i + d + options.length) % options.length];
     onChange(next.id); refs.current[next.id]?.focus(); refs.current[next.id]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   };
-  // the strip scrolls sideways when it is wider than the screen (phones) instead of widening the page
+  // the strip scrolls sideways when it is wider than the screen (phones) instead of widening the page;
+  // a fade on the side that has more tabs shows that it scrolls
+  const box = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: false, end: false, ltr: false });
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const f = () => {
+      const max = el.scrollWidth - el.clientWidth, x = Math.abs(el.scrollLeft); // RTL scrollLeft runs 0 → negative
+      const n = { start: max > 2 && x > 2, end: max > 2 && max - x > 2, ltr: getComputedStyle(el).direction === "ltr" };
+      setEdge((p) => (p.start === n.start && p.end === n.end && p.ltr === n.ltr ? p : n));
+    };
+    const ro = new ResizeObserver(f); // also fires once right away
+    ro.observe(el); if (el.firstElementChild) ro.observe(el.firstElementChild);
+    el.addEventListener("scroll", f, { passive: true });
+    return () => { ro.disconnect(); el.removeEventListener("scroll", f); };
+  }, [options.length]);
+  const mask = edge.start || edge.end ? `linear-gradient(to ${edge.ltr ? "right" : "left"}, ${edge.start ? "transparent 0, #000 28px" : "#000 0"}, ${edge.end ? "#000 calc(100% - 28px), transparent 100%" : "#000 100%"})` : undefined;
   return (
-    <div className={"max-w-full overflow-x-auto no-scrollbar " + (full ? "w-full" : "inline-block align-top")}>
+    <div ref={box} style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined} className={"max-w-full overflow-x-auto no-scrollbar " + (full ? "w-full" : "inline-block align-top")}>
     <div role="tablist" aria-label={label} onKeyDown={onKey} className={"relative inline-flex p-1 rounded-2xl bg-white/[0.07] border border-white/15 " + (full ? "w-full" : "")}>
       {pill && <span className="tab-pill" style={{ left: pill.left, width: pill.width }} />}
       {options.map((o) => {
@@ -560,7 +577,7 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
 
 export function PriceTag({ base, suffix = "تومان / ماه", big = true }: { base: number; suffix?: string; big?: boolean }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-1.5 min-w-0">
+    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1.5 min-w-0">
       <Num value={base} className={(big ? "text-[1.85rem] xl:text-[2.1rem] leading-tight" : "text-xl") + " font-black tracking-tight tabular silver"} />
       <span className="text-xs text-white/55">{suffix}</span>
     </div>

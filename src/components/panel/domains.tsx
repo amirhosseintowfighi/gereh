@@ -154,8 +154,8 @@ function DnsTab({ d }: { d: Domain }) {
   const managed = managedHere(d);
   const rows = useMemo(() => d.dns.filter((r) => (!type || r.type === type) && (!q || (r.name + " " + r.value).toLowerCase().includes(q.trim().toLowerCase()))), [d.dns, q, type]);
   const types = [...new Set(d.dns.map((r) => r.type))];
-  if (!managed) return <><Card><Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها، CDN و DNSSEC در گره، نام‌سرورها را به ns1.gereh.net و ns2.gereh.net تغییر دهید."} /></Card><NsCheck d={d} /></>;
   const narrow = useMedia("(max-width: 767.98px)");
+  if (!managed) return <><Card><Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها، CDN و DNSSEC در گره، نام‌سرورها را به ns1.gereh.net و ns2.gereh.net تغییر دهید."} /></Card><NsCheck d={d} /></>;
   const cdn = (r: (typeof rows)[number]) => PROXIABLE.includes(r.type) ? (
     <button type="button" aria-pressed={!!r.proxied} title={r.proxied ? "از CDN عبور می‌کند" : "مستقیم (فقط DNS)"} onClick={async () => { try { await api.domains.setProxied(d.id, r.id, !r.proxied); notify(r.proxied ? "رکورد مستقیم شد" : "رکورد از CDN عبور می‌کند"); } catch (e) { notify((e as Error).message, "circle-alert"); } }}
       className={"inline-flex items-center gap-1 text-xs rounded-lg px-2 h-7 border " + (r.proxied ? "border-amber-300/40 text-amber-200 bg-amber-400/10" : "border-white/10 text-white/50")}>
@@ -602,27 +602,27 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
         {f && <div className="space-y-4">
           <Field label="نوع قانون"><Select value={f.kind} label="نوع قانون" onChange={(k) => setF({ ...EMPTY_RULE, kind: k as CdnRule["kind"], action: k === "access" ? "deny" : "cache" })} options={Object.entries(CDN_RULE_LABEL).map(([value, label]) => ({ value, label }))} /></Field>
           {pathField}
-          {f.kind === "cache" && <div className="grid grid-cols-2 gap-4">
+          {f.kind === "cache" && <div className="grid sm:grid-cols-2 gap-4">
             <Field label="رفتار"><Select value={f.action} label="رفتار کش" onChange={(x) => up({ action: x })} options={[{ value: "cache", label: "کش شود" }, { value: "bypass", label: "کش نشود" }]} /></Field>
             {f.action === "cache" && <Field label="مدت کش در لبه"><Select value={f.ttl} label="مدت کش" onChange={(x) => up({ ttl: x })} options={CACHE_TTL} /></Field>}
           </div>}
-          {f.kind === "redirect" && <div className="grid grid-cols-3 gap-4">
-            <Field className="col-span-2" label="مقصد"><input value={f.to} onChange={(e) => up({ to: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={"https://" + d.name + "/new"} /></Field>
+          {f.kind === "redirect" && <div className="grid sm:grid-cols-3 gap-4">
+            <Field className="sm:col-span-2" label="مقصد"><input value={f.to} onChange={(e) => up({ to: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={"https://" + d.name + "/new"} /></Field>
             <Field label="کد"><Select value={f.code} label="کد ریدایرکت" onChange={(x) => up({ code: x })} options={[{ value: "301", label: "۳۰۱ دائمی" }, { value: "302", label: "۳۰۲ موقت" }]} /></Field>
           </div>}
-          {f.kind === "header" && <div className="grid grid-cols-2 gap-4">
+          {f.kind === "header" && <div className="grid sm:grid-cols-2 gap-4">
             <Field label="نام هدر"><input value={f.name} onChange={(e) => up({ name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="X-Frame-Options" /></Field>
             <Field label="مقدار"><input value={f.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="SAMEORIGIN" /></Field>
           </div>}
-          {f.kind === "auth" && <div className="grid grid-cols-2 gap-4">
+          {f.kind === "auth" && <div className="grid sm:grid-cols-2 gap-4">
             <Field label="نام کاربری"><input value={f.user} onChange={(e) => up({ user: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} autoComplete="off" /></Field>
             <Field label="رمز" hint="حداقل ۸ نویسه؛ فقط به شکل هش نگه داشته می‌شود."><input type="password" value={f.password} onChange={(e) => up({ password: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} autoComplete="new-password" /></Field>
           </div>}
-          {f.kind === "access" && <div className="grid grid-cols-3 gap-4">
+          {f.kind === "access" && <div className="grid sm:grid-cols-3 gap-4">
             <Field label="رفتار"><Select value={f.action} label="رفتار دسترسی" onChange={(x) => up({ action: x })} options={[{ value: "deny", label: "مسدود" }, { value: "allow", label: "فقط اجازه" }]} /></Field>
-            <Field className="col-span-2" label="IP، بازه CIDR یا کد کشور" hint="مثل 5.160.0.0/16 یا IR"><input value={f.target} onChange={(e) => up({ target: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field className="sm:col-span-2" label="IP، بازه CIDR یا کد کشور" hint="مثل 5.160.0.0/16 یا IR"><input value={f.target} onChange={(e) => up({ target: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
           </div>}
-          {f.kind === "ratelimit" && <div className="grid grid-cols-2 gap-4">
+          {f.kind === "ratelimit" && <div className="grid sm:grid-cols-2 gap-4">
             <Field label="درخواست در ثانیه برای هر IP"><input value={f.rps} onChange={(e) => up({ rps: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-left"} /></Field>
             <Field label="ظرفیت انفجاری"><input value={f.burst} onChange={(e) => up({ burst: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-left"} /></Field>
           </div>}

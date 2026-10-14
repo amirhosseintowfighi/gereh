@@ -18,6 +18,7 @@
      SHOTS         0 = no screenshots, "tabs" = also one per tab (default 1)
      OUT           output folder (default test-results/responsive)
      CONCURRENCY   pages audited in parallel (default 4)
+     RESET         0 = do not reset the demo database first
    Exit code 1 when anything is reported. */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -202,7 +203,8 @@ async function session(email) {
   return ctx;
 }
 
-await (await fetch(BASE + "/api/test", { method: "POST" }).catch(() => null))?.text();
+// back to the demo seed (E2E=1 servers only); RESET=0 keeps the data, e.g. while another audit runs
+if (process.env.RESET !== "0") await (await fetch(BASE + "/api/test", { method: "POST" }).catch(() => null))?.text();
 const user = await session("demo@gereh.net");
 const admin = await session("admin@gereh.net");
 const anon = await session(null);
@@ -242,7 +244,7 @@ const slug = (p) => (p.replace(/^\//, "").replace(/[/?=&%]+/g, "_") || "home").s
 async function audit(ctx, path) {
   const page = await ctx.newPage();
   const errors = [];
-  page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text().slice(0, 300)); });
+  page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text().slice(0, 1500)); });
   page.on("pageerror", (e) => errors.push("pageerror: " + e.message.slice(0, 300)));
   page.on("response", (r) => { if (r.status() >= 400 && r.url().startsWith(BASE) && !r.url().includes("/api/") && r.url() !== BASE + path) errors.push("http " + r.status() + ": " + r.url().slice(BASE.length)); });
   for (const w of WIDTHS) {
@@ -252,6 +254,7 @@ async function audit(ctx, path) {
       const resp = await page.goto(BASE + path, { waitUntil: "networkidle", timeout: 90_000 });
       status = resp?.status() ?? 0;
     } catch (e) { errors.push("goto: " + e.message.split("\n")[0]); }
+    if (/^\/(panel|admin)/.test(path) && new URL(page.url()).pathname === "/auth") errors.push("redirected to /auth: the session was lost");
     await page.evaluate(() => document.fonts?.ready).catch(() => {});
     await page.waitForTimeout(300);
     const states = [["", await check(page)]];
