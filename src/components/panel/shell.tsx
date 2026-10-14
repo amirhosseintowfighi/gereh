@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
@@ -11,7 +11,7 @@ import { VirguleLink, VirguleMark, Wordmark } from "../brand";
 import { AccountSwitcher, roleLabel } from "./team";
 import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
-import { Menu } from "../ui-client";
+import { Menu, useDialog } from "../ui-client";
 
 type NavItem = { href: string; label: string; icon: string; group?: string };
 const USER_NAV: NavItem[] = [
@@ -79,6 +79,26 @@ export function PanelGate({ kind, children }: { kind: "user" | "admin"; children
   return <PanelShell kind={kind}>{children}</PanelShell>;
 }
 
+/** the sidebar as a drawer below lg: scroll lock, Escape, focus trap; closes itself if the screen grows to lg */
+function NavDrawer({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useDialog<HTMLElement>(true, onClose);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const f = () => { if (mq.matches) onClose(); };
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, [onClose]);
+  return (
+    <div className="lg:hidden fixed inset-0 z-[70] fade-in">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="drawer-in-r absolute inset-y-0 right-0 w-[280px] max-w-[86vw] bg-[#06070e] border-l border-white/10 outline-none"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        {children}
+      </aside>
+    </div>
+  );
+}
+
 function PanelShell({ kind, children }: { kind: "user" | "admin"; children: React.ReactNode }) {
   const db = useDB();
   useLocs(db.locations); // keeps location labels (locLabel) in sync with what the admin saved
@@ -88,6 +108,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const router = useRouter();
   const { notify, openPalette } = useApp();
   const [mobile, setMobile] = useState(false);
+  const closeNav = useCallback(() => setMobile(false), []);
   // team members only see the sections their role can use
   const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
@@ -102,11 +123,14 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const [navPath, setNavPath] = useState(path);
   if (navPath !== path) { setNavPath(path); setMobile(false); }
 
-  const Side = (
+  const side = (close?: () => void) => (
     <div className="flex flex-col h-full">
-      <div className="h-16 px-5 flex items-center justify-between border-b border-white/[0.07]">
+      <div className="h-16 px-5 flex items-center justify-between gap-2 border-b border-white/[0.07] shrink-0">
         <Link href="/" aria-label="گره، بازگشت به سایت"><Wordmark size={30} sub={false} /></Link>
-        <Badge tone={kind === "admin" ? "violet" : "blue"}>{kind === "admin" ? "مدیریت" : "کاربری"}</Badge>
+        <span className="flex items-center gap-1.5">
+          <Badge tone={kind === "admin" ? "violet" : "blue"}>{kind === "admin" ? "مدیریت" : "کاربری"}</Badge>
+          {close && <button type="button" data-close onClick={close} aria-label="بستن منو" className="-ml-2 w-10 h-10 grid place-items-center rounded-xl text-white/70 hover:text-white hover:bg-white/10"><Icon name="x" size={18} /></button>}
+        </span>
       </div>
       <nav aria-label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} className="flex-1 overflow-auto p-3 space-y-0.5">
         {nav.map((n, i) => (<Fragment key={n.href}>
@@ -134,13 +158,8 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
 
   return (
     <div className="relative z-10 min-h-screen flex">
-      <aside className="hidden lg:block w-[264px] shrink-0 fixed inset-y-0 right-0 bg-[#06070e]/70 backdrop-blur-2xl border-l border-white/[0.07]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{Side}</aside>
-      {mobile && (
-        <div className="lg:hidden fixed inset-0 z-[70] fade-in">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobile(false)} />
-          <aside className="drawer-in-r absolute inset-y-0 right-0 w-[280px] bg-[#06070e]/95 backdrop-blur-2xl border-l border-white/10" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{Side}</aside>
-        </div>
-      )}
+      <aside className="hidden lg:block w-[264px] shrink-0 fixed inset-y-0 right-0 bg-[#06070e]/70 backdrop-blur-2xl border-l border-white/[0.07]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{side()}</aside>
+      {mobile && <NavDrawer label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} onClose={closeNav}>{side(closeNav)}</NavDrawer>}
       <div className="flex-1 lg:mr-[264px] min-w-0">
         <header className="sticky z-30 h-16 px-4 sm:px-8 flex items-center justify-between gap-3 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
           <div className="flex items-center gap-2">

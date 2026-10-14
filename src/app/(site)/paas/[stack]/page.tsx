@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { PageHeader } from "@/components/site/page-header";
+import { CodeBlock } from "@/components/ui-client";
 import { PaasCta, PaasFaq, PaasStacks } from "@/components/site/paas-sections";
 import { guideBySlug, PAAS_FAQ, STACK_GUIDES } from "@/content/paas";
 import { GLASS, GLASS_SOFT } from "@/lib/cls";
@@ -49,10 +50,7 @@ export default async function Page({ params }: PageProps<"/paas/[stack]">) {
         </div>
         <div className="space-y-4 min-w-0">
           {g.sample && (
-            <div className={GLASS + " rounded-[1.5rem] overflow-hidden"}>
-              <div className="px-5 py-3 border-b border-white/[0.08] text-xs text-white/60">{g.sample.file}</div>
-              <pre dir="ltr" tabIndex={0} aria-label={"نمونه " + g.sample.file} className="p-5 text-[12.5px] leading-7 font-mono text-left overflow-x-auto">{g.sample.code}</pre>
-            </div>
+            <CodeBlock className={GLASS + " !rounded-[1.5rem]"} code={g.sample.code} label={"نمونه " + g.sample.file} title={<bdi dir="ltr">{g.sample.file}</bdi>} />
           )}
           <div className={GLASS_SOFT + " rounded-[1.5rem] p-6"}>
             <h2 className="font-extrabold flex items-center gap-2"><Icon name="sparkles" size={18} className="acc" />نکته‌های {s?.label}</h2>

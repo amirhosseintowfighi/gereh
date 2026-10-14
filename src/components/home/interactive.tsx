@@ -403,7 +403,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
           </div>
           <div className="mt-6 pt-5 border-t border-white/15">
             <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
-            <div className="text-[11px] text-white/55 mt-1">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
+            <div className="text-[11px] text-white/55 mt-2">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
           </div>
           <button type="button" onClick={() => addToCart({ t: "custom", ...cfg })}
             className={BTN_P + " w-full mt-5 py-3.5"}><Icon name="rocket" size={18} /> ساخت این سرور</button>

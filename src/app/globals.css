@@ -114,10 +114,24 @@ button:disabled { cursor: not-allowed; }
 
 :focus-visible { outline: 2px solid #9cc9ff; outline-offset: 3px; border-radius: 10px; }
 .ltr { direction: ltr; unicode-bidi: isolate; }
+/* code is LTR and left-aligned; every line is its own bidi paragraph that takes its direction from its
+   first letter (unicode-bidi: plaintext), so a Persian comment inside a shell snippet reads correctly */
+pre:not([dir="auto"]) { direction: ltr; text-align: left; }
+pre { unicode-bidi: plaintext; tab-size: 2; }
+.code { font-family: var(--font-mono); color: rgba(255,255,255,.85); }
+/* dialogs: never taller than the visible screen (dvh follows mobile browser toolbars) */
+.dlg-max { max-height: calc(100vh - 12px); max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), 12px)); }
+@media (min-width: 640px) { .dlg-max { max-height: 88vh; max-height: 88dvh; } }
+.sheet-in { animation: sheetIn .28s cubic-bezier(.16,1,.3,1); }
+@keyframes sheetIn { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (min-width: 640px) { .sheet-in { animation-name: popIn; animation-duration: .2s; } }
 .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { scrollbar-width: none; }
 /* scroll containers must contain their absolutely positioned descendants (sr-only labels in tables),
    otherwise those escape the clip and widen the whole page on phones */
 @layer base { .overflow-x-auto, .overflow-auto, .overflow-x-scroll { position: relative; } }
+/* grid items default to min-width: auto, so one long code line, URL or table inside a column widens
+   the whole grid past the screen; let them shrink and scroll/wrap inside instead (min-w-* still wins) */
+@layer base { :where(.grid) > * { min-width: 0; } }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 10px; }
 ::selection { background: rgba(156,201,255,.35); }
@@ -126,7 +140,7 @@ button:disabled { cursor: not-allowed; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .blob, .hero-in, .fade-page, .toast-in, .drawer-in, .drawer-in-r, .pop-in, .scan, .caret, .line-in, .fade-in { animation: none !important; }
+  .blob, .hero-in, .fade-page, .toast-in, .drawer-in, .drawer-in-r, .pop-in, .sheet-in, .scan, .caret, .line-in, .fade-in { animation: none !important; }
 }
 
 @media print {

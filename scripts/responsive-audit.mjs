@@ -49,7 +49,7 @@ const PANEL = (ids) => [
 ];
 const ADMIN = (ids) => [
   "/admin", "/admin/ai", "/admin/announcements", "/admin/audit", "/admin/billing", "/admin/blog", "/admin/chats", "/admin/coupons", "/admin/devops",
-  "/admin/domains", "/admin/geo", "/admin/infra", "/admin/inquiry", "/admin/mail", "/admin/paas", "/admin/products", "/admin/reports", "/admin/services",
+  "/admin/domains", "/admin/geo", "/admin/infra", "/admin/inquiry", "/admin/mail", "/admin/orders", "/admin/paas", "/admin/products", "/admin/reports", "/admin/services",
   "/admin/settings", "/admin/status", "/admin/storage", "/admin/tickets", "/admin/tickets/" + ids.ticket, "/admin/users", "/admin/virtualizor", "/admin/vps-billing",
 ];
 
@@ -67,16 +67,18 @@ function inspect() {
     return t ? s + ` "${t}"` : s;
   };
   const visible = (el) => {
-    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+    for (let e = el, child = null; e && e !== document.documentElement; child = e, e = e.parentElement) {
       const cs = getComputedStyle(e);
       if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
       if (e.tagName === "NEXTJS-PORTAL") return false;
+      if (e.tagName === "DETAILS" && !e.open && child && child.tagName !== "SUMMARY") return false; // collapsed answer
+      if (cs.overflow !== "visible" || cs.clip !== "auto" && cs.clip !== "") { const r = e.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return false; } // sr-only
     }
     return true;
   };
   // an ancestor (other than html/body, whose overflow is propagated to the viewport) that clips or scrolls
-  const clipper = (el) => {
-    for (let e = el.parentElement; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+  const clipper = (el, self = false) => {
+    for (let e = self ? el : el.parentElement; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
       const ox = getComputedStyle(e).overflowX;
       if (ox !== "visible") return e;
     }
@@ -120,11 +122,13 @@ function inspect() {
     if (!vis(el)) continue;
     if (fixedAncestor(el)) continue;
     range.selectNodeContents(n);
-    for (const r of range.getClientRects()) {
+    const clip = clipper(el, true), c = clip?.getBoundingClientRect();
+    for (const raw of range.getClientRects()) {
+      // only the part a clipping/scrolling parent lets through is visible
+      const r = c ? { left: Math.max(raw.left, c.left), right: Math.min(raw.right, c.right), top: Math.max(raw.top, c.top), bottom: Math.min(raw.bottom, c.bottom) } : { left: raw.left, right: raw.right, top: raw.top, bottom: raw.bottom };
+      r.width = r.right - r.left; r.height = r.bottom - r.top;
       if (r.width < 4 || r.height < 4) continue;
-      const clip = clipper(el);
-      if (clip) { const c = clip.getBoundingClientRect(); if (r.right < c.left || r.left > c.right || r.bottom < c.top || r.top > c.bottom) continue; }
-      runs.push({ el, r, clip });
+      runs.push({ el, r });
     }
   }
   const seen = new Set();

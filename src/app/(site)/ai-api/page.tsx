@@ -4,6 +4,7 @@ import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { PaasFaq } from "@/components/site/paas-sections";
 import { SectionHead } from "@/components/ui";
+import { CodeBlock } from "@/components/ui-client";
 import { AI_ENDPOINTS, AI_FAQ, AI_FEATURES, AI_SNIPPETS } from "@/content/ai";
 import { AI_VENDORS } from "@/lib/ai";
 import { BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
@@ -87,7 +88,7 @@ export default async function AiApiPage() {
             <details key={x.id} className={GLASS_SOFT + " rounded-2xl p-4 group"}>
               <summary className="cursor-pointer list-none flex items-center gap-2 font-extrabold"><Icon name={x.icon} size={18} className="acc" />{x.label}<Icon name="chevron-down" size={15} className="ms-auto text-white/50 group-open:rotate-180 transition" /></summary>
               <p className="text-xs text-white/60 leading-6 mt-3">{x.note}</p>
-              <pre dir="ltr" tabIndex={0} className="mt-2 text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 overflow-x-auto">{x.code(endpoint, "gk-YOUR-KEY")}</pre>
+              <CodeBlock className="mt-2" code={x.code(endpoint, "gk-YOUR-KEY")} label={"نمونه " + x.label} title={x.label} />
             </details>
           ))}
         </div>

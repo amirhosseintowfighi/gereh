@@ -302,15 +302,17 @@ export function CodeBlock({ code, label, title, className = "", wrap = false, ma
 export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon: string; label: string; value: number | string; suffix?: string; sub?: string; tone?: "up" | "down" | ""; href?: string }) {
   const inner = (
     <>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50 min-w-0">{label}</span>
-        <span className="w-9 h-9 rounded-xl tile grid place-items-center shrink-0"><Icon name={icon} size={17} /></span>
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="min-w-0">
+          <span className="block text-xs text-white/55 leading-5">{label}</span>
+          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-1.5 min-w-0"><span className="text-lg sm:text-[1.75rem] leading-tight font-black tracking-tight silver tabular [overflow-wrap:anywhere]">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-[11px] sm:text-xs text-white/55">{suffix}</span>}</div>
+        </div>
+        <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl tile grid place-items-center shrink-0"><Icon name={icon} size={16} /></span>
       </div>
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5 min-w-0"><span className="text-[1.3rem] sm:text-[1.75rem] font-black tracking-tight silver tabular break-all">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-xs text-white/55">{suffix}</span>}</div>
-      {sub && <div className={"text-[11px] mt-1.5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/55")}>{sub}</div>}
+      {sub && <div className={"text-[11px] mt-1.5 leading-5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/55")}>{sub}</div>}
     </>
   );
-  const cls = "spot block min-w-0 text-right rounded-[1.4rem] p-4 sm:p-5 " + GLASS;
+  const cls = "spot block min-w-0 text-right rounded-2xl sm:rounded-[1.4rem] p-3.5 sm:p-5 " + GLASS;
   return href ? <Link href={href as never} className={cls + " hover:border-white/20 transition-colors"}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
 
@@ -519,8 +521,8 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
 
 export function PriceTag({ base, suffix = "تومان / ماه", big = true }: { base: number; suffix?: string; big?: boolean }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <Num value={base} className={(big ? "text-[2.1rem]" : "text-xl") + " font-black tracking-tight tabular silver"} />
+    <div className="flex flex-wrap items-baseline gap-x-1.5 min-w-0">
+      <Num value={base} className={(big ? "text-[1.85rem] xl:text-[2.1rem] leading-tight" : "text-xl") + " font-black tracking-tight tabular silver"} />
       <span className="text-xs text-white/55">{suffix}</span>
     </div>
   );

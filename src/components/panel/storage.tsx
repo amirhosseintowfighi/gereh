@@ -11,7 +11,7 @@ import type { StorageBucket, StorageCors, StorageKey } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter } from "../ui";
-import { AsyncButton, Bars, CopyText, Menu, Modal, PageTitle, Select, StatCard, Switch, Tabs, useCopy } from "../ui-client";
+import { AsyncButton, Bars, CodeBlock, CopyText, Menu, Modal, PageTitle, Select, StatCard, Switch, Tabs, useCopy } from "../ui-client";
 
 const Pill = ({ map, s }: { map: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]>; s: string }) => { const [l, t] = map[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
 const encKey = (k: string) => k.split("/").map(encodeURIComponent).join("/");
@@ -189,7 +189,7 @@ function Keys({ buckets }: { buckets: StorageBucket[] }) {
 
 /* ================= connection info ================= */
 function Connection({ bucket }: { bucket: string }) {
-  const db = useDB(); const copy = useCopy();
+  const db = useDB();
   const [sdk, setSdk] = useState<SdkId>("node");
   const code = snippet(sdk, { endpoint: db.storage.endpoint, region: db.storage.region, bucket });
   return (
@@ -202,9 +202,9 @@ function Connection({ bucket }: { bucket: string }) {
         </dl>
         <p className="text-[11px] text-white/55 leading-6 mt-4">سازگار با API آمازون S3 (امضای نسخه ۴). آدرس‌دهی path-style را فعال کنید. کلید دسترسی را از تب «کلیدهای دسترسی» بسازید و فقط به باکت‌های لازم دسترسی بدهید.</p>
       </Card>
-      <Card title="نمونه کد" icon="code-xml" action={<button type="button" onClick={() => copy(code)} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="copy" size={13} />کپی</button>}>
-        <div className="overflow-x-auto no-scrollbar mb-3"><Tabs size="sm" value={sdk} onChange={(v) => setSdk(v as SdkId)} label="زبان" options={SDKS.map((s) => ({ id: s.id, label: s.label }))} /></div>
-        <pre dir="ltr" className="text-left text-xs leading-6 bg-black/40 rounded-xl p-4 overflow-x-auto"><code>{code}</code></pre>
+      <Card title="نمونه کد" icon="code-xml">
+        <div className="mb-3"><Tabs size="sm" value={sdk} onChange={(v) => setSdk(v as SdkId)} label="زبان" options={SDKS.map((s) => ({ id: s.id, label: s.label }))} /></div>
+        <CodeBlock code={code} label="نمونه کد" title={SDKS.find((s) => s.id === sdk)?.label} />
       </Card>
     </div>
   );

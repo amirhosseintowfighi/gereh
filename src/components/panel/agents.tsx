@@ -4,7 +4,7 @@ import { MCP_CLIENTS } from "@/content/mcp";
 import { SITE_URL } from "@/lib/seo";
 import { Icon } from "../icon";
 import { Card } from "../ui";
-import { CopyText } from "../ui-client";
+import { CodeBlock } from "../ui-client";
 
 /** "connect your coding agent" card: MCP setup for Claude Code, Cursor, VS Code and Codex */
 export function AgentConnect() {
@@ -19,10 +19,7 @@ export function AgentConnect() {
         {MCP_CLIENTS.map((x) => <button key={x.id} type="button" aria-pressed={id === x.id} onClick={() => setId(x.id)} className={"h-8 px-3 rounded-lg text-xs transition " + (id === x.id ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}>{x.label}</button>)}
       </div>
       <p className="text-xs text-white/55 leading-6 mb-2">{c.note}{c.file !== "ترمینال" && <> فایل: <code dir="ltr">{c.file}</code></>}</p>
-      <div className="relative">
-        <pre dir="ltr" tabIndex={0} aria-label={"تنظیمات " + c.label} className="text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 overflow-x-auto">{code}</pre>
-        <div className="absolute top-2 left-2"><CopyText text={code} className="text-[11px]" /></div>
-      </div>
+      <CodeBlock code={code} label={"تنظیمات " + c.label} title={c.file} />
     </Card>
   );
 }

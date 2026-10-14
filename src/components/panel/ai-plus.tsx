@@ -9,7 +9,7 @@ import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport } from 
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
-import { AsyncButton, Bars, CopyText, Modal, Select, Switch } from "../ui-client";
+import { AsyncButton, Bars, CodeBlock, CopyText, Modal, Select, Switch } from "../ui-client";
 
 const num = (s: string) => Number(s.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/[^\d]/g, "")) || 0;
 const STATUS: Record<string, [string, "green" | "amber" | "red" | "gray"]> = { success: ["موفق", "green"], error: ["خطا", "red"], denied: ["رد شده", "amber"], cancelled: ["لغو شده", "gray"] };
@@ -148,7 +148,7 @@ export function WebChat() {
           {code && codeReq && (
             <Card pad="p-3 sm:p-4" title="کد معادل این گفتگو" icon="code-xml">
               <div className="flex gap-1.5 mb-3">{(["curl", "js", "python"] as CodeLang[]).map((l) => <button key={l} type="button" aria-pressed={code === l} onClick={() => setCode(l)} className={"h-8 px-3 rounded-lg text-xs " + (code === l ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65")}>{l === "js" ? "JavaScript" : l === "python" ? "Python" : "cURL"}</button>)}</div>
-              <div className="relative"><pre dir="ltr" tabIndex={0} className="text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 overflow-x-auto max-h-80">{chatCode(code, a.endpoint, codeReq)}</pre><div className="absolute top-2 left-2"><CopyText text={chatCode(code, a.endpoint, codeReq)} className="text-[11px]" /></div></div>
+              <CodeBlock maxH="max-h-80" code={chatCode(code, a.endpoint, codeReq)} label="کد معادل این گفتگو" title={code === "js" ? "JavaScript" : code === "python" ? "Python" : "cURL"} />
               <p className="text-[11px] text-white/45 mt-2">کلید را با یک کلید API خود جایگزین کنید (متغیر GEREH_API_KEY).</p>
             </Card>
           )}

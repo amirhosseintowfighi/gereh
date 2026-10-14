@@ -10,7 +10,7 @@ import type { AiKeyRow, AiModelRow } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
-import { AsyncButton, Bars, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
+import { AsyncButton, Bars, CodeBlock, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { AiSettingsCard, EmbedPlayground, KnowledgeBases, Projects, RequestLogs, UsageReport, WebChat } from "./ai-plus";
 
 const USAGE_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
@@ -95,10 +95,7 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
           {AI_SNIPPETS.map((x) => <button key={x.id} type="button" aria-pressed={sid === x.id} onClick={() => setSid(x.id)} className={"h-8 px-3 rounded-lg text-xs inline-flex items-center gap-1.5 transition " + (sid === x.id ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}><Icon name={x.icon} size={13} />{x.label}</button>)}
         </div>
         <p className="text-xs text-white/60 leading-6 mb-2">{s.note}</p>
-        <div className="relative">
-          <pre dir="ltr" tabIndex={0} aria-label={"نمونه " + s.label} className="text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 overflow-x-auto">{code}</pre>
-          <div className="absolute top-2 left-2"><CopyText text={code} className="text-[11px]" /></div>
-        </div>
+        <CodeBlock code={code} label={"نمونه " + s.label} title={s.label} />
       </Card>
     </div>
   );

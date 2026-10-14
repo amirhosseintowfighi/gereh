@@ -45,6 +45,15 @@ export function Navbar() {
     document.addEventListener("keydown", close);
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
   }, [mega]);
+  useEffect(() => {
+    if (!open) return;
+    // Escape closes the phone menu; so does growing the window to the desktop bar
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const m = () => { if (mq.matches) setOpen(false); };
+    document.addEventListener("keydown", k); mq.addEventListener("change", m);
+    return () => { document.removeEventListener("keydown", k); mq.removeEventListener("change", m); };
+  }, [open]);
   const [navPath, setNavPath] = useState(path);
   if (navPath !== path) { setNavPath(path); setOpen(false); setMega(false); }
   const linkCls = (on: boolean) => "relative px-3 xl:px-4 h-10 grid place-items-center rounded-xl text-sm transition-colors whitespace-nowrap " + (on ? "text-white font-bold bg-white/[0.08]" : "text-white/65 hover:text-white hover:bg-white/[0.05]");

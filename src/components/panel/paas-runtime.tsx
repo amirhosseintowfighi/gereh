@@ -12,7 +12,7 @@ import type { PaasApp } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
-import { AsyncButton, CopyText, Select, Switch, Tabs } from "../ui-client";
+import { AsyncButton, CodeBlock, CopyText, Select, Switch, Tabs } from "../ui-client";
 
 /** loads the runtime view of one app; reload() after a change */
 export function useRuntime(appId: string) {
@@ -295,10 +295,7 @@ export function CiTemplates({ app }: { app: PaasApp }) {
   return (
     <Card title="استقرار از CI" icon="workflow" action={<Tabs size="sm" value={tab} onChange={setTab} label="سرویس CI" options={[{ id: "github", label: "GitHub Actions" }, { id: "gitlab", label: "GitLab CI" }, { id: "curl", label: "API" }]} />}>
       <p className="text-sm text-white/60 leading-7">یک توکن خواندنی‌نوشتنی از «SSH و API» بسازید و با نام <code dir="ltr">GEREH_TOKEN</code> در secrets مخزن بگذارید؛ سپس این فایل را اضافه کنید.</p>
-      <div className="relative mt-3">
-        <pre dir="ltr" tabIndex={0} aria-label="نمونه پیکربندی CI" className="text-left text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-80 overflow-auto whitespace-pre">{code}</pre>
-        <span className="absolute top-2 left-2"><CopyText text={code} className="text-[11px]" /></span>
-      </div>
+      <CodeBlock className="mt-3" maxH="max-h-80" code={code} label="نمونه پیکربندی CI" title={tab === "github" ? ".github/workflows/deploy.yml" : tab === "gitlab" ? ".gitlab-ci.yml" : "curl"} />
     </Card>
   );
 }
