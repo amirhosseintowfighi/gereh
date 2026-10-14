@@ -226,6 +226,7 @@ export function VncFullPage({ id }: { id: string }) {
   const db = useDB();
   const s = db.servers.find((x) => x.id === id);
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" /></Card>;
+  if (!s.vpsid) return <Card><Empty icon="loader-circle" title="سرور هنوز در حال آماده‌سازی است" text="کنسول پس از تحویل سرور در دسترس است." action={<Link href={`/panel/servers/${s.id}`} className={BTN_G + " px-4 h-9 text-xs"}>بازگشت به سرور</Link>} /></Card>;
   return (
     <div>
       <div className="flex items-center justify-between mb-4"><h1 className="text-xl font-black">کنسول <span className="ltr inline-block">{s.name}</span></h1><Link href={`/panel/servers/${s.id}`} className={BTN_G + " px-4 h-9 text-xs"}>بازگشت به سرور</Link></div>

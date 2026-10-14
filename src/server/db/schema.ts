@@ -79,6 +79,10 @@ export const servers = pgTable("servers", {
   /** "<invoice>:<line>" that created it — makes provisioning idempotent */
   orderRef: text("order_ref"),
   suspendedAt: ts("suspended_at"),
+  /** why delivery is stuck (shown to the customer and on Admin › undelivered orders); null once delivered */
+  provisionError: text("provision_error"),
+  /** staff ticket opened on the first provisioning failure */
+  provisionTicket: text("provision_ticket"),
   createdAt: created(),
 }, (t) => [index("servers_user_ix").on(t.userId), uniqueIndex("servers_vpsid_uq").on(t.vpsid), uniqueIndex("servers_order_uq").on(t.orderRef)]);
 
@@ -306,6 +310,8 @@ export const virtLog = pgTable("virt_log", {
 
 export const planMap = pgTable("plan_map", {
   id: text("id").primaryKey(), name: text("name").notNull(), plid: integer("plid").notNull().default(0), group: text("group").notNull(),
+  /** Virtualizor virt type for this plan ("" = VIRTUALIZOR_VIRT, else kvm) */
+  virt: text("virt").notNull().default(""),
 });
 
 export const osTemplates = pgTable("os_templates", {

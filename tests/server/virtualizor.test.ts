@@ -46,10 +46,31 @@ describe("Virtualizor client", () => {
   });
 
   it("creates a VPS and reads vpsid + network info", async () => {
-    reply = () => ({ newvs: { vpsid: "4410", ips: ["185.1.2.3"], ipv6: ["2a01::1"], vncport: "5911", vncpass: "abc" } });
+    reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" }, 3: { sgid: "3", sg_name: "thr-cloud" } } }
+      : { newvs: { vpsid: "4410", ips: ["185.1.2.3"], ipv6: ["2a01::1"], vncport: "5911", vncpass: "abc" } };
     const r = await v().create({ uid: 7, plid: 12, osid: 347, hostname: "web.example.com", rootpass: "x", serverGroup: "thr-cloud" });
     expect(r).toMatchObject({ vpsid: 4410, ip: "185.1.2.3", ipv6: "2a01::1", vncPort: 5911, vncPassword: "abc" });
-    expect(Object.fromEntries(calls[0].body!)).toMatchObject({ addvps: "1", uid: "7", plid: "12", osid: "347", hostname: "web.example.com" });
+    // the group name is resolved to its numeric sgid; virt defaults to kvm
+    expect(Object.fromEntries(calls[1].body!)).toMatchObject({ addvps: "1", virt: "kvm", uid: "7", plid: "12", osid: "347", hostname: "web.example.com", node_select: "1", server_group: "3" });
+    expect(calls[1].body!.has("space")).toBe(false);
+  });
+
+  it("creates without a plan from explicit resources and explains a missing group", async () => {
+    reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" } } } : { newvs: { vpsid: "9" } };
+    await v().create({ uid: 7, plid: 0, osid: 347, hostname: "a.b.c", rootpass: "x", serverGroup: "Default", virt: "xen", space: 40, ram: 2048, cores: 1, bandwidth: 0 });
+    expect(Object.fromEntries(calls[1].body!)).toMatchObject({ virt: "xen", server_group: "0", space: "40", ram: "2048", cores: "1", bandwidth: "0" });
+    expect(calls[1].body!.has("plid")).toBe(false);
+    await expect(v().create({ uid: 7, plid: 0, osid: 1, hostname: "a.b.c", rootpass: "x", serverGroup: "nope", space: 1, ram: 1, cores: 1 })).rejects.toThrow(/nope.*Default \(0\)/);
+    await expect(v().create({ uid: 7, plid: 0, osid: 1, hostname: "a.b.c", rootpass: "x", serverGroup: "5" })).rejects.toThrow(/Plan ID/);
+  });
+
+  it("reads one VPS and finds one by hostname", async () => {
+    reply = () => ({ vs: { 77: { vpsid: "77", hostname: "web.example.com", uid: "7", ips: { 1: "185.1.2.3", 2: "2a01::7" }, status: "1" } } });
+    expect(await v().getVps(77)).toEqual({ vpsid: 77, hostname: "web.example.com", ip: "185.1.2.3", ipv6: "2a01::7", uid: 7, status: "running" });
+    expect(await v().findVps("web.example.com", 8)).toBeNull();
+    expect((await v().findVps("WEB.example.com", 7))?.vpsid).toBe(77);
+    reply = () => ({ error: ["Invalid plan", { x: "No storage" }] });
+    await expect(v().plans()).rejects.toThrow("Invalid plan، No storage");
   });
 
   it("turns API errors into VirtualizorError", async () => {
@@ -69,7 +90,7 @@ describe("Virtualizor client", () => {
     } as Record<string, unknown>)[u.searchParams.get("act")!];
     expect(await v().bandwidth(1, "202510")).toEqual([{ day: 1, inMb: 4, outMb: 6 }, { day: 2, inMb: 5, outMb: 15 }]);
     expect(await v().plans()).toEqual([{ plid: 10, name: "c1" }]);
-    expect(await v().servers()).toEqual([{ serid: 1, name: "thr-hv-01", group: "thr-cloud", cpu: 0, ram: 75, disk: 50, vms: 38 }]);
+    expect(await v().servers()).toEqual([{ serid: 1, name: "thr-hv-01", group: "thr-cloud", sgid: -1, cpu: 0, ram: 75, disk: 50, vms: 38 }]);
     expect(await v().osTemplates()).toEqual([{ osid: 347, name: "Ubuntu 24.04", distro: "ubuntu" }]);
     expect(await v().test()).toEqual({ version: "Virtualizor 3.1.2" });
   });

@@ -16,6 +16,7 @@ import { DomainManage, IrnicHandle, TransferInButton, TransferList } from "./dom
 import { NotifyChannels } from "./channels";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
+import { ServerStateBadge } from "./server-pending";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Tabs } from "../ui-client";
@@ -76,7 +77,7 @@ export function UserDashboard() {
               <span className={"w-2.5 h-2.5 rounded-full " + (s.status === "running" ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.7)]" : "bg-white/25")} aria-hidden="true" />
               <div className="flex-1 min-w-0"><div className="font-bold text-sm ltr text-right">{s.name}</div><div className="text-xs text-white/55 mt-0.5">{s.plan}، {locLabel(s.loc)}</div></div>
               <span className="mono text-xs text-white/50 hidden sm:block">{s.ip}</span>
-              <StatusBadge s={s.status} />
+              <ServerStateBadge s={s} />
             </Link>
           ))}
         </Card>
@@ -103,6 +104,7 @@ export function PowerMenu({ s }: { s: Server }) {
     try { await api.servers.power(s.id, a); notify(msg, "circle-check"); } catch (e) { notify(e instanceof Error ? e.message : "خطا", "circle-alert"); }
   };
   if (s.status === "suspended") return <span className="text-[11px] text-white/50">معلق</span>;
+  if (!s.vpsid) return null;
   return (
     <Menu label={"کنترل روشن و خاموش " + s.name} triggerClass={ICON_BTN} trigger={<Icon name="power" size={17} />} items={[
       s.status !== "running" && { icon: "play", label: "روشن کردن", run: () => act("start", s.name + " روشن شد") },
@@ -122,10 +124,10 @@ export function UserServers() {
         <DataTable rows={rows} searchKeys={["name", "ip"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }]} onRowClick={(r) => router.push(("/panel/servers/" + r.id) as never)}
           columns={[
             { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-right">{r.name}</div><div className="text-[11px] text-white/55">{r.os}</div></div></div> },
-            { key: "ip", label: "آدرس IP", render: (r) => <CopyText text={r.ip} className="mono text-xs text-white/70" /> },
+            { key: "ip", label: "آدرس IP", render: (r) => r.ip ? <CopyText text={r.ip} className="mono text-xs text-white/70" /> : <span className="text-xs text-white/45">—</span> },
             { key: "plan", label: "مشخصات", render: (r) => <span className="text-white/70">{fa(r.cpu)} هسته، {fa(r.ram)} گیگ، {fa(r.disk)} گیگ</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
-            { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
+            { key: "status", label: "وضعیت", render: (r) => <ServerStateBadge s={r} /> },
             { key: "act", label: "", className: "text-left", render: (r) => <PowerMenu s={r} /> },
           ]} />
       )}

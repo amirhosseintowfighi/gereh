@@ -5,7 +5,16 @@
 import "server-only";
 
 export type PowerAction = "start" | "stop" | "restart" | "poweroff";
-export type CreateVps = { uid: number; plid: number; osid: number; hostname: string; rootpass: string; serverGroup: string; sshKey?: string; cloudInit?: string };
+/** plid 0 = no Virtualizor plan: the explicit resources are then required. serverGroup is a group name or its numeric id. */
+export type CreateVps = {
+  uid: number; plid: number; osid: number; hostname: string; rootpass: string; serverGroup: string; sshKey?: string; cloudInit?: string;
+  /** "kvm", "xen", "openvz"…; "" = VIRTUALIZOR_VIRT or kvm */
+  virt?: string;
+  /** disk GB, RAM MB, vCPU cores, monthly traffic GB (0 = unlimited) */
+  space?: number; ram?: number; cores?: number; bandwidth?: number;
+};
+/** what the hypervisor knows about one VPS (manual delivery, double-create guard) */
+export type VpsInfo = { vpsid: number; hostname: string; ip: string; ipv6: string; uid: number; status: "running" | "stopped" | "suspended" };
 /** ws: websocket URL for noVNC ("" = no web console, e.g. the simulator) */
 export type VncInfo = { host: string; port: number; password: string; ws: string };
 export type VpsLive = { vpsid: number; status: "running" | "stopped" | "suspended"; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number; bwLimit: number };
@@ -30,7 +39,13 @@ export interface VirtDriver {
   remove(vpsid: number): Promise<void>;
   bandwidth(vpsid: number, month: string): Promise<{ day: number; inMb: number; outMb: number }[]>;
   plans(): Promise<{ plid: number; name: string }[]>;
-  servers(): Promise<{ serid: number; name: string; group: string; cpu: number; ram: number; disk: number; vms: number }[]>;
+  /** group: the server group's name (for display); sgid: its numeric id (-1 = unknown) */
+  servers(): Promise<{ serid: number; name: string; group: string; sgid: number; cpu: number; ram: number; disk: number; vms: number }[]>;
+  /** server groups by id and name */
+  groups(): Promise<{ sgid: number; name: string }[]>;
+  getVps(vpsid: number): Promise<VpsInfo | null>;
+  /** a VPS with this hostname (optionally owned by uid), if one exists */
+  findVps(hostname: string, uid?: number): Promise<VpsInfo | null>;
   osTemplates(): Promise<{ osid: number; name: string; distro: string }[]>;
   /** gives the VPS `count` IPv4 addresses in total, keeping `keep`; returns them all */
   setIps(vpsid: number, keep: string[], count: number): Promise<string[]>;
@@ -46,12 +61,28 @@ export interface VirtDriver {
 export class SimulatorDriver implements VirtDriver {
   readonly name = "simulator" as const;
   private seq = 4000;
+  /** VPSs created in this process (getVps/findVps) */
+  readonly made = new Map<number, VpsInfo & { req: CreateVps }>();
   async test() { return { version: "Simulator" }; }
   async ensureUser() { return 1000 + Math.floor(Math.random() * 1000); }
   async create(p: CreateVps) {
+    if (!p.plid && !(p.space && p.ram && p.cores)) throw new Error("Virtualizor addvs: space, ram and cores are required without a plan");
     const vpsid = ++this.seq + Math.floor(Math.random() * 100000);
     const o = (vpsid % 200) + 20;
-    return { vpsid, ip: "185.143.233." + o, ipv6: "2a01:4f8:c0c:" + vpsid.toString(16) + "::1", vncHost: "vnc-" + p.serverGroup.split("-")[0] + ".gereh.net", vncPort: 5900 + (vpsid % 1000), vncPassword: Math.random().toString(36).slice(2, 10) };
+    const ip = "185.143.233." + o, ipv6 = "2a01:4f8:c0c:" + vpsid.toString(16) + "::1";
+    this.made.set(vpsid, { vpsid, hostname: p.hostname, ip, ipv6, uid: p.uid, status: "running", req: p });
+    return { vpsid, ip, ipv6, vncHost: "vnc-" + p.serverGroup.split("-")[0] + ".gereh.net", vncPort: 5900 + (vpsid % 1000), vncPassword: Math.random().toString(36).slice(2, 10) };
+  }
+  async getVps(vpsid: number): Promise<VpsInfo | null> {
+    const m = this.made.get(vpsid);
+    if (m) { const { req: _r, ...info } = m; return info; }
+    return vpsid > 0 ? { vpsid, hostname: "vps" + vpsid + ".gereh.net", ip: "185.143.235." + ((vpsid % 200) + 20), ipv6: "", uid: 0, status: "running" } : null;
+  }
+  async findVps(hostname: string, uid?: number) {
+    const m = [...this.made.values()].find((x) => x.hostname === hostname && (uid === undefined || x.uid === uid));
+    if (!m) return null;
+    const { req: _r, ...info } = m;
+    return info;
   }
   async buildDone() { return true; }
   async status(vpsids: number[]) {
@@ -75,7 +106,8 @@ export class SimulatorDriver implements VirtDriver {
     return Array.from({ length: 30 }, (_, i) => ({ day: i + 1, inMb: 10_000 + ((vpsid * (i + 3)) % 30_000), outMb: 30_000 + ((vpsid * (i + 7)) % 80_000) }));
   }
   async plans() { return [10, 11, 12, 13, 14, 15, 16].map((plid, i) => ({ plid, name: "plan-" + (i + 1) })); }
-  async servers() { return [{ serid: 1, name: "thr-hv-01", group: "thr-cloud", cpu: 62, ram: 71, disk: 48, vms: 38 }]; }
+  async servers() { return [{ serid: 1, name: "thr-hv-01", group: "thr-cloud", sgid: 1, cpu: 62, ram: 71, disk: 48, vms: 38 }]; }
+  async groups() { return ["thr-cloud", "thr-metal", "isf-cloud", "fra-cloud", "fra-metal", "ams-cloud"].map((name, i) => ({ sgid: i + 1, name })); }
   async osTemplates() { return [{ osid: 347, name: "Ubuntu 24.04", distro: "ubuntu" }, { osid: 351, name: "Debian 12", distro: "debian" }, { osid: 901, name: "Windows Server 2022", distro: "windows" }]; }
   private ipSeq = 0;
   async setIps(vpsid: number, keep: string[], count: number) {

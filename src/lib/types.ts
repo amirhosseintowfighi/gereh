@@ -18,6 +18,8 @@ export type Server = {
   snapshots: { id: string; name: string; size: number; at: string }[]; backupsList: { id: string; at: string; size: number }[];
   vpsid: number; hostname: string; boot: string; iso: string; rescue: boolean; bwLimit: number; vnc: { host: string; port: number; password: string }; tasks: Task[];
   billing: "monthly" | "hourly"; app: string; alerts: { cpu: number; bw: number };
+  /** delivery is late (status "provisioning" without vpsid, or a build that timed out); staff also get the error */
+  delayed?: boolean; provisionError?: string;
   /** recent 5-minute hypervisor samples, oldest first (customer view only) */
   usage: { at: string; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number }[];
 };
@@ -177,7 +179,9 @@ export type ClientDB = {
   tlds: Tld[];
   virt: Record<string, string | number | boolean>;
   virtLog: { id: string; at: string; kind: string; result: string; detail: string }[];
-  planMap: { id: string; name: string; plid: number; group: string }[];
+  planMap: { id: string; name: string; plid: number; group: string; virt: string }[];
+  /** staff: paid orders that have not been delivered (Admin › سفارش‌های تحویل‌نشده) */
+  undelivered: number;
   osTemplates: { osid: number; name: string; distro: string; on: boolean }[];
   isos: string[];
   incidents: Incident[];

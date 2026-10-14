@@ -22,6 +22,7 @@ export const STATUS: Record<string, [Tone, string]> = {
   online: ["green", "آنلاین"], building: ["blue", "در حال ساخت"], maintenance: ["amber", "در حال نگهداری"], verified: ["green", "تأییدشده"], none: ["gray", "انجام نشده"],
   high: ["red", "فوری"], normal: ["blue", "معمولی"], low: ["gray", "کم"],
   topup: ["green", "شارژ"], payment: ["gray", "پرداخت"], refund: ["blue", "بازگشت وجه"],
+  provisioning: ["blue", "در حال آماده‌سازی"],
 };
 export const statusLabel = (s: string) => (STATUS[s] || ["gray", s])[1];
 export function StatusBadge({ s }: { s: string }) {
