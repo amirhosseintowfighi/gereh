@@ -74,6 +74,7 @@ function inspect() {
       const cs = getComputedStyle(e);
       if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
       if (e.tagName === "NEXTJS-PORTAL") return false;
+      if (/^rect\(0(px)?,? 0(px)?/.test(cs.clip) || e.matches(".sr-only, .sr-only-focusable:not(:focus)")) return false; // visually hidden
       if (e.tagName === "DETAILS" && !e.open && child && child.tagName !== "SUMMARY") return false; // collapsed answer
       if (cs.overflow !== "visible" || cs.clip !== "auto" && cs.clip !== "") { const r = e.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) return false; } // sr-only
     }

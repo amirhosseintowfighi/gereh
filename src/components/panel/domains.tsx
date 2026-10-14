@@ -14,7 +14,7 @@ import type { Domain } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
+import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, Switch, Tabs, useMedia } from "../ui-client";
 
 /** fetches on mount and on reload(); errors become a message instead of a crash */
 function useLoad<T>(fn: () => Promise<T>, key: string) {
@@ -155,6 +155,16 @@ function DnsTab({ d }: { d: Domain }) {
   const rows = useMemo(() => d.dns.filter((r) => (!type || r.type === type) && (!q || (r.name + " " + r.value).toLowerCase().includes(q.trim().toLowerCase()))), [d.dns, q, type]);
   const types = [...new Set(d.dns.map((r) => r.type))];
   if (!managed) return <><Card><Empty icon="server" title="DNS این دامنه جای دیگری مدیریت می‌شود" text={"نام‌سرورها روی " + d.ns[0] + " تنظیم شده‌اند. برای مدیریت رکوردها، CDN و DNSSEC در گره، نام‌سرورها را به ns1.gereh.net و ns2.gereh.net تغییر دهید."} /></Card><NsCheck d={d} /></>;
+  const narrow = useMedia("(max-width: 767.98px)");
+  const cdn = (r: (typeof rows)[number]) => PROXIABLE.includes(r.type) ? (
+    <button type="button" aria-pressed={!!r.proxied} title={r.proxied ? "از CDN عبور می‌کند" : "مستقیم (فقط DNS)"} onClick={async () => { try { await api.domains.setProxied(d.id, r.id, !r.proxied); notify(r.proxied ? "رکورد مستقیم شد" : "رکورد از CDN عبور می‌کند"); } catch (e) { notify((e as Error).message, "circle-alert"); } }}
+      className={"inline-flex items-center gap-1 text-xs rounded-lg px-2 h-7 border " + (r.proxied ? "border-amber-300/40 text-amber-200 bg-amber-400/10" : "border-white/10 text-white/50")}>
+      <Icon name={r.proxied ? "cloud" : "cloud-off"} size={14} />{r.proxied ? "پروکسی" : "مستقیم"}
+    </button>) : <span className="text-white/30">—</span>;
+  const actions = (r: (typeof rows)[number]) => <>
+    <IconBtn icon="pencil" label={"ویرایش رکورد " + r.name} onClick={() => setRec({ ...r })} />
+    <IconBtn icon="trash-2" label={"حذف رکورد " + r.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("رکورد " + r.type + " " + r.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.domains.removeRecord(d.id, r.id); notify("رکورد حذف شد"); } }} />
+  </>;
   return (
     <div className="space-y-5">
       <Card title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action={<div className="flex flex-wrap gap-2">
@@ -169,6 +179,18 @@ function DnsTab({ d }: { d: Domain }) {
           <span className="text-xs text-white/50 self-center">{fa(rows.length)} از {fa(d.dns.length)} رکورد</span>
         </div>
         {d.dns.length === 0 ? <Empty icon="settings-2" title="رکوردی ندارید" text="با «اتصال سریع» دامنه را به اپ، سرور یا سرویس ایمیل خود وصل کنید." /> : (
+          narrow ? (
+            <ul className="space-y-2">{rows.map((r) => (
+              <li key={r.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge tone="blue">{r.type}</Badge><span className="mono ltr text-sm min-w-0 truncate">{r.name}</span>
+                  <span className="ms-auto flex shrink-0">{actions(r)}</span>
+                </div>
+                <div className="mono text-xs ltr text-left text-white/70 mt-2 [overflow-wrap:anywhere]">{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</div>
+                <div className="flex items-center justify-between gap-2 mt-2 text-xs text-white/55"><span>TTL {fa(r.ttl)}</span>{cdn(r)}</div>
+              </li>
+            ))}</ul>
+          ) :
           <div className="overflow-x-auto"><table className="w-full text-sm min-w-[720px]">
             <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th scope="col" className="text-right font-medium p-3">CDN</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
             <tbody>{rows.map((r) => (
@@ -176,15 +198,8 @@ function DnsTab({ d }: { d: Domain }) {
                 <td className="p-3"><Badge tone="blue">{r.type}</Badge></td><td className="p-3 mono ltr text-right">{r.name}</td>
                 <td className="p-3 mono text-xs ltr text-right text-white/70 max-w-[300px] truncate" title={r.value}>{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</td>
                 <td className="p-3 tabular text-white/55">{fa(r.ttl)}</td>
-                <td className="p-3">{PROXIABLE.includes(r.type) ? (
-                  <button type="button" aria-pressed={!!r.proxied} title={r.proxied ? "از CDN عبور می‌کند" : "مستقیم (فقط DNS)"} onClick={async () => { try { await api.domains.setProxied(d.id, r.id, !r.proxied); notify(r.proxied ? "رکورد مستقیم شد" : "رکورد از CDN عبور می‌کند"); } catch (e) { notify((e as Error).message, "circle-alert"); } }}
-                    className={"inline-flex items-center gap-1 text-xs rounded-lg px-2 h-7 border " + (r.proxied ? "border-amber-300/40 text-amber-200 bg-amber-400/10" : "border-white/10 text-white/50")}>
-                    <Icon name={r.proxied ? "cloud" : "cloud-off"} size={14} />{r.proxied ? "پروکسی" : "مستقیم"}
-                  </button>) : <span className="text-white/30">—</span>}</td>
-                <td className="p-3 text-left whitespace-nowrap">
-                  <IconBtn icon="pencil" label={"ویرایش رکورد " + r.name} onClick={() => setRec({ ...r })} />
-                  <IconBtn icon="trash-2" label={"حذف رکورد " + r.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("رکورد " + r.type + " " + r.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.domains.removeRecord(d.id, r.id); notify("رکورد حذف شد"); } }} />
-                </td>
+                <td className="p-3">{cdn(r)}</td>
+                <td className="p-3"><div className="flex justify-end gap-1">{actions(r)}</div></td>
               </tr>
             ))}</tbody></table></div>
         )}

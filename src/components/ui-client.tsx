@@ -294,16 +294,23 @@ export function CopyButton({ text, label = "کپی", className = "" }: { text: s
   );
 }
 
+const RTL_TEXT = /[֐-ࣿיִ-﷿ﹰ-﻿]/;
+
 /** A code sample: LTR and monospace, scrolls sideways inside itself, and lays out each line with its
     own direction so Persian comments read correctly. The copy button sits in a bar above the code. */
 export function CodeBlock({ code, label, title, className = "", wrap = false, maxH = "" }: { code: string; label: string; title?: React.ReactNode; className?: string; wrap?: boolean; maxH?: string }) {
   return (
     <div className={"min-w-0 rounded-xl bg-black/40 border border-white/[0.06] overflow-hidden " + className}>
-      <div className="flex items-center justify-between gap-2 ps-3 pe-1.5 py-1.5 border-b border-white/[0.06]">
-        <span className="min-w-0 truncate text-[11px] text-white/50">{title}</span>
+      {/* laid out LTR like the code: file name on the left, copy on the right */}
+      <div dir="ltr" className="flex items-center justify-between gap-2 ps-3 pe-1.5 py-1.5 border-b border-white/[0.06]">
+        <span className="min-w-0 truncate text-[11px] text-white/50 font-mono">{title}</span>
         <CopyButton text={code} label={"کپی " + label} />
       </div>
-      <pre dir="ltr" tabIndex={0} aria-label={label} className={"code text-[12px] leading-6 p-4 overflow-auto " + maxH + (wrap ? " whitespace-pre-wrap [overflow-wrap:anywhere]" : "")}>{code}</pre>
+      <pre dir="ltr" tabIndex={0} aria-label={label} className={"code text-[12px] leading-6 p-4 overflow-auto " + maxH + (wrap ? " whitespace-pre-wrap [overflow-wrap:anywhere]" : "")}>
+        {/* one block per line, each with its own direction; a Persian line wraps instead of overflowing
+            to the left, where a left-to-right scroller cannot reach it */}
+        {code.split("\n").map((line, i) => <span key={i} className={"block [unicode-bidi:plaintext]" + (RTL_TEXT.test(line) ? " whitespace-pre-wrap" : "")}>{line || " "}</span>)}
+      </pre>
     </div>
   );
 }
@@ -499,7 +506,7 @@ export function Menu({ trigger, label, items, align = "left", triggerClass = "" 
     </div>
   );
 }
-export const ICON_BTN = "w-9 h-9 rounded-xl grid place-items-center text-white/60 hover:text-white hover:bg-white/[0.08] transition";
+export const ICON_BTN = "w-9 h-9 rounded-xl inline-grid place-items-center align-middle text-white/60 hover:text-white hover:bg-white/[0.08] transition";
 export function IconBtn({ icon, label, onClick, className = "" }: { icon: string; label: string; onClick: (e: React.MouseEvent) => unknown; className?: string }) {
   return <button type="button" onClick={onClick} aria-label={label} title={label} className={ICON_BTN + " " + className}><Icon name={icon} size={17} /></button>;
 }

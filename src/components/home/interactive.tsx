@@ -532,8 +532,8 @@ export function Performance() {
     <div className="flex items-center gap-4">
       <span className={"w-28 shrink-0 text-sm " + (mine ? "font-extrabold" : "text-white/55")}>{mine ? "گره" : "میانگین بازار"}</span>
       <div className="flex-1 h-12 rounded-2xl bg-white/[0.06] overflow-hidden">
-        <div className={"h-full rounded-2xl flex items-center justify-end px-4 text-sm font-black transition-all duration-1000 ease-out " + (mine ? "acc-bg" : "bg-white/20")}
-          style={{ width: seen ? Math.max(14, (v / max) * 100) + "%" : "0%" }}>{fa(v, met.d)}</div>
+        <div className={"h-full rounded-2xl flex items-center justify-end px-3 text-sm whitespace-nowrap font-black transition-all duration-1000 ease-out " + (mine ? "acc-bg" : "bg-white/20")}
+          style={{ width: seen ? Math.max(14, (v / max) * 100) + "%" : "0%", minWidth: seen ? "4.5rem" : 0 }}>{fa(v, met.d)}</div>
       </div>
     </div>
   );

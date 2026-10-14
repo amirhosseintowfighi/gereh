@@ -19,14 +19,14 @@ export function CostCalculator({ cat }: { cat: CalcCatalog }) {
           const g = cat.find((x) => x.group === l.group) ?? cat[0];
           const item = g.items.find((x) => x.id === l.id);
           return (
-            <div key={i} className="grid sm:grid-cols-[170px_1fr_110px_auto] gap-2 items-center">
-              <Select label="محصول" value={g.group} onChange={(v) => set(i, { group: v, id: cat.find((x) => x.group === v)!.items[0].id })} options={cat.map((x) => ({ value: x.group, label: x.label }))} />
-              <div>
+            <div key={i} className="grid grid-cols-[1fr_auto] sm:grid-cols-[170px_1fr_110px_auto] gap-2 items-start sm:items-center max-sm:pb-3 max-sm:border-b max-sm:border-white/[0.08]">
+              <Select className="max-sm:col-span-2" label="محصول" value={g.group} onChange={(v) => set(i, { group: v, id: cat.find((x) => x.group === v)!.items[0].id })} options={cat.map((x) => ({ value: x.group, label: x.label }))} />
+              <div className="max-sm:col-span-2">
                 <Select label="پلن" value={l.id} onChange={(v) => set(i, { id: v })} options={g.items.map((x) => ({ value: x.id, label: x.name + " — " + toman(x.monthly) }))} />
                 {item && <div className="text-[11px] text-white/50 mt-1 px-1">{item.meta}</div>}
               </div>
               <input value={fa(l.qty)} onChange={(e) => set(i, { qty: Math.min(1000, +toEnDigits(e.target.value).replace(/\D/g, "") || 0) })} inputMode="numeric" aria-label={"تعداد (" + g.unit + ")"} title={g.unit} className={INPUT + " text-center tabular"} />
-              <button type="button" aria-label="حذف ردیف" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="w-9 h-9 rounded-xl grid place-items-center text-white/60 hover:bg-white/[0.08]"><Icon name="x" size={16} /></button>
+              <button type="button" aria-label="حذف ردیف" onClick={() => setLines(lines.filter((_, j) => j !== i))} className="w-11 h-11 rounded-xl grid place-items-center text-white/60 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08]"><Icon name="x" size={16} /></button>
             </div>
           );
         })}
@@ -35,7 +35,7 @@ export function CostCalculator({ cat }: { cat: CalcCatalog }) {
       <aside className={GLASS + " rounded-3xl p-5 h-fit lg:sticky lg:top-28"} aria-live="polite">
         <div className="flex items-center gap-2 font-bold"><Icon name="calculator" size={18} className="acc" /> برآورد هزینه</div>
         <label className="block text-xs text-white/55 mt-5 mb-2" htmlFor="calc-months">مدت: {fa(months)} ماه</label>
-        <input id="calc-months" type="range" min={1} max={12} value={months} onChange={(e) => setMonths(+e.target.value)} className="w-full" />
+        <input id="calc-months" type="range" dir="rtl" min={1} max={12} value={months} onChange={(e) => setMonths(+e.target.value)} className="rng" style={{ "--fill": ((months - 1) / 11) * 100 + "%" } as React.CSSProperties} />
         <dl className="mt-5 space-y-3 text-sm">
           <div className="flex justify-between"><dt className="text-white/55">ماهانه</dt><dd className="tabular">{toman(r.monthly)}</dd></div>
           <div className="flex justify-between text-lg font-black"><dt>جمع {fa(r.months)} ماه</dt><dd className="tabular">{toman(r.total)}</dd></div>
