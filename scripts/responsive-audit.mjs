@@ -41,8 +41,10 @@ const PUBLIC = [
   "/domains", "/domains/ir", "/domains?q=novinbrand.ir", "/geo-dns", "/hosting", "/inquiry", "/kb", "/kb/connect-to-server-ssh", "/mail", "/mirror",
   "/paas", "/paas/nextjs", "/paas/databases", "/pricing/calculator", "/privacy", "/sla", "/status", "/storage", "/terms", "/vps", "/wordpress",
   "/en", "/en/about", "/en/devops", "/en/domains", "/en/hosting", "/en/paas", "/en/vps",
-  "/auth", "/auth?mode=register", "/team/accept?token=demo", "/pay/sim", "/not-a-page",
+  "/auth", "/auth?mode=register", "/team/accept?token=demo", "/pay/sim?authority=SIM-DEMO-1&amount=2950000&cb=/api/pay/callback/sim", "/not-a-page",
 ];
+// an unknown URL must show the 404 page
+const EXPECT_404 = ["/not-a-page"];
 const PANEL = (ids) => [
   "/panel", "/panel/account", "/panel/affiliate", "/panel/ai", "/panel/apps", "/panel/apps/new", "/panel/apps/stack", "/panel/apps/templates",
   "/panel/apps/" + ids.app, "/panel/billing", "/panel/billing/" + ids.invoice + "/print", "/panel/databases", "/panel/databases/" + ids.db,
@@ -253,6 +255,7 @@ async function audit(ctx, path) {
     try {
       const resp = await page.goto(BASE + path, { waitUntil: "networkidle", timeout: 90_000 });
       status = resp?.status() ?? 0;
+      if (status >= 400 && !EXPECT_404.includes(path)) errors.push("page answered HTTP " + status);
     } catch (e) { errors.push("goto: " + e.message.split("\n")[0]); }
     if (/^\/(panel|admin)/.test(path) && new URL(page.url()).pathname === "/auth") errors.push("redirected to /auth: the session was lost");
     await page.evaluate(() => document.fonts?.ready).catch(() => {});
@@ -284,7 +287,9 @@ async function audit(ctx, path) {
       if (bad) console.log(`✗ ${path} @${w}${state ? " [" + state + "]" : ""}: overflow=${overflow ? r.scrollWidth : "no"} offenders=${r.offenders.length} overlaps=${r.overlaps.length} clipped=${r.clipped.length} cut=${r.cut.length}`);
     }
   }
-  const uniq = [...new Set(errors)];
+  // pages that should answer 404 log the browser's own "failed to load" for the document; nothing else may
+  const expect404 = EXPECT_404.includes(path);
+  const uniq = [...new Set(errors)].filter((x) => !(expect404 && /status of 404/.test(x)));
   if (uniq.length) { report.push({ path, errors: uniq }); total.errors += uniq.length; console.log(`! ${path}: ${uniq.length} error(s)\n   ` + uniq.slice(0, 5).join("\n   ")); }
   else console.log(`✓ ${path}`);
   await page.close();

@@ -126,7 +126,7 @@ function Setup({ z }: { z: GeoZone }) {
         <ol>
           {step(1, true, "ثبت دامنه و سرورها", <>رکوردهای @ و www با IP ایران و خارج ساخته شد. رکوردهای دیگر (ایمیل، زیردامنه‌ها) را در تب «رکوردها» اضافه کنید.</>)}
           {step(2, z.nsOk, "تغییر NS دامنه", <>
-            در پنل ثبت‌کننده دامنه (برای .ir در nic.ir)، نام‌سرورها را به این دو تغییر دهید:
+            در پنل ثبت‌کننده دامنه (برای ‎.ir در nic.ir)، نام‌سرورها را به این دو تغییر دهید:
             <div className="mt-2 space-y-1.5">{db.geo.nameservers.map((n) => <div key={n} className="rounded-lg bg-black/30 px-3 py-2"><CopyText text={n} className="font-mono text-sm" /></div>)}</div>
             <p className="text-[11px] text-white/50 mt-2">پیش از تغییر، همه رکوردهای فعلی دامنه (به‌خصوص MX ایمیل) را در تب «رکوردها» وارد کنید تا چیزی قطع نشود. اعمال تغییر بین چند دقیقه تا ۲۴ ساعت طول می‌کشد.</p>
             <div className="flex flex-wrap items-center gap-3 mt-3">

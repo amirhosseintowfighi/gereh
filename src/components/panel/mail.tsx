@@ -9,7 +9,7 @@ import { api } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter } from "../ui";
-import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
+import { AreaChart, AsyncButton, CodeBlock, CopyText, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 
 /* ---------- small helpers ---------- */
 const Pill = ({ map, s }: { map: Record<string, [string, Tone]>; s: string }) => { const [l, t] = map[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
@@ -181,14 +181,14 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
         </Card>
         <Card title="کلید API ارسال" icon="key-round" action={<AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText="کلید فعلی بی‌درنگ از کار می‌افتد. ادامه می‌دهید؟" onClick={async () => { setKey(await api.mail.rotateKey(d.id)); reload(); }}><Icon name="refresh-cw" size={13} />کلید تازه</AsyncButton>}>
           {key ? <SecretBox label="کلید تازه (فقط همین یک بار)" value={key} /> : <p className="text-sm">کلید فعلی: <code dir="ltr" className="font-mono">{d.apiKeyPrefix}…</code></p>}
-          <pre dir="ltr" className="mt-4 text-[11px] leading-5 rounded-xl bg-black/35 p-3 overflow-x-auto text-left">{`curl -X POST ${d.apiUrl} \\
+          <CodeBlock className="mt-4" label="نمونه ارسال با curl" title="curl" code={`curl -X POST ${d.apiUrl} \\
   -H "Authorization: Bearer ${key || d.apiKeyPrefix + "…"}" \\
   -H "Content-Type: application/json" \\
   -H "X-Gereh-Tag: welcome" \\
   -d '{"from":"App <no-reply@${d.domain}>","to":["user@example.com"],
        "subject":"Hello","html":"<b>Hi</b>","text":"Hi",
        "listUnsubscribe":"https://${d.domain}/unsubscribe?u=1",
-       "attachments":[{"filename":"a.pdf","content":"<base64>"}]}'`}</pre>
+       "attachments":[{"filename":"a.pdf","content":"<base64>"}]}'`} />
           <p className="text-[11px] text-white/50 mt-2 leading-6">پاسخ <span dir="ltr">202 {"{ id, status }"}</span>. پیوست‌ها تا ۱۰ مگابایت؛ حداکثر ۵۰ گیرنده در هر پیام. <Link href={"/mail#api" as never} className="underline">راهنمای کامل</Link></p>
         </Card>
       </div>

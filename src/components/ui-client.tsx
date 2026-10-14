@@ -141,7 +141,7 @@ export function Switch({ on, onChange, label, disabled }: { on: boolean; onChang
 export type Opt = string | { value: string; label: string };
 export function Select({ value, onChange, options, className = "", ltr = false, label }: { value: string; onChange: (v: string) => void; options: Opt[]; className?: string; ltr?: boolean; label?: string }) {
   return (
-    <div className={"relative " + className}>
+    <div className={"relative max-w-full " + className}>
       <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className={INPUT + " appearance-none pl-9 " + (ltr ? "ltr text-left" : "")}>
         {options.map((o) => typeof o === "string"
           ? <option key={o} value={o} className="bg-[#0d1018]">{o}</option>
@@ -383,7 +383,7 @@ export function Bars({ data, labels, height = 160, fmt = (v: number) => fa(v) }:
   // many bars (e.g. 30 days) → thinner gaps and only every n-th label, so the chart never outgrows a phone screen
   const dense = data.length > 12, every = dense ? Math.ceil(data.length / 6) : 1;
   return (
-    <div className={"flex items-end min-w-0 " + (dense ? "gap-0.5 sm:gap-1 overflow-hidden" :"gap-1.5 sm:gap-2")} style={{ height }}>
+    <div className={"flex items-end min-w-0 " + (dense ? "gap-0.5 sm:gap-1 overflow-hidden px-4" : "gap-1.5 sm:gap-2")} style={{ height }}>
       {data.map((v, i) => (
         <div key={i} title={labels[i] + " — " + fmt(v)} className="group flex-1 min-w-0 flex flex-col items-center gap-2 h-full justify-end">
           <div className={"text-[10px] text-white/0 group-hover:text-white/70 transition tabular whitespace-nowrap" + (dense ? " hidden sm:block" : "")}>{dense ? "" : fmt(v)}</div>

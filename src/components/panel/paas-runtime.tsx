@@ -325,11 +325,11 @@ export function PlanLimits() {
     <Card title="محدودیت استقرار پلن‌های اپ" icon="timer" className="lg:col-span-2" pad="p-3 sm:p-4">
       {!rows ? <p className="text-sm text-white/55 p-2">…</p> : (
         <ul className="space-y-1">{rows.map((r, i) => (
-          <li key={r.id} className="grid grid-cols-[1fr_8rem_8rem_auto] gap-2 items-end p-2">
-            <span className="text-sm pb-2.5">{r.name} <span className="text-[11px] text-white/45">{r.id}</span></span>
+          <li key={r.id} className="grid grid-cols-2 sm:grid-cols-[1fr_8rem_8rem_auto] gap-2 items-end p-2 max-sm:border-b max-sm:border-white/[0.06]">
+            <span className="text-sm sm:pb-2.5 max-sm:col-span-2">{r.name} <span className="text-[11px] text-white/45">{r.id}</span></span>
             <Field label="بیلد در روز (۰ = نامحدود)"><input value={r.deploysPerDay} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, deploysPerDay: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " h-10 text-left"} /></Field>
             <Field label="حداکثر دقیقه بیلد"><input value={r.maxBuildMinutes} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, maxBuildMinutes: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " h-10 text-left"} /></Field>
-            <AsyncButton className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { await api.paas.adminSetPlanLimits(r.id, { deploysPerDay: r.deploysPerDay, maxBuildMinutes: r.maxBuildMinutes }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+            <AsyncButton className={BTN_G + " h-10 px-3 text-xs max-sm:col-span-2"} onClick={async () => { await api.paas.adminSetPlanLimits(r.id, { deploysPerDay: r.deploysPerDay, maxBuildMinutes: r.maxBuildMinutes }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
           </li>
         ))}</ul>
       )}
