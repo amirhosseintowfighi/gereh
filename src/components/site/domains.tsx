@@ -174,25 +174,25 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
           </div>
         </div>
         <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"} tabIndex={0} role="region" aria-label={"جدول قیمت پسوندها"}>
-          <table className="w-full min-w-[620px] text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead><tr className="border-b border-white/15 text-white/50">
-              <th scope="col" className="text-right font-medium p-4">پسوند</th><th scope="col" className="font-medium p-4">ثبت</th><th scope="col" className="font-medium p-4">تمدید</th><th scope="col" className="font-medium p-4">انتقال</th><th className="p-4"><span className="sr-only-focusable">بررسی</span></th>
+              <th scope="col" className="text-right font-medium p-2.5 sm:p-4">پسوند</th><th scope="col" className="font-medium p-2.5 sm:p-4">ثبت</th><th scope="col" className="font-medium p-2.5 sm:p-4">تمدید</th><th scope="col" className="font-medium p-2.5 sm:p-4">انتقال</th><th className="p-2.5 sm:p-4"><span className="sr-only-focusable">بررسی</span></th>
             </tr></thead>
             <tbody>
               {tldList.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-white/55">پسوندی با این عبارت پیدا نشد. فیلتر را پاک کنید.</td></tr>}
               {tldList.map((t, i) => (
                 <tr key={t.tld} className={"hover:bg-white/[0.06] transition-colors " + (i % 2 ? "bg-white/[0.03]" : "")}>
                   <th scope="row" className="p-4 text-right font-normal">
-                    <span className="font-black text-base ltr">{t.tld}</span>
-                    {t.hot && <span className="mr-2 text-[10px] px-2 py-0.5 rounded-md bg-white/10 border border-white/15 acc">محبوب</span>}
-                    {t.promo && <span className="mr-2 text-[10px] px-2 py-0.5 rounded-md bg-amber-300/20 text-amber-200">تخفیف</span>}
+                    <span className="font-black text-sm sm:text-base ltr">{t.tld}</span>
+                    {t.hot && <span className="max-sm:block max-sm:w-fit max-sm:mr-0 max-sm:mt-1 mr-2 text-[10px] px-2 py-0.5 rounded-md bg-white/10 border border-white/15 acc">محبوب</span>}
+                    {t.promo && <span className="max-sm:block max-sm:w-fit max-sm:mr-0 max-sm:mt-1 mr-2 text-[10px] px-2 py-0.5 rounded-md bg-amber-300/20 text-amber-200">تخفیف</span>}
                   </th>
                   <td className="p-4 text-center font-bold">{fa(t.reg)}</td>
                   <td className="p-4 text-center text-white/70">{fa(t.renew)}</td>
                   <td className="p-4 text-center text-white/70">{t.transfer === 0 ? "رایگان" : fa(t.transfer)}</td>
                   <td className="p-4 text-left">
-                    <button type="button" onClick={() => { setMode("single"); search(baseName + t.tld); window.scrollTo({ top: 0 }); }} className={BTN_G + " px-3 py-1.5 text-xs"} aria-label={"بررسی " + baseName + t.tld}>
-                      <Icon name="search" size={14} /> بررسی
+                    <button type="button" onClick={() => { setMode("single"); search(baseName + t.tld); window.scrollTo({ top: 0 }); }} className={BTN_G + " px-2.5 sm:px-3 py-1.5 text-xs"} aria-label={"بررسی " + baseName + t.tld}>
+                      <Icon name="search" size={14} /><span className="max-sm:hidden">بررسی</span>
                     </button>
                   </td>
                 </tr>
