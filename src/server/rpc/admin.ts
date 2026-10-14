@@ -254,9 +254,14 @@ export const adminRpc = {
     await logAudit(ctx.db, actor(ctx), "همگام‌سازی Virtualizor: " + label, "virtualizor", ctx.ip);
   }),
 
-  "admin.savePlanMap": method(z.tuple([id, z.object({ plid: z.number().int().min(0).optional(), group: z.string().max(40).optional() })]), async (ctx, [pid, patch]) => {
+  /** upserts: every cloud/metal plan and "custom" (the configurator) can be mapped, also plans added later */
+  "admin.savePlanMap": method(z.tuple([id, z.object({ plid: z.number().int().min(0).optional(), group: z.string().max(40).optional(), virt: z.enum(["", "kvm", "xen", "xenhvm", "openvz", "lxc", "proxk", "proxl", "vzk", "vzo"]).optional() })]), async (ctx, [pid, patch]) => {
     needStaff(ctx, "virtualizor");
-    await ctx.db.update(planMap).set(patch).where(eq(planMap.id, pid));
+    const [p] = pid === "custom" ? [{ data: { name: "پیکربندی سفارشی" } }] : await ctx.db.select().from(plans).where(and(eq(plans.id, pid), sql`${plans.kind} <> 'hosting'`));
+    if (!p) fail("پلن پیدا نشد.");
+    const name = (p!.data as { name: string }).name;
+    await ctx.db.insert(planMap).values({ id: pid, name, plid: patch.plid ?? 0, group: patch.group ?? "", virt: patch.virt ?? "" })
+      .onConflictDoUpdate({ target: planMap.id, set: { name, ...patch } });
     await logAudit(ctx.db, actor(ctx), "نگاشت پلن به Virtualizor", pid, ctx.ip);
   }),
   "admin.toggleTemplate": method(z.tuple([z.number().int()]), async (ctx, [osid]) => {

@@ -12,6 +12,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, STATUS, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, Bars, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 import { InvoiceModal, TicketThread } from "./user";
+import { UndeliveredCard, VirtDryRun } from "./admin-orders";
 
 const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 const amountInput = (v: string) => toEnDigits(v).replace(/\D/g, "");
@@ -26,6 +27,7 @@ export function AdminDashboard() {
   return (
     <div>
       <PageTitle title="داشبورد مدیریت" sub={"گزارش لحظه‌ای، " + nowFa()} action={<Link href="/admin/announcements" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="megaphone" size={16} /> اطلاعیه جدید</Link>} />
+      <UndeliveredCard />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon="trending-up" label="پرداخت‌های ثبت‌شده" value={paid} suffix="تومان" sub="مجموع صورتحساب‌های پرداخت‌شده" tone="up" href="/admin/billing" />
         <StatCard icon="users" label="کاربران فعال" value={db.users.filter((u) => u.status === "active").length} sub={fa(db.users.length) + " کاربر در مجموع"} href="/admin/users" />
@@ -503,10 +505,12 @@ export function AdminVirtualizor() {
             columns={[
               { key: "name", label: "پلن گره", render: (r) => <span className="font-bold">{r.name}</span> },
               { key: "plid", label: "Plan ID در Virtualizor", render: (r) => <input defaultValue={r.plid || ""} inputMode="numeric" aria-label={"Plan ID برای " + r.name} onBlur={async (e) => { const v = +amountInput(e.target.value) || 0; if (v === r.plid) return; await api.admin.savePlanMap(r.id, { plid: v }); notify("نگاشت ذخیره شد"); }} dir="ltr" className={INPUT + " h-9 w-28 text-left mono"} /> },
-              { key: "group", label: "گروه سرور (محل ساخت)", render: (r) => <Select className="w-44" label={"گروه سرور " + r.name} value={r.group} onChange={async (v) => { await api.admin.savePlanMap(r.id, { group: v }); notify("نگاشت ذخیره شد"); }} options={GROUPS} ltr /> },
-              { key: "st", label: "وضعیت", render: (r) => r.plid ? <Badge tone="green">نگاشت شده</Badge> : <Badge tone="amber">بدون نگاشت</Badge> },
+              { key: "group", label: "گروه سرور (اگر موقعیت گروه نداشت)", render: (r) => <Select className="w-44" label={"گروه سرور " + r.name} value={r.group} onChange={async (v) => { await api.admin.savePlanMap(r.id, { group: v }); notify("نگاشت ذخیره شد"); }} options={["", ...new Set([...GROUPS, ...db.virtGroups, ...db.locations.flatMap((l) => [l.groupCloud || "", l.groupMetal || ""])].filter(Boolean))].map((g) => ({ value: g, label: g || "— از موقعیت —" }))} ltr /> },
+              { key: "virt", label: "نوع مجازی‌سازی", render: (r) => <Select className="w-32" label={"نوع مجازی‌سازی " + r.name} value={r.virt} onChange={async (v) => { await api.admin.savePlanMap(r.id, { virt: v }); notify("نگاشت ذخیره شد"); }} options={[{ value: "", label: "پیش‌فرض (kvm)" }, "kvm", "xen", "xenhvm", "openvz", "lxc", "proxk", "proxl", "vzk", "vzo"]} ltr /> },
+              { key: "st", label: "وضعیت", render: (r) => r.plid ? <Badge tone="green">نگاشت شده</Badge> : <Badge tone="amber">منابع صریح</Badge> },
             ]} />
-          <p className="text-[11px] text-white/55 mt-3 leading-6">هنگام سفارش، VPS با همین plid و روی کم‌بارترین سرورِ گروه انتخاب‌شده ساخته می‌شود. لوکیشن‌های سایت (تهران، اصفهان…) به گروه سرورها نگاشت می‌شوند.</p>
+          <p className="text-[11px] text-white/55 mt-3 leading-6">هنگام سفارش، VPS روی کم‌بارترین سرورِ گروه سرورِ موقعیت انتخاب‌شده (زیرساخت › موقعیت‌ها) ساخته می‌شود. پلن بدون Plan ID با منابع خودش (CPU، رم، دیسک و ترافیک) ساخته می‌شود؛ با Plan ID، تنظیمات دیگر پلن Virtualizor (سرعت شبکه، IPv6…) هم اعمال می‌شود.</p>
+          <div className="mt-4"><VirtDryRun /></div>
         </>}
         {tab === "templates" && (
           <DataTable rows={db.osTemplates.map((t) => ({ ...t, id: t.osid }))} searchKeys={["name", "distro"]}

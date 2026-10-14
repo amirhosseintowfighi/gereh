@@ -27,7 +27,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], projects: [], kbs: [], settings: { retentionDays: 30, logBodies: false, lowBalance: 0 }, stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" }, storage: { plans: [], buckets: [], keys: [], endpoint: "", region: "", driver: "" },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], projects: [], kbs: [], settings: { retentionDays: 30, logBodies: false, lowBalance: 0 }, stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" }, storage: { plans: [], buckets: [], keys: [], endpoint: "", region: "", driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -108,7 +108,7 @@ export type AiKeyInput = { name: string; models: string[]; dailyCap: number; mon
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -596,7 +596,7 @@ export const api = {
     deleteAnnouncement: (id: string) => rpc("admin.deleteAnnouncement", id),
     virtTest: (cfg: { host: string; port: number; key: string; pass?: string; insecure?: boolean }) => rpc("admin.virtTest", cfg),
     virtSync: (kind: string) => rpc("admin.virtSync", kind),
-    savePlanMap: (id: string, patch: { plid?: number; group?: string }) => rpc("admin.savePlanMap", id, patch),
+    savePlanMap: (id: string, patch: { plid?: number; group?: string; virt?: string }) => rpc("admin.savePlanMap", id, patch),
     toggleTemplate: (osid: number) => rpc("admin.toggleTemplate", osid),
     saveVirt: (patch: Record<string, string | number | boolean>) => rpc("admin.saveVirt", patch),
     saveSettings: (patch: Partial<ClientDB["settings"]> & { smsKey?: string }) => rpc("admin.saveSettings", patch),
@@ -605,4 +605,20 @@ export const api = {
     saveIncident: (i: { id?: string; title: string; severity: string; status: string; components: string[]; text: string }) => rpc("admin.saveIncident", i),
     deleteIncident: (id: string) => rpc("admin.deleteIncident", id),
   },
+  provisioning: {
+    list: () => rpc<UndeliveredOrder[]>("provisioning.list"),
+    retry: (key: string) => rpc("provisioning.retry", key),
+    retryAll: () => rpc<number>("provisioning.retryAll"),
+    deliverServer: (key: string, d: ManualServer & { note?: string }) => rpc<string>("provisioning.deliverServer", key, d),
+    deliverOther: (key: string, d: { domain: string; username?: string; password?: string; server?: string; years?: number; note?: string }) => rpc("provisioning.deliverOther", key, d),
+    refund: (key: string, note: string) => rpc<number>("provisioning.refund", key, note),
+    assign: (a: ManualServer & { email: string; plan: string; cpu: number; ram: number; disk: number; loc: string; os: string; price: number; billing: "monthly" | "hourly"; months: number }) => rpc<string>("provisioning.assign", a),
+    dryRun: () => rpc<{ level: "error" | "warn" | "ok"; text: string }[]>("provisioning.dryRun"),
+  },
+};
+export type ManualServer = { vpsid?: number; ip?: string; hostname?: string; rootpass?: string };
+export type UndeliveredOrder = {
+  key: string; kind: "server" | "hosting" | "domain" | "ip"; invoiceId: string; index: number; userId: string; userName: string; email: string; item: string; amount: number;
+  at: string; ageMin: number; jobId: number | null; jobStatus: string; attempts: number; error: string; serverId: string | null; serverName: string; serverStatus: string;
+  vpsid: number | null; ticket: string | null; sku: Sku | null; stage: "queued" | "retrying" | "stuck" | "failed" | "building";
 };

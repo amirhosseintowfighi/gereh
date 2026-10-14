@@ -10,6 +10,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
+import { DelayBanner, ServerPending } from "./server-pending";
 import { DisksPanel, FirewallGroups, NetworkExtras, PlanChange, SnapSchedule, TrafficPanel, VncScreen, WalletLink } from "./vps-extras";
 
 const TABS = [
@@ -28,6 +29,7 @@ export function ServerDetail({ id }: { id: string }) {
   const s = db.servers.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
+  if (!s.vpsid) return <ServerPending s={s} />;
   const suspended = s.status === "suspended";
   const tabs = suspended ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
   const cur = tabs.some((t) => t.id === tab) ? tab : "overview";
@@ -41,6 +43,7 @@ export function ServerDetail({ id }: { id: string }) {
           {s.status === "running" && <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
           {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
         </>} />
+      <DelayBanner s={s} />
       <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
         {cur === "overview" && <Overview s={s} />}

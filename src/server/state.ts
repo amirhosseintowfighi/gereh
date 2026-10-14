@@ -20,6 +20,7 @@ import { aiState, EMPTY_AI } from "./ai/state";
 import { botConfig } from "./channels";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
+import { undeliveredCount } from "./provisioning";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
 
 const STAFF_LABEL: Record<string, string> = { owner: "مدیر کل", support: "پشتیبانی فنی", finance: "مالی", sales: "فروش", viewer: "فقط مشاهده" };
@@ -71,7 +72,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], locations: [], virtGroups: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, storage: EMPTY_STORAGE, team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, storage: EMPTY_STORAGE, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 
@@ -131,7 +132,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
       firewall: (fwBy.get(s.id) || []).map((r) => ({ id: r.id, proto: r.proto, port: r.port, source: r.source, action: r.action, note: r.note })),
       snapshots: (snapBy.get(s.id) || []).map((x) => ({ id: x.id, name: x.name, size: x.size, at: faDate(x.createdAt) })),
       backupsList: (bkBy.get(s.id) || []).map((x) => ({ id: x.id, size: x.size, at: faDateTime(x.createdAt) })),
-      vpsid: s.vpsid || 0, hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue, bwLimit: s.bwLimit,
+      vpsid: s.vpsid || 0, delayed: !!s.provisionError, ...(admin ? { provisionError: s.provisionError ?? "" } : {}), hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue, bwLimit: s.bwLimit,
       vnc: { host: s.vncHost, port: s.vncPort, password: s.vncPassword },
       usage: (usageBy.get(s.id) || []).map((u) => ({ at: faDateTime(u.createdAt), cpu: u.cpu, ram: u.ram, disk: u.disk, netIn: u.netIn, netOut: u.netOut, bwUsed: u.bwUsed })),
       tasks: (taskBy.get(s.id) || []).map((x) => ({ id: x.id, action: x.action, status: x.status, progress: x.progress, at: faDateTime(x.createdAt) })),
@@ -224,7 +225,11 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   out.virtGroups = Array.isArray(virt.groups) ? (virt.groups as unknown as string[]) : [];
   out.virt = { ...virtPublic, fromEnv: virtFromEnv(), lastSync: virt.lastSync ? faDateTime(new Date(String(virt.lastSync))) : "—" };
   out.virtLog = virtLog.map((v) => ({ id: v.id, kind: v.kind, result: v.result, detail: v.detail, at: faDateTime(v.createdAt) }));
-  out.planMap = planMap;
+  // every orderable server plan (also ones added after seeding) plus the configurator, mapped or not
+  const mapped = new Map(planMap.map((m) => [m.id, m]));
+  out.planMap = [...planRows.filter((p) => p.kind !== "hosting").map((p) => ({ id: p.id, name: (p.data as Plan).name })), { id: "custom", name: "پیکربندی سفارشی" }]
+    .map((p) => ({ plid: 0, group: "", virt: "", ...mapped.get(p.id), ...p }));
+  out.undelivered = await undeliveredCount(db);
   out.inbox = inbox.map((m) => ({ id: m.id, name: m.name, email: m.email, dept: m.dept, subject: m.subject, message: m.message, at: faDateTime(m.createdAt) }));
   return { session: clientSession(auth), db: out };
 }

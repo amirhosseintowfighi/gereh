@@ -4,7 +4,7 @@
    auth parameter style is configurable for that reason (VIRTUALIZOR_AUTH=adminapikey|apikey). */
 import "server-only";
 import { Agent, fetch } from "undici";
-import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsLive } from "./driver";
+import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsInfo, VpsLive } from "./driver";
 
 type Dict = Record<string, string | number | boolean | (string | number)[] | undefined>;
 export type VirtConfig = { host: string; key: string; pass: string; adminPort?: number; enduserPort?: number; tlsStrict?: boolean; auth?: "adminapikey" | "apikey" };
@@ -35,9 +35,13 @@ export function explainFetchError(e: unknown, host: string, port: number): strin
   return `${where}: ${[code, err.cause?.message || err.message].filter(Boolean).join(" — ")}`;
 }
 
+/** Virtualizor's `error` is a string, an array or a {code: message} map (sometimes nested); keeps every message */
+const flatErrors = (d: unknown): string[] =>
+  d && typeof d === "object" ? Object.values(d as Record<string, unknown>).flatMap(flatErrors) : d === undefined || d === null || d === "" ? [] : [String(d)];
+
 export class VirtualizorError extends Error {
   constructor(public act: string, public details: unknown) {
-    super("Virtualizor " + act + ": " + (typeof details === "object" ? Object.values(details as Record<string, unknown>).join("، ") : String(details)));
+    super("Virtualizor " + act + ": " + flatErrors(details).join("، "));
   }
 }
 
@@ -106,9 +110,28 @@ export class VirtualizorDriver implements VirtDriver {
     return Number(uid);
   }
 
+  /** numeric sgid of a server group given by name (as synced and shown in the panel) or by id */
+  async groupId(group: string): Promise<number> {
+    const g = group.trim();
+    if (/^\d+$/.test(g)) return Number(g);
+    const list = await this.groups();
+    const hit = list.find((x) => x.name.toLowerCase() === g.toLowerCase());
+    if (!hit) throw new VirtualizorError("addvs", `گروه سرور «${g}» در Virtualizor پیدا نشد؛ گروه‌های موجود: ${list.map((x) => x.name + " (" + x.sgid + ")").join("، ") || "هیچ"}. در «زیرساخت › موقعیت‌ها» نام یا شناسه درست Server Group را وارد کنید.`);
+    return hit.sgid;
+  }
+
+  /* addvs: virt, a node (node_select=1 + server_group=<sgid>, i.e. the least-loaded server of the group), and
+     either a plan (plid) or explicit space/ram/cores/bandwidth. Posted resources override the plan's. */
   async create(p: CreateVps) {
+    if (!p.plid && !(p.space && p.ram && p.cores)) throw new VirtualizorError("addvs", "بدون Plan ID باید فضای دیسک، رم و تعداد هسته مشخص باشد");
+    const sgid = await this.groupId(p.serverGroup);
+    const virt = p.virt || process.env.VIRTUALIZOR_VIRT || "kvm";
     const j = await this.admin<{ newvs?: { vpsid?: number | string; ips?: string[]; ipv6?: string[]; vnc?: string; vncport?: number | string; vncpass?: string }; vs_info?: { vpsid?: number | string } }>("addvs", {}, {
-      addvps: 1, uid: p.uid, plid: p.plid, osid: p.osid, hostname: p.hostname, rootpass: p.rootpass, server_group: p.serverGroup, num_ips: 1, num_ips6: 1,
+      addvps: 1, virt, uid: p.uid, osid: p.osid, hostname: p.hostname, rootpass: p.rootpass,
+      node_select: 1, server_group: sgid, num_ips: 1, num_ips6: 1, vnc: 1,
+      ...(p.plid ? { plid: p.plid } : {}),
+      // space GB, ram MB, bandwidth GB/month (0 = unlimited) (verify: 3.x also accepts space[0][size])
+      ...(p.space ? { space: p.space } : {}), ...(p.ram ? { ram: p.ram } : {}), ...(p.cores ? { cores: p.cores } : {}), ...(p.bandwidth !== undefined ? { bandwidth: p.bandwidth } : {}),
       ...(p.sshKey ? { sshkey: p.sshKey } : {}), ...(p.cloudInit ? { cloud_init: p.cloudInit } : {}),
     });
     const vs = j.newvs ?? j.vs_info ?? {};
@@ -163,10 +186,36 @@ export class VirtualizorDriver implements VirtDriver {
   async servers() {
     const j = await this.admin<{ servs?: Record<string, Record<string, string>> }>("servers");
     return Object.values(j.servs ?? {}).map((s) => ({
-      serid: Number(s.serid), name: s.server_name, group: s.sg_name || s.sgid || "",
+      serid: Number(s.serid), name: s.server_name, group: s.sg_name || s.sgid || "", sgid: s.sgid === undefined || s.sgid === "" ? -1 : Number(s.sgid),
       cpu: Math.round(Number(s.cpu_used ?? s.used_cpu ?? 0)), ram: Math.round(100 - (Number(s.ram) / Number(s.total_ram || 1)) * 100) || 0,
       disk: Math.round(100 - (Number(s.space) / Number(s.total_space || 1)) * 100) || 0, vms: Number(s.numvps ?? 0),
     }));
+  }
+  /** act=servergroups (verify); falls back to the sgid/sg_name pairs of the server list */
+  async groups() {
+    const j = await this.admin<{ servergroups?: Record<string, { sgid?: string | number; sg_name?: string }> }>("servergroups").catch(() => ({ servergroups: undefined }));
+    const out = new Map<number, string>();
+    for (const [k, g] of Object.entries(j.servergroups ?? {})) out.set(Number(g.sgid ?? k), g.sg_name ?? String(g.sgid ?? k));
+    if (!out.size) for (const s of await this.servers()) if (s.sgid >= 0) out.set(s.sgid, s.group);
+    return [...out].map(([sgid, name]) => ({ sgid, name }));
+  }
+  private info(v: Record<string, unknown>, vpsid: number): VpsInfo {
+    const ips = Object.values((v.ips as Record<string, string> | string[] | undefined) ?? {}).map(String);
+    const st = Number(v.status ?? 1);
+    return { vpsid, hostname: String(v.hostname ?? ""), ip: ips.find((x) => !x.includes(":")) ?? "", ipv6: ips.find((x) => x.includes(":")) ?? "", uid: Number(v.uid ?? 0),
+      status: Number(v.suspended ?? 0) === 1 ? "suspended" : st === 0 ? "stopped" : "running" };
+  }
+  /** act=vs filtered by vpsid (verify) */
+  async getVps(vpsid: number) {
+    const j = await this.admin<{ vs?: Record<string, Record<string, unknown>> }>("vs", { vpsid });
+    const v = j.vs?.[vpsid] ?? Object.values(j.vs ?? {}).find((x) => Number(x.vpsid) === vpsid);
+    return v ? this.info(v, vpsid) : null;
+  }
+  /** act=vs filtered by vpshostname (verify); exact match only */
+  async findVps(hostname: string, uid?: number) {
+    const j = await this.admin<{ vs?: Record<string, Record<string, unknown>> }>("vs", { vpshostname: hostname });
+    const v = Object.values(j.vs ?? {}).find((x) => String(x.hostname ?? "").toLowerCase() === hostname.toLowerCase() && (uid === undefined || Number(x.uid) === uid));
+    return v ? this.info(v, Number(v.vpsid)) : null;
   }
   async osTemplates() {
     const j = await this.admin<{ ostemplates?: Record<string, { osid: string; name: string; distro: string }>; oslist?: Record<string, Record<string, { name: string; distro?: string }>> }>("ostemplates");

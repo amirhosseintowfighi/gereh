@@ -38,6 +38,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: "layout-dashboard" },
   { href: "/admin/users", label: "کاربران", icon: "users" },
   { href: "/admin/services", label: "سرویس‌ها", icon: "server" },
+  { href: "/admin/orders", label: "سفارش‌های تحویل‌نشده", icon: "package-open" },
   { href: "/admin/domains", label: "دامنه‌ها و انتقال", icon: "globe" },
   { href: "/admin/billing", label: "مالی", icon: "receipt" },
   { href: "/admin/reports", label: "گزارش‌ها", icon: "chart-column" },
@@ -95,7 +96,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const me = kind === "admin" ? { name: session?.name || "مدیر سیستم" } : user;
   const unread = db.notifications.filter((n) => !n.read).length;
   const badges: Record<string, number> = kind === "admin"
-    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length, "/admin/chats": db.chats.filter((c) => c.status === "open" && c.unread).length, "/admin/devops": db.devopsLeads.filter((l) => l.status === "new").length, "/admin/inquiry": db.inquiry.grants.filter((g) => g.status === "pending").length }
+    ? { "/admin/tickets": db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply").length, "/admin/chats": db.chats.filter((c) => c.status === "open" && c.unread).length, "/admin/devops": db.devopsLeads.filter((l) => l.status === "new").length, "/admin/inquiry": db.inquiry.grants.filter((g) => g.status === "pending").length, "/admin/orders": db.undelivered }
     : { "/panel/billing": db.invoices.filter((i) => i.userId === myId && (i.status === "unpaid" || i.status === "overdue")).length, "/panel/tickets": db.tickets.filter((t) => t.userId === myId && t.status === "answered").length };
   const logout = async () => { await api.auth.logout(); notify("از حساب خارج شدید", "log-out"); router.push("/"); };
   const [navPath, setNavPath] = useState(path);
