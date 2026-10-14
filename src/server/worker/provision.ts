@@ -102,7 +102,8 @@ export async function provisionFailed(db: DB, serverId: string, e: unknown) {
   const [s] = await db.update(servers).set({ provisionError: text }).where(eq(servers.id, serverId)).returning();
   if (!s || s.provisionTicket) return;
   const tid = await openStaffTicket(db, s.userId, "تحویل سرور " + s.name + " با خطا روبه‌رو شد",
-    "سفارش " + (s.orderRef ?? s.id) + " پرداخت شده اما ساخت سرور ناموفق بود.\n\nخطا:\n" + text + "\n\nپس از رفع مشکل، از «مدیریت › سفارش‌های تحویل‌نشده» دوباره تلاش کنید، تحویل دستی انجام دهید یا وجه را بازگردانید.", "srv:" + s.id);
+    // the ticket belongs to the customer, so it carries no raw error; staff see it on /admin/orders
+    "سفارش " + (s.orderRef ?? s.id) + " پرداخت شده و آماده‌سازی سرور با تأخیر روبه‌رو شده است. تیم فنی در حال بررسی است و نتیجه در همین تیکت اعلام می‌شود.", "srv:" + s.id);
   const claimed = await db.update(servers).set({ provisionTicket: tid }).where(and(eq(servers.id, s.id), isNull(servers.provisionTicket))).returning({ id: servers.id });
   if (!claimed.length) return;
   await addTask(db, s.id, "تحویل با تأخیر — تیم فنی در حال بررسی است", "failed", 100);
