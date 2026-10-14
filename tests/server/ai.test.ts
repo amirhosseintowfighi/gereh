@@ -22,10 +22,10 @@ describe("AI gateway", () => {
   it("OpenAI chat: authenticates, answers, charges the real cost and settles into one transaction", async () => {
     const key = await newKey();
     const before = await balance();
-    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-4o-mini", messages: [{ role: "user", content: "سلام" }], max_tokens: 100 } });
+    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-5.6-luna", messages: [{ role: "user", content: "سلام" }], max_tokens: 100 } });
     expect(r.status).toBe(200);
     const j = await r.json();
-    expect(j).toMatchObject({ object: "chat.completion", model: "gpt-4o-mini", choices: [{ message: { content: "پاسخ آزمایشی گره: سلام" } }] });
+    expect(j).toMatchObject({ object: "chat.completion", model: "gpt-5.6-luna", choices: [{ message: { content: "پاسخ آزمایشی گره: سلام" } }] });
     const charged = Number(r.headers.get("x-gereh-charged-toman"));
     expect(charged).toBeGreaterThan(0);
     expect(await balance()).toBe(before - charged); // reserve refunded down to the real cost
@@ -38,7 +38,7 @@ describe("AI gateway", () => {
 
   it("rejects bad keys, unknown or disallowed models, and lists models in each format", async () => {
     expect((await call("v1/chat/completions", { headers: { authorization: "Bearer gk-nope" }, body: { model: "x", messages: [] } })).status).toBe(401);
-    const key = await newKey({ models: ["gpt-4o-mini"] });
+    const key = await newKey({ models: ["gpt-5.6-luna"] });
     const a = await call("v1/messages", { headers: { "x-api-key": key }, body: { model: "claude-opus-5.5", max_tokens: 10, messages: [{ role: "user", content: "hi" }] } });
     expect(a.status).toBe(403);
     expect(await a.json()).toMatchObject({ type: "error", error: { type: "permission_error" } });
@@ -46,11 +46,11 @@ describe("AI gateway", () => {
     expect(g.status).toBe(404);
     expect(await g.json()).toMatchObject({ error: { code: 404, status: "NOT_FOUND" } });
     const list = await (await call("v1/models", { method: "GET", headers: { authorization: "Bearer " + key } })).json();
-    expect(list.data.map((m: { id: string }) => m.id)).toEqual(["gpt-4o-mini"]);
+    expect(list.data.map((m: { id: string }) => m.id)).toEqual(["gpt-5.6-luna"]);
     const anth = await (await call("v1/models", { method: "GET", headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } })).json();
-    expect(anth.data[0]).toMatchObject({ type: "model", id: "gpt-4o-mini" });
+    expect(anth.data[0]).toMatchObject({ type: "model", id: "gpt-5.6-luna" });
     const gem = await (await call("v1beta/models", { method: "GET", headers: { "x-goog-api-key": key } })).json();
-    expect(gem.models[0].name).toBe("models/gpt-4o-mini");
+    expect(gem.models[0].name).toBe("models/gpt-5.6-luna");
   });
 
   it("Anthropic Messages (Claude Code): JSON, tool use and the streamed event sequence", async () => {
@@ -80,32 +80,32 @@ describe("AI gateway", () => {
     expect(rs.at(-1)).toMatchObject({ type: "response.completed", response: { output_text: "پاسخ آزمایشی گره: x" } });
     expect((await call("v1/responses", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-5.5", input: "x", previous_response_id: "r1" } })).status).toBe(400);
 
-    const g = await (await call("v1beta/models/gemini-3.8-flash:generateContent?key=" + key, { body: { contents: [{ role: "user", parts: [{ text: "salam" }] }] } })).json();
+    const g = await (await call("v1beta/models/gemini-3.7-flash:generateContent?key=" + key, { body: { contents: [{ role: "user", parts: [{ text: "salam" }] }] } })).json();
     expect(g.candidates[0].content.parts[0].text).toBe("پاسخ آزمایشی گره: salam");
-    const gs = await call("v1beta/models/gemini-3.8-flash:streamGenerateContent", { headers: { "x-goog-api-key": key }, body: { contents: [{ role: "user", parts: [{ text: "s" }] }] } });
+    const gs = await call("v1beta/models/gemini-3.7-flash:streamGenerateContent", { headers: { "x-goog-api-key": key }, body: { contents: [{ role: "user", parts: [{ text: "s" }] }] } });
     expect(Array.isArray(await gs.json())).toBe(true); // no alt=sse → one JSON array
   });
 
   it("OpenAI chat streaming passes chunks through with the public model id", async () => {
     const key = await newKey();
-    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "deepseek-v3.2", stream: true, stream_options: { include_usage: true }, messages: [{ role: "user", content: "abc" }] } });
+    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "deepseek-v4-flash-0731", stream: true, stream_options: { include_usage: true }, messages: [{ role: "user", content: "abc" }] } });
     const text = await r.text();
     expect(text.trim().endsWith("data: [DONE]")).toBe(true);
     const chunks = sseEvents(text);
-    expect(chunks.every((c) => c.model === "deepseek-v3.2")).toBe(true);
+    expect(chunks.every((c) => c.model === "deepseek-v4-flash-0731")).toBe(true);
     expect(chunks.at(-1).usage.prompt_tokens).toBeGreaterThan(0); // customer asked for usage
   });
 
   it("refunds everything when the upstream fails, and enforces wallet and key budgets", async () => {
-    const key = await newKey({ dailyCap: 3 });
+    const key = await newKey({ dailyCap: 10 });
     const d = await db();
     setAiUpstream({ name: "http", chat: async () => new Response("boom", { status: 500 }), models: async () => [] });
     const before = await balance();
-    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-4o-mini", messages: [{ role: "user", content: "x" }], max_tokens: 5 } });
+    const r = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-5.6-luna", messages: [{ role: "user", content: "x" }], max_tokens: 5 } });
     expect(r.status).toBe(502);
     expect(await balance()).toBe(before);
     setAiUpstream(null);
-    // a big max_tokens reserve does not fit the 3-Toman daily cap
+    // a big max_tokens reserve does not fit the 10-Toman daily cap
     const capped = await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "claude-opus-5.5", messages: [{ role: "user", content: "x" }], max_tokens: 4000 } });
     expect(capped.status).toBe(402);
     expect((await capped.json()).error.code).toBe("key_budget_exceeded");
@@ -114,7 +114,7 @@ describe("AI gateway", () => {
     expect(poor.status).toBe(402);
     expect((await poor.json()).error.code).toBe("insufficient_balance");
     await d.update(aiKeys).set({ status: "revoked" }).where(eq(aiKeys.userId, "u1"));
-    expect((await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-4o-mini", messages: [{ role: "user", content: "x" }] } })).status).toBe(403);
+    expect((await call("v1/chat/completions", { headers: { authorization: "Bearer " + key }, body: { model: "gpt-5.6-luna", messages: [{ role: "user", content: "x" }] } })).status).toBe(403);
   });
 
   it("seeds a priced catalog and computes Tehran day boundaries", async () => {
@@ -130,7 +130,7 @@ describe("AI gateway", () => {
     const key = await rpc<string>("ai.createKey", { name: "لپ‌تاپ", models: [], dailyCap: 50_000, monthlyCap: 0, rpm: 60, expiresDays: 30 });
     expect(key).toMatch(/^gk-[A-Za-z0-9]{40}$/);
     const before = await balance();
-    const p = await rpc<{ text: string; charged: number }>("ai.playground", "gpt-4o-mini", [{ role: "user", content: "درود" }], 256);
+    const p = await rpc<{ text: string; charged: number }>("ai.playground", "gpt-5.6-luna", [{ role: "user", content: "درود" }], 256);
     expect(p.text).toBe("پاسخ آزمایشی گره: درود");
     expect(await balance()).toBe(before - p.charged);
     const st = (await buildState((await context()).db, (await context()).auth, "customer")).db.ai;
@@ -139,18 +139,18 @@ describe("AI gateway", () => {
     expect(JSON.stringify(st)).not.toContain(key); // the full key never comes back
     expect(st.usage[0]).toMatchObject({ format: "panel", keyName: "پنل", charged: p.charged });
     expect(st.models.every((m) => m.active && m.refIn === 0 && m.upstream === "")).toBe(true);
-    await rpc("ai.updateKey", st.keys[0].id, { dailyCap: 0, models: ["gpt-4o-mini"] });
+    await rpc("ai.updateKey", st.keys[0].id, { dailyCap: 0, models: ["gpt-5.6-luna"] });
     await rpc("ai.revokeKey", st.keys[0].id);
     await fails("ai.updateKey", st.keys[0].id, { rpm: 10 });
     await fails("ai.adminApplyRule", 0.1);
 
     await asAdmin();
     expect(await rpc<number>("ai.adminApplyRule", 0.1)).toBeGreaterThan(20);
-    const [m] = await (await db()).select().from(aiModels).where(eq(aiModels.id, "gpt-4o-mini"));
-    expect(m.inPrice).toBe(Math.round((72_000 * 0.9) / 100) * 100);
+    const [m] = await (await db()).select().from(aiModels).where(eq(aiModels.id, "gpt-5.6-luna"));
+    expect(m.inPrice).toBe(Math.round((96_000 * 0.9) / 100) * 100);
     await rpc("ai.adminAddModel", { id: "new-model", name: "New Model", vendor: "openai", upstream: "", inPrice: 1000, outPrice: 2000, context: 8192 });
     const admin = (await buildState((await context()).db, (await context()).auth, "admin")).db.ai;
     expect(admin.models.find((x) => x.id === "new-model")).toMatchObject({ active: false });
-    expect(await rpc<{ ok: boolean }>("ai.adminTest", "gpt-4o-mini")).toMatchObject({ ok: true });
+    expect(await rpc<{ ok: boolean }>("ai.adminTest", "gpt-5.6-luna")).toMatchObject({ ok: true });
   });
 });

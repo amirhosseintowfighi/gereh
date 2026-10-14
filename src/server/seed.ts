@@ -4,7 +4,7 @@
    - With demo=true (dev, staging, e2e): the demo customer, sample services, invoices and tickets.
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, notInArray } from "drizzle-orm";
 import { DEMO_POSTS } from "@/content/demo-posts";
 import { seedAiModels } from "./ai/service";
 import { seedGeoPlans } from "./geo/service";
@@ -15,6 +15,7 @@ import { seedMailPlans } from "./mail/service";
 import { DEFAULT_PLANS, seedPlans } from "./paas/service";
 import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan } from "@/lib/catalog";
+import { AI_MODELS, rulePrice } from "@/lib/ai";
 import { fa, hashStr } from "@/lib/format";
 import { faDate, parseJalali } from "@/lib/jalali";
 import type { DB } from "./db/client";
@@ -59,6 +60,22 @@ export async function upgrade(db: DB) {
     for (const p of DEFAULT_PLANS) await db.update(t.paasPlans).set({ cpu: p.cpu, ramMb: p.ramMb, diskGb: p.diskGb, price: p.price }).where(eq(t.paasPlans.id, p.id));
   }
   if (version < 3) await db.insert(t.kv).values({ key: "pricing", value: 3 }).onConflictDoUpdate({ target: t.kv.key, set: { value: 3 } });
+  // AI catalog v2: exactly the upstream's models. Once: names and specs from AI_MODELS, prices kept
+  // where staff already set them, and every model outside the list switched off.
+  const [ac] = await db.select().from(t.kv).where(eq(t.kv.key, "ai.catalog"));
+  if (Number(ac?.value ?? 0) < 2) {
+    const ids = AI_MODELS.map((m) => m.id);
+    for (const [i, m] of AI_MODELS.entries()) {
+      const [row] = await db.select().from(t.aiModels).where(eq(t.aiModels.id, m.id));
+      const priced = row && row.inPrice > 0 && row.outPrice > 0;
+      await db.update(t.aiModels).set({
+        name: m.name, vendor: m.vendor, upstream: "", context: m.context, vision: !!m.vision, kind: "chat", active: true, position: i, refIn: m.ref[0], refOut: m.ref[1],
+        ...(priced ? {} : { inPrice: rulePrice(m.ref[0]), outPrice: rulePrice(m.ref[1]) }),
+      }).where(eq(t.aiModels.id, m.id));
+    }
+    await db.update(t.aiModels).set({ active: false }).where(notInArray(t.aiModels.id, ids));
+    await db.insert(t.kv).values({ key: "ai.catalog", value: 2 }).onConflictDoUpdate({ target: t.kv.key, set: { value: 2 } });
+  }
 }
 
 export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; adminPassword?: string }) {

@@ -9,7 +9,7 @@ export const AI_SNIPPETS: AiSnippet[] = [
     code: (base, key) => `export ANTHROPIC_BASE_URL=${base}
 export ANTHROPIC_AUTH_TOKEN=${key}
 export ANTHROPIC_MODEL=claude-opus-5.5
-export ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-4.5
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-sonnet-5
 claude`,
   },
   {
@@ -43,7 +43,7 @@ print(r.choices[0].message.content)`,
 
 client = anthropic.Anthropic(base_url="${base}", api_key="${key}")
 msg = client.messages.create(
-    model="claude-sonnet-5.5", max_tokens=1024,
+    model="claude-sonnet-5", max_tokens=1024,
     messages=[{"role": "user", "content": "سلام!"}],
 )
 print(msg.content[0].text)`,
@@ -54,7 +54,7 @@ print(msg.content[0].text)`,
     code: (base, key) => `from google import genai
 
 client = genai.Client(api_key="${key}", http_options={"base_url": "${base}"})
-r = client.models.generate_content(model="gemini-3.8-flash", contents="سلام!")
+r = client.models.generate_content(model="gemini-3.7-flash", contents="سلام!")
 print(r.text)`,
   },
   {
@@ -116,7 +116,7 @@ Model ID:      <model-id>   (از GET /v1/models)`,
     code: (base, key) => `curl ${base}/v1/chat/completions \\
   -H "Authorization: Bearer ${key}" \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"سلام!"}]}'`,
+  -d '{"model":"gpt-5.6-luna","messages":[{"role":"user","content":"سلام!"}]}'`,
   },
 ];
 

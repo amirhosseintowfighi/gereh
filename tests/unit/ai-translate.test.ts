@@ -115,13 +115,13 @@ describe("Gemini ↔ chat", () => {
         { role: "model", parts: [{ functionCall: { name: "f", args: { x: 1 } } }] },
         { role: "user", parts: [{ functionResponse: { name: "f", response: { ok: true } } }] },
       ],
-    }, "gemini-3.8-flash");
+    }, "gemini-3.7-flash");
     expect(c.messages.map((m) => m.role)).toEqual(["system", "user", "assistant", "tool"]);
     expect(c.messages[3].tool_call_id).toBe(c.messages[2].tool_calls?.[0].id);
-    expect(c).toMatchObject({ model: "gemini-3.8-flash", max_tokens: 50, temperature: 0.2 });
-    const g = chatToGemini(readChat({ choices: [{ message: { content: "ok" }, finish_reason: "length" }], usage: { prompt_tokens: 2, completion_tokens: 1 } }), "gemini-3.8-flash");
+    expect(c).toMatchObject({ model: "gemini-3.7-flash", max_tokens: 50, temperature: 0.2 });
+    const g = chatToGemini(readChat({ choices: [{ message: { content: "ok" }, finish_reason: "length" }], usage: { prompt_tokens: 2, completion_tokens: 1 } }), "gemini-3.7-flash");
     expect(g).toMatchObject({ candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "MAX_TOKENS" }], usageMetadata: { totalTokenCount: 3 } });
-    const s = new GeminiStream("gemini-3.8-flash");
+    const s = new GeminiStream("gemini-3.7-flash");
     const ev = events(s.push(chunk({ content: "a" })) + s.end());
     expect(ev[0].data.candidates[0].content.parts[0].text).toBe("a");
     expect(ev[1].data.candidates[0].finishReason).toBe("STOP");
@@ -135,5 +135,14 @@ describe("stream accumulator", () => {
     a.add(chunk({ tool_calls: [{ index: 0, function: { arguments: 'k":2}' } }] }, "tool_calls"));
     a.add({ choices: [], usage: { prompt_tokens: 5, completion_tokens: 6 } });
     expect(a.result()).toMatchObject({ text: "x", finish: "tool_calls", usage: { prompt_tokens: 5, completion_tokens: 6 }, toolCalls: [{ id: "c", function: { name: "f", arguments: '{"k":2}' } }] });
+  });
+});
+
+describe("AI catalog", () => {
+  it("lists exactly the upstream's 33 models, ids unique", async () => {
+    const { AI_MODELS, AI_VENDORS } = await import("@/lib/ai");
+    expect(AI_MODELS).toHaveLength(33);
+    expect(new Set(AI_MODELS.map((m) => m.id)).size).toBe(33);
+    for (const m of AI_MODELS) expect(AI_VENDORS[m.vendor]).toBeTruthy();
   });
 });
