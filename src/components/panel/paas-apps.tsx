@@ -132,7 +132,7 @@ export function NewApp() {
                     {/* @ts-expect-error non-standard but supported by every current browser */}
                     <input type="file" webkitdirectory="" multiple className="sr-only" onChange={async (e) => {
                       const list = e.target.files; if (!list?.length) return;
-                      try { setError(""); const z = await zipFolder(list); if (z.skipped) notify(fa(z.skipped) + " فایل (node_modules، .git، .env…) کنار گذاشته شد", "info"); await onFile(z.file); }
+                      try { setError(""); const z = await zipFolder(list); if (z.skipped) notify(fa(z.skipped) + " فایل (node_modules، ‎.git، ‎.env…) کنار گذاشته شد", "info"); await onFile(z.file); }
                       catch (err) { setError((err as Error).message); }
                     }} />
                     <Icon name="folder-open" size={16} />انتخاب پوشه پروژه
@@ -150,7 +150,7 @@ export function NewApp() {
                   <Link key={s.id} href={"/panel/apps/templates" as never} title={s.hint} className="h-9 px-3 rounded-xl text-xs border border-dashed border-white/[0.15] text-white/70 hover:text-white inline-flex items-center gap-1"><Icon name="sparkles" size={12} />{s.label}</Link>
                 ) : (
                   <button key={s.id} type="button" role="radio" aria-checked={f.stack === s.id} onClick={() => pickStack(s.id)} title={s.hint}
-                    className={"h-9 px-3 rounded-xl text-xs border transition " + (f.stack === s.id ? "bg-sky-400/15 border-sky-300/50 text-white font-bold" : "border-white/[0.12] text-white/70 hover:text-white")}>{s.label}</button>
+                    className={"h-9 px-3 rounded-xl text-xs border transition " + (f.stack === s.id ? "bg-sky-400/15 border-sky-300/50 text-white font-bold" : "border-white/[0.12] text-white/70 hover:text-white")}><bdi>{s.label}</bdi></button>
                 ))}
               </div>
             )}

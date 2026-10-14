@@ -533,7 +533,7 @@ export function Performance() {
       <span className={"w-28 shrink-0 text-sm " + (mine ? "font-extrabold" : "text-white/55")}>{mine ? "گره" : "میانگین بازار"}</span>
       <div className="flex-1 h-12 rounded-2xl bg-white/[0.06] overflow-hidden">
         <div className={"h-full rounded-2xl flex items-center justify-end px-3 text-sm whitespace-nowrap font-black transition-all duration-1000 ease-out " + (mine ? "acc-bg" : "bg-white/20")}
-          style={{ width: seen ? Math.max(14, (v / max) * 100) + "%" : "0%", minWidth: seen ? "4.5rem" : 0 }}>{fa(v, met.d)}</div>
+          style={{ width: seen ? Math.max(14, (v / max) * 100) + "%" : "0%", minWidth: seen ? "4.5rem" : 0 }}><span className={"transition-opacity duration-700 " + (seen ? "" : "opacity-0")}>{fa(v, met.d)}</span></div>
       </div>
     </div>
   );

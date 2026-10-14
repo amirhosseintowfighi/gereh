@@ -30,6 +30,7 @@ To configure manually instead, copy `.env.example` to `.env` and set at least `D
 | `npm run lint` | ESLint, including the React Compiler rules |
 | `npm test` | Vitest: `unit` (happy-dom) and `server` (Node + PGlite per file) projects |
 | `npm run test:e2e` | Playwright against the production build (run `npm run build` first; `CHROMIUM_PATH` for a preinstalled browser) |
+| `npm run audit:responsive` | Visits every route at 360–1440px and reports page overflow, overlapping or cut-off text, clipped buttons, console errors and broken links (server with `E2E=1 SEED_DEMO=1` at `BASE_URL`; options in `scripts/responsive-audit.mjs`) |
 | `npm run bench` | Lighthouse and HTTP load benchmark; writes `benchmarks/RESULTS.md` |
 | `npm run assets` | Regenerates icons and `og.png` from `public/icon.svg` |
 

@@ -338,7 +338,7 @@ export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <span className="block text-xs text-white/55 leading-5">{label}</span>
-          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-1.5 min-w-0"><span className="text-lg sm:text-[1.75rem] leading-tight font-black tracking-tight silver tabular [overflow-wrap:anywhere]">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-[11px] sm:text-xs text-white/55">{suffix}</span>}</div>
+          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-w-0"><span className="text-lg sm:text-[1.75rem] leading-tight font-black tracking-tight silver tabular [overflow-wrap:anywhere]">{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-[11px] sm:text-xs text-white/55">{suffix}</span>}</div>
         </div>
         <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl tile grid place-items-center shrink-0"><Icon name={icon} size={16} /></span>
       </div>

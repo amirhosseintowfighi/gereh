@@ -13,7 +13,8 @@
     "coverage": "vitest run --coverage",
     "typecheck": "next typegen && tsc --noEmit",
     "bench": "node scripts/benchmark.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:responsive": "node scripts/responsive-audit.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

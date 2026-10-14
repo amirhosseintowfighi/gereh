@@ -112,7 +112,7 @@ function SecretModal({ secret, onClose }: { secret: { accessKey: string; secretK
         {[["Access Key", secret.accessKey], ["Secret Key", secret.secretKey], ["Endpoint", db.storage.endpoint], ["Region", db.storage.region]].map(([l, v]) => (
           <Field key={l} label={l}><div className="rounded-xl bg-black/30 px-3 py-2.5 break-all"><CopyText text={v} className="font-mono text-sm" /></div></Field>
         ))}
-        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + " h-10 px-4 text-sm"} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={15} />کپی به‌صورت .env</button><button type="button" className={BTN_P + " h-10 px-4 text-sm"} onClick={onClose}>ذخیره کردم</button></div>
+        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + " h-10 px-4 text-sm"} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={15} />کپی به‌صورت ‎.env</button><button type="button" className={BTN_P + " h-10 px-4 text-sm"} onClick={onClose}>ذخیره کردم</button></div>
       </div>}
     </Modal>
   );
