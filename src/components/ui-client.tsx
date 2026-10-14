@@ -14,6 +14,15 @@ const noopSubscribe = () => () => {};
 /** false during SSR and hydration, true afterwards — without a setState-in-effect. */
 export const useHydrated = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
 
+/** a CSS media query as state; false on the server and during hydration */
+export function useMedia(query: string) {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(query); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
 export function useTween(value: number, dur = 600) {
   const [v, setV] = useState(value);
   const cur = useRef(value);
@@ -369,6 +378,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
   columns: Column<T>[]; rows: T[]; searchKeys?: (keyof T & string)[]; filters?: Filter[]; pageSize?: number; onRowClick?: (r: T) => void; empty?: string; toolbar?: React.ReactNode; searchPlaceholder?: string;
 }) {
   const [q, setQ] = useState("");
+  const narrow = useMedia("(max-width: 767.98px)");
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(0);
   const [fv, setFv] = useState<Record<string, string>>(() => Object.fromEntries((filters || []).map((f) => [f.key, "all"])));
@@ -402,6 +412,28 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
           {toolbar}
         </div>
       )}
+      {/* below md: one card per row (first column as its title) instead of a table that scrolls sideways */}
+      {narrow ? <ul className="space-y-2.5">
+        {view.length === 0 && <li className={GLASS + " rounded-[1.25rem] p-8 text-center text-sm text-white/55"}>{empty}</li>}
+        {view.map((r) => {
+          const [head, ...rest] = columns;
+          return (
+            <li key={r.id} onClick={onRowClick ? () => onRowClick(r) : undefined} tabIndex={onRowClick ? 0 : undefined}
+              onKeyDown={onRowClick ? (e) => { if (e.key === "Enter" && e.target === e.currentTarget) onRowClick(r); } : undefined}
+              className={GLASS + " rounded-[1.25rem] p-4 text-sm " + (onRowClick ? "cursor-pointer hover:bg-white/[0.07]" : "")}>
+              <div className="font-bold min-w-0 [overflow-wrap:anywhere]">{head.render ? head.render(r) : String(rec(r)[head.key] ?? "")}</div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
+                {rest.map((c) => {
+                  const v = c.render ? c.render(r) : String(rec(r)[c.key] ?? "");
+                  return c.label
+                    ? <div key={c.key} className="min-w-0"><dt className="text-[11px] text-white/50 mb-0.5">{c.label}</dt><dd className="min-w-0 [overflow-wrap:anywhere]">{v}</dd></div>
+                    : <div key={c.key} className="col-span-2 flex flex-wrap items-center gap-2 pt-1">{v}</div>;
+                })}
+              </dl>
+            </li>
+          );
+        })}
+      </ul> :
       <div className={GLASS + " rounded-[1.25rem] overflow-x-auto"}>
         <table className="w-full text-sm min-w-[720px]">
           <thead><tr className="border-b border-white/[0.08] text-white/55 text-xs">
@@ -426,7 +458,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
       {pages > 1 && (
         <div className="flex items-center justify-between mt-4 text-xs text-white/50">
           <span>{fa(list.length)} مورد، صفحه {fa(cur + 1)} از {fa(pages)}</span>

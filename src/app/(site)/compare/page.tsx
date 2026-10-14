@@ -45,7 +45,18 @@ export default function ComparePage() {
       <JsonLd data={[breadcrumbLd([["مقایسه", "/compare"]]), faqLd(FAQ)]} />
       <PageHeader icon="scale" crumb="مقایسه" title="چرا گره؟" sub="بهترین‌های هاستینگ ایرانی و ابرهای جهانی، کنار هم و در یک پنل." />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
-        <div className={GLASS + " rounded-2xl overflow-x-auto"} tabIndex={0} role="region" aria-label="جدول مقایسه">
+        {/* phones: one card per feature instead of a table that scrolls its columns out of sight */}
+        <ul className="sm:hidden space-y-2.5" aria-label="مقایسه ویژگی‌ها">
+          {ROWS.map(([f, ...vals]) => (
+            <li key={f} className={GLASS_SOFT + " rounded-2xl p-4"}>
+              <b className="text-sm leading-7">{f}</b>
+              <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
+                {COLS.map((c, i) => <div key={c} className={"rounded-xl px-1.5 py-2 " + (i === 0 ? "bg-sky-400/[0.08] border border-sky-300/20" : "bg-white/[0.03]")}><dt className={"text-[11px] leading-5 " + (i === 0 ? "acc font-bold" : "text-white/55")}>{c}</dt><dd className="mt-1"><Mark v={vals[i]} /></dd></div>)}
+              </dl>
+            </li>
+          ))}
+        </ul>
+        <div className={GLASS + " rounded-2xl overflow-x-auto max-sm:hidden"} tabIndex={0} role="region" aria-label="جدول مقایسه">
           <table className="w-full text-sm min-w-[640px]">
             <caption className="sr-only">مقایسه ویژگی‌های گره با هاستینگ سنتی ایرانی و ابرهای خارجی</caption>
             <thead><tr className="bg-white/[0.04]"><th scope="col" className="text-right p-4 font-bold">ویژگی</th>{COLS.map((c, i) => <th key={c} scope="col" className={"p-4 text-center font-bold " + (i === 0 ? "acc" : "text-white/75")}>{c}</th>)}</tr></thead>

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Responsive audit: visits every route (public, auth, panel, admin) at several widths and reports
    horizontal page overflow, elements that stick out of the viewport, overlapping text, clipped
-   buttons, console/page errors and broken same-origin links. Screenshots go next to the report.
+   buttons, text cut off by overflow:hidden parents, console/page errors and broken same-origin links. Screenshots go next to the report.
 
    Start a server with the demo seed first, e.g.
      E2E=1 SEED_DEMO=1 PAY_SIMULATOR=1 WORKER=0 npx next dev -p 3210
@@ -17,6 +17,7 @@
      TABS          0 = do not click through tab bars (default 1)
      SHOTS         0 = no screenshots, "tabs" = also one per tab (default 1)
      OUT           output folder (default test-results/responsive)
+     CONCURRENCY   pages audited in parallel (default 4)
    Exit code 1 when anything is reported. */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,6 +29,7 @@ const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const OUT = process.env.OUT || "test-results/responsive";
 const SHOTS = process.env.SHOTS ?? "1";
 const TABS = process.env.TABS !== "0";
+const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
 const browserName = process.env.BROWSER || "chromium";
 const PASSWORD = "Demo1234!";
 
@@ -57,7 +59,8 @@ const ADMIN = (ids) => [
 /* runs in the page; returns { overflow, offenders, overlaps, clipped } */
 function inspect() {
   const vw = document.documentElement.clientWidth;
-  const res = { scrollWidth: document.documentElement.scrollWidth, innerWidth: innerWidth, offenders: [], overlaps: [], clipped: [] };
+  const res = { scrollWidth: document.documentElement.scrollWidth, innerWidth: innerWidth, offenders: [], overlaps: [], clipped: [], cut: [] };
+  const cutSeen = new Set();
   const describe = (el) => {
     let s = el.tagName.toLowerCase();
     if (el.id) s += "#" + el.id;
@@ -123,6 +126,13 @@ function inspect() {
     if (fixedAncestor(el)) continue;
     range.selectNodeContents(n);
     const clip = clipper(el, true), c = clip?.getBoundingClientRect();
+    // text cut off sideways by an overflow:hidden parent (not a scroller, not an intentional ellipsis)
+    if (clip && /hidden|clip/.test(getComputedStyle(clip).overflowX) && c.width > 1 && !cutSeen.has(el)) {
+      let ellipsis = false;
+      for (let e = el; e; e = e === clip ? null : e.parentElement) { const s = getComputedStyle(e); if (s.textOverflow === "ellipsis" || (s.webkitLineClamp && s.webkitLineClamp !== "none")) { ellipsis = true; break; } }
+      const b = range.getBoundingClientRect();
+      if (!ellipsis && b.width > 4 && b.bottom > c.top && b.top < c.bottom && (b.right > c.right + 2 || b.left < c.left - 2)) { cutSeen.add(el); res.cut.push(describe(el) + " (cut by " + describe(clip).slice(0, 50) + ")"); }
+    }
     for (const raw of range.getClientRects()) {
       // only the part a clipping/scrolling parent lets through is visible
       const r = c ? { left: Math.max(raw.left, c.left), right: Math.min(raw.right, c.right), top: Math.max(raw.top, c.top), bottom: Math.min(raw.bottom, c.bottom) } : { left: raw.left, right: raw.right, top: raw.top, bottom: raw.bottom };
@@ -212,12 +222,23 @@ const jobs = [
   ...ADMIN(ids).map((p) => [admin, p]),
 ].filter(([, p]) => !ONLY || ONLY.test(p));
 
+/* a click or a dev-server reload can navigate while we measure: wait and try again */
+async function check(page) {
+  for (let i = 0; ; i++) {
+    try { return await page.evaluate(inspect); } catch (e) {
+      if (i === 2) { console.warn("  could not inspect " + page.url() + ": " + e.message.split("\n")[0]); return null; }
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
 const report = [];
 const links = new Map();
-let total = { overflow: 0, offenders: 0, overlaps: 0, clipped: 0, errors: 0 };
+let total = { overflow: 0, offenders: 0, overlaps: 0, clipped: 0, cut: 0, errors: 0 };
 const slug = (p) => (p.replace(/^\//, "").replace(/[/?=&%]+/g, "_") || "home").slice(0, 80);
 
-for (const [ctx, path] of jobs) {
+async function audit(ctx, path) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text().slice(0, 300)); });
@@ -232,9 +253,9 @@ for (const [ctx, path] of jobs) {
     } catch (e) { errors.push("goto: " + e.message.split("\n")[0]); }
     await page.evaluate(() => document.fonts?.ready).catch(() => {});
     await page.waitForTimeout(300);
-    const states = [["", await page.evaluate(inspect)]];
+    const states = [["", await check(page)]];
     if (SHOTS !== "0") await page.screenshot({ path: join(OUT, `${slug(path)}@${w}.png`), fullPage: true }).catch(() => {});
-    if (w === WIDTHS[0]) for (const a of await page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href")))) if (a.startsWith("/") && !a.startsWith("//")) links.set(a.split("#")[0], path);
+    if (w === WIDTHS[0]) for (const a of await page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href"))).catch(() => [])) if (a.startsWith("/") && !a.startsWith("//")) links.set(a.split("#")[0], path);
     if (TABS) {
       // every tab of the page's tab bars (dialogs excluded)
       const tabs = page.locator("[role=tablist]:not([role=dialog] *) > [role=tab]");
@@ -244,19 +265,19 @@ for (const [ctx, path] of jobs) {
         if (!(await t.isVisible().catch(() => false)) || (await t.getAttribute("aria-selected")) === "true") continue;
         const name = ((await t.innerText().catch(() => "")) || String(i)).trim().replace(/\s+/g, " ").slice(0, 30);
         await t.click({ timeout: 5000 }).catch(() => {});
-        await page.waitForLoadState("networkidle").catch(() => {});
-        await page.waitForTimeout(250);
-        states.push(["tab:" + name, await page.evaluate(inspect)]);
+        await page.waitForTimeout(350);
+        states.push(["tab:" + name, await check(page)]);
         if (SHOTS === "tabs") await page.screenshot({ path: join(OUT, `${slug(path)}@${w}~tab${i}.png`), fullPage: true }).catch(() => {});
       }
     }
     for (const [state, r] of states) {
+      if (!r) continue;
       const overflow = r.scrollWidth > r.innerWidth + 1;
-      const entry = { path, width: w, state, status, overflow, scrollWidth: r.scrollWidth, offenders: r.offenders, overlaps: r.overlaps, clipped: r.clipped };
+      const entry = { path, width: w, state, status, overflow, scrollWidth: r.scrollWidth, offenders: r.offenders, overlaps: r.overlaps, clipped: r.clipped, cut: r.cut };
       report.push(entry);
-      total.overflow += +overflow; total.offenders += r.offenders.length; total.overlaps += r.overlaps.length; total.clipped += r.clipped.length;
-      const bad = overflow || r.offenders.length || r.overlaps.length || r.clipped.length;
-      if (bad) console.log(`✗ ${path} @${w}${state ? " [" + state + "]" : ""}: overflow=${overflow ? r.scrollWidth : "no"} offenders=${r.offenders.length} overlaps=${r.overlaps.length} clipped=${r.clipped.length}`);
+      total.overflow += +overflow; total.offenders += r.offenders.length; total.overlaps += r.overlaps.length; total.clipped += r.clipped.length; total.cut += r.cut.length;
+      const bad = overflow || r.offenders.length || r.overlaps.length || r.clipped.length || r.cut.length;
+      if (bad) console.log(`✗ ${path} @${w}${state ? " [" + state + "]" : ""}: overflow=${overflow ? r.scrollWidth : "no"} offenders=${r.offenders.length} overlaps=${r.overlaps.length} clipped=${r.clipped.length} cut=${r.cut.length}`);
     }
   }
   const uniq = [...new Set(errors)];
@@ -264,6 +285,12 @@ for (const [ctx, path] of jobs) {
   else console.log(`✓ ${path}`);
   await page.close();
 }
+
+// a few pages at a time; each worker takes the next route from the shared queue
+const queue = jobs.slice();
+await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+  for (let job = queue.shift(); job; job = queue.shift()) await audit(...job).catch((e) => { console.log("! " + job[1] + ": " + e.message.split("\n")[0]); total.errors++; });
+}));
 
 // internal links that 404
 const broken = [];
@@ -275,6 +302,6 @@ for (const [href, from] of links) {
 if (broken.length) console.log("broken links:\n  " + broken.map((b) => `${b.href} (${b.status}) from ${b.from}`).join("\n  "));
 
 writeFileSync(join(OUT, "report.json"), JSON.stringify({ base: BASE, browser: browserName, widths: WIDTHS, total, broken, report }, null, 1));
-console.log(`\n${browserName}: ${jobs.length} routes × ${WIDTHS.length} widths — page overflow ${total.overflow}, elements out of viewport ${total.offenders}, text overlaps ${total.overlaps}, clipped controls ${total.clipped}, errors ${total.errors}, broken links ${broken.length}`);
+console.log(`\n${browserName}: ${jobs.length} routes × ${WIDTHS.length} widths — page overflow ${total.overflow}, elements out of viewport ${total.offenders}, text overlaps ${total.overlaps}, clipped controls ${total.clipped}, cut-off text ${total.cut}, errors ${total.errors}, broken links ${broken.length}`);
 await browser.close();
-process.exit(total.overflow + total.offenders + total.overlaps + total.clipped + total.errors + broken.length ? 1 : 0);
+process.exit(total.overflow + total.offenders + total.overlaps + total.clipped + total.cut + total.errors + broken.length ? 1 : 0);

@@ -31,7 +31,7 @@ export function UserAi() {
     <div>
       <div className="relative overflow-hidden rounded-[1.75rem] p-6 sm:p-8 mb-5 text-white" style={{ background: "linear-gradient(120deg, #3b1a78 0%, #6d28d9 50%, #0ea5e9 100%)" }}>
         <div aria-hidden="true" className="absolute -left-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
-        <div className="relative flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-5">
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="min-w-0">
             <p className="text-xs text-white/75">Claude، GPT، Gemini و DeepSeek با یک کلید و پرداخت تومانی</p>
             <h1 className="text-2xl sm:text-3xl font-black mt-1">API هوش مصنوعی</h1>

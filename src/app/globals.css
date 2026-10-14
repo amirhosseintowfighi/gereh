@@ -132,6 +132,8 @@ pre { unicode-bidi: plaintext; tab-size: 2; }
 /* grid items default to min-width: auto, so one long code line, URL or table inside a column widens
    the whole grid past the screen; let them shrink and scroll/wrap inside instead (min-w-* still wins) */
 @layer base { :where(.grid) > * { min-width: 0; } }
+/* Firefox has no ::-webkit-scrollbar; give it the same dark thumb */
+@supports not selector(::-webkit-scrollbar) { html { scrollbar-color: rgba(255,255,255,.18) transparent; } }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 10px; }
 ::selection { background: rgba(156,201,255,.35); }
