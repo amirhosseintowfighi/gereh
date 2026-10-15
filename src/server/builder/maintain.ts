@@ -4,6 +4,7 @@
    day and within the project's monthly AI cost cap. */
 import "server-only";
 import { and, asc, eq, gt, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { INCIDENT_LABEL } from "@/lib/builder";
 import { faDateTime } from "@/lib/jalali";
 import { monthKey } from "@/lib/paas-runtime";
 import type { Ctx } from "../ctx";
@@ -16,7 +17,6 @@ import { AppError, notify } from "../util";
 import { startDeploy, systemCtx } from "./deploy";
 import { filesAt, runAgent, saveVersion, type AgentResult, type Project, type Run } from "./engine";
 
-export const INCIDENT_LABEL: Record<string, string> = { crash: "توقف ناگهانی اپ", oom: "کمبود حافظه", health_failed: "بررسی سلامت ناموفق", manual: "بررسی سلامت با AI" };
 const AUTO_PER_DAY = 3;
 const COOLDOWN_MS = 30 * 60_000;
 const SEVERITY = ["oom", "crash", "health_failed"];

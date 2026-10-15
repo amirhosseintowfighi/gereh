@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, BUILDER_STACKS, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView } from "@/lib/builder";
+import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView } from "@/lib/builder";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, refresh, useDB, useMyId } from "@/lib/store";
@@ -348,7 +348,7 @@ function Message({ m, run, projectId, onChange, links }: { m: BuilderProjectView
     <div className="rounded-2xl rounded-br-md p-3.5 bg-white/[0.05] border border-white/[0.1]">
       {run && kind && (
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          <Badge tone={run.kind === "fix" ? "amber" : run.kind === "maintain" ? "violet" : "blue"}><Icon name={kind.icon} size={11} />{kind.label}{run.kind === "fix" && run.attempt ? " · تلاش " + fa(run.attempt) : ""}</Badge>
+          <Badge tone={run.kind === "fix" ? "amber" : run.kind === "maintain" ? "violet" : "blue"}><Icon name={kind.icon} size={11} />{kind.label}{run.kind === "fix" && run.attempt ? " · تلاش " + fa(run.attempt) : ""}{run.kind === "maintain" && run.incident ? " · " + (INCIDENT_LABEL[run.incident] ?? run.incident) : ""}</Badge>
           {run.status === "failed" && <Badge tone="red">ناموفق</Badge>}
           {run.status === "cancelled" && <Badge tone="gray">متوقف شد</Badge>}
           {run.version && <Badge tone="gray">نسخه {fa(run.version)}</Badge>}

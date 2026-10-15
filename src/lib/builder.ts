@@ -31,6 +31,7 @@ export const RUN_KIND: Record<"generate" | "edit" | "fix" | "maintain", { label:
   fix: { label: "رفع خودکار خطا", icon: "hammer" },
   maintain: { label: "نگهداری", icon: "heart-pulse" },
 };
+export const INCIDENT_LABEL: Record<string, string> = { crash: "توقف ناگهانی اپ", oom: "کمبود حافظه", health_failed: "بررسی سلامت ناموفق", manual: "بررسی سلامت با AI" };
 export const PROJECT_STATUS: Record<string, [string, "green" | "amber" | "red" | "gray" | "blue"]> = {
   draft: ["پیش‌نویس", "gray"], generating: ["در حال ساخت", "blue"], ready: ["آماده انتشار", "amber"], deploying: ["در حال انتشار", "blue"],
   fixing: ["در حال رفع خطا", "amber"], live: ["منتشر شده", "green"], failed: ["انتشار ناموفق", "red"],
