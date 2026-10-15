@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { BUILDER } from "@/lib/builder";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
@@ -13,9 +14,10 @@ import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { Menu, useDialog } from "../ui-client";
 
-type NavItem = { href: string; label: string; icon: string; group?: string };
+type NavItem = { href: string; label: string; icon: string; group?: string; tag?: string };
 const USER_NAV: NavItem[] = [
   { href: "/panel", label: "داشبورد", icon: "layout-dashboard" },
+  { href: "/panel/build", label: BUILDER.name, icon: "sparkles", tag: "AI" },
   { href: "/panel/servers", label: "سرورهای ابری", icon: "server", group: "زیرساخت" },
   { href: "/panel/hosting", label: "هاست‌ها", icon: "layers", group: "زیرساخت" },
   { href: "/panel/domains", label: "دامنه‌ها", icon: "globe", group: "زیرساخت" },
@@ -110,7 +112,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const [mobile, setMobile] = useState(false);
   const closeNav = useCallback(() => setMobile(false), []);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/build", "/panel/servers", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;
@@ -139,6 +141,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             className={"w-full flex items-center gap-3 px-3 h-11 rounded-xl text-sm text-right transition " + (active.href === n.href ? "bg-white/[0.09] text-white font-bold shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "text-white/55 hover:text-white hover:bg-white/[0.04]")}>
             <Icon name={n.icon} size={18} className={active.href === n.href ? "acc" : ""} />
             <span className="flex-1">{n.label}</span>
+            {n.tag && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-violet-400/20 text-violet-200 border border-violet-300/25">{n.tag}</span>}
             {badges[n.href] > 0 && <span className="min-w-[20px] h-5 px-1.5 rounded-full acc-bg text-[10px] font-black grid place-items-center" aria-label={fa(badges[n.href]) + " مورد"}>{fa(badges[n.href])}</span>}
           </Link>
         </Fragment>))}

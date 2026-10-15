@@ -20,6 +20,8 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
+    // vendored third-party builds served to generated apps
+    "public/vendor/**",
   ]),
 ]);
 

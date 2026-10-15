@@ -68,7 +68,7 @@ export async function projectView(db: DB, p: Project): Promise<BuilderProjectVie
   const sim = (await paas()).name === "simulator";
   return {
     ...s, model: p.model, previewUrl: previewPath(p.previewToken), appId: p.appId, appName: app?.name ?? null, dbId: p.dbId, deployedVersion: p.deployedVersion,
-    liveView: s.liveUrl ? (sim ? previewPath(p.previewToken, p.deployedVersion) : s.liveUrl) : null,
+    liveView: s.liveUrl ? (sim ? previewPath(p.previewToken, p.deployedVersion) : s.liveUrl) : null, simulator: sim,
     autoMaintain: p.autoMaintain, maintainCap: p.maintainCap, maintainSpent: p.maintainSpent, checkedAt: p.checkedAt ? iso(p.checkedAt) : null,
     tree: Object.keys(files).sort().map((path) => ({ path, size: new TextEncoder().encode(files[path]).length })),
     messages: messages.reverse().map((m) => ({ id: m.id, role: m.role, content: m.content, runId: m.runId, at: iso(m.createdAt) })),

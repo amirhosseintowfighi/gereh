@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BUILDER } from "@/lib/builder";
 import { BTN_P } from "@/lib/cls";
 import { fa } from "@/lib/format";
 import { api, useSession } from "@/lib/store";
@@ -13,6 +14,7 @@ import { Menu } from "../ui-client";
 
 /** links shown in the bar itself (the rest live in the products menu) */
 const BAR = [
+  { href: "/build", label: BUILDER.name },
   { href: "/paas", label: "گره اپ" },
   { href: "/ai-api", label: "API هوش مصنوعی" },
   { href: "/inquiry", label: "API استعلام", wide: true },

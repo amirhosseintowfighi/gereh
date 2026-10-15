@@ -206,7 +206,7 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     await run(id, "بخش گالری نمونه‌کار اضافه کن");
     await call("builder.deploy", id);
     await settle();
-    expect(await (await db()).select().from(paasApps).where(eq(paasApps.userId, "u1")).then((a) => a.filter((x) => x.name.startsWith("salon-")).length)).toBe(1);
+    expect(await (await db()).select().from(paasApps).where(eq(paasApps.userId, "u1")).then((a) => a.filter((x) => x.id === v.appId || /^salon-[a-z0-9]{5}$/.test(x.name)).length)).toBe(1);
     expect((await view(id)).deployedVersion).toBe(2);
   });
 
@@ -305,6 +305,35 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     expect(after.runs.find((r) => r.kind === "maintain")).toMatchObject({ applied: true });
     expect(after).toMatchObject({ status: "live", deployedVersion: v.version + 1 });
     expect(await call<string>("builder.file", id, "server.js")).toContain("/healthz");
+  });
+});
+
+describe("builder: demo seed", () => {
+  it("has one finished, deployed project with history", async () => {
+    await asUser();
+    const demo = (await call<{ id: string; status: string; version: number; liveUrl: string | null }[]>("builder.list")).find((p) => p.id === "bld-demo1")!;
+    expect(demo).toMatchObject({ status: "live", version: 4 });
+    expect(demo.liveUrl).toContain("salon-rose.");
+    const v = await view("bld-demo1");
+    expect(v.runs.map((r) => r.kind)).toEqual(["maintain", "fix", "edit", "edit", "generate"]);
+    expect(v.versions).toHaveLength(4);
+    expect((await preview(tokenOf(v) + "/index.html")).status).toBe(200);
+    const html = await call<string>("builder.file", "bld-demo1", "public/index.html");
+    expect(html).toContain('id="faq"');
+    expect(html).toContain('id="gallery"');
+    expect(JSON.parse(await call<string>("builder.file", "bld-demo1", "package.json")).scripts.start).toBe("node server.js");
+  });
+
+  it("simulates an incident for demos: diagnosis, auto-applied patch, redeploy", async () => {
+    await asUser();
+    const r = await call<{ kind: string; incident: string; hasPatch: boolean; summary: string }>("builder.simulateIncident", "bld-demo1");
+    expect(r).toMatchObject({ kind: "maintain", incident: "crash", hasPatch: true });
+    expect(r.summary).toContain("پایگاه داده");
+    await settle();
+    const v = await view("bld-demo1");
+    expect(v.runs[0]).toMatchObject({ kind: "maintain", applied: true, version: 5 });
+    expect(v).toMatchObject({ status: "live", version: 5, deployedVersion: 5 });
+    expect(await call<string>("builder.file", "bld-demo1", "server.js")).toContain("connectionTimeoutMillis");
   });
 });
 

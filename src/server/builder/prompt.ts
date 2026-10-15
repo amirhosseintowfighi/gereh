@@ -3,8 +3,8 @@
 import "server-only";
 import { BUILDER, type BuilderStack } from "@/lib/builder";
 import type { ChatMessage } from "../ai/translate";
+import { CDN } from "./assets";
 
-const FONT_CSS = "https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css";
 
 const FORMAT = `# Output format (strict)
 Reply with these blocks only, in this order, and nothing outside them:
@@ -24,8 +24,8 @@ Paths: relative, latin letters, digits, "-", "_", "." and "/"; no "..", no leadi
 
 const DESIGN = `# Design
 - The audience is Iranian: <html lang="fa" dir="rtl">, every visible word in natural, fluent Persian, Persian digits for numbers, prices and dates (toLocaleString("fa-IR")), prices in Toman.
-- Font Vazirmatn: <link rel="stylesheet" href="${FONT_CSS}"> and font-family: Vazirmatn, sans-serif.
-- Tailwind CSS through <script src="https://cdn.tailwindcss.com"></script> (configure custom colors in tailwind.config inside a <script>). Modern, polished and mobile-first: a clear hero, generous spacing, rounded cards, soft shadows, hover and focus states, a sticky header with a mobile menu, a footer. RTL-aware utilities (ms-/me-, ps-/pe-, text-right).
+- Tailwind CSS v4 browser build and the Vazirmatn font, exactly these two tags in <head>: <link rel="stylesheet" href="${CDN.font}"> and <script src="${CDN.tailwind}"></script>. Customize the theme with Tailwind v4 syntax (no tailwind.config): <style type="text/tailwindcss">@theme { --font-sans: Vazirmatn, Tahoma, sans-serif; --color-brand-50: …; … --color-brand-900: …; }</style>, then use classes like bg-brand-600.
+- Modern, polished and mobile-first: a clear hero, generous spacing, rounded cards, soft shadows, hover and focus states, a sticky header with a mobile menu, a footer. RTL-aware utilities (ms-/me-, ps-/pe-, text-right).
 - Accessible: labels on every input, alt text, sufficient contrast, keyboard focus, semantic landmarks.
 - Images only as inline SVG, CSS gradients or emoji; no external images, fonts other than the one above, analytics, trackers or third-party APIs.
 - Realistic Persian sample content for the idea (names, services, prices, hours, addresses in Iran); never lorem ipsum.

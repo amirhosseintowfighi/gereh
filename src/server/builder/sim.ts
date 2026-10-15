@@ -4,6 +4,7 @@
    model, so it goes through the same parser, validation and billing. */
 import "server-only";
 import type { BuilderStack } from "@/lib/builder";
+import { CDN } from "./assets";
 import { render } from "./format";
 import type { TaskInput } from "./prompt";
 
@@ -148,7 +149,7 @@ function kind(prompt: string): Kind {
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const paletteJson = (name: string) => "{" + (PALETTES[name] ?? PALETTES.emerald).map((c, i) => '"' + (i ? i * 100 : 50) + '":"' + c + '"').join(",") + "}";
+const paletteVars = (name: string) => (PALETTES[name] ?? PALETTES.emerald).map((c, i) => "--color-brand-" + (i ? i * 100 : 50) + ": " + c + ";").join(" ");
 
 function field(f: Field) {
   const req = f.required ? " required" : "";
@@ -183,11 +184,14 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(k.title)}</title>
   <meta name="description" content="${esc(k.sub)}">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { fontFamily: { sans: ["Vazirmatn", "sans-serif"] }, colors: { brand: /*brand*/${paletteJson(k.palette)}/*/brand*/ } } } };
-  </script>
+  <link rel="stylesheet" href="${CDN.font}">
+  <script src="${CDN.tailwind}"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: Vazirmatn, Tahoma, sans-serif;
+      /*brand*/${paletteVars(k.palette)}/*/brand*/
+    }
+  </style>
   <link rel="stylesheet" href="${asset("style.css")}">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
@@ -517,7 +521,7 @@ function editProject(files: Record<string, string>, prompt: string): { files: Re
 
   const color = COLOR_WORDS.find(([re]) => re.test(prompt));
   if (color && /\/\*brand\*\/[\s\S]*?\/\*\/brand\*\//.test(html)) {
-    html = html.replace(/\/\*brand\*\/[\s\S]*?\/\*\/brand\*\//, "/*brand*/" + paletteJson(color[1]) + "/*/brand*/");
+    html = html.replace(/\/\*brand\*\/[\s\S]*?\/\*\/brand\*\//, "/*brand*/" + paletteVars(color[1]) + "/*/brand*/");
     done.push("رنگ اصلی سایت " + color[2] + " شد");
   }
   const rename = /[«"]([^»"]{2,40})[»"]/.exec(prompt);
@@ -594,6 +598,9 @@ function diagnose(files: Record<string, string>, incident: string, stack: Builde
     if (!/unhandledRejection/.test(s)) s = s.replace(/\nconst port =/, '\nprocess.on("unhandledRejection", (err) => console.error("unhandled rejection:", err));\nprocess.on("uncaughtException", (err) => console.error("uncaught exception:", err));\n\nconst port =');
     if (!/\/healthz/.test(s)) s = s.replace(/\napp\.use\(express\.static/, '\napp.get("/healthz", (req, res) => res.json({ ok: true }));\napp.use(express.static');
     if (/pool = new Pool/.test(s) && !/pool\.on\("error"/.test(s)) s = s.replace(/(pool = new Pool\([^\n]*\);)/, '$1\n  pool.on("error", (err) => console.error("database pool error:", err.message));');
+    const handlers = s !== server;
+    if (incident !== "manual" && /new Pool\(\{[^}\n]*\}\)/.test(s) && !/connectionTimeoutMillis/.test(s)) s = s.replace(/new Pool\(\{([^}\n]*)\}\)/, (_m, a: string) => "new Pool({ " + a.trim() + ", connectionTimeoutMillis: 5000, idleTimeoutMillis: 30000 })");
+    if (s !== server && !handlers) return { files: { "server.js": s }, plan: "- بررسی لاگ‌ها و رخدادها\n- مهلت زمانی برای اتصال به پایگاه داده", summary: "علت احتمالی: اتصال به پایگاه داده لحظه‌ای قطع شد و درخواست‌ها بدون مهلت زمانی منتظر ماندند تا اپ از پاسخ افتاد و ری‌استارت شد.\nاثر: چند ثانیه قطعی و خطای ۵۰۰ برای چند کاربر.\nراه‌حل: برای اتصال‌ها مهلت زمانی (۵ ثانیه) و آزادسازی اتصال‌های بیکار تعریف کردم تا قطعی لحظه‌ای پایگاه داده اپ را از کار نیندازد. با «اعمال وصله» نسخه جدید منتشر می‌شود." };
     if (s !== server) patch["server.js"] = s;
     if (Object.keys(patch).length) return { files: patch, plan: "- بررسی لاگ‌ها و رخدادها\n- افزودن مدیریت خطا و مسیر سلامت", summary: "علت احتمالی: یک خطای مدیریت‌نشده (مثلاً قطع لحظه‌ای اتصال پایگاه داده) کل پردازه را متوقف می‌کند.\nاثر: اپ چند ثانیه از دسترس خارج می‌شود تا دوباره بالا بیاید.\nراه‌حل: مدیریت سراسری خطا و مسیر سلامت /healthz را اضافه کردم تا چنین خطایی فقط ثبت شود و اپ از کار نیفتد. با «اعمال وصله» نسخه جدید منتشر می‌شود." };
     return { files: {}, plan: "- بررسی لاگ‌ها و رخدادها", summary: (incident === "manual" ? "وضعیت: اپ سالم است و رخداد مهمی دیده نشد.\n" : "علت احتمالی: ری‌استارت‌های پراکنده از سمت زیرساخت یا یک درخواست سنگین.\n") + "اثر: " + (incident === "manual" ? "ندارد." : "قطعی کوتاه.") + "\nراه‌حل: کد مدیریت خطا و مسیر سلامت را دارد؛ فعلاً تغییری لازم نیست و عامل نگهداری اپ را زیر نظر دارد." };

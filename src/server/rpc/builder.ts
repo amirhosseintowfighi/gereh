@@ -9,6 +9,9 @@ import { startDeploy } from "../builder/deploy";
 import { filesAt, ownProject } from "../builder/engine";
 import { applyPatch, maintainProject } from "../builder/maintain";
 import { createProject, listProjects, projectView, restoreVersion, runView, writeFile } from "../builder/service";
+import { faDateTime } from "@/lib/jalali";
+import { paas } from "../paas/driver";
+import { logEvent } from "../paas/runtime";
 import { fail, logActivity } from "../util";
 
 const id = z.string().max(40);
@@ -83,6 +86,19 @@ export const builderRpc = {
     if (!p.appId) fail("پروژه هنوز منتشر نشده است.");
     await rateLimit(ctx.db, "builder-health:" + a.uid, 20, 3600);
     const r = await maintainProject(ctx.db, p, "manual", "", true);
+    if (!r.ok) return fail(r.error, r.status === 402 ? 402 : 400);
+    return runView(r.run);
+  }),
+  /** demos on the simulator: a crash of the running app, handled by the maintenance agent right away */
+  "builder.simulateIncident": method(z.tuple([id]), async (ctx, [projectId]) => {
+    const { a, p } = await own(ctx, projectId);
+    if ((await paas()).name !== "simulator") return fail("این امکان فقط در محیط نمایشی در دسترس است.", 403);
+    if (!p.appId) return fail("پروژه هنوز منتشر نشده است.");
+    await rateLimit(ctx.db, "builder-health:" + a.uid, 20, 3600);
+    const message = "container exited with code 1 (Error: Connection terminated unexpectedly); restarted";
+    await logEvent(ctx.db, p.appId, "crash", message);
+    await ctx.db.update(builderProjects).set({ checkedAt: new Date() }).where(eq(builderProjects.id, p.id));
+    const r = await maintainProject(ctx.db, p, "crash", faDateTime(new Date()) + " crash: " + message, false);
     if (!r.ok) return fail(r.error, r.status === 402 ? 402 : 400);
     return runView(r.run);
   }),

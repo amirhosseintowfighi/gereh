@@ -13,6 +13,7 @@ import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
 import type { RuntimeConfig } from "./paas-runtime";
 import type { AiKind } from "./ai";
+import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
 import type { AlertMetric, CdnPoint, CdnRule, CdnView, DnsSuggestion, DomainAlertView, TransferView, WhoisView } from "./domains";
 import type { Dmarc, MailAdminList, MailDomainDetail, MailMessageView, MailMsgRow, MailOverview, MailSendInput, MailStats } from "./mail";
@@ -108,7 +109,7 @@ export type AiKeyInput = { name: string; models: string[]; dailyCap: number; mon
 export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
-const READ_ONLY = new Set(["provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -412,6 +413,20 @@ export const api = {
       x.onerror = () => reject(new Error("ارتباط با سرور قطع شد."));
       x.send(file);
     }),
+  },
+  builder: {
+    list: () => rpc<BuilderProjectSummary[]>("builder.list"),
+    get: (id: string) => rpc<BuilderProjectView>("builder.get", id),
+    create: (i: { prompt: string; stack: "auto" | "static" | "node"; model?: string }) => rpc<string>("builder.create", i),
+    update: (id: string, patch: Partial<{ name: string; model: string; autoMaintain: boolean; maintainCap: number }>) => rpc("builder.update", id, patch),
+    remove: (id: string) => rpc("builder.remove", id),
+    file: (id: string, path: string, version?: number) => rpc<string>("builder.file", id, path, ...(version ? [version] : [])),
+    saveFile: (id: string, path: string, content: string | null) => rpc<number>("builder.saveFile", id, path, content),
+    restore: (id: string, version: number) => rpc<number>("builder.restore", id, version),
+    deploy: (id: string) => rpc<{ deploymentId: string | null; fixing: boolean }>("builder.deploy", id),
+    healthCheck: (id: string) => rpc<BuilderRunView>("builder.healthCheck", id),
+    applyPatch: (id: string, runId: string) => rpc<number>("builder.applyPatch", id, runId),
+    simulateIncident: (id: string) => rpc<BuilderRunView>("builder.simulateIncident", id),
   },
   ai: {
     createKey: (k: AiKeyInput) => rpc<string>("ai.createKey", k),

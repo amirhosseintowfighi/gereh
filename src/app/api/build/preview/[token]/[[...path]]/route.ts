@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/server/ctx";
 import { builderProjects } from "@/server/db/schema";
+import { localizeAssets } from "@/server/builder/assets";
 import { filesAt } from "@/server/builder/engine";
 
 /* GET /api/build/preview/<token>[.v<version>]/<path> — a builder project's files for the panel preview.
@@ -53,7 +54,8 @@ export async function GET(req: Request, { params }: RouteContext<"/api/build/pre
   const key = files[base] !== undefined ? base : files[base + ".html"] !== undefined ? base + ".html" : files[base + "/index.html"] !== undefined ? base + "/index.html" : null;
   if (!key) return notFound();
   const ext = key.split(".").pop()!.toLowerCase();
-  return new Response(files[key], {
+  const body = ext === "html" || ext === "htm" ? localizeAssets(files[key]) : files[key];
+  return new Response(body, {
     headers: {
       "content-type": TYPES[ext] ?? "application/octet-stream",
       "content-security-policy": csp(originOf(req)),

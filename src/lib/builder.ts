@@ -6,7 +6,7 @@ export const BUILDER = {
   name: "بافت",
   slug: "baft",
   tagline: "از ایده تا محصول در حال اجرا، با AI",
-  short: "سازنده هوشمند اپ",
+  short: "ساخت اپ با هوش مصنوعی",
 } as const;
 
 /** the model a new project uses; any active chat model can be chosen per project */
@@ -104,6 +104,8 @@ export type BuilderDeployView = {
 export type BuilderProjectView = BuilderProjectSummary & {
   /** what the panel frames for the live app (the real URL, or the deployed version's preview on the simulator) */
   liveView: string | null;
+  /** the platform runs on the simulator (demo tools are offered) */
+  simulator: boolean;
   model: string; previewUrl: string; appId: string | null; appName: string | null; dbId: string | null; deployedVersion: number | null;
   autoMaintain: boolean; maintainCap: number; maintainSpent: number; checkedAt: string | null;
   files: number; tree: { path: string; size: number }[];

@@ -15,6 +15,7 @@ import { enqueue } from "../jobs";
 import { appsDomain, newUploadId, uploadPathFor } from "../paas/service";
 import { AppError, notify, rid } from "../util";
 import { zip } from "../xlsx";
+import { localizeFiles } from "./assets";
 import { filesAt, runAgent, type Project } from "./engine";
 
 export const MAX_FIXES = 3;
@@ -108,7 +109,10 @@ export async function startDeploy(ctx: Ctx, projectId: string, attempt = 1): Pro
 
   const uploadId = newUploadId();
   const path = await uploadPathFor(uid, uploadId);
-  await writeFile(path!, zip(Object.entries(files).map(([n, c]) => [n, Buffer.from(c, "utf8")])));
+  // the deployed pages load Tailwind and the font from Gereh, not from foreign CDNs
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  const shipped = /^https:\/\//.test(site) ? localizeFiles(files, site) : files;
+  await writeFile(path!, zip(Object.entries(shipped).map(([n, c]) => [n, Buffer.from(c, "utf8")])));
   let appId = p.appId, depId: string;
   const [app] = appId ? await ctx.db.select().from(paasApps).where(and(eq(paasApps.id, appId), eq(paasApps.userId, uid))) : [];
   if (!app) {

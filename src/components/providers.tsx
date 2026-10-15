@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { BUILDER } from "@/lib/builder";
 import { BTN_D, BTN_G, BTN_P } from "@/lib/cls";
 import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
@@ -23,6 +24,7 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
     { href: "/mirror", label: "میرور مخازن", icon: "download", desc: "npm، PyPI و Docker Hub داخل ایران؛ رایگان", badge: "رایگان" },
   ] },
   { group: "پلتفرم ابری", items: [
+    { href: "/build", label: BUILDER.name + " — ساخت اپ با AI", icon: "sparkles", desc: BUILDER.tagline, badge: "AI" },
     { href: "/paas", label: "گره اپ (PaaS)", icon: "rocket", desc: "کد را بفرستید؛ بیلد، SSL و مقیاس با ما" },
     { href: "/paas/databases", label: "پایگاه داده مدیریت‌شده", icon: "database", desc: "PostgreSQL، MySQL، Redis با پشتیبان روزانه" },
     { href: "/geo-dns", label: "Geo DNS", icon: "radar", desc: "حفظ رتبه گوگل در قطعی اینترنت", badge: "جدید" },

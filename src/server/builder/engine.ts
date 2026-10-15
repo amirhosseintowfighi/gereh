@@ -63,7 +63,7 @@ export async function pickModel(db: DB, wanted: string): Promise<ResolvedModel |
 }
 
 class Stopped extends Error {}
-const simDelay = () => Number(process.env.BUILDER_SIM_DELAY_MS ?? (process.env.NODE_ENV === "test" ? 0 : 25));
+const simDelay = () => Number(process.env.BUILDER_SIM_DELAY_MS ?? (process.env.NODE_ENV === "test" ? 0 : 70));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** text deltas of one answer (upstream SSE, or the simulator) and the usage when reported */
@@ -124,7 +124,7 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   } else task = { kind: "maintain", files, incident: o.context?.incident ?? "manual", events: o.context?.events ?? "", logs: o.context?.logs ?? "" };
 
   const runId = rid("brun");
-  const [run0] = await db.insert(builderRuns).values({ id: runId, projectId: p.id, userId: o.userId, kind: o.kind, model: model.id, prompt: prompt.slice(0, 4000), attempt: o.attempt ?? 0, incident: o.context?.incident ?? "" }).returning();
+  await db.insert(builderRuns).values({ id: runId, projectId: p.id, userId: o.userId, kind: o.kind, model: model.id, prompt: prompt.slice(0, 4000), attempt: o.attempt ?? 0, incident: o.context?.incident ?? "" });
   if (interactive) {
     await db.insert(builderMessages).values({ projectId: p.id, role: "user", content: prompt.slice(0, 4000), runId });
     await db.update(builderProjects).set({ status: "generating", updatedAt: new Date() }).where(eq(builderProjects.id, p.id));

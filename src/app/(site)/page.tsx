@@ -4,9 +4,11 @@ import { GirihField } from "@/components/girih";
 import { Builder, DomainSearchBox, Faq, Hardware, LiveSpark, Network, Newsletter, Performance, QuickStart, Steps, Terminal, Testimonials } from "@/components/home/interactive";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
+import { BuilderShowcase } from "@/components/site/builder-sections";
 import { IconTile, SectionHead } from "@/components/ui";
 import { Counter } from "@/components/ui-client";
 import { HOME_FAQ, HOSTING, VPS } from "@/lib/catalog";
+import { BUILDER } from "@/lib/builder";
 import { BTN, BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { faqLd, pageMeta } from "@/lib/seo";
@@ -35,12 +37,15 @@ function Hero() {
             همه سیستم‌ها عملیاتی هستند
             <Icon name="chevron-left" size={14} className="transition group-hover:-translate-x-0.5" />
           </a>
-          <p className="hero-in d2 mt-6 text-sm font-bold acc">سرعت ابر، استواری زمین</p>
+          <Link href={"/build" as never} className="hero-in d2 mt-6 flex w-fit max-w-full items-center gap-2 text-xs sm:text-sm px-3 py-1.5 rounded-full bg-violet-400/10 border border-violet-300/25 text-violet-100 hover:bg-violet-400/20 transition">
+            <Icon name="sparkles" size={14} className="text-violet-300 shrink-0" /><span className="min-w-0 truncate"><b>{BUILDER.name}:</b> ایده را بنویسید، AI می‌سازد و منتشر می‌کند</span><Icon name="chevron-left" size={14} className="shrink-0" />
+          </Link>
+          <p className="hero-in d2 mt-5 text-sm font-bold acc">سرعت ابر، استواری زمین</p>
           <h1 className="hero-in d2 hero-title mt-3 text-[2.35rem] sm:text-[4.4rem] font-black leading-[1.25] sm:leading-[1.15] tracking-[-0.03em]">
             زیرساختی که کسب‌وکارتان را آنلاین نگه می‌دارد
           </h1>
           <p className="hero-in d3 mt-6 text-white/65 max-w-lg text-base sm:text-lg leading-8">
-            سرور ابری آماده در کمتر از یک دقیقه، هاست و دامنه، استقرار اپ از Git، Geo DNS برای عبور از قطعی اینترنت و API استعلام؛ همه با یک حساب، یک کیف پول و پشتیبانی شبانه‌روزی.
+            ساخت و نگهداری اپ با هوش مصنوعی، سرور ابری آماده در کمتر از یک دقیقه، هاست و دامنه، استقرار اپ از Git، Geo DNS برای عبور از قطعی اینترنت و API هوش مصنوعی و استعلام؛ همه با یک حساب، یک کیف پول و پشتیبانی شبانه‌روزی.
           </p>
           <div className="hero-in d3 mt-9 flex flex-wrap gap-3">
             <a href="#builder" className={BTN_P + " px-6 h-12"}><Icon name="rocket" size={18} /> ساخت سرور</a>
@@ -217,6 +222,7 @@ export default function HomePage() {
     <div className="fade-page">
       <JsonLd data={faqLd(HOME_FAQ)} />
       <Hero />
+      <BuilderShowcase />
       <QuickStart />
       <Bento />
       <Hardware />
