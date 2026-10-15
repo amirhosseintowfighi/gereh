@@ -15,6 +15,7 @@ import { registry } from "./rpc";
 import { storageEndpoint, storageRegion } from "./storage/driver";
 import { AppError, sha256 } from "./util";
 import { invGross } from "@/lib/money";
+import { BUILDER_ROUTES } from "./builder/api";
 
 export async function tokenAuth(ctx: Omit<Ctx, "auth">, header: string | null): Promise<{ auth: Auth; scope: string }> {
   const token = /^Bearer\s+(grh_[A-Za-z0-9]{40})$/.exec(header || "")?.[1];
@@ -263,4 +264,5 @@ export const ROUTES: Route[] = [
     if ("http" in r) throw new AppError(r.message, r.http);
     return { data: r.hits.map(hitOut), charged_toman: r.charged };
   } },
+  ...BUILDER_ROUTES,
 ];

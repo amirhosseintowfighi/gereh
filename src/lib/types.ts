@@ -48,6 +48,8 @@ export type PaasApp = {
   deployments: { id: string; status: string; trigger: string; ref: string; message: string; at: string; seconds: number | null; image: boolean; target: "production" | "preview"; branch: string; scanStatus: string; scanCritical: number; scanHigh: number }[];
   previews: boolean; previewDeployment: string | null; previewUrl: string;
   product: "app" | "wordpress"; wpPlan: string | null;
+  /** the AI builder project this app was made with */
+  builder?: string | null;
   domains: { id: string; host: string; status: "pending" | "active" | "failed"; ssl: string }[];
   /** value is null for secrets (and for staff, who never see values) */
   env: { key: string; value: string | null; secret: boolean }[];

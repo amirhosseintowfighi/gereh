@@ -6,7 +6,7 @@ import { faDateTime } from "@/lib/jalali";
 import { appMonthly, hourlyOf } from "@/lib/paas";
 import type { ClientDB } from "@/lib/types";
 import type { DB } from "../db/client";
-import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasMetrics, paasPlans, paasProcesses } from "../db/schema";
+import { builderProjects, paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasMetrics, paasPlans, paasProcesses } from "../db/schema";
 import { open } from "../secrets";
 import { dbaasState } from "./dbaas-service";
 import { previewHost } from "./service";
@@ -31,6 +31,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
     appIds.length && !opts.admin ? db.select().from(paasJobs).where(and(inArray(paasJobs.appId, appIds), gte(paasJobs.createdAt, new Date(Date.now() - 7 * 86400_000)))).orderBy(desc(paasJobs.createdAt)).limit(200) : [],
   ]);
   const extras = await dbaasState(db, dbIds, { admin: opts.admin });
+  const built = new Map(appIds.length ? (await db.select({ id: builderProjects.id, appId: builderProjects.appId }).from(builderProjects).where(inArray(builderProjects.appId, appIds))).map((b) => [b.appId, b.id]) : []);
   const m = (target: string) => metrics.filter((x) => x.target === target).map((x) => ({ at: faDateTime(x.createdAt).split(" ")[1] ?? "", cpu: x.cpu, ramMb: x.ramMb, rpm: x.rpm }));
   const appName = new Map(apps.map((a) => [a.id, a.name]));
   return {
@@ -44,7 +45,7 @@ export async function paasState(db: DB, opts: { uid: string; admin: boolean; dom
         hookUrl: opts.admin ? "" : opts.siteUrl + "/api/paas/hook/" + a.id + "?token=" + a.hookToken, autoDeploy: a.autoDeploy, cdn: a.cdn, liveDeployment: a.liveDeployment, at: faDateTime(a.createdAt),
         hourly: pl ? (a.status === "stopped" ? (a.diskGb ? hourlyOf(a.diskGb * 3000) : 0) : hourlyOf(appMonthly(pl, a.instances + a.workerInstances + (a.previewDeployment ? 1 : 0), a.diskGb))) : 0,
         deployments: deps.filter((d) => d.appId === a.id).slice(0, 25).map((d) => ({ id: d.id, status: d.status, trigger: d.trigger, ref: d.ref, message: d.message, at: faDateTime(d.createdAt), seconds: d.startedAt && d.finishedAt ? Math.round((d.finishedAt.getTime() - d.startedAt.getTime()) / 1000) : null, image: !!d.image, target: d.target, branch: d.branch, scanStatus: d.scanStatus, scanCritical: d.scanCritical, scanHigh: d.scanHigh })),
-        product: a.product, wpPlan: a.wpPlan, previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
+        product: a.product, wpPlan: a.wpPlan, builder: built.get(a.id) ?? null, previews: a.previews, previewDeployment: a.previewDeployment, previewUrl: "https://" + previewHost(a.name, opts.domain),
         domains: domains.filter((d) => d.appId === a.id).map((d) => ({ id: d.id, host: d.host, status: d.status, ssl: d.ssl })),
         env: env.filter((e) => e.appId === a.id).map((e) => ({ key: e.key, secret: e.secret, value: opts.admin || e.secret ? null : open(e.valueEnc) })),
         links: links.filter((l) => l.appId === a.id).map((l) => ({ dbId: l.dbId, envKey: l.envKey })),

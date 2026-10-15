@@ -1641,3 +1641,81 @@ export const teamMemberRoles = pgTable("team_member_roles", {
   memberRowId: text("member_row_id").primaryKey().references(() => teamMembers.id, { onDelete: "cascade" }),
   roleId: text("role_id").notNull().references(() => teamRoles.id, { onDelete: "cascade" }),
 });
+
+/* ---------- AI app builder (src/server/builder) ---------- */
+/** a project the customer describes in words; the AI writes its files and it deploys as a Gereh app */
+export const builderProjects = pgTable("builder_projects", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  stack: text("stack", { enum: ["static", "node"] }).notNull().default("static"),
+  model: text("model").notNull().default(""),
+  status: text("status", { enum: ["draft", "generating", "ready", "deploying", "fixing", "live", "failed"] }).notNull().default("draft"),
+  appId: text("app_id").references(() => paasApps.id, { onDelete: "set null" }),
+  dbId: text("db_id").references(() => paasDbs.id, { onDelete: "set null" }),
+  /** capability for the sandboxed preview route; never shown to anyone but the owner */
+  previewToken: text("preview_token").notNull(),
+  /** current version (0 = no files yet) and the one running on the app */
+  version: integer("version").notNull().default(0),
+  deployedVersion: integer("deployed_version"),
+  deploymentId: text("deployment_id"),
+  /** 1-based attempt of the current deploy (the auto-fix loop stops after 3) */
+  deployAttempt: integer("deploy_attempt").notNull().default(0),
+  deployError: text("deploy_error").notNull().default(""),
+  /** maintenance agent: apply its patches and redeploy without asking, within a monthly AI cost cap */
+  autoMaintain: boolean("auto_maintain").notNull().default(false),
+  maintainCap: money("maintain_cap").notNull().default(300_000),
+  maintainSpent: money("maintain_spent").notNull().default(0),
+  maintainMonth: text("maintain_month").notNull().default(""),
+  checkedAt: ts("checked_at"),
+  /** AI cost of the project so far (Toman) */
+  spent: money("spent").notNull().default(0),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("builder_project_user_ix").on(t.userId), uniqueIndex("builder_preview_token_uq").on(t.previewToken), index("builder_project_app_ix").on(t.appId)]);
+
+/** every version of a project's files (a full snapshot: path → content), one per AI run or manual edit */
+export const builderVersions = pgTable("builder_versions", {
+  projectId: text("project_id").notNull().references(() => builderProjects.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  files: jsonb("files").$type<Record<string, string>>().notNull(),
+  message: text("message").notNull().default(""),
+  runId: text("run_id"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("builder_version_uq").on(t.projectId, t.version)]);
+
+export const builderMessages = pgTable("builder_messages", {
+  id: serial("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => builderProjects.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["user", "assistant"] }).notNull(),
+  content: text("content").notNull(),
+  runId: text("run_id"),
+  createdAt: created(),
+}, (t) => [index("builder_message_project_ix").on(t.projectId, t.id)]);
+
+/** one agent step: generate, edit, fix (failed deploy) or maintain (incident on the running app) */
+export const builderRuns = pgTable("builder_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => builderProjects.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["generate", "edit", "fix", "maintain"] }).notNull(),
+  status: text("status", { enum: ["running", "succeeded", "failed", "cancelled"] }).notNull().default("running"),
+  model: text("model").notNull().default(""),
+  prompt: text("prompt").notNull().default(""),
+  inTokens: integer("in_tokens").notNull().default(0),
+  outTokens: integer("out_tokens").notNull().default(0),
+  cost: money("cost").notNull().default(0),
+  log: text("log").notNull().default(""),
+  /** the agent's explanation for the customer (Persian) */
+  summary: text("summary").notNull().default(""),
+  diff: jsonb("diff").$type<{ added: string[]; changed: string[]; deleted: string[] }>().notNull().default({ added: [], changed: [], deleted: [] }),
+  version: integer("version"),
+  attempt: integer("attempt").notNull().default(0),
+  /** maintain: what was seen (crash, oom, health_failed, manual) and the proposed patch until applied */
+  incident: text("incident").notNull().default(""),
+  patch: jsonb("patch").$type<Record<string, string | null>>(),
+  applied: boolean("applied").notNull().default(false),
+  createdAt: created(),
+  finishedAt: ts("finished_at"),
+}, (t) => [index("builder_run_project_ix").on(t.projectId, t.createdAt)]);

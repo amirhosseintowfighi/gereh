@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BUILDER } from "@/lib/builder";
 import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, RUNTIMES, STACKS, stackOf, stackVersions } from "@/lib/paas";
@@ -44,6 +45,7 @@ export function UserApps() {
               <Link href={("/panel/apps/" + a.id) as never} className="block rounded-[1.4rem] p-5 bg-white/[0.04] border border-white/[0.1] hover:border-white/25 transition">
                 <span className="flex items-center justify-between gap-2"><b dir="ltr" className="truncate">{a.name}</b><StatusPill s={a.status} /></span>
                 <span className="block text-xs text-white/55 mt-1">{stackOf(a.stack)?.label ?? a.stack} · {a.source === "git" ? a.gitBranch : a.source}</span>
+                {a.builder && <span className="mt-2 inline-flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 bg-violet-400/15 text-violet-200 border border-violet-300/25"><Icon name="sparkles" size={12} />ساخته‌شده با {BUILDER.name}</span>}
                 <span dir="ltr" className="block text-xs acc mt-3 truncate text-right">{a.url.replace("https://", "")}</span>
                 <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{fa(a.instances)} نمونه</span><span className="tabular">{fa(a.hourly)} تومان / ساعت</span></span>
               </Link>

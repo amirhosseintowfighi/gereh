@@ -24,6 +24,8 @@ import { storageBilling, storageCollect } from "../storage/service";
 import { domainAlertsJob } from "../domains/service";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 import { vpsBilling, vpsSnapshots } from "./vps";
+import { builderFix, builderWatch } from "../builder/deploy";
+import { builderMaintain } from "../builder/maintain";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
 const handlers: Record<JobType, Handler> = {
@@ -73,6 +75,9 @@ const handlers: Record<JobType, Handler> = {
   "domains.alerts": (db) => domainAlertsJob(db),
   "vps.billing": (db) => vpsBilling(db),
   "vps.snapshots": (db) => vpsSnapshots(db),
+  "builder.watch": (db, p) => builderWatch(db, p as never),
+  "builder.fix": (db, p) => builderFix(db, p as never),
+  "builder.maintain": (db) => builderMaintain(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
@@ -85,6 +90,7 @@ export const SCHEDULE: [JobType, number][] = [
   ["mail.billing", 60], ["mail.dns", 60], ["mail.daily", 24 * 60],
   ["domains.alerts", 60],
   ["vps.billing", 60], ["vps.snapshots", 15],
+  ["builder.maintain", 5],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */

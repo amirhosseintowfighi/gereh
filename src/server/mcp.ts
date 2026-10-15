@@ -65,6 +65,16 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "query_knowledge_base", title: "Search knowledge base", write: true, description: "Semantic search in a knowledge base: returns the most relevant passages with document name and cosine score. The question is embedded and billed to the wallet (a few Toman).",
     inputSchema: { type: "object", properties: { kb_id: str("Knowledge base id from list_knowledge_bases"), query: str("Question or search text"), top_k: { type: "integer", description: "Passages to return (1-20, default 5)" } }, required: ["kb_id", "query"] },
     call: (a) => ["POST", "ai/kb/" + seg(a.kb_id) + "/query", { query: a.query, top_k: a.top_k }] },
+  { name: "builder_create", title: "Build an app from a prompt", write: true, description: "AI app builder: creates a project from a plain-language description (Persian or English) and writes its files (a static site, or a Node.js/Express app with PostgreSQL when it must store data). Billed to the wallet like the AI API. Returns the project id, files and the agent's summary; deploy it with builder_deploy.",
+    inputSchema: { type: "object", properties: { prompt: str("What to build, e.g. «سایت نوبت‌دهی آرایشگاه با فرم رزرو»"), stack: str("auto (default), static or node", { enum: ["auto", "static", "node"] }) }, required: ["prompt"] },
+    call: (a) => ["POST", "builder/projects", { prompt: a.prompt, stack: a.stack }] },
+  { name: "builder_edit", title: "Change a builder project", write: true, description: "Asks the AI builder to change an existing project (e.g. «رنگ را سبز کن», «بخش سؤالات متداول اضافه کن»). Only the changed files are rewritten, as a new version.",
+    inputSchema: { type: "object", properties: { id: str("Builder project id (bld-…)"), prompt: str("The change to make") }, required: ["id", "prompt"] },
+    call: (a) => ["POST", "builder/projects/" + seg(a.id) + "/edit", { prompt: a.prompt }] },
+  { name: "builder_deploy", title: "Deploy a builder project", write: true, description: "Deploys the project's current version as a Gereh app on the cheapest plan (created on the first deploy, with a linked PostgreSQL database when the code uses DATABASE_URL). Failed builds are fixed by the AI automatically (up to 3 attempts). Poll builder_status until status is live or failed.",
+    inputSchema: { type: "object", properties: { id: str("Builder project id (bld-…)") }, required: ["id"] }, call: (a) => ["POST", "builder/projects/" + seg(a.id) + "/deploy", {}] },
+  { name: "builder_status", title: "Builder project status", description: "Status of a builder project: version, files, deploy progress and log tail, live URL, AI cost and the latest agent runs (generate, edit, fix, maintain).",
+    inputSchema: { type: "object", properties: { id: str("Builder project id (bld-…)") }, required: ["id"] }, call: (a) => ["GET", "builder/projects/" + seg(a.id)] },
 ];
 
 type RpcMsg = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Json };
@@ -111,6 +121,7 @@ export async function handleMcp(ctx: Ctx, scope: string, msg: RpcMsg) {
         serverInfo: SERVER_INFO,
         instructions: "Gereh Cloud (Iran): apps (PaaS), managed databases, object storage buckets, cloud servers, domains/DNS and invoices of the signed-in account. Prices are in Toman. "
           + "Deploy with deploy_app, then poll get_deployment every few seconds until status is live or failed and read its log on failure. "
+          + "To build a new site or app from a description, use builder_create, then builder_deploy and poll builder_status. "
           + (scope === "read-write" ? "" : "This token is read-only: write tools will fail."),
       });
     }
