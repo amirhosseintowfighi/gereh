@@ -269,7 +269,8 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
     { id: "bk-demo1", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.2, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo1.dump", createdAt: J("۱۴۰۴/۰۷/۱۳ ۰۳:۳۰") },
     { id: "bk-demo2", dbId: "pdb-demo1", kind: "auto", status: "done", sizeMb: 48.9, location: "s3://gereh-backups/u1/pdb-demo1/bk-demo2.dump", createdAt: J("۱۴۰۴/۰۷/۱۴ ۰۳:۳۰") },
   ]).onConflictDoNothing();
-  await seedBuilderDemo(db);
+  // AI builder demo: a finished project live on its own app (left out of the test suite, whose app and billing counts assume the demo above)
+  if (process.env.NODE_ENV !== "test") await seedBuilderDemo(db);
   // inquiry API demo: an account with history; one personal-data service approved, one pending
   await db.insert(t.inquiryAccounts).values({ userId: "u1", accountNo: 512752, apiKey: "GerehDemoKey2024", secretEnc: seal("demo-inquiry-secret-0001"), secretHash: sha256("demo-inquiry-secret-0001"), createdAt: J("۱۴۰۴/۰۶/۰۱") }).onConflictDoNothing();
   await db.insert(t.counters).values({ name: "inquiry", value: 512752 }).onConflictDoNothing();

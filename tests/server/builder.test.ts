@@ -4,6 +4,7 @@ import { filesError, guessStack, pathError, type BuilderEvent, type BuilderProje
 import { setAiUpstream } from "@/server/ai/upstream";
 import { preflight } from "@/server/builder/deploy";
 import { parseOutput, render } from "@/server/builder/format";
+import { seedBuilderDemo } from "@/server/builder/demo";
 import { builderMaintain } from "@/server/builder/maintain";
 import { projectFiles } from "@/server/builder/sim";
 import { aiUsage, builderProjects, builderRuns, notifications, paasApps, paasEvents, paasLinks, users } from "@/server/db/schema";
@@ -311,6 +312,7 @@ describe("builder: deploy, auto-fix and maintenance", () => {
 describe("builder: demo seed", () => {
   it("has one finished, deployed project with history", async () => {
     await asUser();
+    await seedBuilderDemo(await db());
     const demo = (await call<{ id: string; status: string; version: number; liveUrl: string | null }[]>("builder.list")).find((p) => p.id === "bld-demo1")!;
     expect(demo).toMatchObject({ status: "live", version: 4 });
     expect(demo.liveUrl).toContain("salon-rose.");
@@ -326,6 +328,7 @@ describe("builder: demo seed", () => {
 
   it("simulates an incident for demos: diagnosis, auto-applied patch, redeploy", async () => {
     await asUser();
+    await seedBuilderDemo(await db());
     const r = await call<{ kind: string; incident: string; hasPatch: boolean; summary: string }>("builder.simulateIncident", "bld-demo1");
     expect(r).toMatchObject({ kind: "maintain", incident: "crash", hasPatch: true });
     expect(r.summary).toContain("پایگاه داده");
