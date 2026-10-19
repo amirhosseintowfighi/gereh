@@ -42,7 +42,7 @@ export const builderRpc = {
     return projectId;
   }),
 
-  "builder.update": method(z.tuple([id, z.object({ name: z.string().trim().min(1).max(80).optional(), model: z.string().max(80).optional(), autoMaintain: z.boolean().optional(), maintainCap: z.number().int().min(0).max(50_000_000).optional() })]), async (ctx, [projectId, patch]) => {
+  "builder.update": method(z.tuple([id, z.object({ name: z.string().trim().min(1).max(80).optional(), model: z.string().max(80).optional(), autoMaintain: z.boolean().optional(), maintainCap: z.number().int().min(0).max(50_000_000).optional(), maintainMode: z.enum(["continuous", "incident", "manual"]).optional(), scanEvery: z.union([z.literal(15), z.literal(30), z.literal(60)]).optional() })]), async (ctx, [projectId, patch]) => {
     const { p } = await own(ctx, projectId);
     if (patch.model) await checkModel(ctx, patch.model);
     await ctx.db.update(builderProjects).set({ ...patch, updatedAt: new Date() }).where(eq(builderProjects.id, p.id));

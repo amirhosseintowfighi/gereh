@@ -104,6 +104,9 @@ export function taskMessages(stack: BuilderStack, t: TaskInput): ChatMessage[] {
     case "maintain":
       return [sys, { role: "user", content: filesContext(t.files, t.logs)
         + "\n\n<app_logs>\nincident: " + data(t.incident) + "\nevents:\n" + data(t.events.slice(-3000)) + "\nrecent log lines:\n" + data(t.logs.slice(-6000)) + "\n</app_logs>\n\n"
+        + (t.incident === "scan" || t.incident === "manual"
+          ? "You are the maintenance agent of this running app, doing a routine check (no incident was reported). Read the logs for errors, warnings, slow or failing requests and anything that will break soon. If everything is fine, begin <summary> with exactly «وضعیت: سالم» and output no <file> blocks. "
+          : "")
         + "You are the maintenance agent of this running app. Diagnose the incident. In <summary> write a short Persian diagnosis with three parts: «علت احتمالی:», «اثر:» and «راه‌حل:». If a code change prevents it from happening again, output the changed files (they are proposed to the owner as a patch). If no code change helps (for example the plan is too small), output no <file> blocks and say what the owner should do." }];
   }
 }

@@ -2,10 +2,11 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { BUILDER_DEFAULT_MODEL, filesError, guessStack, pathError, projectName, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type BuilderStack } from "@/lib/builder";
+import { BUILDER_DEFAULT_MODEL, SCAN_TOKENS, filesError, guessStack, pathError, projectName, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type BuilderStack } from "@/lib/builder";
+import { costOf } from "@/lib/ai";
 import { faDateTime } from "@/lib/jalali";
 import type { DB } from "../db/client";
-import { builderMessages, builderProjects, builderRuns, builderVersions, paasApps, paasDeployments } from "../db/schema";
+import { aiModels, builderMessages, builderProjects, builderRuns, builderVersions, paasApps, paasDeployments } from "../db/schema";
 import { paas } from "../paas/driver";
 import { appsDomain } from "../paas/service";
 import { AppError, rid } from "../util";
@@ -66,10 +67,13 @@ export async function projectView(db: DB, p: Project): Promise<BuilderProjectVie
   }
   const s = summary(p, Object.keys(files).length, hosts);
   const sim = (await paas()).name === "simulator";
+  const [m] = await db.select({ inPrice: aiModels.inPrice, outPrice: aiModels.outPrice }).from(aiModels).where(eq(aiModels.id, p.model || BUILDER_DEFAULT_MODEL));
+  const scanCost = m ? costOf(SCAN_TOKENS.in, SCAN_TOKENS.out, m) : 0;
   return {
     ...s, model: p.model, previewUrl: previewPath(p.previewToken), appId: p.appId, appName: app?.name ?? null, dbId: p.dbId, deployedVersion: p.deployedVersion,
     liveView: s.liveUrl ? (sim ? previewPath(p.previewToken, p.deployedVersion) : s.liveUrl) : null, simulator: sim,
     autoMaintain: p.autoMaintain, maintainCap: p.maintainCap, maintainSpent: p.maintainSpent, checkedAt: p.checkedAt ? iso(p.checkedAt) : null,
+    maintainMode: p.maintainMode, scanEvery: p.scanEvery, scanCost, continuousMonthly: scanCost * Math.round((30 * 24 * 60) / p.scanEvery),
     tree: Object.keys(files).sort().map((path) => ({ path, size: new TextEncoder().encode(files[path]).length })),
     messages: messages.reverse().map((m) => ({ id: m.id, role: m.role, content: m.content, runId: m.runId, at: iso(m.createdAt) })),
     runs: runs.map(runView),

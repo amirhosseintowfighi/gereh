@@ -176,6 +176,13 @@
       "when": 1791600025000,
       "tag": "0025_builder",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791600026000,
+      "tag": "0026_builder_watch_modes",
+      "breakpoints": true
     }
   ]
 }

@@ -285,7 +285,44 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     // the manual health check
     const hc = await call<{ kind: string; incident: string; summary: string }>("builder.healthCheck", id);
     expect(hc).toMatchObject({ kind: "maintain", incident: "manual" });
-    expect(hc.summary).toContain("اپ سالم است");
+    expect(hc.summary).toContain("وضعیت: سالم");
+  });
+
+  it("watch modes: manual ignores incidents, continuous scans on schedule and stays quiet when healthy", async () => {
+    await asUser();
+    const id = await newProject("سایت نوبت‌دهی آرایشگاه", "node");
+    await call("builder.deploy", id);
+    await settle();
+    const v = await view(id);
+    expect(v).toMatchObject({ maintainMode: "incident", scanEvery: 15 });
+    expect(v.continuousMonthly).toBe(v.scanCost * 2880);
+    const d = await db();
+    const maintainRuns = async () => d.select().from(builderRuns).where(and(eq(builderRuns.projectId, id), eq(builderRuns.kind, "maintain")));
+    // manual: a crash wakes nothing
+    await call("builder.update", id, { maintainMode: "manual" });
+    await d.update(builderProjects).set({ checkedAt: new Date(Date.now() - 60_000) }).where(eq(builderProjects.id, id));
+    await d.insert(paasEvents).values({ appId: v.appId!, kind: "crash", message: "container exited with code 1" });
+    await builderMaintain(d);
+    expect(await maintainRuns()).toHaveLength(0);
+    expect(await fails("builder.update", id, { maintainMode: "always" })).toBeTruthy();
+    // continuous: a routine scan now, none again before scanEvery has passed, silent when healthy
+    await call("builder.update", id, { maintainMode: "continuous", scanEvery: 30 });
+    await d.update(builderProjects).set({ checkedAt: new Date() }).where(eq(builderProjects.id, id));
+    const notesBefore = (await d.select().from(notifications).where(eq(notifications.userId, "u1"))).length;
+    await builderMaintain(d);
+    const [scan] = await maintainRuns();
+    expect(scan).toMatchObject({ incident: "scan", status: "succeeded" });
+    expect(scan.summary).toContain("وضعیت: سالم");
+    expect((await d.select().from(notifications).where(eq(notifications.userId, "u1"))).length).toBe(notesBefore);
+    await builderMaintain(d);
+    expect(await maintainRuns()).toHaveLength(1);
+    await d.update(builderProjects).set({ scannedAt: new Date(Date.now() - 31 * 60_000) }).where(eq(builderProjects.id, id));
+    await builderMaintain(d);
+    expect(await maintainRuns()).toHaveLength(2);
+    // the monthly cap stops every automatic look
+    await d.update(builderProjects).set({ maintainSpent: 10_000_000, scannedAt: new Date(0) }).where(eq(builderProjects.id, id));
+    await builderMaintain(d);
+    expect(await maintainRuns()).toHaveLength(2);
   });
 
   it("auto-maintenance applies the patch and redeploys by itself", async () => {

@@ -31,7 +31,7 @@ export const RUN_KIND: Record<"generate" | "edit" | "fix" | "maintain", { label:
   fix: { label: "رفع خودکار خطا", icon: "hammer" },
   maintain: { label: "نگهداری", icon: "heart-pulse" },
 };
-export const INCIDENT_LABEL: Record<string, string> = { crash: "توقف ناگهانی اپ", oom: "کمبود حافظه", health_failed: "بررسی سلامت ناموفق", manual: "بررسی سلامت با AI" };
+export const INCIDENT_LABEL: Record<string, string> = { crash: "توقف ناگهانی اپ", oom: "کمبود حافظه", health_failed: "بررسی سلامت ناموفق", manual: "بررسی سلامت با AI", scan: "پایش ۲۴ ساعته", errors: "خطا در لاگ‌ها" };
 export const PROJECT_STATUS: Record<string, [string, "green" | "amber" | "red" | "gray" | "blue"]> = {
   draft: ["پیش‌نویس", "gray"], generating: ["در حال ساخت", "blue"], ready: ["آماده انتشار", "amber"], deploying: ["در حال انتشار", "blue"],
   fixing: ["در حال رفع خطا", "amber"], live: ["منتشر شده", "green"], failed: ["انتشار ناموفق", "red"],
@@ -109,6 +109,9 @@ export type BuilderProjectView = BuilderProjectSummary & {
   simulator: boolean;
   model: string; previewUrl: string; appId: string | null; appName: string | null; dbId: string | null; deployedVersion: number | null;
   autoMaintain: boolean; maintainCap: number; maintainSpent: number; checkedAt: string | null;
+  maintainMode: MaintainMode; scanEvery: number;
+  /** rough AI cost of one routine scan and of a month of continuous watching at scanEvery (Toman) */
+  scanCost: number; continuousMonthly: number;
   files: number; tree: { path: string; size: number }[];
   messages: { id: number; role: "user" | "assistant"; content: string; runId: string | null; at: string }[];
   runs: BuilderRunView[];
@@ -125,3 +128,14 @@ export type BuilderEvent =
   | { type: "file"; path: string }
   | { type: "done"; version: number; summary: string; charged: number; diff: { added: string[]; changed: string[]; deleted: string[] } }
   | { type: "error"; message: string };
+
+/* ---------- maintenance agent: when it looks ---------- */
+export type MaintainMode = "continuous" | "incident" | "manual";
+export const MAINTAIN_MODES: { id: MaintainMode; label: string; icon: string; text: string; cost: string }[] = [
+  { id: "continuous", label: "پایش ۲۴ ساعته", icon: "radar", text: "لاگ‌های اپ مرتب و در تمام ساعات بررسی می‌شوند؛ هر نشانه مشکل، حتی پیش از ازکارافتادن اپ، تشخیص داده و رفع می‌شود.", cost: "پرهزینه‌ترین: در هر بررسی توکن مصرف می‌شود." },
+  { id: "incident", label: "پایش هنگام خرابی", icon: "bell-ring", text: "فقط وقتی اپ از کار بیفتد، حافظه کم بیاورد، بررسی سلامت شکست بخورد یا لاگ‌ها پر از خطا شوند، عامل لاگ‌ها را می‌خواند و مشکل را رفع می‌کند.", cost: "کم‌هزینه: فقط هنگام مشکل توکن مصرف می‌شود." },
+  { id: "manual", label: "بررسی دستی", icon: "search", text: "عامل خودبه‌خود کاری نمی‌کند؛ هر وقت لازم دانستید «بررسی سلامت با AI» را بزنید تا یک دور کامل بررسی شود.", cost: "بدون هزینه ثابت: فقط برای هر بررسی دستی." },
+];
+export const SCAN_EVERY = [15, 30, 60] as const;
+/** tokens of one routine scan (files summary + recent logs in, a short diagnosis out) */
+export const SCAN_TOKENS = { in: 6000, out: 400 };

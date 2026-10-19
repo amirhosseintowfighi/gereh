@@ -1668,6 +1668,13 @@ export const builderProjects = pgTable("builder_projects", {
   maintainCap: money("maintain_cap").notNull().default(300_000),
   maintainSpent: money("maintain_spent").notNull().default(0),
   maintainMonth: text("maintain_month").notNull().default(""),
+  /** when the agent looks: continuous (reads the logs every scanEvery minutes), incident (crash, OOM,
+      failed health check or a burst of errors in the logs) or manual (only when the owner asks) */
+  maintainMode: text("maintain_mode", { enum: ["continuous", "incident", "manual"] }).notNull().default("incident"),
+  scanEvery: integer("scan_every").notNull().default(15),
+  scannedAt: ts("scanned_at"),
+  /** last error line already reported, so one burst of errors starts one diagnosis */
+  logSig: text("log_sig").notNull().default(""),
   checkedAt: ts("checked_at"),
   /** AI cost of the project so far (Toman) */
   spent: money("spent").notNull().default(0),
