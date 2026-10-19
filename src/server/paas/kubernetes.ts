@@ -533,6 +533,8 @@ export function buildJob(app: AppSpec, deploymentId: string, sourceUrl?: string,
         metadata: { labels: { "gereh.net/deployment": deploymentId, "gereh.net/kind": "build" } },
         spec: {
           restartPolicy: "Never", automountServiceAccountToken: false,
+          // the builder image lives on the private registry; registry-push (setup-cluster.sh) can pull it too
+          imagePullSecrets: [{ name: "registry-push" }],
           initContainers: [{ name: "prepare", image: c.builderImage, command: ["/bin/sh", "-c", prepare], env: sourceUrl ? [{ name: "SOURCE_URL", value: sourceUrl }] : [], volumeMounts: [{ name: "workspace", mountPath: "/workspace" }], resources: { limits: { cpu: "1", memory: "1Gi" } } }],
           containers: [{
             name: "kaniko", image: c.kanikoImage,

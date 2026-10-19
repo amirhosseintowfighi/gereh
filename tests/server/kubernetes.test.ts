@@ -98,6 +98,7 @@ describe("kubernetes manifests", () => {
 
   it("build job: git clone hides tokens, nixpacks fallback, kaniko pushes the tagged image", () => {
     const job = buildJob(app({ buildCommand: "npm run build:prod", rootDir: "apps/web" }), "dep-AB12") as Record<string, any>;
+    expect(job.spec.template.spec.imagePullSecrets).toEqual([{ name: "registry-push" }]);
     expect(job.metadata).toMatchObject({ name: "build-dep-ab12", namespace: "gereh-system" });
     const prep = job.spec.template.spec.initContainers[0].command[2] as string;
     expect(prep).toContain("git clone --depth 1 --branch 'main' 'https://tok@github.com/acme/shop.git' src");
