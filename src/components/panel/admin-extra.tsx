@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { api, useDB, type ClientDB } from "@/lib/store";
 import { COMPONENTS, INCIDENT_STATUS, SEVERITY } from "@/lib/status";
 import { useApp } from "../app-context";
@@ -22,8 +22,8 @@ export function AdminStatus() {
   return (
     <div>
       <PageTitle title="وضعیت و رخدادها" sub="رخدادهای ثبت‌شده در صفحه عمومی /status نمایش داده می‌شوند."
-        action={<div className="flex gap-2"><a href="/status" target="_blank" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="external-link" size={16} /> صفحه عمومی</a>
-          <button type="button" onClick={() => setF({ title: "", severity: "major", status: "investigating", components: [], text: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> رخداد جدید</button></div>} />
+        action={<div className="flex gap-2"><a href="/status" target="_blank" className={BTN_G + BTN_MD}><Icon name="external-link" size={16} /> صفحه عمومی</a>
+          <button type="button" onClick={() => setF({ title: "", severity: "major", status: "investigating", components: [], text: "" })} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> رخداد جدید</button></div>} />
       <Card title={"رخدادهای باز (" + open.length.toLocaleString("fa-IR") + ")"} icon="activity" pad="p-3 sm:p-4">
         {db.incidents.length === 0 ? <Empty icon="circle-check" title="رخدادی ثبت نشده" /> : db.incidents.map((i) => (
           <div key={i.id} className="p-3 rounded-xl hover:bg-white/[0.03] flex flex-wrap gap-3 items-start justify-between">
@@ -33,14 +33,14 @@ export function AdminStatus() {
               {i.updates[0] && <p className="text-sm text-white/65 mt-2 leading-7">{i.updates[0].text}</p>}
             </div>
             <div className="flex gap-1">
-              {i.status !== "resolved" && <button type="button" onClick={() => edit(i)} className={BTN_G + " px-3 h-8 text-xs"}>به‌روزرسانی</button>}
+              {i.status !== "resolved" && <button type="button" onClick={() => edit(i)} className={BTN_G + BTN_SM}>به‌روزرسانی</button>}
               <IconBtn icon="trash-2" label={"حذف " + i.title} className="hover:text-rose-300" onClick={async () => { if (await confirm("رخداد «" + i.title + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.deleteIncident(i.id); notify("حذف شد"); } }} />
             </div>
           </div>
         ))}
       </Card>
       <Modal open={!!f} onClose={() => setF(null)} title={f?.id ? "به‌روزرسانی رخداد" : "رخداد جدید"} icon="activity" size="max-w-2xl"
-        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; if (!f.components.length) throw new Error("حداقل یک بخش را انتخاب کنید."); await api.admin.saveIncident(f); setF(null); notify("منتشر شد", "activity"); }}>انتشار</AsyncButton></>}>
+        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; if (!f.components.length) throw new Error("حداقل یک بخش را انتخاب کنید."); await api.admin.saveIncident(f); setF(null); notify("منتشر شد", "activity"); }}>انتشار</AsyncButton></>}>
         {f && <div className="space-y-4">
           <Field label="عنوان"><input value={f.title} onChange={(e) => setF((x) => x && { ...x, title: e.target.value })} className={INPUT} /></Field>
           <div className="grid grid-cols-2 gap-4">

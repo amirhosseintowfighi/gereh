@@ -2,7 +2,7 @@
 /* Gereh Apps operator tools, part 1: the web console (interactive shell and one-off commands) and
    persistent disks with their file manager, SFTP accounts and backups. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { DISK_SIZES, fileName, mountError, parentOf } from "@/lib/paas-tools";
 import { api, type PaasConsoleRecord, type PaasDisksView, type PaasFsEntry } from "@/lib/store";
@@ -38,8 +38,8 @@ export function AppConsole({ app }: { app: PaasApp }) {
       <Card title="کنسول وب" icon="terminal" action={
         <div className="flex items-center gap-2">
           {instances.length > 1 && <Select label="نمونه" ltr value={instance} onChange={setInstance} options={instances.map((i) => ({ value: i.name, label: i.name }))} />}
-          {open ? <button type="button" onClick={() => { setOpen(0); loadHistory(); }} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="x" size={14} />بستن</button>
-            : <button type="button" disabled={!instance} onClick={() => setOpen(Date.now())} className={BTN_P + " h-9 px-3 text-xs"}><Icon name="play" size={14} />اتصال</button>}
+          {open ? <button type="button" onClick={() => { setOpen(0); loadHistory(); }} className={BTN_G + BTN_SM}><Icon name="x" size={14} />بستن</button>
+            : <button type="button" disabled={!instance} onClick={() => setOpen(Date.now())} className={BTN_P + BTN_SM}><Icon name="play" size={14} />اتصال</button>}
         </div>}>
         {open ? <Terminal key={open} appId={app.id} instance={instance} onExit={loadHistory} />
           : <p className="text-sm text-white/60 leading-7">یک ترمینال روی نمونه در حال اجرای اپ باز می‌شود (مثل <code dir="ltr">docker exec</code>). تغییر فایل‌ها بیرون از دیسک‌های دائمی با استقرار یا ری‌استارت بعدی از بین می‌رود. هر جلسه ثبت می‌شود؛ پس از ۱۵ دقیقه بی‌کاری یا ۲ ساعت بسته می‌شود.</p>}
@@ -123,7 +123,7 @@ function RunCommand({ app, instance, onDone }: { app: PaasApp; instance: string;
       <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
         <label className="sr-only" htmlFor="run-cmd">دستور</label>
         <input id="run-cmd" value={cmd} onChange={(e) => setCmd(e.target.value)} dir="ltr" placeholder="php artisan cache:clear" className={INPUT + " font-mono text-left text-xs"} />
-        <AsyncButton disabled={!cmd.trim()} className={BTN_P + " h-11 px-4 text-sm shrink-0"} onClick={async () => { const r = await api.paas.consoleRun(app.id, cmd, instance || undefined); setOut({ ...r, command: cmd }); onDone(); }}><Icon name="play" size={14} />اجرا</AsyncButton>
+        <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const r = await api.paas.consoleRun(app.id, cmd, instance || undefined); setOut({ ...r, command: cmd }); onDone(); }}><Icon name="play" size={14} />اجرا</AsyncButton>
       </form>
       <p className="text-[11px] text-white/50 mt-2 leading-6">روی نمونه در حال اجرا با همان متغیرها و دیسک‌ها اجرا می‌شود؛ حداکثر ۶۰ ثانیه. برای کارهای طولانی (مایگریشن، اسکریپت) از «اجرای دستور» در بخش پردازش و زمان‌بندی استفاده کنید که در کانتینر جدا اجرا می‌شود.</p>
       {out && (
@@ -194,7 +194,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
   const busy = d.backupList.some((b) => b.status === "running" || b.status === "restoring");
   return (
     <Card title={<span className="flex items-center gap-2"><span dir="ltr" className="font-mono">{d.name}</span><span dir="ltr" className="text-xs text-white/55 font-mono">{d.mount}</span></span>} icon="hard-drive"
-      action={<button type="button" onClick={onBrowse} disabled={!view.running} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="folder-open" size={14} />مدیریت فایل‌ها</button>}>
+      action={<button type="button" onClick={onBrowse} disabled={!view.running} className={BTN_G + BTN_SM}><Icon name="folder-open" size={14} />مدیریت فایل‌ها</button>}>
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="space-y-3">
           <div>
@@ -203,19 +203,19 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
           </div>
           <Field label="افزایش حجم" hint={toman((grow - d.sizeGb) * view.diskPrice) + " در ماه اضافه"}>
             <div className="flex gap-2"><Select label="حجم جدید" value={String(grow)} onChange={(v) => setGrow(Number(v))} options={[d.sizeGb, ...DISK_SIZES.filter((n) => n > d.sizeGb)].map((n) => ({ value: String(n), label: fa(n) + " گیگ" }))} />
-              <AsyncButton disabled={grow <= d.sizeGb} className={BTN_G + " h-11 px-3 text-xs shrink-0"} onClick={async () => { await api.paas.updateDisk(d.id, { sizeGb: grow }); await reload(); notify("حجم دیسک افزایش یافت", "hard-drive"); }}>اعمال</AsyncButton></div>
+              <AsyncButton disabled={grow <= d.sizeGb} className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.paas.updateDisk(d.id, { sizeGb: grow }); await reload(); notify("حجم دیسک افزایش یافت", "hard-drive"); }}>اعمال</AsyncButton></div>
           </Field>
           <Field label="مسیر اتصال" error={mount !== d.mount ? mountError(mount) ?? undefined : undefined}>
             <div className="flex gap-2"><input value={mount} onChange={(e) => setMount(e.target.value.trim())} dir="ltr" className={INPUT + " text-left font-mono"} />
-              <AsyncButton disabled={mount === d.mount || !!mountError(mount)} className={BTN_G + " h-11 px-3 text-xs shrink-0"} confirmText="اپ با مسیر جدید دوباره اجرا می‌شود. ادامه؟" onClick={async () => { await api.paas.updateDisk(d.id, { mount }); await reload(); notify("مسیر دیسک تغییر کرد", "hard-drive"); }}>ذخیره</AsyncButton></div>
+              <AsyncButton disabled={mount === d.mount || !!mountError(mount)} className={BTN_G + BTN_MD + " shrink-0"} confirmText="اپ با مسیر جدید دوباره اجرا می‌شود. ادامه؟" onClick={async () => { await api.paas.updateDisk(d.id, { mount }); await reload(); notify("مسیر دیسک تغییر کرد", "hard-drive"); }}>ذخیره</AsyncButton></div>
           </Field>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2"><b className="text-sm">پشتیبان‌ها</b>
             <span className="flex items-center gap-2 text-[11px] text-white/60">روزانه (۳ نسخه آخر)<Switch on={d.backups} label="پشتیبان روزانه" onChange={async (v) => { await api.paas.updateDisk(d.id, { backups: v }); await reload(); }} /></span></div>
-          <AsyncButton disabled={busy || !view.running} className={BTN_G + " h-9 px-3 text-xs mb-2"} onClick={async () => { await api.paas.diskBackup(d.id); await reload(); notify("پشتیبان‌گیری شروع شد", "archive"); }}><Icon name="archive" size={14} />پشتیبان‌گیری الان</AsyncButton>
-          {d.backupList.length === 0 ? <p className="text-[11px] text-white/45">هنوز پشتیبانی نیست.</p> : (
+          <AsyncButton disabled={busy || !view.running} className={BTN_G + BTN_SM + " mb-2"} onClick={async () => { await api.paas.diskBackup(d.id); await reload(); notify("پشتیبان‌گیری شروع شد", "archive"); }}><Icon name="archive" size={14} />پشتیبان‌گیری الان</AsyncButton>
+          {d.backupList.length === 0 ? <p className="text-[11px] text-white/50">هنوز پشتیبانی نیست.</p> : (
             <ul className="space-y-1 max-h-56 overflow-auto">
               {d.backupList.map((b) => (
                 <li key={b.id} className="flex items-center justify-between gap-2 text-xs rounded-lg px-2 py-1.5 hover:bg-white/[0.04]">
@@ -254,18 +254,18 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
           </ul>
           <div className="flex gap-2">
             <label className="sr-only" htmlFor={"sftp-u-" + d.id}>نام کاربری SFTP</label>
-            <input id={"sftp-u-" + d.id} value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })} dir="ltr" placeholder="username" className={INPUT + " h-9 text-left font-mono text-xs"} />
+            <input id={"sftp-u-" + d.id} value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })} dir="ltr" placeholder="username" className={INPUT_BASE + " h-9 text-left font-mono text-xs"} />
             <Select label="دسترسی" value={newUser.access} onChange={(v) => setNewUser({ ...newUser, access: v as "ro" | "rw" })} options={[{ value: "rw", label: "نوشتن" }, { value: "ro", label: "خواندن" }]} />
-            <AsyncButton disabled={newUser.username.length < 3} className={BTN_G + " h-9 px-3 text-xs shrink-0"} onClick={async () => { const r = await api.paas.sftpCreate(d.id, newUser); setShown({ user: newUser.username, password: r.password }); setNewUser({ username: "", access: "rw" }); await reload(); }}>افزودن</AsyncButton>
+            <AsyncButton disabled={newUser.username.length < 3} className={BTN_G + BTN_SM + " shrink-0"} onClick={async () => { const r = await api.paas.sftpCreate(d.id, newUser); setShown({ user: newUser.username, password: r.password }); setNewUser({ username: "", access: "rw" }); await reload(); }}>افزودن</AsyncButton>
           </div>
-          <p className="text-[11px] text-white/45 mt-2 leading-5">با FileZilla یا WinSCP (پروتکل SFTP) وصل شوید؛ دیسک در پوشه <span dir="ltr">/{d.name}</span> است. افزودن حساب، اپ را یک بار دوباره اجرا می‌کند.</p>
+          <p className="text-[11px] text-white/50 mt-2 leading-5">با FileZilla یا WinSCP (پروتکل SFTP) وصل شوید؛ دیسک در پوشه <span dir="ltr">/{d.name}</span> است. افزودن حساب، اپ را یک بار دوباره اجرا می‌کند.</p>
         </div>
       </div>
       <details className="mt-5 border-t border-white/[0.08] pt-3">
         <summary className="text-xs text-rose-300/80 cursor-pointer">حذف دیسک</summary>
         <p className="text-xs text-white/60 mt-2">همه فایل‌ها و پشتیبان‌های این دیسک برای همیشه حذف می‌شوند. برای تأیید نام دیسک را بنویسید: <b dir="ltr">{d.name}</b></p>
-        <div className="flex gap-2 mt-2"><input aria-label="نام دیسک برای تأیید" value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" className={INPUT + " h-9 text-left max-w-xs"} />
-          <AsyncButton danger disabled={del !== d.name} className="h-9 px-3 text-xs" onClick={async () => { await api.paas.deleteDisk(d.id, del); await reload(); notify("دیسک حذف شد", "trash-2"); }}>حذف همیشگی</AsyncButton></div>
+        <div className="flex gap-2 mt-2"><input aria-label="نام دیسک برای تأیید" value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" className={INPUT_BASE + " h-9 text-left max-w-xs"} />
+          <AsyncButton danger disabled={del !== d.name} size="sm" onClick={async () => { await api.paas.deleteDisk(d.id, del); await reload(); notify("دیسک حذف شد", "trash-2"); }}>حذف همیشگی</AsyncButton></div>
       </details>
       <Modal open={!!shown} onClose={() => setShown(null)} title="اطلاعات اتصال SFTP" icon="key-round">
         {shown && <dl className="text-sm space-y-2" dir="ltr">
@@ -322,12 +322,12 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
           {crumbs.map((c, i) => <span key={i} className="flex items-center gap-1"><span className="text-white/30">/</span><button type="button" onClick={() => load(crumbs.slice(0, i + 1).join("/"))} className="px-1.5 py-1 rounded hover:bg-white/10">{c}</button></span>)}
         </nav>
         <input ref={upload} type="file" multiple className="sr-only" aria-label="بارگذاری فایل" onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
-        <button type="button" onClick={() => upload.current?.click()} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="upload" size={14} />بارگذاری</button>
-        <button type="button" onClick={async () => { const n = window.prompt("نام پوشه جدید"); if (n) await act(() => api.paas.fsMkdir(diskId, join(n))); }} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="folder-plus" size={14} />پوشه</button>
-        <button type="button" onClick={() => { const n = window.prompt("نام فایل جدید"); if (n) setEdit({ path: join(n), text: "", isNew: true }); }} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="file-plus" size={14} />فایل</button>
+        <button type="button" onClick={() => upload.current?.click()} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />بارگذاری</button>
+        <button type="button" onClick={async () => { const n = window.prompt("نام پوشه جدید"); if (n) await act(() => api.paas.fsMkdir(diskId, join(n))); }} className={BTN_G + BTN_SM}><Icon name="folder-plus" size={14} />پوشه</button>
+        <button type="button" onClick={() => { const n = window.prompt("نام فایل جدید"); if (n) setEdit({ path: join(n), text: "", isNew: true }); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />فایل</button>
         <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); if (!q.trim()) { setFound(null); return; } try { setFound(await api.paas.fsSearch(diskId, path, q)); } catch (er) { notify((er as Error).message, "circle-alert"); } }}>
           <label className="sr-only" htmlFor="fs-q">جستجوی نام فایل</label>
-          <input id="fs-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام…" className={INPUT + " h-9 w-40 text-xs"} />
+          <input id="fs-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام…" className={INPUT_BASE + " h-9 w-40 text-xs"} />
           <button type="submit" aria-label="جستجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
         </form>
       </div>
@@ -346,7 +346,7 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
             <thead className="text-white/50 bg-white/[0.03]"><tr><th className="text-right p-2 font-normal">نام</th><th className="text-right p-2 font-normal w-24">حجم</th><th className="text-right p-2 font-normal w-40 hidden sm:table-cell">تغییر</th><th className="w-40" /></tr></thead>
             <tbody>
               {path && <tr className="border-t border-white/[0.06]"><td colSpan={4} className="p-2"><button type="button" onClick={() => load(parentOf(path))} className="flex items-center gap-1.5 hover:underline"><Icon name="corner-left-up" size={13} />..</button></td></tr>}
-              {entries.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-white/45">پوشه خالی است.</td></tr>}
+              {entries.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-white/50">پوشه خالی است.</td></tr>}
               {entries.map((e) => (
                 <tr key={e.name} className="border-t border-white/[0.06] hover:bg-white/[0.03]">
                   <td className="p-2" dir="ltr">

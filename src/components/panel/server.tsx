@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IP_PRICE, PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
 import { useApp } from "../app-context";
@@ -28,7 +28,7 @@ export function ServerDetail({ id }: { id: string }) {
   const { notify } = useApp();
   const s = db.servers.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
-  if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
+  if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   if (!s.vpsid) return <ServerPending s={s} />;
   const suspended = s.status === "suspended";
   const tabs = suspended ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
@@ -40,7 +40,7 @@ export function ServerDetail({ id }: { id: string }) {
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusBadge s={s.status} /><CopyText text={s.ip} className="mono text-xs text-white/60" /><span>{locLabel(s.loc)}</span><span>{s.os}</span></span>}
         action={suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <>
           {s.status !== "running" && <AsyncButton onClick={() => power("start", "سرور روشن شد")}><Icon name="play" size={16} /> روشن کردن</AsyncButton>}
-          {s.status === "running" && <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
+          {s.status === "running" && <AsyncButton className={BTN_G + BTN_MD} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
           {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
         </>} />
       <DelayBanner s={s} />
@@ -70,7 +70,7 @@ function Metric({ label, icon, values, unit }: { label: string; icon: string; va
   return (
     <Card pad="p-5">
       <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{cur === undefined ? "—" : fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
-      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/45 text-center leading-6">نمونه‌برداری هر ۵ دقیقه انجام می‌شود؛<br />نمودار به‌زودی پر می‌شود.</div>}
+      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/50 text-center leading-6">نمونه‌برداری هر ۵ دقیقه انجام می‌شود؛<br />نمودار به‌زودی پر می‌شود.</div>}
     </Card>
   );
 }
@@ -204,7 +204,7 @@ function ServerAccess({ s }: { s: Server }) {
       </Card>
       <Card title="رمز root" icon="key-round">
         <Field label="رمز جدید" hint="سرور برای اعمال رمز ری‌استارت می‌شود.">
-          <div className="flex gap-2"><input value={pw} onChange={(e) => setPw(e.target.value)} dir="ltr" autoComplete="new-password" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setPw(genPassword())} className={BTN_G + " px-3 h-11 text-xs shrink-0"}>ساخت تصادفی</button></div>
+          <div className="flex gap-2"><input value={pw} onChange={(e) => setPw(e.target.value)} dir="ltr" autoComplete="new-password" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setPw(genPassword())} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div>
           <StrengthBar value={pw} />
         </Field>
         <div className="mt-4 flex justify-end"><AsyncButton confirmText="سرور برای تغییر رمز ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { await api.servers.resetRootPassword(s.id, pw); setPw(""); notify("رمز root تغییر کرد", "key-round"); }}>تغییر رمز</AsyncButton></div>
@@ -232,7 +232,7 @@ function ServerNetwork({ s }: { s: Server }) {
           <div className="flex justify-between items-center"><dt className="text-white/50">دروازه</dt><dd className="mono ltr">{s.ip.split(".").slice(0, 3).join(".")}.1</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>۱ گیگابیت بر ثانیه</dd></div>
         </dl>
-        <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + " mt-6 px-4 h-10 text-sm"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(IP_PRICE)})</button>
+        <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + BTN_MD + " mt-6"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(IP_PRICE)})</button>
       </Card>
       <Card title="Reverse DNS" icon="globe">
         <p className="text-sm text-white/50 leading-7 mb-4">برای ارسال ایمیل از سرور، PTR را روی دامنه خودتان تنظیم کنید.</p>
@@ -250,7 +250,7 @@ function ServerFirewall({ s }: { s: Server }) {
   const { notify, confirm } = useApp();
   const [form, setForm] = useState<Omit<FwRule, "id"> | null>(null);
   return <>
-    <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> قانون جدید</button>} pad="p-3 sm:p-4">
+    <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> قانون جدید</button>} pad="p-3 sm:p-4">
       {s.firewall.length === 0 ? <Empty icon="shield" title="قانونی تعریف نشده" text="همه ترافیک ورودی مجاز است. برای امنیت بیشتر، فقط پورت‌های لازم را باز کنید." /> : (
         <div className="overflow-x-auto"><table className="w-full text-sm min-w-[560px]">
           <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">پروتکل</th><th scope="col" className="text-right font-medium p-3">پورت</th><th scope="col" className="text-right font-medium p-3">مبدأ</th><th scope="col" className="text-right font-medium p-3">عملکرد</th><th scope="col" className="text-right font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
@@ -265,7 +265,7 @@ function ServerFirewall({ s }: { s: Server }) {
       )}
     </Card>
     <Modal open={!!form} onClose={() => setForm(null)} title="قانون فایروال جدید" icon="shield-check"
-      footer={<><button type="button" onClick={() => setForm(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><button type="button" onClick={() => setForm(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
         if (!form) return;
         const port = form.proto === "ICMP" ? "—" : form.port.replace(/\s/g, "");
         if (form.proto !== "ICMP" && (!PORT_RE.test(port) || port.split(/[,-]/).some((p) => +p < 1 || +p > 65535) || port.split(",").some((r) => { const [a, b] = r.split("-").map(Number); return b !== undefined && b < a; }))) throw new Error("پورت معتبر نیست؛ مثال: 22 یا 8000-8100 یا 80,443");
@@ -294,17 +294,17 @@ function ServerBackups({ s }: { s: Server }) {
           : s.backupsList.map((b) => (
             <div key={b.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div className="flex items-center gap-3"><Icon name="database-backup" size={17} className="text-white/55" /><div><div className="text-sm">{b.at}</div><div className="text-[11px] text-white/55">{fa(b.size, 1)} گیگابایت</div></div></div>
-              <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} danger confirmText="سرور به این نسخه بازگردانده شود؟ اطلاعات فعلی جایگزین می‌شود." onClick={async () => { await api.servers.restore(s.id, "بکاپ " + b.at); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
+              <AsyncButton className={BTN_G + BTN_SM} danger confirmText="سرور به این نسخه بازگردانده شود؟ اطلاعات فعلی جایگزین می‌شود." onClick={async () => { await api.servers.restore(s.id, "بکاپ " + b.at); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
             </div>
           ))}
       </Card>
-      <Card title="اسنپ‌شات‌ها" icon="camera" action={<AsyncButton className={BTN_P + " px-3 h-9 text-xs"} disabled={s.snapshots.length >= SNAP_LIMIT} title={s.snapshots.length >= SNAP_LIMIT ? "به سقف " + fa(SNAP_LIMIT) + " اسنپ‌شات رسیده‌اید" : undefined} onClick={async () => { await api.servers.snapshot(s.id); notify("اسنپ‌شات ساخته شد", "camera"); }}><Icon name="plus" size={15} /> ساخت اسنپ‌شات</AsyncButton>} pad="p-3 sm:p-4">
+      <Card title="اسنپ‌شات‌ها" icon="camera" action={<AsyncButton className={BTN_P + BTN_SM} disabled={s.snapshots.length >= SNAP_LIMIT} title={s.snapshots.length >= SNAP_LIMIT ? "به سقف " + fa(SNAP_LIMIT) + " اسنپ‌شات رسیده‌اید" : undefined} onClick={async () => { await api.servers.snapshot(s.id); notify("اسنپ‌شات ساخته شد", "camera"); }}><Icon name="plus" size={15} /> ساخت اسنپ‌شات</AsyncButton>} pad="p-3 sm:p-4">
         {s.snapshots.length === 0 ? <Empty icon="camera" title="اسنپ‌شاتی ندارید" text="پیش از تغییرات بزرگ، یک نسخه لحظه‌ای بگیرید." />
           : s.snapshots.map((sn) => (
             <div key={sn.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div><div className="text-sm font-bold ltr text-right">{sn.name}</div><div className="text-[11px] text-white/55">{sn.at}، {fa(sn.size, 1)} گیگابایت</div></div>
               <div className="flex gap-1 items-center">
-                <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} danger confirmText="سرور به این اسنپ‌شات بازگردانده شود؟" onClick={async () => { await api.servers.restore(s.id, "اسنپ‌شات " + sn.name); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
+                <AsyncButton className={BTN_G + BTN_SM} danger confirmText="سرور به این اسنپ‌شات بازگردانده شود؟" onClick={async () => { await api.servers.restore(s.id, "اسنپ‌شات " + sn.name); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
                 <IconBtn icon="trash-2" label={"حذف اسنپ‌شات " + sn.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("اسنپ‌شات " + sn.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.servers.deleteSnapshot(s.id, sn.id); notify("اسنپ‌شات حذف شد"); } }} />
               </div>
             </div>
@@ -328,7 +328,7 @@ function ServerBoot({ s }: { s: Server }) {
         {s.rescue ? <div className="mt-4"><AsyncButton danger confirmText="سرور از حالت ریسکیو خارج و ری‌استارت شود؟" onClick={async () => { await api.servers.setRescue(s.id, false); notify("حالت ریسکیو غیرفعال شد"); }}>خروج از ریسکیو</AsyncButton></div> : (
           <form className="mt-4 flex gap-2" onSubmit={(e) => e.preventDefault()}>
             <input type="password" autoComplete="new-password" value={rp} onChange={(e) => setRp(e.target.value)} dir="ltr" placeholder="رمز ورود ریسکیو" aria-label="رمز ورود ریسکیو" className={INPUT + " text-left"} />
-            <AsyncButton className={BTN_P + " px-4 h-11 text-sm shrink-0"} confirmText="سرور ری‌استارت و وارد حالت ریسکیو می‌شود." onClick={async () => { await api.servers.setRescue(s.id, true, rp); setRp(""); notify("حالت ریسکیو فعال شد", "shield-half"); }}>فعال‌سازی</AsyncButton>
+            <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} confirmText="سرور ری‌استارت و وارد حالت ریسکیو می‌شود." onClick={async () => { await api.servers.setRescue(s.id, true, rp); setRp(""); notify("حالت ریسکیو فعال شد", "shield-half"); }}>فعال‌سازی</AsyncButton>
           </form>
         )}
       </Card>
@@ -347,12 +347,12 @@ function ServerBoot({ s }: { s: Server }) {
         {s.iso ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-white/[0.04] border border-white/[0.1] p-4">
             <span className="flex items-center gap-2 text-sm"><Icon name="hard-drive" size={16} className="acc" /><span className="mono ltr text-xs">{s.iso}</span><Badge tone="green">متصل</Badge></span>
-            <AsyncButton className={BTN_G + " px-4 h-9 text-xs"} onClick={async () => { await api.servers.mountIso(s.id, ""); notify("ISO جدا شد"); }}>جدا کردن</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.servers.mountIso(s.id, ""); notify("ISO جدا شد"); }}>جدا کردن</AsyncButton>
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row gap-2">
             <Select className="flex-1" label="فایل ISO" value={iso} onChange={setIso} options={db.isos} ltr />
-            <AsyncButton className={BTN_P + " px-5 h-11 text-sm"} onClick={async () => { await api.servers.mountIso(s.id, iso); notify("ISO متصل شد"); }}>اتصال ISO</AsyncButton>
+            <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { await api.servers.mountIso(s.id, iso); notify("ISO متصل شد"); }}>اتصال ISO</AsyncButton>
           </div>
         )}
       </Card>

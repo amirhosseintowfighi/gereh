@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { DEVOPS_SERVICES } from "@/content/devops";
-import { BTN_G, BTN_P, GLASS_SOFT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, GLASS_SOFT } from "@/lib/cls";
 import { PLAN_FA, PROJECT_STATUS } from "@/lib/devops-labels";
 import { fa, toman } from "@/lib/format";
 import { useDB, useMyId } from "@/lib/store";
@@ -25,8 +25,8 @@ export function UserDevops() {
           <h2 className="text-xl font-black mt-5">تیم دواپس شما، بدون استخدام</h2>
           <p className="text-white/65 mt-3 leading-8">CI/CD، کوبرنتیز، مانیتورینگ، امنیت و پشتیبانی شبانه‌روزی؛ با قرارداد ماهانه بدون حداقل مدت یا پروژه با قیمت ثابت. مشتریان سرورهای گره ۱۰ درصد تخفیف می‌گیرند.</p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/devops#request" className={BTN_P + " h-11 px-5 text-sm"}><Icon name="message-circle" size={16} />جلسه آشنایی رایگان</Link>
-            <Link href="/devops" className={BTN_G + " h-11 px-5 text-sm"}>خدمات و قیمت‌ها</Link>
+            <Link href="/devops#request" className={BTN_P + BTN_MD}><Icon name="message-circle" size={16} />جلسه آشنایی رایگان</Link>
+            <Link href="/devops" className={BTN_G + BTN_MD}>خدمات و قیمت‌ها</Link>
           </div>
         </div>
       </Card>
@@ -35,7 +35,7 @@ export function UserDevops() {
   return (
     <div>
       <PageTitle title="خدمات دواپس" sub="پیشرفت پروژه‌ها، ساعت‌های مصرف‌شده و گزارش‌های تیم دواپس."
-        action={<Link href="/panel/tickets" className={BTN_G + " h-10 px-4 text-sm"}><Icon name="message-circle" size={16} />تیکت به تیم دواپس</Link>} />
+        action={<Link href="/panel/tickets" className={BTN_G + BTN_MD}><Icon name="message-circle" size={16} />تیکت به تیم دواپس</Link>} />
       <div className="space-y-4">
         {projects.map((p) => {
           const done = p.milestones.filter((m) => m.done).length;
@@ -56,7 +56,7 @@ export function UserDevops() {
                       <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden" role="progressbar" aria-label="پیشرفت مراحل" aria-valuenow={done} aria-valuemin={0} aria-valuemax={p.milestones.length}><div className="h-full rounded-full bg-emerald-400/80" style={{ width: (done / p.milestones.length) * 100 + "%" }} /></div>
                       <ol className="mt-4 space-y-2">{p.milestones.map((m) => (
                         <li key={m.id} className="flex items-center gap-3 text-sm">
-                          <Icon name={m.done ? "circle-check" : "clock"} size={17} className={m.done ? "text-emerald-300" : "text-white/40"} />
+                          <Icon name={m.done ? "circle-check" : "clock"} size={17} className={m.done ? "text-emerald-300" : "text-white/50"} />
                           <span className={m.done ? "text-white/60 line-through decoration-white/30" : ""}>{m.title}</span>
                           {m.due && <span className="text-[11px] text-white/50 mr-auto">{m.due}</span>}
                           <span className="sr-only">{m.done ? "انجام شد" : "در جریان"}</span>

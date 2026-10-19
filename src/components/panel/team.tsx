@@ -1,7 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, INPUT } from "@/lib/cls";
 import { api, useDB, useSession } from "@/lib/store";
 import type { TeamRole } from "@/lib/types";
 import { useApp } from "../app-context";
@@ -65,7 +65,7 @@ export function AccountSwitcher() {
   const current = session.teamRole ? ships.find((s) => s.ownerId === session.userId) : null;
   const go = async (ownerId: string | null) => { await api.team.switchTo(ownerId); router.push("/panel"); };
   return (
-    <Menu label="انتخاب حساب" triggerClass={BTN_G + " h-10 px-3 text-xs max-sm:hidden"}
+    <Menu label="انتخاب حساب" triggerClass={BTN_G + BTN_MD + " max-sm:hidden"}
       trigger={<><Icon name="users-round" size={15} />{current ? current.ownerName : "حساب من"}<Icon name="chevron-down" size={13} /></>}
       items={[
         { icon: "user-round", label: "حساب خودم", run: () => go(null) },
@@ -90,7 +90,7 @@ export function TeamAccept() {
   }, [session, token, router]);
   return (
     <main id="main" className="min-h-screen grid place-items-center p-6 text-center">
-      {error ? <div role="alert" className="max-w-md"><Icon name="circle-alert" size={36} className="mx-auto text-rose-300" /><h1 className="text-xl font-black mt-4">دعوت پذیرفته نشد</h1><p className="text-white/60 mt-2 leading-7">{error}</p><a href="/panel" className={BTN_P + " mt-6 px-5 h-10 text-sm inline-flex"}>رفتن به پنل</a></div>
+      {error ? <div role="alert" className="max-w-md"><Icon name="circle-alert" size={36} className="mx-auto text-rose-300" /><h1 className="text-xl font-black mt-4">دعوت پذیرفته نشد</h1><p className="text-white/60 mt-2 leading-7">{error}</p><a href="/panel" className={BTN_P + BTN_MD + " mt-6 inline-flex"}>رفتن به پنل</a></div>
         : <div aria-busy="true"><Icon name="loader-circle" size={30} className="animate-spin mx-auto text-white/60" /><h1 className="text-lg font-bold mt-4">در حال پیوستن به تیم…</h1></div>}
     </main>
   );

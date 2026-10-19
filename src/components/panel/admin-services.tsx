@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { SYNC_LABEL, SYNC_STATUS, ZONE_STATUS } from "@/lib/geo";
 import { inquiryDef } from "@/lib/inquiry";
@@ -56,11 +56,11 @@ function Requests() {
               <div className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2"><b className="text-sm">{g.userName}</b><Badge>{inquiryDef(g.serviceId)?.name ?? g.serviceId}</Badge><Badge tone={g.status === "approved" ? "green" : g.status === "rejected" ? "red" : "amber"}>{g.status === "approved" ? "تأیید شده" : g.status === "rejected" ? "رد شده" : "در انتظار"}</Badge></span>
                 <p className="text-sm text-white/70 leading-7 mt-1">{g.useCase}</p>
-                <span className="text-[11px] text-white/45">{g.at}{g.note ? " · " + g.note : ""}</span>
+                <span className="text-[11px] text-white/50">{g.at}{g.note ? " · " + g.note : ""}</span>
               </div>
               {g.status === "pending" && <div className="flex gap-2 shrink-0">
-                <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => { await api.inquiry.decide(g.id, true, ""); notify("دسترسی فعال شد", "circle-check"); }}><Icon name="check" size={13} />تأیید</AsyncButton>
-                <button type="button" onClick={() => { setReject(g.id); setNote(""); }} className={BTN_G + " h-9 px-3 text-xs"}>رد</button>
+                <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.inquiry.decide(g.id, true, ""); notify("دسترسی فعال شد", "circle-check"); }}><Icon name="check" size={13} />تأیید</AsyncButton>
+                <button type="button" onClick={() => { setReject(g.id); setNote(""); }} className={BTN_G + BTN_SM}>رد</button>
               </div>}
             </li>
           ))}
@@ -88,10 +88,10 @@ function ServiceRow({ s }: { s: ReturnType<typeof useDB>["inquiry"]["services"][
         </span>
       </div>
       <div className="grid sm:grid-cols-[1fr_9rem_10rem_auto] gap-2 items-center">
-        <input aria-label={"نام " + s.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT + " h-10"} />
-        <input aria-label={"قیمت " + s.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " h-10 text-left tabular"} />
-        <input aria-label={"مسیر سرویس‌دهنده " + s.id} value={f.upstream} placeholder={s.id} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} dir="ltr" className={INPUT + " h-10 text-left font-mono text-xs"} />
-        <AsyncButton disabled={!dirty} className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { await api.inquiry.adminService(s.id, { name: f.name, price: num(f.price), upstream: f.upstream }); notify("ذخیره شد · " + toman(num(f.price)), "check"); }}>ذخیره</AsyncButton>
+        <input aria-label={"نام " + s.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
+        <input aria-label={"قیمت " + s.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
+        <input aria-label={"مسیر سرویس‌دهنده " + s.id} value={f.upstream} placeholder={s.id} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left font-mono text-xs"} />
+        <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.inquiry.adminService(s.id, { name: f.name, price: num(f.price), upstream: f.upstream }); notify("ذخیره شد · " + toman(num(f.price)), "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
   );
@@ -117,8 +117,8 @@ function Accounts() {
               <span className="min-w-0"><b className="text-sm"><UserLink id={a.userId} name={a.name} /></b><span dir="ltr" className="block text-[11px] text-white/50 text-right">{a.email} · #{a.accountNo}</span></span>
               <span className="text-xs text-white/60 tabular">{fa(a.calls30)} درخواست · {toman(a.spend30)} در ۳۰ روز</span>
               {a.status === "active"
-                ? <AsyncButton danger className={BTN_G + " h-8 px-3 text-xs"} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={13} />تعلیق</AsyncButton>
-                : <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} onClick={() => api.inquiry.adminAccount(a.userId, "active")}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>}
+                ? <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={13} />تعلیق</AsyncButton>
+                : <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.inquiry.adminAccount(a.userId, "active")}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>}
             </li>
           ))}
         </ul>
@@ -136,8 +136,8 @@ function Calls() {
         <ul className="divide-y divide-white/[0.06]">
           {db.inquiry.calls.map((c) => { const [l, t] = CALL_STATUS[c.status] ?? [c.status, "gray"]; return (
             <li key={c.id} className="py-2.5 px-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="min-w-0"><b><UserLink id={c.userId} name={user(c.userId)} /></b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/40 text-right">{c.id} · {c.input}</span></span>
-              <span className="flex items-center gap-2 text-xs"><Badge tone={t}>{l}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}<span className="tabular">{c.charged ? toman(c.charged) : "—"}</span><span className="text-white/45">{c.at}</span></span>
+              <span className="min-w-0"><b><UserLink id={c.userId} name={user(c.userId)} /></b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/50 text-right">{c.id} · {c.input}</span></span>
+              <span className="flex items-center gap-2 text-xs"><Badge tone={t}>{l}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}<span className="tabular">{c.charged ? toman(c.charged) : "—"}</span><span className="text-white/50">{c.at}</span></span>
             </li>
           ); })}
         </ul>
@@ -156,7 +156,7 @@ export function AdminGeo() {
   return (
     <div>
       <PageTitle title="Geo DNS" sub={"دامنه‌ها، همگام‌سازی مدیریت‌شده و پلن‌ها. درایور: " + (g.driver === "powerdns" ? "PowerDNS" : "شبیه‌ساز (GEO_PDNS تنظیم نشده)")}
-        action={<AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={15} />تست نام‌سرورها</AsyncButton>} />
+        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={15} />تست نام‌سرورها</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="globe" label="دامنه‌ها" value={g.zones.length} sub={fa(g.zones.filter((z) => z.status === "active").length) + " فعال"} />
@@ -177,10 +177,10 @@ export function AdminGeo() {
                   </div>
                   <div className="flex flex-wrap items-end gap-2">
                     {plan?.sync !== "none" && <div className="w-48"><Select label={"وضعیت همگام‌سازی " + z.domain} value={z.syncStatus} onChange={async (v) => { await api.geo.adminZone(z.id, { syncStatus: v as "ok" }); notify("ذخیره شد", "check"); }} options={Object.entries(SYNC_STATUS).map(([k, [l]]) => ({ value: k, label: l }))} /></div>}
-                    <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => { await api.geo.adminZone(z.id, { extendDays: 30 }); notify("۳۰ روز تمدید شد", "check"); }}>+۳۰ روز رایگان</AsyncButton>
+                    <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.geo.adminZone(z.id, { extendDays: 30 }); notify("۳۰ روز تمدید شد", "check"); }}>+۳۰ روز رایگان</AsyncButton>
                     {z.status === "suspended"
-                      ? <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={() => api.geo.adminZone(z.id, { status: "active" })}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
-                      : <AsyncButton danger className={BTN_G + " h-9 px-3 text-xs"} confirmText={"تفکیک جغرافیایی " + z.domain + " متوقف شود؟"} onClick={() => api.geo.adminZone(z.id, { status: "suspended" })}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
+                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.geo.adminZone(z.id, { status: "active" })}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
+                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"تفکیک جغرافیایی " + z.domain + " متوقف شود؟"} onClick={() => api.geo.adminZone(z.id, { status: "suspended" })}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
                   </div>
                   {plan?.sync !== "none" && <div className="text-[11px] text-white/55 leading-6">توکن عامل همگام‌سازی (<span dir="ltr">POST /api/geo/sync/{z.id}</span>): <CopyText text={z.syncToken} className="font-mono" />{z.lastSync && <> · آخرین گزارش {z.lastSync}</>}</div>}
                 </li>
@@ -208,10 +208,10 @@ function GeoPlanRow({ p }: { p: ReturnType<typeof useDB>["geo"]["plans"][number]
       <div className="flex items-center justify-between gap-2 mb-2"><span className="text-[11px] text-white/55">{p.id} · {p.healthChecks ? "با سوییچ خودکار" : "بدون سوییچ خودکار"} · {SYNC_LABEL[p.sync]}</span>
         <Switch on={p.active} onChange={async (v) => { await api.geo.adminPlan(p.id, { active: v }); notify("ذخیره شد", "check"); }} label={"فعال بودن " + p.name} /></div>
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_8rem_5rem_auto] gap-2 items-center">
-        <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT + " h-10"} />
-        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " h-10 text-left tabular"} />
-        <input aria-label={"سقف رکورد " + p.id} value={f.records} inputMode="numeric" onChange={(e) => setF({ ...f, records: e.target.value })} dir="ltr" className={INPUT + " h-10 text-left"} />
-        <AsyncButton disabled={!dirty} className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { await api.geo.adminPlan(p.id, { name: f.name, price: num(f.price), records: num(f.records) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+        <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
+        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
+        <input aria-label={"سقف رکورد " + p.id} value={f.records} inputMode="numeric" onChange={(e) => setF({ ...f, records: e.target.value })} dir="ltr" className={INPUT + " text-left"} />
+        <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.geo.adminPlan(p.id, { name: f.name, price: num(f.price), records: num(f.records) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
   );

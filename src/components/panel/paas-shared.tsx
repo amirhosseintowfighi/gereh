@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { APP_STATUS, DEPLOY_STATUS, ENV_KEY_RE, ENV_RESERVED, hourlyOf } from "@/lib/paas";
 import type { PaasPlanRow } from "@/lib/types";
@@ -92,14 +92,14 @@ export function EnvEditor({ rows, onChange, locked = [] }: { rows: EnvRow[]; onC
         </div>
       ))}
       <div className="flex flex-wrap gap-2 pt-1">
-        <button type="button" onClick={() => onChange([...rows, { key: "", value: "", secret: false }])} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />متغیر</button>
-        <button type="button" onClick={() => setPaste((p) => !p)} aria-expanded={paste} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="file-text" size={14} />چسباندن فایل ‎.env</button>
+        <button type="button" onClick={() => onChange([...rows, { key: "", value: "", secret: false }])} className={BTN_G + BTN_SM}><Icon name="plus" size={14} />متغیر</button>
+        <button type="button" onClick={() => setPaste((p) => !p)} aria-expanded={paste} className={BTN_G + BTN_SM}><Icon name="file-text" size={14} />چسباندن فایل ‎.env</button>
       </div>
       {paste && (
         <div className="space-y-2">
           <label className="sr-only" htmlFor="dotenv">محتوای ‎.env</label>
           <textarea id="dotenv" rows={5} value={text} onChange={(e) => setText(e.target.value)} dir="ltr" placeholder={"DATABASE_HOST=...\nAPI_SECRET=..."} className={INPUT + " h-auto py-2.5 font-mono text-left text-xs leading-6"} />
-          <button type="button" onClick={() => { const add = parseDotenv(text); const keep = rows.filter((r) => !add.some((a) => a.key === r.key)); onChange([...keep, ...add]); setText(""); setPaste(false); }} className={BTN_G + " h-9 px-3 text-xs"}>افزودن {fa(parseDotenv(text).length)} متغیر</button>
+          <button type="button" onClick={() => { const add = parseDotenv(text); const keep = rows.filter((r) => !add.some((a) => a.key === r.key)); onChange([...keep, ...add]); setText(""); setPaste(false); }} className={BTN_G + BTN_SM}>افزودن {fa(parseDotenv(text).length)} متغیر</button>
         </div>
       )}
     </div>

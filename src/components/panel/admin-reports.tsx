@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BTN_P } from "@/lib/cls";
+import { BTN_MD, BTN_P } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { Icon } from "../icon";
 import { Badge, Card, Empty } from "../ui";
@@ -33,7 +33,7 @@ export function AdminReports() {
       <PageTitle title="گزارش‌ها" sub="درآمد به تفکیک ماه شمسی (به وقت تهران) و عملکرد پشتیبانی."
         action={<div className="flex gap-2 items-center">
           <Select className="w-36" label="بازه گزارش" value={months} onChange={setMonths} options={[{ value: "3", label: "۳ ماه اخیر" }, { value: "6", label: "۶ ماه اخیر" }, { value: "12", label: "۱۲ ماه اخیر" }, { value: "24", label: "۲۴ ماه اخیر" }]} />
-          <a href={"/api/admin/reports/export?months=" + months} download className={BTN_P + " h-10 px-4 text-sm"}><Icon name="download" size={16} />خروجی اکسل</a>
+          <a href={"/api/admin/reports/export?months=" + months} download className={BTN_P + BTN_MD}><Icon name="download" size={16} />خروجی اکسل</a>
         </div>} />
       {error ? <Card><Empty icon="circle-alert" title="گزارش در دسترس نیست" text={error} /></Card> : !f || !s ? (
         <div aria-busy="true" className="grid place-items-center py-20"><Icon name="loader-circle" size={28} className="animate-spin text-white/50" /></div>
@@ -76,12 +76,12 @@ export function AdminReports() {
             </Card>
             <Card title="مشتریان برتر" icon="star" pad="p-3 sm:p-4">
               {f.topCustomers.length === 0 ? <Empty icon="users" title="—" /> : <ol className="space-y-1">{f.topCustomers.map((c, i) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-white/[0.03]"><span className="min-w-0 text-sm"><span className="text-white/45 ml-2 tabular">{fa(i + 1)}</span>{c.name}</span><span className="text-xs tabular text-white/70 shrink-0">{mil(c.amount)} م</span></li>
+                <li key={c.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-white/[0.03]"><span className="min-w-0 text-sm"><span className="text-white/50 ml-2 tabular">{fa(i + 1)}</span>{c.name}</span><span className="text-xs tabular text-white/70 shrink-0">{mil(c.amount)} م</span></li>
               ))}</ol>}
             </Card>
             <Card title="درگاه‌های پرداخت" icon="wallet" pad="p-3 sm:p-4">
               {f.gateways.length === 0 ? <Empty icon="wallet" title="پرداخت آنلاینی ثبت نشده" /> : <ul className="space-y-1">{f.gateways.map((g) => (
-                <li key={g.name} className="flex items-center justify-between p-2 text-sm"><span>{g.name} <span className="text-white/45 text-xs">({fa(g.count)})</span></span><span className="tabular">{toman(g.amount)}</span></li>
+                <li key={g.name} className="flex items-center justify-between p-2 text-sm"><span>{g.name} <span className="text-white/50 text-xs">({fa(g.count)})</span></span><span className="tabular">{toman(g.amount)}</span></li>
               ))}</ul>}
             </Card>
           </div>

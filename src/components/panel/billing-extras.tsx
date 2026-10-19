@@ -2,7 +2,7 @@
 /* Account billing tools (forecast, low-credit alert, budgets, project wallets, invoice profiles),
    notification matrix with Web Push, 2FA recovery codes, custom team roles and the staff settings. */
 import { Fragment, useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { useDB, useMyId } from "@/lib/store";
 import { PERM_LABEL, PERM_LEVELS, TEAM_SERVICES, type InvoiceProfile, type PermLevel } from "@/lib/vps-billing";
@@ -70,7 +70,7 @@ export function BillingExtras() {
         </div>
       </Card>
 
-      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + " px-3 h-9 text-xs"} onClick={async () => { const n = window.prompt("نام پروژه"); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={15} /> کیف پول جدید</AsyncButton>}>
+      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const n = window.prompt("نام پروژه"); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={15} /> کیف پول جدید</AsyncButton>}>
         <p className="text-xs text-white/55 leading-6 px-2 mb-3">پول را برای هر پروژه جدا کنید و سرورهای پروژه را در تنظیمات سرور به آن وصل کنید؛ هزینه ساعتی آن‌ها اول از کیف پول پروژه کسر می‌شود.</p>
         {v.wallets.length === 0 ? <Empty icon="wallet" title="کیف پول پروژه‌ای ندارید" /> : v.wallets.map((w) => (
           <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
@@ -88,7 +88,7 @@ export function BillingExtras() {
         {v.transfers.length > 0 && <div className="mt-3 px-2 space-y-1 text-xs text-white/60">{v.transfers.slice(0, 8).map((t) => <div key={t.id}>{t.at}: {t.from} ← {t.to}، {toman(t.amount)}{t.note && " — " + t.note}</div>)}</div>}
       </Card>
 
-      <Card title="پروفایل‌های صورتحساب رسمی" icon="file-text" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setProf({ label: "", name: "", nationalId: "", economicCode: "", address: "", postalCode: "", isDefault: v.profiles.length === 0 })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> پروفایل جدید</button>}>
+      <Card title="پروفایل‌های صورتحساب رسمی" icon="file-text" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setProf({ label: "", name: "", nationalId: "", economicCode: "", address: "", postalCode: "", isDefault: v.profiles.length === 0 })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> پروفایل جدید</button>}>
         {v.profiles.length === 0 ? <Empty icon="file-text" title="پروفایلی ندارید" text="مشخصات شخص حقیقی یا حقوقی را یک بار ذخیره کنید و برای هر صورتحساب انتخاب کنید." /> : v.profiles.map((p) => (
           <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
             <div><div className="text-sm font-bold">{p.label} {p.isDefault && <Badge tone="green">پیش‌فرض</Badge>}</div><div className="text-[11px] text-white/55">{p.name}، شناسه {p.nationalId}{p.economicCode && "، کد اقتصادی " + p.economicCode}</div></div>
@@ -101,7 +101,7 @@ export function BillingExtras() {
           <AsyncButton disabled={!apply.inv} onClick={async () => { await billingApi.useProfile(apply.inv, apply.profile || v.profiles.find((p) => p.isDefault)?.id || v.profiles[0].id); done("مشخصات خریدار روی صورتحساب ثبت شد"); }}>ثبت روی صورتحساب</AsyncButton>
         </div>}
       </Card>
-      <Modal open={!!prof} onClose={() => setProf(null)} title="پروفایل صورتحساب" icon="file-text" footer={<><button type="button" onClick={() => setProf(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+      <Modal open={!!prof} onClose={() => setProf(null)} title="پروفایل صورتحساب" icon="file-text" footer={<><button type="button" onClick={() => setProf(null)} className={BTN_G + BTN_MD}>انصراف</button>
         <AsyncButton onClick={async () => { if (!prof) return; await billingApi.saveProfile(prof); setProf(null); done("پروفایل ذخیره شد"); }}>ذخیره</AsyncButton></>}>
         {prof && <div className="grid sm:grid-cols-2 gap-4">
           <Field label="عنوان"><input value={prof.label} onChange={(e) => setProf({ ...prof, label: e.target.value })} className={INPUT} placeholder="مثلا شرکت" /></Field>
@@ -155,7 +155,7 @@ export function NotifMatrix() {
         <div className="text-xs text-white/60 leading-6">مرورگرهای ثبت‌شده: {x.data?.pushDevices.length ? x.data.pushDevices.map((d) => d.device + " (" + d.at + ")").join("، ") : "هیچ"}</div>
         <div className="flex gap-2">
           {x.data?.pushDevices.map((d) => <IconBtn key={d.id} icon="x" label={"حذف " + d.device} onClick={async () => { await accountApi.pushRemove(d.id); x.reload(); }} />)}
-          <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={subscribe}><Icon name="bell-ring" size={14} /> فعال‌سازی در این مرورگر</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_SM} onClick={subscribe}><Icon name="bell-ring" size={14} /> فعال‌سازی در این مرورگر</AsyncButton>
         </div>
       </div>
     </Card>
@@ -195,7 +195,7 @@ export function TeamExtras() {
   const roles = x.data;
   return (
     <div className="mt-4 space-y-4">
-      <Card title="نقش‌های سفارشی" icon="users-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setEdit({ name: "", perms: {} })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> نقش جدید</button>}>
+      <Card title="نقش‌های سفارشی" icon="users-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setEdit({ name: "", perms: {} })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> نقش جدید</button>}>
         <p className="text-xs text-white/55 leading-6 px-2 mb-3">برای هر سرویس سطح دسترسی تعیین کنید: مشاهده، استقرار، بهره‌برداری (روشن/خاموش، کنسول، بکاپ) یا مدیریت کامل. نقش سفارشی روی نقش پایه عضو اعمال و آن را محدودتر می‌کند.</p>
         {roles.length === 0 ? <Empty icon="users-round" title="نقش سفارشی ندارید" /> : roles.map((r) => (
           <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
@@ -211,9 +211,9 @@ export function TeamExtras() {
       </Card>
       {members.length > 0 && <Card title="انتقال مالکیت سرور" icon="arrow-up-down">
         <p className="text-sm text-white/55 leading-7">سرورها همراه IPv4 و دیسک‌های اضافه‌شان به حساب یکی از اعضای تیم منتقل می‌شوند و هزینه از آن پس با او است.</p>
-        <div className="mt-4 flex justify-end"><button type="button" onClick={() => setMove({ member: members[0].id, servers: [], confirm: "" })} className={BTN_G + " px-4 h-10 text-sm"}>انتقال سرور</button></div>
+        <div className="mt-4 flex justify-end"><button type="button" onClick={() => setMove({ member: members[0].id, servers: [], confirm: "" })} className={BTN_G + BTN_MD}>انتقال سرور</button></div>
       </Card>}
-      <Modal open={!!edit} onClose={() => setEdit(null)} title="نقش سفارشی" icon="users-round" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="نقش سفارشی" icon="users-round" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button>
         <AsyncButton onClick={async () => { if (!edit) return; await teamApi.saveRole(edit); setEdit(null); notify("نقش ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></>}>
         {edit && <div className="space-y-3">
           <Field label="نام نقش"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className={INPUT} /></Field>
@@ -223,7 +223,7 @@ export function TeamExtras() {
           ))}
         </div>}
       </Modal>
-      <Modal open={!!move} onClose={() => setMove(null)} title="انتقال مالکیت سرور" icon="arrow-up-down" footer={<><button type="button" onClick={() => setMove(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+      <Modal open={!!move} onClose={() => setMove(null)} title="انتقال مالکیت سرور" icon="arrow-up-down" footer={<><button type="button" onClick={() => setMove(null)} className={BTN_G + BTN_MD}>انصراف</button>
         <AsyncButton danger disabled={!move?.servers.length} onClick={async () => { if (!move) return; await teamApi.transferServers(move.servers, move.member, move.confirm); setMove(null); notify("مالکیت منتقل شد"); }}>انتقال</AsyncButton></>}>
         {move && <div className="space-y-3">
           <Field label="عضو مقصد"><Select label="عضو" value={move.member} onChange={(m) => setMove({ ...move, member: m })} options={members.map((m) => ({ value: m.id, label: m.name }))} /></Field>

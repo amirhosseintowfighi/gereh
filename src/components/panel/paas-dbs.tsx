@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { DB_ENGINES, engineOf, PAAS_NAME_RE, PAAS_RESERVED } from "@/lib/paas";
 import { api, useDB, useMyId } from "@/lib/store";
@@ -23,10 +23,10 @@ export function UserDatabases({ create = false }: { create?: boolean }) {
   return (
     <div>
       <PageTitle title="پایگاه داده" sub={dbs.length ? fa(dbs.length) + " پایگاه داده · حدود " + toman(monthly) + " در ماه" : fa(DB_ENGINES.length) + " موتور مدیریت‌شده: PostgreSQL، MySQL، MongoDB، Redis، SQL Server، Elasticsearch، RabbitMQ، ClickHouse و…"}
-        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />پایگاه داده جدید</button>} />
+        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />پایگاه داده جدید</button>} />
       {dbs.length === 0 ? (
         <Card><Empty icon="database" title="هنوز پایگاه داده‌ای ندارید" text="در کمتر از یک دقیقه بسازید و با یک کلیک به اپ‌هایتان متصل کنید."
-          action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-5 text-sm"}>ساخت پایگاه داده</button>} /></Card>
+          action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}>ساخت پایگاه داده</button>} /></Card>
       ) : (
         <ul className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {dbs.map((d) => (
@@ -113,7 +113,7 @@ export function DbDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const d = db.paasDbs.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
-  if (!d) return <Card><Empty icon="database" title="پایگاه داده پیدا نشد" action={<Link href="/panel/databases" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت</Link>} /></Card>;
+  if (!d) return <Card><Empty icon="database" title="پایگاه داده پیدا نشد" action={<Link href="/panel/databases" className={BTN_G + BTN_MD}>بازگشت</Link>} /></Card>;
   const pending = d.status === "creating" || d.backupList.some((b) => b.status === "running" || b.status === "restoring") || d.imports.some((x) => x.status === "queued" || x.status === "running") || d.config.seed?.status === "pending";
   return (
     <div>
@@ -121,8 +121,8 @@ export function DbDetail({ id }: { id: string }) {
       <PageTitle back={["/panel/databases", "پایگاه داده"]} title={<span dir="ltr" className="inline-block">{d.name}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusPill s={d.status} /><span className="text-xs">{engineOf(d.engine)?.label} {d.version}</span><span className="text-xs tabular">{fa(d.hourly)} تومان / ساعت</span></span>}
         action={d.status === "suspended" ? <Badge tone="amber">معلق؛ کیف پول را شارژ کنید</Badge> : d.status === "stopped"
-          ? <AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={() => api.paas.dbPower(d.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
-          : d.status === "running" ? <AsyncButton danger className={BTN_G + " h-10 px-4 text-sm"} confirmText="پایگاه داده خاموش شود؟ اپ‌های متصل به آن خطا خواهند داد." onClick={() => api.paas.dbPower(d.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton> : null} />
+          ? <AsyncButton className={BTN_G + BTN_MD} onClick={() => api.paas.dbPower(d.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
+          : d.status === "running" ? <AsyncButton danger className={BTN_G + BTN_MD} confirmText="پایگاه داده خاموش شود؟ اپ‌های متصل به آن خطا خواهند داد." onClick={() => api.paas.dbPower(d.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton> : null} />
       <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایگاه داده" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <DbConnect d={d} />}
@@ -166,7 +166,7 @@ function DbConnect({ d }: { d: PaasDb }) {
             {creds.publicUrl && <Field label="آدرس اتصال عمومی"><CopyText text={creds.publicUrl} className="font-mono text-[11px] break-all" /></Field>}
           </div>}
           <p className="text-[11px] text-white/50 leading-6 mt-4">نمایش رمز در گزارش فعالیت حساب ثبت می‌شود. میزبان داخلی فقط از اپ‌های خود شما در گره در دسترس است.</p>
-          <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="رمز جدید ساخته و اپ‌های متصل با رمز جدید دوباره اجرا می‌شوند. ادامه؟" onClick={async () => { await api.paas.resetDbPassword(d.id); setCreds(null); notify("رمز عبور عوض شد", "key-round"); }}><Icon name="key-round" size={13} />ساخت رمز جدید</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="رمز جدید ساخته و اپ‌های متصل با رمز جدید دوباره اجرا می‌شوند. ادامه؟" onClick={async () => { await api.paas.resetDbPassword(d.id); setCreds(null); notify("رمز عبور عوض شد", "key-round"); }}><Icon name="key-round" size={13} />ساخت رمز جدید</AsyncButton>
         </Card>
         <Card title="اپ‌های متصل" icon="rocket">
           {d.links.length === 0 ? <p className="text-sm text-white/60 leading-7">به اپی متصل نیست. از تب «پایگاه داده» در صفحه اپ متصلش کنید تا آدرس اتصال خودکار به‌صورت متغیر محیطی به اپ برسد.</p> : (
@@ -194,7 +194,7 @@ function MetricCard({ label, icon, values, unit }: { label: string; icon: string
   return (
     <Card pad="p-5">
       <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/55 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{cur === undefined ? "—" : fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
-      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/45">نمونه‌برداری هر ۵ دقیقه؛ نمودار به‌زودی پر می‌شود.</div>}
+      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/50">نمونه‌برداری هر ۵ دقیقه؛ نمودار به‌زودی پر می‌شود.</div>}
     </Card>
   );
 }
@@ -208,7 +208,7 @@ function DbBackups({ d }: { d: PaasDb }) {
   return (
     <>
     <Card title="پشتیبان‌ها" icon="archive" pad="p-3 sm:p-4"
-      action={<AsyncButton className={BTN_P + " h-9 px-3 text-xs"} disabled={d.status !== "running" || manual >= 10} onClick={async () => { await api.paas.backupDb(d.id); notify("پشتیبان‌گیری شروع شد", "archive"); }}><Icon name="plus" size={14} />پشتیبان الان</AsyncButton>}>
+      action={<AsyncButton className={BTN_P + BTN_SM} disabled={d.status !== "running" || manual >= 10} onClick={async () => { await api.paas.backupDb(d.id); notify("پشتیبان‌گیری شروع شد", "archive"); }}><Icon name="plus" size={14} />پشتیبان الان</AsyncButton>}>
       <p className="text-[11px] text-white/50 px-2 mb-3">{d.backups ? "پشتیبان خودکار روزانه روشن است؛ ۷ نسخه آخر نگه داشته می‌شود." : "پشتیبان خودکار خاموش است (از تب تنظیمات روشن کنید)."} تا ۱۰ پشتیبان دستی.</p>
       {d.backupList.length === 0 ? <Empty icon="archive" title="هنوز پشتیبانی نیست" /> : (
         <ul className="divide-y divide-white/[0.06]">
@@ -222,15 +222,15 @@ function DbBackups({ d }: { d: PaasDb }) {
                     {b.verified === false && <span className="text-rose-300" title={b.verifyDetail}> · آزمون بازگردانی ناموفق</span>}</span></span>
                 <span className="flex gap-2">
                   {b.status === "done" && <BackupActions d={d} backupId={b.id} />}
-                  {b.status === "done" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />بازگردانی</AsyncButton>}
-                  {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={13} /></AsyncButton>}
+                  {b.status === "done" && <AsyncButton className={BTN_G + BTN_SM} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />بازگردانی</AsyncButton>}
+                  {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + BTN_SM} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={13} /></AsyncButton>}
                 </span>
               </li>
             );
           })}
         </ul>
       )}
-      <p className="text-[11px] text-white/45 px-2 mt-3 leading-6">هر هفته آخرین پشتیبان در یک سرور جداگانه بازگردانی و بررسی می‌شود تا مطمئن شوید پشتیبان‌ها واقعاً قابل استفاده‌اند.</p>
+      <p className="text-[11px] text-white/50 px-2 mt-3 leading-6">هر هفته آخرین پشتیبان در یک سرور جداگانه بازگردانی و بررسی می‌شود تا مطمئن شوید پشتیبان‌ها واقعاً قابل استفاده‌اند.</p>
     </Card>
     {d.config.seed && <p className={"text-xs mt-3 " + (d.config.seed.status === "failed" ? "text-rose-300" : "text-sky-200")}>این پایگاه داده از پشتیبان «{d.config.seed.from}» ساخته شده است{d.config.seed.status === "pending" ? "؛ بازگردانی در جریان است…" : d.config.seed.status === "failed" ? "؛ بازگردانی ناموفق بود: " + d.config.seed.detail : "."}</p>}
     <DbImport d={d} />
@@ -251,7 +251,7 @@ function Pitr({ d }: { d: PaasDb }) {
       {d.pitr && <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end mt-4">
         <Field label="زمان (به وقت دستگاه شما)"><input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} dir="ltr" className={INPUT + " text-left"} /></Field>
         <Field label="نام پایگاه داده جدید"><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
-        <AsyncButton disabled={!at || !PAAS_NAME_RE.test(name)} className={BTN_P + " h-11 px-4 text-sm"} onClick={async () => { const id = await api.paas.pitrRestore(d.id, new Date(at).toISOString(), name); notify("بازیابی شروع شد", "clock"); router.push(("/panel/databases/" + id) as never); }}>بازیابی</AsyncButton>
+        <AsyncButton disabled={!at || !PAAS_NAME_RE.test(name)} className={BTN_P + BTN_MD} onClick={async () => { const id = await api.paas.pitrRestore(d.id, new Date(at).toISOString(), name); notify("بازیابی شروع شد", "clock"); router.push(("/panel/databases/" + id) as never); }}>بازیابی</AsyncButton>
       </div>}
     </Card>
   );

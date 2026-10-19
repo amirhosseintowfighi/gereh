@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { Check, LineState, OrderDetail } from "@/lib/admin-detail";
 import { adminDetailApi } from "@/lib/admin-detail-api";
-import { BTN_G, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { api, type UndeliveredOrder } from "@/lib/store";
 import { useApp } from "../app-context";
@@ -50,7 +50,7 @@ export function DeliverModal({ r, onClose, onDone }: { r: FixTarget; onClose: ()
   };
   return (
     <Modal open onClose={onClose} title={"تحویل دستی " + KIND_LABEL[r.kind]} icon="circle-check" size="max-w-xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={submit}>تحویل و اطلاع به مشتری</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={submit}>تحویل و اطلاع به مشتری</AsyncButton></>}>
       <p className="text-xs text-white/60 leading-6 mb-4">{r.item} — {r.userName}</p>
       {r.kind === "server" ? <ManualFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} /> : (
         <div className="grid sm:grid-cols-2 gap-3">
@@ -72,7 +72,7 @@ export function RefundModal({ r, onClose, onDone }: { r: FixTarget; onClose: () 
   const [note, setNote] = useState("");
   return (
     <Modal open onClose={onClose} title="بازگشت وجه به کیف پول" icon="wallet"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton danger onClick={async () => { const a = await api.provisioning.refund(r.key, note.trim()); notify(toman(a) + " به کیف پول مشتری بازگشت", "wallet"); await onDone(); onClose(); }}>بازگشت {toman(r.amount)}</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { const a = await api.provisioning.refund(r.key, note.trim()); notify(toman(a) + " به کیف پول مشتری بازگشت", "wallet"); await onDone(); onClose(); }}>بازگشت {toman(r.amount)}</AsyncButton></>}>
       <p className="text-sm text-white/70 leading-7">مبلغ ردیف «{r.item}» (با مالیات و پس از سهم تخفیف) به کیف پول {r.userName} برمی‌گردد، سفارش بسته می‌شود و سرور در حال آماده‌سازی حذف می‌شود.</p>
       <Field label="پیام برای مشتری (اختیاری)" className="mt-4"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={TEXTAREA} /></Field>
     </Modal>
@@ -137,7 +137,7 @@ function EditSpec({ d, onSaved }: { d: OrderDetail; onSaved: (retry: boolean) =>
         <Field label="Plan ID در Virtualizor" hint="خالی یا ۰ = نگاشت پلن"><input value={f.plid} onChange={(e) => setF((c) => ({ ...c, plid: e.target.value }))} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
       </div>
       <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={() => save(false)}><Icon name="check" size={15} /> ذخیره</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_MD} onClick={() => save(false)}><Icon name="check" size={15} /> ذخیره</AsyncButton>
         <AsyncButton onClick={() => save(true)}><Icon name="refresh-cw" size={15} /> ذخیره و تلاش دوباره</AsyncButton>
       </div>
     </Section>
@@ -165,9 +165,9 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
   return (
     <Modal open onClose={onClose} title={"جزئیات سفارش " + invoiceId + " · ردیف " + fa(index + 1)} icon="file-search" size="max-w-4xl"
       footer={open && target ? <>
-        <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await api.provisioning.retry(d!.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await changed(); }}><Icon name="refresh-cw" size={15} /> تلاش دوباره</AsyncButton>
-        {kind !== "ip" && <button type="button" onClick={() => setFix("deliver")} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="circle-check" size={15} /> تحویل دستی</button>}
-        {!d!.server?.vpsid && <button type="button" onClick={() => setFix("refund")} className={BTN_G + " px-4 h-10 text-sm text-rose-200"}><Icon name="wallet" size={15} /> بازگشت وجه</button>}
+        <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.provisioning.retry(d!.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await changed(); }}><Icon name="refresh-cw" size={15} /> تلاش دوباره</AsyncButton>
+        {kind !== "ip" && <button type="button" onClick={() => setFix("deliver")} className={BTN_G + BTN_MD}><Icon name="circle-check" size={15} /> تحویل دستی</button>}
+        {!d!.server?.vpsid && <button type="button" onClick={() => setFix("refund")} className={BTN_G + BTN_MD + " text-rose-200"}><Icon name="wallet" size={15} /> بازگشت وجه</button>}
       </> : undefined}>
       {err && <p role="alert" className="p-3 rounded-[12px] bg-rose-400/10 text-rose-200 text-sm">{err}</p>}
       {!d && !err && <div className="py-10 grid place-items-center"><Icon name="loader-circle" size={22} className="animate-spin text-white/50" /></div>}
@@ -197,7 +197,7 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
           <Pairs rows={d.item.spec} />
           <details className="mt-3"><summary className="cursor-pointer text-xs text-white/55 hover:text-white">JSON خام سفارش</summary><CodeBlock className="mt-2" code={JSON.stringify(d.item.raw, null, 2)} label="JSON سفارش" title="sku.json" wrap /></details>
         </Section>
-        <Section title="بررسی پیش از تحویل" icon="list-checks" action={<AsyncButton className={BTN_G + " px-3 h-8 text-xs"} onClick={pre}><Icon name="activity" size={13} /> اجرای دوباره</AsyncButton>}>
+        <Section title="بررسی پیش از تحویل" icon="list-checks" action={<AsyncButton className={BTN_G + BTN_SM} onClick={pre}><Icon name="activity" size={13} /> اجرای دوباره</AsyncButton>}>
           {checks === null ? <Icon name="loader-circle" size={18} className="animate-spin text-white/50" /> : checks.length ? <PreflightList checks={checks} /> : <p className="text-sm text-white/55">برای این ردیف بررسی‌ای نیست.</p>}
         </Section>
         {d.item.editable && <EditSpec d={d} onSaved={changed} />}
@@ -211,7 +211,7 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
             {d.server.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-60 overflow-auto ltr text-left" dir="auto">{d.server.error}</pre>}
           </div>}
           {d.tasks.length > 0 && <ol className="mt-4 border-r border-white/10 pr-4 space-y-2">
-            {d.tasks.map((x, i) => <li key={i} className="relative text-sm"><span className={"absolute -right-[21px] top-2 w-2 h-2 rounded-full " + (x.status === "failed" ? "bg-rose-300" : x.status === "running" ? "bg-sky-300" : "bg-emerald-300")} /><span>{x.action}</span> <span className="text-[11px] text-white/45">{x.at}{x.status === "running" ? " · " + fa(x.progress) + "٪" : ""}</span></li>)}
+            {d.tasks.map((x, i) => <li key={i} className="relative text-sm"><span className={"absolute -right-[21px] top-2 w-2 h-2 rounded-full " + (x.status === "failed" ? "bg-rose-300" : x.status === "running" ? "bg-sky-300" : "bg-emerald-300")} /><span>{x.action}</span> <span className="text-[11px] text-white/50">{x.at}{x.status === "running" ? " · " + fa(x.progress) + "٪" : ""}</span></li>)}
           </ol>}
           {d.ticket && <p className="mt-4 text-sm">تیکت پشتیبانی: <Link className="acc hover:underline" href={("/admin/tickets/" + d.ticket.id) as never}>{d.ticket.id}</Link> — {d.ticket.subject} <StatusBadge s={d.ticket.status} /></p>}
         </Section>

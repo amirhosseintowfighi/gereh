@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { TLDS } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import {
   ALERT_METRICS, CDN_RULE_LABEL, DNS_RECORD_TYPES, HOST_RE, IRNIC_RE, PROXIABLE, RECORD_HINT, TRANSFER_STATUS, validateRecord, WITH_PRIORITY,
   type AlertMetric, type CdnConfig, type CdnPoint, type CdnRule, type DnsSuggestion, type DomainAlertView, type TransferView, type WhoisView,
@@ -49,9 +49,9 @@ export function TransferInButton({ onDone }: { onDone: () => void }) {
   const tld = TLDS.slice().sort((a, b) => b.tld.length - a.tld.length).find((x) => f.domain.trim().toLowerCase().endsWith(x.tld));
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="arrow-left-right" size={16} /> انتقال دامنه</button>
+      <button type="button" onClick={() => setOpen(true)} className={BTN_G + BTN_MD}><Icon name="arrow-left-right" size={16} /> انتقال دامنه</button>
       <Modal open={open} onClose={() => setOpen(false)} title="انتقال دامنه به گره" icon="arrow-left-right"
-        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
           const domain = f.domain.trim().toLowerCase();
           if (!domain) throw new Error("نام دامنه را وارد کنید.");
           if (ir && !IRNIC_RE.test(f.irnicHandle.trim())) throw new Error("شناسه ایرنیک مالک را وارد کنید؛ مثل ab1234-irnic");
@@ -86,7 +86,7 @@ export function TransferList({ version }: { version: number }) {
             <span className="flex items-center gap-3"><b dir="ltr">{t.domain}</b><Pill s={t.status} /></span>
             <span className="flex items-center gap-3 text-xs text-white/55">
               {t.note && <span>{t.note}</span>}<span>{t.at}</span>{t.price > 0 && <span className="tabular">{toman(t.price)}</span>}
-              {t.status === "pending" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} onClick={async () => { if (await confirm("درخواست انتقال " + t.domain + " لغو و مبلغ به کیف پول برگردانده شود؟")) { await api.domains.cancelTransfer(t.id); list.reload(); notify("درخواست لغو شد"); } }}>لغو</AsyncButton>}
+              {t.status === "pending" && <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { if (await confirm("درخواست انتقال " + t.domain + " لغو و مبلغ به کیف پول برگردانده شود؟")) { await api.domains.cancelTransfer(t.id); list.reload(); notify("درخواست لغو شد"); } }}>لغو</AsyncButton>}
               {t.status === "completed" && t.domainId && <Link href={("/panel/domains/" + t.domainId) as never} className="acc">مدیریت</Link>}
             </span>
           </li>
@@ -122,7 +122,7 @@ export function DomainManage({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const d = db.domains.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("dns");
-  if (!d) return <Card><Empty icon="globe" title="دامنه پیدا نشد" action={<Link href="/panel/domains" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
+  if (!d) return <Card><Empty icon="globe" title="دامنه پیدا نشد" action={<Link href="/panel/domains" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   return (
     <div>
       <PageTitle back={["/panel/domains", "دامنه‌ها"]} title={<span className="ltr inline-block">{d.name}</span>} sub={<span className="flex gap-3 items-center"><StatusBadge s={d.status} />سررسید {d.expires}</span>} />
@@ -168,13 +168,13 @@ function DnsTab({ d }: { d: Domain }) {
   return (
     <div className="space-y-5">
       <Card title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action={<div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setQuick(true)} className={BTN_G + " px-3 h-9 text-xs"}><Icon name="zap" size={15} /> اتصال سریع</button>
-        <button type="button" onClick={() => setZone("import")} className={BTN_G + " px-3 h-9 text-xs"}><Icon name="upload" size={15} /> ورود فایل زون</button>
-        <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={async () => download(d.name + ".zone", await api.domains.exportZone(d.id))}><Icon name="download" size={15} /> خروجی BIND</AsyncButton>
-        <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> رکورد جدید</button>
+        <button type="button" onClick={() => setQuick(true)} className={BTN_G + BTN_SM}><Icon name="zap" size={15} /> اتصال سریع</button>
+        <button type="button" onClick={() => setZone("import")} className={BTN_G + BTN_SM}><Icon name="upload" size={15} /> ورود فایل زون</button>
+        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => download(d.name + ".zone", await api.domains.exportZone(d.id))}><Icon name="download" size={15} /> خروجی BIND</AsyncButton>
+        <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> رکورد جدید</button>
       </div>}>
         <div className="flex flex-wrap gap-2 mb-3">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام و مقدار" aria-label="جستجوی رکورد" className={INPUT + " h-10 max-w-xs"} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام و مقدار" aria-label="جستجوی رکورد" className={INPUT + " max-w-xs"} />
           <Select value={type} onChange={setType} label="فیلتر نوع" options={[{ value: "", label: "همه انواع" }, ...types.map((t) => ({ value: t, label: t }))]} className="w-40" ltr />
           <span className="text-xs text-white/50 self-center">{fa(rows.length)} از {fa(d.dns.length)} رکورد</span>
         </div>
@@ -217,7 +217,7 @@ function RecordModal({ d, rec, setRec }: { d: Domain; rec: Rec | null; setRec: (
   const up = (p: Partial<Rec>) => rec && setRec({ ...rec, ...p });
   return (
     <Modal open={!!rec} onClose={() => setRec(null)} title={rec?.id ? "ویرایش رکورد" : "رکورد جدید"} icon="settings-2"
-      footer={<><button type="button" onClick={() => setRec(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><button type="button" onClick={() => setRec(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
         if (!rec) return;
         const withP = WITH_PRIORITY.includes(rec.type);
         const r = { ...rec, name: rec.name.trim(), value: rec.value.trim(), priority: withP ? Number(rec.priority ?? 10) : undefined, proxied: PROXIABLE.includes(rec.type) && !!rec.proxied };
@@ -247,7 +247,7 @@ function ZoneImport({ d, open, onClose }: { d: Domain; open: boolean; onClose: (
   const [errors, setErrors] = useState<string[]>([]);
   return (
     <Modal open={open} onClose={onClose} title="ورود فایل زون (BIND)" icon="upload" size="max-w-2xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>بستن</button><AsyncButton confirmText={mode === "replace" ? "همه رکوردهای فعلی حذف و با فایل جایگزین شوند؟" : undefined} danger={mode === "replace"} onClick={async () => {
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>بستن</button><AsyncButton confirmText={mode === "replace" ? "همه رکوردهای فعلی حذف و با فایل جایگزین شوند؟" : undefined} danger={mode === "replace"} onClick={async () => {
         const r = await api.domains.importZone(d.id, text, mode);
         setErrors(r.errors);
         notify(fa(r.added) + " رکورد وارد شد" + (r.errors.length ? "؛ " + fa(r.errors.length) + " خط نادیده ماند" : ""));
@@ -258,7 +258,7 @@ function ZoneImport({ d, open, onClose }: { d: Domain; open: boolean; onClose: (
         <input type="file" accept=".zone,.txt,.db,text/plain" aria-label="انتخاب فایل زون" className="text-xs" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); }} />
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} dir="ltr" className={TEXTAREA + " text-left mono text-xs"} placeholder={"$ORIGIN " + d.name + ".\n@ 3600 IN A 185.143.232.17\nwww 3600 IN CNAME " + d.name + "."} />
         <div role="radiogroup" aria-label="شیوه ورود" className="flex gap-2">
-          {([["merge", "افزودن به رکوردهای فعلی"], ["replace", "جایگزینی کامل"]] as const).map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={(mode === k ? BTN_P : BTN_G) + " h-9 px-3 text-xs"}>{l}</button>)}
+          {([["merge", "افزودن به رکوردهای فعلی"], ["replace", "جایگزینی کامل"]] as const).map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={(mode === k ? BTN_P : BTN_G) + BTN_SM}>{l}</button>)}
         </div>
         {errors.length > 0 && <ul className="text-xs text-amber-200 space-y-1 max-h-40 overflow-auto">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
       </div>
@@ -277,7 +277,7 @@ function QuickConnect({ d, open, onClose }: { d: Domain; open: boolean; onClose:
           <li key={x.key} className="rounded-2xl border border-white/[0.1] bg-white/[0.03] p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 font-bold text-sm"><Icon name={x.icon} size={16} />{x.label}</span>
-              <AsyncButton className={BTN_P + " h-9 px-3 text-xs"} onClick={async () => { const r = await api.domains.applySuggestion(d.id, x.key); notify(fa(r.added) + " رکورد ساخته شد" + (r.replaced ? "، " + fa(r.replaced) + " رکورد جایگزین شد" : "")); onClose(); }}>اعمال</AsyncButton>
+              <AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const r = await api.domains.applySuggestion(d.id, x.key); notify(fa(r.added) + " رکورد ساخته شد" + (r.replaced ? "، " + fa(r.replaced) + " رکورد جایگزین شد" : "")); onClose(); }}>اعمال</AsyncButton>
             </div>
             <ul className="mt-3 text-[11px] mono ltr text-left text-white/60 space-y-0.5">{x.records.map((r, i) => <li key={i} className="truncate">{r.type} {r.name} {r.priority !== null ? r.priority + " " : ""}{r.value}</li>)}</ul>
           </li>
@@ -311,7 +311,7 @@ function NsCheck({ d }: { d: Domain }) {
     <Card title="بررسی واگذاری NS" icon="radar" pad="p-3 sm:p-4" className="mt-0">
       <p className="text-xs text-white/55 leading-6 px-3 pt-1">نام‌سرورهایی که رجیستری برای این دامنه اعلام می‌کند با تنظیمات اینجا مقایسه می‌شود.</p>
       <div className="p-3 flex items-center gap-3 flex-wrap">
-        <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => setR(await api.domains.nsCheck(d.id))}><Icon name="search" size={14} /> بررسی</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setR(await api.domains.nsCheck(d.id))}><Icon name="search" size={14} /> بررسی</AsyncButton>
         {r && (r.ok ? <Badge tone="green" dot>درست واگذار شده است</Badge> : <Badge tone="amber" dot>هنوز به این نام‌سرورها اشاره نمی‌کند</Badge>)}
       </div>
       {r && <div className="px-3 pb-2 text-[11px] text-white/55 space-y-1"><div>دیده‌شده: <span className="mono ltr inline-block">{r.seen.join("، ") || "—"}</span></div><div>مورد انتظار: <span className="mono ltr inline-block">{r.expected.join("، ")}</span></div></div>}
@@ -339,7 +339,7 @@ function NsTab({ d }: { d: Domain }) {
           {curNs.length < 4 && <button type="button" onClick={() => setNs([...curNs, ""])} className="text-xs text-white/55 hover:text-white flex items-center gap-1"><Icon name="plus" size={14} /> افزودن نام‌سرور</button>}
         </div>
         <div className="mt-6 flex flex-wrap gap-2 justify-end">
-          <button type="button" onClick={() => setNs(["ns1.gereh.net", "ns2.gereh.net"])} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به پیش‌فرض گره</button>
+          <button type="button" onClick={() => setNs(["ns1.gereh.net", "ns2.gereh.net"])} className={BTN_G + BTN_MD}>بازگشت به پیش‌فرض گره</button>
           <AsyncButton onClick={async () => {
             const list = curNs.map((x) => x.trim().toLowerCase()).filter(Boolean);
             if (list.length < 2) throw new Error("حداقل دو نام‌سرور لازم است.");
@@ -366,13 +366,13 @@ function SettingsTab({ d }: { d: Domain }) {
           <Row key={k} title={l} hint={hint}><Switch on={d[k]} label={l} onChange={async () => { await api.domains.toggle(d.id, k); notify(l + (d[k] ? " خاموش شد" : " فعال شد")); }} /></Row>
         ))}
       </Card>
-      <Card title="WHOIS" icon="search" action={<AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => setW(await api.domains.whois(d.name, !!w))}>{w ? "به‌روزرسانی" : "استعلام"}</AsyncButton>}>
+      <Card title="WHOIS" icon="search" action={<AsyncButton className={BTN_G + BTN_SM} onClick={async () => setW(await api.domains.whois(d.name, !!w))}>{w ? "به‌روزرسانی" : "استعلام"}</AsyncButton>}>
         {!w ? <p className="text-sm text-white/55 leading-7">اطلاعات ثبت این دامنه از سرور WHOIS رجیستری (برای ‎.ir از ایرنیک) خوانده می‌شود.</p> : (
           <dl className="text-sm space-y-2">
             {([["ثبت‌کننده", w.registrar], ["ثبت", w.created], ["انقضا", w.expires], ["وضعیت", w.status.join("، ")], ["نام‌سرورها", w.nameservers.join("، ")]] as const).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd className="mono ltr text-left text-xs break-all">{v || "—"}</dd></div>
             ))}
-            <div className="text-[11px] text-white/45 pt-2">سرور <span className="mono">{w.server}</span> · {w.cached ? "از حافظه (" + w.at + ")" : w.at}</div>
+            <div className="text-[11px] text-white/50 pt-2">سرور <span className="mono">{w.server}</span> · {w.cached ? "از حافظه (" + w.at + ")" : w.at}</div>
             <button type="button" className="text-xs acc" onClick={() => setRaw((x) => !x)}>{raw ? "پنهان کردن پاسخ خام" : "پاسخ خام"}</button>
             {raw && <pre className="text-[10px] mono ltr text-left whitespace-pre-wrap max-h-72 overflow-auto bg-black/30 rounded-xl p-3">{w.raw}</pre>}
           </dl>
@@ -503,11 +503,11 @@ function Purge({ d, enabled }: { d: Domain; enabled: boolean }) {
   const done = (r: { all: boolean }) => notify(r.all ? "کل کش پاک شد" : "کش آدرس‌ها پاک شد");
   return (
     <div className="p-3 space-y-3">
-      <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">پاک کردن کش</span><AsyncButton disabled={!enabled} danger className={BTN_G + " h-9 px-3 text-xs"} confirmText="کل کش این دامنه پاک شود؟" onClick={async () => done(await api.domains.cdnPurge(d.id, { all: true }))}>پاک کردن همه</AsyncButton></div>
+      <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">پاک کردن کش</span><AsyncButton disabled={!enabled} danger className={BTN_G + BTN_SM} confirmText="کل کش این دامنه پاک شود؟" onClick={async () => done(await api.domains.cdnPurge(d.id, { all: true }))}>پاک کردن همه</AsyncButton></div>
       <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={3} dir="ltr" aria-label="آدرس‌ها برای پاک کردن" className={TEXTAREA + " text-left mono text-xs"} placeholder={"https://" + d.name + "/style.css\nhttps://" + d.name + "/app.js"} />
-      <div className="flex justify-end"><AsyncButton disabled={!enabled} className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => { const list = urls.split(/\s+/).filter(Boolean); if (!list.length) throw new Error("آدرسی وارد نشده است."); done(await api.domains.cdnPurge(d.id, { urls: list })); setUrls(""); }}>پاک کردن آدرس‌ها</AsyncButton></div>
-      <div className="flex gap-2"><input value={prefix} onChange={(e) => setPrefix(e.target.value)} dir="ltr" aria-label="پیشوند" className={INPUT + " h-9 text-left mono text-xs"} placeholder={"https://" + d.name + "/images/"} />
-        <AsyncButton disabled={!enabled} className={BTN_G + " h-9 px-3 text-xs shrink-0"} onClick={async () => { if (!prefix.trim()) throw new Error("پیشوند را وارد کنید."); done(await api.domains.cdnPurge(d.id, { prefix: prefix.trim() })); setPrefix(""); }}>پاک کردن پیشوند</AsyncButton></div>
+      <div className="flex justify-end"><AsyncButton disabled={!enabled} className={BTN_G + BTN_SM} onClick={async () => { const list = urls.split(/\s+/).filter(Boolean); if (!list.length) throw new Error("آدرسی وارد نشده است."); done(await api.domains.cdnPurge(d.id, { urls: list })); setUrls(""); }}>پاک کردن آدرس‌ها</AsyncButton></div>
+      <div className="flex gap-2"><input value={prefix} onChange={(e) => setPrefix(e.target.value)} dir="ltr" aria-label="پیشوند" className={INPUT_BASE + " h-9 text-left mono text-xs"} placeholder={"https://" + d.name + "/images/"} />
+        <AsyncButton disabled={!enabled} className={BTN_G + BTN_SM + " shrink-0"} onClick={async () => { if (!prefix.trim()) throw new Error("پیشوند را وارد کنید."); done(await api.domains.cdnPurge(d.id, { prefix: prefix.trim() })); setPrefix(""); }}>پاک کردن پیشوند</AsyncButton></div>
     </div>
   );
 }
@@ -552,8 +552,8 @@ function CdnAlerts({ d }: { d: Domain }) {
       ))}</ul>
       <div className="flex flex-wrap gap-2">
         <Select value={f.metric} label="معیار" onChange={(m) => setF({ ...f, metric: m as AlertMetric })} options={Object.entries(ALERT_METRICS).map(([value, label]) => ({ value, label }))} className="flex-1 min-w-[180px]" />
-        <input value={f.threshold} onChange={(e) => setF({ ...f, threshold: toEnDigits(e.target.value).replace(/[^\d.]/g, "") })} inputMode="numeric" dir="ltr" aria-label="آستانه" placeholder="آستانه" className={INPUT + " h-10 w-28 text-left"} />
-        <AsyncButton className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { const t = Number(f.threshold); if (!(t > 0)) throw new Error("آستانه را وارد کنید."); await api.domains.addAlert(d.id, { metric: f.metric, threshold: t }); setF({ ...f, threshold: "" }); a.reload(); notify("هشدار اضافه شد"); }}>افزودن</AsyncButton>
+        <input value={f.threshold} onChange={(e) => setF({ ...f, threshold: toEnDigits(e.target.value).replace(/[^\d.]/g, "") })} inputMode="numeric" dir="ltr" aria-label="آستانه" placeholder="آستانه" className={INPUT + " w-28 text-left"} />
+        <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const t = Number(f.threshold); if (!(t > 0)) throw new Error("آستانه را وارد کنید."); await api.domains.addAlert(d.id, { metric: f.metric, threshold: t }); setF({ ...f, threshold: "" }); a.reload(); notify("هشدار اضافه شد"); }}>افزودن</AsyncButton>
       </div>
     </Card>
   );
@@ -588,7 +588,7 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
   const up = (p: Partial<RuleForm>) => f && setF({ ...f, ...p });
   const pathField = f && f.kind !== "header" && f.kind !== "access" && <Field label="مسیر" hint="مثل /static/* (با * یعنی همه زیرمسیرها)"><input value={f.path} onChange={(e) => up({ path: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>;
   return (
-    <Card title="قوانین" icon="list-checks" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setF({ ...EMPTY_RULE })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> قانون جدید</button>}>
+    <Card title="قوانین" icon="list-checks" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setF({ ...EMPTY_RULE })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> قانون جدید</button>}>
       {rules.length === 0 ? <Empty icon="list-checks" title="قانونی ندارید" text="کش بر اساس مسیر، ریدایرکت، هدر پاسخ، رمز روی مسیر، دسترسی IP/کشور و محدودیت نرخ." /> : (
         <ul className="divide-y divide-white/[0.06]">{rules.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-3 p-3 text-sm">
@@ -598,7 +598,7 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
         ))}</ul>
       )}
       <Modal open={!!f} onClose={() => setF(null)} title="قانون جدید CDN" icon="list-checks"
-        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; await api.domains.cdnAddRule(d.id, toRule(f)); setF(null); reload(); notify("قانون اضافه شد"); }}>افزودن</AsyncButton></>}>
+        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; await api.domains.cdnAddRule(d.id, toRule(f)); setF(null); reload(); notify("قانون اضافه شد"); }}>افزودن</AsyncButton></>}>
         {f && <div className="space-y-4">
           <Field label="نوع قانون"><Select value={f.kind} label="نوع قانون" onChange={(k) => setF({ ...EMPTY_RULE, kind: k as CdnRule["kind"], action: k === "access" ? "deny" : "cache" })} options={Object.entries(CDN_RULE_LABEL).map(([value, label]) => ({ value, label }))} /></Field>
           {pathField}
@@ -641,7 +641,7 @@ export function AdminDomains() {
   const pending = rows.filter((t) => t.status === "pending").length;
   return (
     <div>
-      <PageTitle title="دامنه‌ها" sub={fa(pending) + " درخواست انتقال در انتظار تأیید"} action={<Link href={"/admin/products" as never} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="tag" size={16} /> قیمت ثبت، تمدید و انتقال پسوندها</Link>} />
+      <PageTitle title="دامنه‌ها" sub={fa(pending) + " درخواست انتقال در انتظار تأیید"} action={<Link href={"/admin/products" as never} className={BTN_G + BTN_MD}><Icon name="tag" size={16} /> قیمت ثبت، تمدید و انتقال پسوندها</Link>} />
       {list.error ? <Card><Empty icon="circle-alert" title={list.error} /></Card> : (
         <DataTable rows={rows} searchKeys={["domain", "user"]} empty="درخواست انتقالی نیست."
           filters={[{ key: "status", label: "وضعیت", options: Object.keys(TRANSFER_STATUS) }]}
@@ -655,13 +655,13 @@ export function AdminDomains() {
             { key: "status", label: "وضعیت", render: (t) => <span title={t.note}><Pill s={t.status} /></span> },
             { key: "actions", label: "", render: (t) => t.status === "pending" && t.direction === "in" ? (
               <span className="flex gap-1 justify-end">
-                <AsyncButton className={BTN_P + " h-8 px-3 text-xs"} confirmText={"انتقال " + t.domain + " در رجیستری ثبت شود؟"} onClick={async () => { const r = await api.domains.adminApprove(t.id); list.reload(); notify(r.ok ? "انتقال انجام شد" : "رجیستری انتقال را نپذیرفت؛ مبلغ برگشت داده شد", r.ok ? undefined : "circle-alert"); }}>تأیید</AsyncButton>
-                <button type="button" className={BTN_G + " h-8 px-3 text-xs"} onClick={() => setReject({ t, reason: "" })}>رد</button>
+                <AsyncButton className={BTN_P + BTN_SM} confirmText={"انتقال " + t.domain + " در رجیستری ثبت شود؟"} onClick={async () => { const r = await api.domains.adminApprove(t.id); list.reload(); notify(r.ok ? "انتقال انجام شد" : "رجیستری انتقال را نپذیرفت؛ مبلغ برگشت داده شد", r.ok ? undefined : "circle-alert"); }}>تأیید</AsyncButton>
+                <button type="button" className={BTN_G + BTN_SM} onClick={() => setReject({ t, reason: "" })}>رد</button>
               </span>) : null },
           ]} />
       )}
       <Modal open={!!reject} onClose={() => setReject(null)} title={"رد انتقال " + (reject?.t.domain ?? "")} icon="x"
-        footer={<><button type="button" onClick={() => setReject(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton danger onClick={async () => { if (!reject) return; await api.domains.adminReject(reject.t.id, reject.reason.trim()); setReject(null); list.reload(); notify("درخواست رد و مبلغ برگشت داده شد"); }}>رد درخواست</AsyncButton></>}>
+        footer={<><button type="button" onClick={() => setReject(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { if (!reject) return; await api.domains.adminReject(reject.t.id, reject.reason.trim()); setReject(null); list.reload(); notify("درخواست رد و مبلغ برگشت داده شد"); }}>رد درخواست</AsyncButton></>}>
         {reject && <Field label="دلیل (برای مشتری)"><textarea value={reject.reason} onChange={(e) => setReject({ ...reject, reason: e.target.value })} rows={3} className={TEXTAREA} /></Field>}
       </Modal>
     </div>

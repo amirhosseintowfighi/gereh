@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AI_SNIPPETS } from "@/content/ai";
 import { AI_DISCOUNT, AI_FORMAT_LABEL, AI_KIND_LABEL, AI_KIND_PATH, AI_KIND_PRICE, AI_KINDS, AI_ROUTING, AI_VENDORS, rulePrice, type AiKind } from "@/lib/ai";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, useDB, useMyId, type AiKeyInput } from "@/lib/store";
 import type { AiKeyRow, AiModelRow } from "@/lib/types";
@@ -89,7 +89,7 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
           <li className="flex gap-3"><span className="w-7 h-7 rounded-full bg-white/10 grid place-items-center shrink-0 text-xs font-bold">۲</span><span>یک کلید بسازید و برای امنیت، سقف هزینه روزانه بگذارید.<button type="button" onClick={onKeys} className="block acc text-xs mt-1">{active.length ? fa(active.length) + " کلید فعال دارید ←" : "ساخت اولین کلید ←"}</button></span></li>
           <li className="flex gap-3"><span className="w-7 h-7 rounded-full bg-white/10 grid place-items-center shrink-0 text-xs font-bold">۳</span><span>آدرس <code dir="ltr" className="text-xs">{a.endpoint}</code> را به‌جای آدرس OpenAI، Anthropic یا Gemini در برنامه‌تان بگذارید.</span></li>
         </ol>
-        <Link href={"/docs/ai-api" as never} className={BTN_G + " w-full h-10 mt-5 text-sm"}><Icon name="book-open" size={15} />مستندات کامل</Link>
+        <Link href={"/docs/ai-api" as never} className={BTN_G + BTN_MD + " w-full mt-5"}><Icon name="book-open" size={15} />مستندات کامل</Link>
       </Card>
       <Card pad="p-3 sm:p-4" title="اتصال ابزارها" icon="plug">
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -111,7 +111,7 @@ function Keys() {
   const [shown, setShown] = useState<string | null>(null);
   return (
     <Card pad="p-3 sm:p-4" title={<span className="flex items-center gap-2">کلیدهای API <Badge>{fa(a.keys.filter((k) => k.status === "active").length)} فعال</Badge></span>}
-      action={<button type="button" onClick={() => setForm({ edit: null })} className={BTN_P + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />کلید جدید</button>}>
+      action={<button type="button" onClick={() => setForm({ edit: null })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} />کلید جدید</button>}>
       {a.keys.length === 0 ? <Empty icon="key-round" title="هنوز کلیدی نساخته‌اید" text="برای استفاده از API یک کلید بسازید؛ کلید فقط یک بار نمایش داده می‌شود." /> : (
         <ul className="divide-y divide-white/[0.06]">
           {a.keys.map((k) => (
@@ -121,12 +121,12 @@ function Keys() {
                 <span className="block text-[11px] text-white/55 mt-1.5 leading-6">
                   امروز {toman(k.spentToday)}{k.dailyCap ? " از سقف " + toman(k.dailyCap) : ""} · این ماه {toman(k.spentMonth)}{k.monthlyCap ? " از سقف " + toman(k.monthlyCap) : ""} · {fa(k.requestsMonth)} درخواست این ماه · {fa(k.rpm)} درخواست در دقیقه
                 </span>
-                <span className="block text-[11px] text-white/40">ساخته {k.created}{k.lastUsed ? " · آخرین استفاده " + k.lastUsed : " · بدون استفاده"}{k.expires ? " · انقضا " + k.expires : ""}</span>
+                <span className="block text-[11px] text-white/50">ساخته {k.created}{k.lastUsed ? " · آخرین استفاده " + k.lastUsed : " · بدون استفاده"}{k.expires ? " · انقضا " + k.expires : ""}</span>
               </div>
               {k.status !== "revoked" && <div className="flex items-center gap-2 sm:self-center">
                 <Switch on={k.status === "active"} onChange={async (v) => { await api.ai.setKeyEnabled(k.id, v); notify(v ? "کلید فعال شد" : "کلید غیرفعال شد", "key-round"); }} label={"فعال بودن کلید " + k.name} />
-                <button type="button" onClick={() => setForm({ edit: k })} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="settings-2" size={13} />محدودیت‌ها</button>
-                <AsyncButton danger className="h-9 px-3 text-xs" confirmText={"کلید «" + k.name + "» بلافاصله از کار می‌افتد. ادامه؟"} onClick={async () => { await api.ai.revokeKey(k.id); notify("کلید باطل شد", "key-round"); }}>ابطال</AsyncButton>
+                <button type="button" onClick={() => setForm({ edit: k })} className={BTN_G + BTN_SM}><Icon name="settings-2" size={13} />محدودیت‌ها</button>
+                <AsyncButton danger size="sm" confirmText={"کلید «" + k.name + "» بلافاصله از کار می‌افتد. ادامه؟"} onClick={async () => { await api.ai.revokeKey(k.id); notify("کلید باطل شد", "key-round"); }}>ابطال</AsyncButton>
               </div>}
             </li>
           ))}
@@ -136,7 +136,7 @@ function Keys() {
       <Modal open={!!shown} onClose={() => setShown(null)} title="کلید ساخته شد" icon="key-round">
         <p className="text-sm text-amber-200/90 leading-7">این کلید فقط همین یک بار نمایش داده می‌شود. همین حالا کپی کنید و جای امنی نگه دارید؛ هرگز در کد سمت مرورگر یا مخزن عمومی قرار ندهید.</p>
         <div className="mt-4 rounded-xl bg-black/40 p-4"><CopyText text={shown ?? ""} className="font-mono text-sm break-all" /></div>
-        <button type="button" onClick={() => setShown(null)} className={BTN_P + " w-full h-11 mt-4"}>کپی کردم</button>
+        <button type="button" onClick={() => setShown(null)} className={BTN_P + BTN_LG + " w-full mt-4"}>کپی کردم</button>
       </Modal>
     </Card>
   );
@@ -169,7 +169,7 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
         {limit && <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.08] p-2 grid sm:grid-cols-2 gap-1">
           {models.map((m) => <label key={m.id} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/[0.04] cursor-pointer"><input type="checkbox" checked={f.models.includes(m.id)} onChange={() => toggle(m.id)} />{m.name}</label>)}
         </div>}
-        <AsyncButton disabled={f.name.trim().length < 2 || (limit && !f.models.length)} className={BTN_P + " w-full h-11"} onClick={async () => {
+        <AsyncButton disabled={f.name.trim().length < 2 || (limit && !f.models.length)} className={BTN_P + BTN_LG + " w-full"} onClick={async () => {
           const ipList = ips.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
           if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
           else onCreated(await api.ai.createKey({ ...f, name: f.name.trim(), ips: ipList }));
@@ -197,7 +197,7 @@ export function ModelList({ models, compact = false }: { models: AiModelRow[]; c
           <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">مدل</th><th className="p-3">شناسه</th>{unit.in && <th className="p-3">{unit.in}</th>}{unit.out && <th className="p-3">{unit.out}</th>}{unit.unit && <th className="p-3">{unit.unit}</th>}{kind === "chat" && <th className="p-3">کانتکست</th>}</tr></thead>
           <tbody>{list.map((m) => (
             <tr key={m.id} className="border-t border-white/[0.06]">
-              <td className="p-3 font-bold whitespace-nowrap">{m.name}<span className="block text-[11px] font-normal text-white/45">{AI_VENDORS[m.vendor] ?? m.vendor}{m.vision ? " · تصویر" : ""}</span></td>
+              <td className="p-3 font-bold whitespace-nowrap">{m.name}<span className="block text-[11px] font-normal text-white/50">{AI_VENDORS[m.vendor] ?? m.vendor}{m.vision ? " · تصویر" : ""}</span></td>
               <td className="p-3"><CopyText text={m.id} className="font-mono text-xs" /></td>
               {unit.in && <td className="p-3 tabular whitespace-nowrap">{perM(m.inPrice)}</td>}
               {unit.out && <td className="p-3 tabular whitespace-nowrap text-emerald-300">{perM(m.outPrice)}</td>}
@@ -207,7 +207,7 @@ export function ModelList({ models, compact = false }: { models: AiModelRow[]; c
           ))}</tbody>
         </table>
       </div>
-      <p className="text-[11px] text-white/45 mt-3 leading-6">قیمت‌ها به تومان و به واحد هر ستون است؛ مسیر این نوع مدل‌ها <code dir="ltr">{AI_KIND_PATH[kind]}</code> است. هر ۱۰۰۰ توکن تقریباً ۷۵۰ کلمه انگلیسی یا ۴۰۰ تا ۵۰۰ کلمه فارسی است.</p>
+      <p className="text-[11px] text-white/50 mt-3 leading-6">قیمت‌ها به تومان و به واحد هر ستون است؛ مسیر این نوع مدل‌ها <code dir="ltr">{AI_KIND_PATH[kind]}</code> است. هر ۱۰۰۰ توکن تقریباً ۷۵۰ کلمه انگلیسی یا ۴۰۰ تا ۵۰۰ کلمه فارسی است.</p>
     </Card>
   );
 }
@@ -227,7 +227,7 @@ function UsageList({ admin = false }: { admin?: boolean }) {
               <span className="text-sm tabular text-left">{u.charged ? toman(u.charged) : "رایگان"}</span>
               <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge><Badge>{AI_FORMAT_LABEL[u.format] ?? u.format}</Badge>{u.stream && <Badge tone="blue">stream</Badge>}{u.keyName && <span>{u.keyName}</span>}{admin && <UserLink id={u.userId} className="ltr" />}</span>
               <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{u.at}</span>
-              <span className="col-span-2 text-[11px] text-white/40">{fa(u.inTokens)} ورودی · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
+              <span className="col-span-2 text-[11px] text-white/50">{fa(u.inTokens)} ورودی · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
             </li>
           ); })}
         </ul>
@@ -275,13 +275,13 @@ function AdminModels() {
         <p className="text-sm text-white/65 leading-7">قیمت هر مدل = میانگین قیمت سایت‌های ایرانی، حداکثر برابر قیمت مرجع (پاستا)، منهای درصد تخفیف. با «اعمال» قیمت همه مدل‌هایی که قیمت مرجع دارند بازنویسی می‌شود.</p>
         <div className="flex flex-wrap items-end gap-3 mt-3">
           <Field label="درصد زیر قیمت مرجع"><input inputMode="numeric" value={discount} onChange={(e) => setDiscount(e.target.value.replace(/[^\d.]/g, ""))} className={INPUT + " w-32 tabular"} /></Field>
-          <AsyncButton className={BTN_G + " h-11 px-4 text-sm"} confirmText="قیمت همه مدل‌های دارای مرجع بازنویسی می‌شود. ادامه؟" onClick={async () => { const n = await api.ai.adminApplyRule(Math.min(50, Number(discount) || 0) / 100); notify(fa(n) + " مدل بازقیمت‌گذاری شد", "tag"); }}>اعمال</AsyncButton>
-          <AsyncButton className={BTN_G + " h-11 px-4 text-sm"} onClick={async () => { const r = await api.ai.adminSync(); notify(fa(r.total) + " مدل در سرویس‌دهنده، " + fa(r.added) + " مدل جدید (غیرفعال) اضافه شد", "refresh-cw"); }}><Icon name="refresh-cw" size={14} />همگام‌سازی فهرست مدل‌ها</AsyncButton>
-          <button type="button" onClick={() => setAdd(true)} className={BTN_G + " h-11 px-4 text-sm"}><Icon name="plus" size={14} />افزودن مدل</button>
+          <AsyncButton className={BTN_G + BTN_MD} confirmText="قیمت همه مدل‌های دارای مرجع بازنویسی می‌شود. ادامه؟" onClick={async () => { const n = await api.ai.adminApplyRule(Math.min(50, Number(discount) || 0) / 100); notify(fa(n) + " مدل بازقیمت‌گذاری شد", "tag"); }}>اعمال</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.ai.adminSync(); notify(fa(r.total) + " مدل در سرویس‌دهنده، " + fa(r.added) + " مدل جدید (غیرفعال) اضافه شد", "refresh-cw"); }}><Icon name="refresh-cw" size={14} />همگام‌سازی فهرست مدل‌ها</AsyncButton>
+          <button type="button" onClick={() => setAdd(true)} className={BTN_G + BTN_MD}><Icon name="plus" size={14} />افزودن مدل</button>
         </div>
       </Card>
       <Card pad="p-3 sm:p-4" title={<span className="flex items-center gap-2">مدل‌ها <Badge>{fa(a.models.filter((m) => m.active).length)} فعال از {fa(a.models.length)}</Badge></span>}
-        action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو" aria-label="جست‌وجوی مدل" className={INPUT + " h-9 w-40"} />}>
+        action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو" aria-label="جست‌وجوی مدل" className={INPUT_BASE + " h-9 w-40"} />}>
         <div className="space-y-2">{list.map((m) => <AdminModelRow key={m.id + m.inPrice + m.outPrice + m.active} m={m} />)}</div>
       </Card>
       <AddModel open={add} onClose={() => setAdd(false)} />
@@ -294,12 +294,12 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
   const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut), unitPrice: String(m.unitPrice) });
   const [test, setTest] = useState<{ ok: boolean; ms: number; detail: string } | null>(null);
   const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut || num(f.unitPrice) !== m.unitPrice;
-  const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT + " h-9 text-xs" + (ltr ? " text-left font-mono" : "")} /></Field>;
+  const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT_BASE + " h-9 text-xs" + (ltr ? " text-left font-mono" : "")} /></Field>;
   return (
     <details className="rounded-2xl bg-white/[0.03] border border-white/[0.07] group">
       <summary className="p-3 flex flex-wrap items-center justify-between gap-2 cursor-pointer list-none">
         <span className="flex flex-wrap items-center gap-2 min-w-0"><b className="text-sm">{m.name}</b><code dir="ltr" className="text-[11px] text-white/55">{m.id}</code>{m.kind !== "chat" && <Badge tone="blue">{AI_KIND_LABEL[m.kind]}</Badge>}{!m.active && <Badge tone="gray">غیرفعال</Badge>}</span>
-        <span className="text-xs tabular text-white/70">{perM(m.inPrice)} / {perM(m.outPrice)}{m.refIn ? <span className="text-white/40"> (مرجع {perM(m.refIn)} / {perM(m.refOut)})</span> : null}</span>
+        <span className="text-xs tabular text-white/70">{perM(m.inPrice)} / {perM(m.outPrice)}{m.refIn ? <span className="text-white/50"> (مرجع {perM(m.refIn)} / {perM(m.refOut)})</span> : null}</span>
       </summary>
       <div className="px-3 pb-3 space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -316,8 +316,8 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
           <div className="flex items-end gap-2 pb-1"><Switch on={m.vision} onChange={async (v) => { await api.ai.adminModel(m.id, { vision: v }); }} label={"ورودی تصویر " + m.id} /><span className="text-xs text-white/60">ورودی تصویر</span></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AsyncButton disabled={!dirty} className={BTN_P + " h-9 px-4 text-xs"} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
-          <AsyncButton className={BTN_G + " h-9 px-4 text-xs"} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={13} />تست اتصال</AsyncButton>
+          <AsyncButton disabled={!dirty} className={BTN_P + BTN_SM} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={13} />تست اتصال</AsyncButton>
         </div>
         {test && <p className={"text-xs leading-6 " + (test.ok ? "text-emerald-300" : "text-rose-300")} dir="auto">{test.ok ? "موفق" : "ناموفق"} · {fa(test.ms)}ms · {test.detail}</p>}
       </div>

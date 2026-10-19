@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { CRON_PRESETS, MAX_PROCESSES, PROC_NAME_RE, appMonthly, cronError } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
@@ -52,14 +52,14 @@ function Processes({ app }: { app: PaasApp }) {
   const set = (i: number, patch: Partial<(typeof rows)[number]>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const bad = rows.find((r) => !PROC_NAME_RE.test(r.name) || !r.command.trim());
   return (
-    <Card title="پردازش‌های پس‌زمینه" icon="cpu" action={rows.length < MAX_PROCESSES ? <button type="button" onClick={() => setRows([...rows, { name: rows.length ? "worker-" + (rows.length + 1) : "worker", command: "", instances: 1 }])} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />پردازش</button> : undefined}>
+    <Card title="پردازش‌های پس‌زمینه" icon="cpu" action={rows.length < MAX_PROCESSES ? <button type="button" onClick={() => setRows([...rows, { name: rows.length ? "worker-" + (rows.length + 1) : "worker", command: "", instances: 1 }])} className={BTN_G + BTN_SM}><Icon name="plus" size={14} />پردازش</button> : undefined}>
       <p className="text-sm text-white/60 leading-7">صف‌ها، ربات‌ها و هر کاری که پورت HTTP ندارد. با همان ایمیج و متغیرهای اپ اجرا می‌شوند و هر نمونه به اندازه پلن اپ ({plan?.name}) منابع دارد.</p>
-      {rows.length === 0 ? <p className="text-xs text-white/45 mt-4">پردازشی تعریف نشده است. مثال: <code dir="ltr">celery -A app worker</code> یا <code dir="ltr">php artisan queue:work</code></p> : (
+      {rows.length === 0 ? <p className="text-xs text-white/50 mt-4">پردازشی تعریف نشده است. مثال: <code dir="ltr">celery -A app worker</code> یا <code dir="ltr">php artisan queue:work</code></p> : (
         <ul className="space-y-3 mt-4">
           {rows.map((r, i) => (
             <li key={i} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3 grid sm:grid-cols-[8rem_1fr_6rem_auto] gap-2 items-end">
-              <Field label="نام"><input dir="ltr" value={r.name} onChange={(e) => set(i, { name: e.target.value.toLowerCase() })} className={INPUT + " h-9 text-xs font-mono text-left"} /></Field>
-              <Field label="دستور"><input dir="ltr" value={r.command} onChange={(e) => set(i, { command: e.target.value })} placeholder="node worker.js" className={INPUT + " h-9 text-xs font-mono text-left"} /></Field>
+              <Field label="نام"><input dir="ltr" value={r.name} onChange={(e) => set(i, { name: e.target.value.toLowerCase() })} className={INPUT_BASE + " h-9 text-xs font-mono text-left"} /></Field>
+              <Field label="دستور"><input dir="ltr" value={r.command} onChange={(e) => set(i, { command: e.target.value })} placeholder="node worker.js" className={INPUT_BASE + " h-9 text-xs font-mono text-left"} /></Field>
               <Field label="نمونه"><Select label={"تعداد نمونه " + r.name} value={String(r.instances)} onChange={(v) => set(i, { instances: Number(v) })} options={[0, 1, 2, 3, 4, 5, 6, 8, 10].map((n) => ({ value: String(n), label: n ? fa(n) : "خاموش" }))} /></Field>
               <button type="button" aria-label={"حذف " + r.name} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="h-9 w-9 grid place-items-center rounded-lg text-white/50 hover:text-rose-300"><Icon name="trash-2" size={15} /></button>
             </li>
@@ -81,7 +81,7 @@ function Crons({ app }: { app: PaasApp }) {
   const [form, setForm] = useState<CronForm | null>(null);
   const err = form ? cronError(form.schedule) : null;
   return (
-    <Card title="زمان‌بندی (Cron)" icon="clock" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setForm({ name: "", schedule: "0 3 * * *", command: "", enabled: true })} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />زمان‌بندی جدید</button>}>
+    <Card title="زمان‌بندی (Cron)" icon="clock" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setForm({ name: "", schedule: "0 3 * * *", command: "", enabled: true })} className={BTN_G + BTN_SM}><Icon name="plus" size={14} />زمان‌بندی جدید</button>}>
       {app.crons.length === 0 ? <Empty icon="clock" title="زمان‌بندی ندارید" text="دستورهای دوره‌ای مثل پاک‌سازی، ارسال گزارش یا پشتیبان‌گیری را به وقت تهران اجرا کنید." /> : (
         <ul className="divide-y divide-white/[0.06]">
           {app.crons.map((c) => (
@@ -91,14 +91,14 @@ function Crons({ app }: { app: PaasApp }) {
                 <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-right truncate">{c.command}</code>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setForm(c)} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="pencil" size={13} />ویرایش</button>
-                <button type="button" onClick={async () => { if (await confirm("زمان‌بندی «" + c.name + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.paas.deleteCron(c.id); notify("حذف شد"); } }} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="trash-2" size={13} /></button>
+                <button type="button" onClick={() => setForm(c)} className={BTN_G + BTN_SM}><Icon name="pencil" size={13} />ویرایش</button>
+                <button type="button" onClick={async () => { if (await confirm("زمان‌بندی «" + c.name + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.paas.deleteCron(c.id); notify("حذف شد"); } }} className={BTN_G + BTN_SM}><Icon name="trash-2" size={13} /></button>
               </div>
             </li>
           ))}
         </ul>
       )}
-      <p className="text-[11px] text-white/45 mt-3 leading-6">ساعت‌ها به وقت تهران است. هر اجرا در کانتینری جدا از نسخه فعال اپ با همان متغیرها انجام می‌شود، حداکثر یک ساعت طول می‌کشد و هم‌پوشانی ندارد.</p>
+      <p className="text-[11px] text-white/50 mt-3 leading-6">ساعت‌ها به وقت تهران است. هر اجرا در کانتینری جدا از نسخه فعال اپ با همان متغیرها انجام می‌شود، حداکثر یک ساعت طول می‌کشد و هم‌پوشانی ندارد.</p>
       {form && (
         <Modal open onClose={() => setForm(null)} title={form.id ? "ویرایش زمان‌بندی" : "زمان‌بندی جدید"} icon="clock">
           <div className="space-y-4">
@@ -107,7 +107,7 @@ function Crons({ app }: { app: PaasApp }) {
             <div className="flex flex-wrap gap-1.5 -mt-2">{CRON_PRESETS.map((p) => <button key={p.value} type="button" onClick={() => setForm({ ...form, schedule: p.value })} className="h-7 px-2.5 rounded-lg text-[11px] bg-white/[0.05] text-white/60 hover:text-white">{p.label}</button>)}</div>
             <Field label="دستور"><input dir="ltr" value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })} placeholder="python manage.py clearsessions" className={INPUT + " font-mono text-left"} /></Field>
             <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3 text-sm"><span>فعال</span><Switch on={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label="فعال بودن زمان‌بندی" /></div>
-            <AsyncButton disabled={!!err || !PROC_NAME_RE.test(form.name) || !form.command.trim()} className={BTN_P + " w-full h-11"} onClick={async () => { await api.paas.saveCron(app.id, { ...form, command: form.command.trim() }); notify("زمان‌بندی ذخیره شد", "clock"); setForm(null); }}>ذخیره</AsyncButton>
+            <AsyncButton disabled={!!err || !PROC_NAME_RE.test(form.name) || !form.command.trim()} className={BTN_P + BTN_LG + " w-full"} onClick={async () => { await api.paas.saveCron(app.id, { ...form, command: form.command.trim() }); notify("زمان‌بندی ذخیره شد", "clock"); setForm(null); }}>ذخیره</AsyncButton>
           </div>
         </Modal>
       )}
@@ -136,7 +136,7 @@ function RunConsole({ app }: { app: PaasApp }) {
         <p className="text-sm text-white/60 leading-7">یک دستور را یک بار در کانتینری جدا از نسخه فعال اجرا کنید (مثلاً ساخت کاربر ادمین یا اسکریپت یک‌باره). خروجی تا ۲۴ ساعت نگه داشته می‌شود.</p>
         <form className="flex gap-2 mt-3" onSubmit={(e) => e.preventDefault()}>
           <input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py createsuperuser --noinput" aria-label="دستور" className={INPUT + " font-mono text-left text-sm"} />
-          <AsyncButton disabled={!cmd.trim()} className={BTN_P + " h-11 px-4 shrink-0"} onClick={async () => { const id = await api.paas.runJob(app.id, cmd.trim()); setOpen(id); setLive(null); setCmd(""); notify("دستور اجرا شد", "terminal"); }}><Icon name="play" size={15} />اجرا</AsyncButton>
+          <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.runJob(app.id, cmd.trim()); setOpen(id); setLive(null); setCmd(""); notify("دستور اجرا شد", "terminal"); }}><Icon name="play" size={15} />اجرا</AsyncButton>
         </form>
       </>}
       {app.jobs.length > 0 && (
@@ -144,7 +144,7 @@ function RunConsole({ app }: { app: PaasApp }) {
           <ul className="space-y-1 max-h-72 overflow-y-auto">
             {app.jobs.map((j) => (
               <li key={j.id}><button type="button" aria-pressed={open === j.id} onClick={() => { setOpen(j.id); setLive(null); }} className={"w-full text-right rounded-lg px-3 py-2 text-xs transition " + (open === j.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
-                <span className="flex items-center justify-between gap-2"><Badge tone={JOB_TONE[j.status]}>{JOB_LABEL[j.status]}</Badge><span className="text-white/45">{j.kind === "release" ? "انتشار" : j.kind === "import" ? "انتقال سایت" : j.at.split(" ")[1]}</span></span>
+                <span className="flex items-center justify-between gap-2"><Badge tone={JOB_TONE[j.status]}>{JOB_LABEL[j.status]}</Badge><span className="text-white/50">{j.kind === "release" ? "انتشار" : j.kind === "import" ? "انتقال سایت" : j.at.split(" ")[1]}</span></span>
                 <code dir="ltr" className="block truncate mt-1 text-white/70 text-right">{j.command}</code>
               </button></li>
             ))}

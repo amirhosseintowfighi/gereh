@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { locLabel } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
 import { SITE_URL } from "@/lib/seo";
 import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type Invoice, type Server, type Ticket } from "@/lib/store";
@@ -21,7 +21,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Tabs } from "../ui-client";
 
-const newBtn = (href: string, label: string) => <Link href={href as never} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> {label}</Link>;
+const newBtn = (href: string, label: string) => <Link href={href as never} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> {label}</Link>;
 
 /* ================= dashboard ================= */
 export function UserDashboard() {
@@ -120,11 +120,11 @@ export function UserServers() {
   return (
     <div>
       <PageTitle title="سرورهای ابری" sub={fa(rows.length) + " سرور در حساب شما"} action={newBtn("/vps", "ساخت سرور")} />
-      {rows.length === 0 ? <Card><Empty icon="server" title="هنوز سروری ندارید" text="اولین سرور ابری را در کمتر از یک دقیقه بسازید." action={<Link href="/vps" className={BTN_P + " px-5 h-10 text-sm"}>ساخت سرور</Link>} /></Card> : (
+      {rows.length === 0 ? <Card><Empty icon="server" title="هنوز سروری ندارید" text="اولین سرور ابری را در کمتر از یک دقیقه بسازید." action={<Link href="/vps" className={BTN_P + BTN_MD}>ساخت سرور</Link>} /></Card> : (
         <DataTable rows={rows} searchKeys={["name", "ip"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }]} onRowClick={(r) => router.push(("/panel/servers/" + r.id) as never)}
           columns={[
             { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-right">{r.name}</div><div className="text-[11px] text-white/55">{r.os}</div></div></div> },
-            { key: "ip", label: "آدرس IP", render: (r) => r.ip ? <CopyText text={r.ip} className="mono text-xs text-white/70" /> : <span className="text-xs text-white/45">—</span> },
+            { key: "ip", label: "آدرس IP", render: (r) => r.ip ? <CopyText text={r.ip} className="mono text-xs text-white/70" /> : <span className="text-xs text-white/50">—</span> },
             { key: "plan", label: "مشخصات", render: (r) => <span className="text-white/70">{fa(r.cpu)} هسته، {fa(r.ram)} گیگ، {fa(r.disk)} گیگ</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
             { key: "status", label: "وضعیت", render: (r) => <ServerStateBadge s={r} /> },
@@ -142,7 +142,7 @@ export function UserHosting({ id }: { id?: string }) {
   const rows = db.hosting.filter((h) => h.userId === myId);
   const h = id ? rows.find((x) => x.id === id) : undefined;
   const [pass, setPass] = useState("");
-  if (id && !h) return <Card><Empty icon="layers" title="هاست پیدا نشد" action={<Link href="/panel/hosting" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
+  if (id && !h) return <Card><Empty icon="layers" title="هاست پیدا نشد" action={<Link href="/panel/hosting" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   if (h) return (
     <div>
       <PageTitle back={["/panel/hosting", "هاست‌ها"]} title={<span className="ltr inline-block">{h.domain}</span>} sub={<span className="flex gap-3 items-center"><StatusBadge s={h.status} />هاست {h.plan}، سرور {h.server}</span>}
@@ -162,11 +162,11 @@ export function UserHosting({ id }: { id?: string }) {
         <Card title="رمز cPanel" icon="key-round">
           <p className="text-sm text-white/50 leading-7">رمز جدید فقط یک بار نمایش داده می‌شود.</p>
           {pass && <div className="mt-3 rounded-xl bg-black/30 border border-white/10 p-3 flex justify-between items-center"><CopyText text={pass} className="mono text-sm" /></div>}
-          <div className="mt-4"><AsyncButton className={BTN_G + " px-4 h-10 text-sm"} confirmText="رمز فعلی cPanel باطل و رمز جدید ساخته شود؟" onClick={async () => setPass(await api.hosting.resetPassword(h.id))}><Icon name="refresh-cw" size={15} /> ساخت رمز جدید</AsyncButton></div>
+          <div className="mt-4"><AsyncButton className={BTN_G + BTN_MD} confirmText="رمز فعلی cPanel باطل و رمز جدید ساخته شود؟" onClick={async () => setPass(await api.hosting.resetPassword(h.id))}><Icon name="refresh-cw" size={15} /> ساخت رمز جدید</AsyncButton></div>
         </Card>
         <Card title="تمدید و ارتقا" icon="trending-up" className="lg:col-span-2">
           <div className="flex flex-wrap gap-2">
-            <Link href="/hosting" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="trending-up" size={15} /> ارتقای پلن</Link>
+            <Link href="/hosting" className={BTN_G + BTN_MD}><Icon name="trending-up" size={15} /> ارتقای پلن</Link>
             <AsyncButton onClick={async () => { const inv = await api.hosting.renew(h.id, 12); notify("صورتحساب " + inv.id + " صادر شد"); router.push("/panel/billing"); }}>تمدید یک‌ساله ({toman(Math.round((h.price * 0.85) / 1000) * 1000 * 12)})</AsyncButton>
           </div>
         </Card>
@@ -222,9 +222,9 @@ export function InvoiceModal({ inv, onClose, onPay }: { inv: Invoice | null; onC
   return (
     <Modal open onClose={onClose} title={"صورتحساب " + inv.id} icon="receipt" size="max-w-2xl"
       footer={<>{inv.userId === myId && (inv.official
-        ? <Link href={("/panel/billing/" + inv.id + "/print") as never} target="_blank" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="file-check" size={16} /> فاکتور رسمی</Link>
-        : <button type="button" onClick={() => setOfficial(true)} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="file-check" size={16} /> درخواست فاکتور رسمی</button>)}
-        <button type="button" onClick={() => window.print()} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + " px-5 h-10 text-sm"}>پرداخت</button>}</>}>
+        ? <Link href={("/panel/billing/" + inv.id + "/print") as never} target="_blank" className={BTN_G + BTN_MD}><Icon name="file-check" size={16} /> فاکتور رسمی</Link>
+        : <button type="button" onClick={() => setOfficial(true)} className={BTN_G + BTN_MD}><Icon name="file-check" size={16} /> درخواست فاکتور رسمی</button>)}
+        <button type="button" onClick={() => window.print()} className={BTN_G + BTN_MD}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + BTN_MD}>پرداخت</button>}</>}>
       <div className="print-area">
         <div className="flex justify-between items-start">
           <div><Wordmark size={30} /><div className="text-xs text-white/55 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
@@ -286,7 +286,7 @@ export function UserBilling() {
               { key: "date", label: "تاریخ" },
               { key: "amount", label: "مبلغ", sortable: true, sortValue: total, render: (r) => <span className="tabular font-bold">{toman(total(r))}</span> },
               { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
-              { key: "act", label: "", className: "text-left", render: (r) => (r.status === "unpaid" || r.status === "overdue") ? <button type="button" onClick={(e) => { e.stopPropagation(); openPay(r); }} className={BTN_P + " px-3 h-8 text-xs"}>پرداخت</button> : <IconBtn icon="file-text" label={"مشاهده " + r.id} onClick={(e) => { e.stopPropagation(); setView(r); }} /> },
+              { key: "act", label: "", className: "text-left", render: (r) => (r.status === "unpaid" || r.status === "overdue") ? <button type="button" onClick={(e) => { e.stopPropagation(); openPay(r); }} className={BTN_P + BTN_SM}>پرداخت</button> : <IconBtn icon="file-text" label={"مشاهده " + r.id} onClick={(e) => { e.stopPropagation(); setView(r); }} /> },
             ]} />
         )}
         {tab === "wallet" && (
@@ -296,7 +296,7 @@ export function UserBilling() {
             </div>
             <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + " px-6 h-11"}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
+              <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + BTN_MD}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
               <span className="text-xs text-white/55">{gw ? "پرداخت امن از طریق " + gw : "درگاه پرداخت آنلاین موقتا غیرفعال است."}</span>
             </div>
             <AutoPaySwitch />
@@ -313,7 +313,7 @@ export function UserBilling() {
       </div>
       <InvoiceModal inv={view} onClose={() => setView(null)} onPay={(i) => { setView(null); openPay(i); }} />
       <Modal open={!!pay} onClose={() => setPay(null)} title={pay ? "پرداخت " + pay.id : ""} icon="lock"
-        footer={<><button type="button" onClick={() => setPay(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!pay) return; await api.billing.pay(pay.id, method); setPay(null); notify("صورتحساب پرداخت شد", "circle-check"); }}>پرداخت {pay ? toman(total(pay)) : ""}</AsyncButton></>}>
+        footer={<><button type="button" onClick={() => setPay(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!pay) return; await api.billing.pay(pay.id, method); setPay(null); notify("صورتحساب پرداخت شد", "circle-check"); }}>پرداخت {pay ? toman(total(pay)) : ""}</AsyncButton></>}>
         {pay && <>
           <div className="text-center mb-6"><div className="text-xs text-white/55">مبلغ قابل پرداخت</div><div className="text-3xl font-black silver mt-2 tabular">{toman(total(pay))}</div></div>
           <div className="space-y-2" role="radiogroup" aria-label="روش پرداخت">
@@ -373,17 +373,17 @@ export function UserTickets({ id }: { id?: string }) {
   if (seenNew !== wantNew) { setSeenNew(wantNew); if (wantNew) setOpen(true); }
   const [f, setF] = useState(EMPTY_TICKET);
   const myServices = [...db.servers.filter((s) => s.userId === myId).map((s) => ({ value: s.id, label: "سرور " + s.name })), ...db.domains.filter((d) => d.userId === myId).map((d) => ({ value: d.id, label: "دامنه " + d.name }))];
-  if (id && !t) return <Card><Empty icon="message-circle" title="تیکت پیدا نشد" action={<Link href="/panel/tickets" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
+  if (id && !t) return <Card><Empty icon="message-circle" title="تیکت پیدا نشد" action={<Link href="/panel/tickets" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   if (t) return (
     <div>
       <PageTitle back={["/panel/tickets", "تیکت‌ها"]} title={t.subject} sub={<span className="flex flex-wrap gap-3 items-center"><span className="mono text-xs">{t.id}</span><StatusBadge s={t.status} /><span>واحد {t.dept}</span><StatusBadge s={t.priority} /></span>}
-        action={t.status !== "closed" && <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} confirmText="تیکت بسته شود؟" onClick={async () => { await api.tickets.update(t.id, { status: "closed" }); notify("تیکت بسته شد"); }}><Icon name="circle-check" size={16} /> بستن تیکت</AsyncButton>} />
+        action={t.status !== "closed" && <AsyncButton className={BTN_G + BTN_MD} confirmText="تیکت بسته شود؟" onClick={async () => { await api.tickets.update(t.id, { status: "closed" }); notify("تیکت بسته شد"); }}><Icon name="circle-check" size={16} /> بستن تیکت</AsyncButton>} />
       <Card><TicketThread t={t} /></Card>
     </div>
   );
   return (
     <div>
-      <PageTitle title="تیکت‌های پشتیبانی" sub="میانگین زمان پاسخ: ۹ دقیقه" action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> تیکت جدید</button>} />
+      <PageTitle title="تیکت‌های پشتیبانی" sub="میانگین زمان پاسخ: ۹ دقیقه" action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> تیکت جدید</button>} />
       <DataTable rows={rows} searchKeys={["subject", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["open", "answered", "customer-reply", "closed"] }]} onRowClick={(r) => router.push(("/panel/tickets/" + r.id) as never)} empty="تیکتی ندارید."
         columns={[
           { key: "id", label: "شماره", render: (r) => <span className="mono text-xs">{r.id}</span> },
@@ -392,7 +392,7 @@ export function UserTickets({ id }: { id?: string }) {
           { key: "updated", label: "آخرین به‌روزرسانی" }, { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
         ]} />
       <Modal open={open} onClose={() => setOpen(false)} title="تیکت جدید" icon="message-circle" size="max-w-2xl"
-        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
           if (f.subject.trim().length < 3) throw new Error("موضوع را وارد کنید.");
           if (f.message.trim().length < 10) throw new Error("توضیح باید حداقل ۱۰ کاراکتر باشد.");
           const nid = await api.tickets.create({ ...f, subject: f.subject.trim(), message: f.message.trim() });
@@ -423,7 +423,7 @@ export function UserKeys() {
     <div>
       <PageTitle title="SSH و API" sub="کلیدهای دسترسی به سرورها و توکن‌های API" />
       <div className="grid xl:grid-cols-2 gap-4">
-        <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> افزودن کلید</button>}>
+        <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> افزودن کلید</button>}>
           {db.sshKeys.length === 0 ? <Empty icon="key-round" title="کلیدی ندارید" text="با کلید SSH، بدون رمز و امن‌تر وارد سرورها شوید." /> : db.sshKeys.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/55 ltr text-right">{x.fingerprint}</div></div></div>
@@ -431,7 +431,7 @@ export function UserKeys() {
             </div>
           ))}
         </Card>
-        <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> توکن جدید</button>}>
+        <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> توکن جدید</button>}>
           {db.apiTokens.length === 0 ? <Empty icon="code-xml" title="توکنی ندارید" /> : db.apiTokens.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div><div className="text-sm font-bold ltr text-right">{x.name}</div><div className="text-[11px] text-white/55 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
@@ -443,7 +443,7 @@ export function UserKeys() {
       </div>
       <AgentConnect />
       <Modal open={keyM} onClose={() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"
-        footer={<><button type="button" onClick={() => setKeyM(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><button type="button" onClick={() => setKeyM(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
           if (!k.name.trim()) throw new Error("یک نام برای کلید بنویسید.");
           if (!/^(ssh-(rsa|ed25519)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/]{40,}={0,3}( .*)?$/.test(k.pub.trim())) throw new Error("کلید عمومی معتبر نیست؛ باید با ssh-ed25519 یا ssh-rsa شروع شود.");
           await api.account.addKey(k); setK({ name: "", pub: "" }); setKeyM(false); notify("کلید اضافه شد", "key-round");
@@ -454,7 +454,7 @@ export function UserKeys() {
         </div>
       </Modal>
       <Modal open={tokM} onClose={() => setTokM(false)} title="توکن API جدید" icon="code-xml"
-        footer={secret ? <button type="button" onClick={() => setTokM(false)} className={BTN_P + " px-5 h-10 text-sm"}>کپی کردم، بستن</button> : <><button type="button" onClick={() => setTokM(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (!/^[a-z0-9][a-z0-9-_.]{1,40}$/i.test(tk.name.trim())) throw new Error("نام توکن فقط حروف انگلیسی، عدد و خط تیره."); setSecret(await api.account.createToken({ ...tk, name: tk.name.trim() })); }}>ساخت توکن</AsyncButton></>}>
+        footer={secret ? <button type="button" onClick={() => setTokM(false)} className={BTN_P + BTN_MD}>کپی کردم، بستن</button> : <><button type="button" onClick={() => setTokM(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!/^[a-z0-9][a-z0-9-_.]{1,40}$/i.test(tk.name.trim())) throw new Error("نام توکن فقط حروف انگلیسی، عدد و خط تیره."); setSecret(await api.account.createToken({ ...tk, name: tk.name.trim() })); }}>ساخت توکن</AsyncButton></>}>
         {secret ? <>
           <div role="alert" className="rounded-xl bg-amber-400/[0.08] border border-amber-300/25 p-4 text-sm text-amber-100 flex gap-3 mb-4"><Icon name="circle-alert" size={18} />این توکن فقط همین یک بار نمایش داده می‌شود. آن را در جای امنی نگه دارید.</div>
           <div className="rounded-xl bg-black/40 border border-white/10 p-4"><CopyText text={secret} className="mono text-xs break-all" /></div>
@@ -486,7 +486,7 @@ function TwoFactorModal({ onClose, account }: { onClose: () => void; account: st
   }, [secret, account]);
   return (
     <Modal open onClose={onClose} title="فعال‌سازی ورود دومرحله‌ای" icon="shield-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(true, secret, otp); onClose(); notify("ورود دومرحله‌ای فعال شد", "shield-check"); }}>تأیید و فعال‌سازی</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(true, secret, otp); onClose(); notify("ورود دومرحله‌ای فعال شد", "shield-check"); }}>تأیید و فعال‌سازی</AsyncButton></>}>
       <ol className="space-y-5 text-sm">
         <li><div className="font-bold">۱. اسکن کنید</div><p className="text-white/50 mt-1">با Google Authenticator، Microsoft Authenticator یا Authy این کد را اسکن کنید.</p>
           <div className="w-44 h-44 mx-auto mt-4 bg-white p-2 rounded-xl grid place-items-center" role="img" aria-label="کد QR ورود دومرحله‌ای">
@@ -506,7 +506,7 @@ function TwoFactorOffModal({ onClose }: { onClose: () => void }) {
   const [otp, setOtp] = useState("");
   return (
     <Modal open onClose={onClose} title="غیرفعال‌سازی ورود دومرحله‌ای" icon="shield-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton danger onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(false, undefined, otp); onClose(); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(false, undefined, otp); onClose(); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton></>}>
       <p className="text-sm text-white/60 leading-7 mb-4">برای تأیید، کد فعلی اپلیکیشن Authenticator را وارد کنید. با غیرفعال‌سازی، امنیت حساب کاهش می‌یابد.</p>
       <OtpInput value={otp} onChange={setOtp} />
     </Modal>
@@ -558,8 +558,8 @@ function AccountView() {
             <Card title="ورود دومرحله‌ای" icon="shield-check" action={<Badge tone={db.twofa ? "green" : "gray"}>{db.twofa ? "فعال" : "غیرفعال"}</Badge>}>
               <p className="text-sm text-white/55 leading-7">با فعال‌سازی، علاوه بر رمز، یک کد شش‌رقمی از اپلیکیشن Authenticator هم لازم است.</p>
               <div className="mt-5">{db.twofa
-                ? <button type="button" onClick={() => setTwofaOff(true)} className={BTN_G + " px-4 h-10 text-sm text-rose-200"}>غیرفعال‌سازی</button>
-                : <button type="button" onClick={() => setTwofaM(true)} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="shield-check" size={16} /> فعال‌سازی</button>}</div>
+                ? <button type="button" onClick={() => setTwofaOff(true)} className={BTN_G + BTN_MD + " text-rose-200"}>غیرفعال‌سازی</button>
+                : <button type="button" onClick={() => setTwofaM(true)} className={BTN_P + BTN_MD}><Icon name="shield-check" size={16} /> فعال‌سازی</button>}</div>
             </Card>
             <Card title="نشست‌های فعال" icon="monitor-smartphone" className="xl:col-span-2" pad="p-3 sm:p-4">
               {db.sessions.map((se) => (
@@ -602,7 +602,7 @@ function KycUpload() {
   const { notify } = useApp();
   const [busy, setBusy] = useState(false);
   return (
-    <label className={BTN_G + " px-3 h-8 text-xs cursor-pointer " + (busy ? "opacity-60 pointer-events-none" : "")}>
+    <label className={BTN_G + BTN_SM + " cursor-pointer" + (busy ? "opacity-60 pointer-events-none" : "")}>
       <Icon name={busy ? "loader-circle" : "upload"} size={14} className={busy ? "animate-spin" : ""} /> بارگذاری
       <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only-focusable" onChange={async (e) => {
         const file = e.target.files?.[0]; e.target.value = "";

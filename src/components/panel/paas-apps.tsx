@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BUILDER } from "@/lib/builder";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, RUNTIMES, STACKS, stackOf, stackVersions } from "@/lib/paas";
 import { api, useDB, useMyId, useSession } from "@/lib/store";
@@ -34,10 +34,10 @@ export function UserApps() {
   return (
     <div>
       <PageTitle title="اپ‌ها" sub={apps.length ? fa(apps.length) + " اپ · حدود " + toman(monthly) + " در ماه" : "کد را بفرستید؛ بیلد، اجرا، SSL و مقیاس با ما."}
-        action={<div className="flex gap-2"><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-10 px-4 text-sm"}><Icon name="sparkles" size={16} />اپ‌های آماده</Link><Link href="/panel/apps/new" className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />اپ جدید</Link></div>} />
+        action={<div className="flex gap-2"><Link href={"/panel/apps/templates" as never} className={BTN_G + BTN_MD}><Icon name="sparkles" size={16} />اپ‌های آماده</Link><Link href="/panel/apps/new" className={BTN_P + BTN_MD}><Icon name="plus" size={16} />اپ جدید</Link></div>} />
       {apps.length === 0 ? (
         <Card><Empty icon="rocket" title="هنوز اپی ندارید" text="از Git، فایل ZIP یا ایمیج Docker در کمتر از دو دقیقه اپ بسازید؛ پرداخت ساعتی از کیف پول."
-          action={<div className="flex gap-2 justify-center"><Link href="/panel/apps/new" className={BTN_P + " h-10 px-5 text-sm"}>ساخت اولین اپ</Link><Link href={"/panel/apps/templates" as never} className={BTN_G + " h-10 px-4 text-sm"}>اپ‌های آماده</Link><Link href="/paas" className={BTN_G + " h-10 px-4 text-sm"}>معرفی گره اپ</Link></div>} /></Card>
+          action={<div className="flex gap-2 justify-center"><Link href="/panel/apps/new" className={BTN_P + BTN_MD}>ساخت اولین اپ</Link><Link href={"/panel/apps/templates" as never} className={BTN_G + BTN_MD}>اپ‌های آماده</Link><Link href="/paas" className={BTN_G + BTN_MD}>معرفی گره اپ</Link></div>} /></Card>
       ) : (
         <ul className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {apps.map((a) => (
@@ -130,7 +130,7 @@ export function NewApp() {
                     <span className="block mt-2 text-sm font-bold">{upload ? upload.name : "فایل ZIP پروژه را انتخاب کنید"}</span>
                     <span className="block text-[11px] text-white/55 mt-1">{upload ? fa(upload.files) + " فایل · " + fa(Math.round(upload.bytes / 1024 / 1024 * 10) / 10, 1) + " مگابایت" + (upload.stack ? " · تشخیص: " + (stackOf(upload.stack)?.label ?? upload.stack) : "") : "node_modules، .git و فایل‌های بیلد را داخل ZIP نگذارید"}</span>
                   </label>
-                  <label className={BTN_G + " w-full h-11 text-sm cursor-pointer"}>
+                  <label className={BTN_G + BTN_LG + " w-full cursor-pointer"}>
                     {/* @ts-expect-error non-standard but supported by every current browser */}
                     <input type="file" webkitdirectory="" multiple className="sr-only" onChange={async (e) => {
                       const list = e.target.files; if (!list?.length) return;
@@ -195,7 +195,7 @@ export function NewApp() {
             <div className="mt-4 pt-4 border-t border-white/[0.08]"><Cost monthly={monthly} /></div>
             {me && <p className="text-[11px] text-white/50 mt-3">موجودی کیف پول: {toman(me.balance)}</p>}
             {error && <p role="alert" className="mt-3 text-sm text-rose-300">{error}</p>}
-            <button type="button" disabled={!ready || busy} onClick={create} className={BTN_P + " w-full h-11 mt-4"}>{busy ? <Icon name="loader-circle" size={16} className="animate-spin" /> : <Icon name="rocket" size={16} />}ساخت و استقرار</button>
+            <button type="button" disabled={!ready || busy} onClick={create} className={BTN_P + BTN_LG + " w-full mt-4"}>{busy ? <Icon name="loader-circle" size={16} className="animate-spin" /> : <Icon name="rocket" size={16} />}ساخت و استقرار</button>
           </Card>
         </div>
       </div>
@@ -218,7 +218,7 @@ export function AppDetail({ id }: { id: string }) {
   const [tab, setTab] = useState("overview");
   const [logDep, setLogDep] = useState<string | null>(null);
   const zipRef = useRef<HTMLInputElement>(null);
-  if (!app) return <Card><Empty icon="rocket" title="اپ پیدا نشد" action={<Link href="/panel/apps" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به اپ‌ها</Link>} /></Card>;
+  if (!app) return <Card><Empty icon="rocket" title="اپ پیدا نشد" action={<Link href="/panel/apps" className={BTN_G + BTN_MD}>بازگشت به اپ‌ها</Link>} /></Card>;
   const busy = app.deployments.some((d) => ["queued", "building", "deploying"].includes(d.status));
   const suspended = app.status === "suspended";
   const deployZip = async (file?: File) => {
@@ -233,12 +233,12 @@ export function AppDetail({ id }: { id: string }) {
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusPill s={app.status} /><a href={app.url} target="_blank" rel="noopener" dir="ltr" className="acc text-xs">{app.url.replace("https://", "")}</a><span className="text-xs">{stackOf(app.stack)?.label}</span><span className="text-xs tabular">{fa(app.hourly)} تومان / ساعت</span></span>}
         action={suspended ? <Badge tone="amber">معلق؛ کیف پول را شارژ کنید</Badge> : <>
           {(app.source === "zip" || app.source === "compose")
-            ? <><input ref={zipRef} type="file" accept=".zip" className="sr-only" aria-label="ZIP نسخه جدید" onChange={(e) => deployZip(e.target.files?.[0])} /><button type="button" disabled={busy} onClick={() => zipRef.current?.click()} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="upload" size={16} />بارگذاری نسخه جدید</button></>
-            : <AsyncButton disabled={busy} className={BTN_P + " h-10 px-4 text-sm"} onClick={async () => { const dep = await api.paas.deploy(app.id); setLogDep(dep); notify("استقرار شروع شد", "rocket"); }}><Icon name="rocket" size={16} />استقرار مجدد</AsyncButton>}
+            ? <><input ref={zipRef} type="file" accept=".zip" className="sr-only" aria-label="ZIP نسخه جدید" onChange={(e) => deployZip(e.target.files?.[0])} /><button type="button" disabled={busy} onClick={() => zipRef.current?.click()} className={BTN_P + BTN_MD}><Icon name="upload" size={16} />بارگذاری نسخه جدید</button></>
+            : <AsyncButton disabled={busy} className={BTN_P + BTN_MD} onClick={async () => { const dep = await api.paas.deploy(app.id); setLogDep(dep); notify("استقرار شروع شد", "rocket"); }}><Icon name="rocket" size={16} />استقرار مجدد</AsyncButton>}
           {app.liveDeployment && (app.status === "stopped"
-            ? <AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={() => api.paas.power(app.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
-            : <><AsyncButton className={BTN_G + " h-10 px-4 text-sm"} confirmText="همه نمونه‌ها به‌ترتیب ری‌استارت شوند؟" onClick={() => api.paas.power(app.id, "restart")}><Icon name="refresh-cw" size={16} />ری‌استارت</AsyncButton>
-              <AsyncButton danger className={BTN_G + " h-10 px-4 text-sm"} confirmText="اپ خاموش شود؟ تا روشن کردن دوباره، فقط هزینه دیسک محاسبه می‌شود." onClick={() => api.paas.power(app.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton></>)}
+            ? <AsyncButton className={BTN_G + BTN_MD} onClick={() => api.paas.power(app.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
+            : <><AsyncButton className={BTN_G + BTN_MD} confirmText="همه نمونه‌ها به‌ترتیب ری‌استارت شوند؟" onClick={() => api.paas.power(app.id, "restart")}><Icon name="refresh-cw" size={16} />ری‌استارت</AsyncButton>
+              <AsyncButton danger className={BTN_G + BTN_MD} confirmText="اپ خاموش شود؟ تا روشن کردن دوباره، فقط هزینه دیسک محاسبه می‌شود." onClick={() => api.paas.power(app.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton></>)}
         </>} />
       <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های اپ" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
@@ -304,7 +304,7 @@ function MetricCard({ label, icon, values, unit }: { label: string; icon: string
   return (
     <Card pad="p-5">
       <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/55 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{cur === undefined ? "—" : fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
-      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/45">نمونه‌برداری هر ۵ دقیقه؛ نمودار به‌زودی پر می‌شود.</div>}
+      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/50">نمونه‌برداری هر ۵ دقیقه؛ نمودار به‌زودی پر می‌شود.</div>}
     </Card>
   );
 }
@@ -383,17 +383,17 @@ function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
           <span className="min-w-0"><span className="flex items-center gap-2"><Badge tone="green" dot>فعال</Badge><a href={app.previewUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-sm acc truncate">{app.previewUrl.replace("https://", "")}</a></span>
             <span className="block text-[11px] text-white/50 mt-1">{live.branch ? <>شاخه <b dir="ltr">{live.branch}</b> · </> : null}<span dir="ltr" className="font-mono">{live.ref}</span> · {live.at}</span></span>
           <span className="flex flex-wrap gap-2">
-            <AsyncButton className={BTN_P + " h-9 px-3 text-xs"} confirmText="این نسخه جایگزین نسخه اصلی شود؟ (دستور انتشار، اگر تعریف شده، اول اجرا می‌شود)" onClick={async () => { await api.paas.promote(app.id, live.id); notify("انتقال به نسخه اصلی شروع شد", "rocket"); }}><Icon name="rocket" size={13} />انتقال به نسخه اصلی</AsyncButton>
-            <button type="button" onClick={() => onLog(live.id)} className={BTN_G + " h-9 px-3 text-xs"}>لاگ</button>
-            <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText="پیش‌نمایش حذف شود؟" onClick={async () => { await api.paas.removePreview(app.id); notify("پیش‌نمایش حذف شد"); }}>حذف</AsyncButton>
+            <AsyncButton className={BTN_P + BTN_SM} confirmText="این نسخه جایگزین نسخه اصلی شود؟ (دستور انتشار، اگر تعریف شده، اول اجرا می‌شود)" onClick={async () => { await api.paas.promote(app.id, live.id); notify("انتقال به نسخه اصلی شروع شد", "rocket"); }}><Icon name="rocket" size={13} />انتقال به نسخه اصلی</AsyncButton>
+            <button type="button" onClick={() => onLog(live.id)} className={BTN_G + BTN_SM}>لاگ</button>
+            <AsyncButton className={BTN_G + BTN_SM} confirmText="پیش‌نمایش حذف شود؟" onClick={async () => { await api.paas.removePreview(app.id); notify("پیش‌نمایش حذف شد"); }}>حذف</AsyncButton>
           </span>
         </div>
       )}
       {building ? <p className="text-xs text-sky-200 mt-4 flex items-center gap-2"><Icon name="loader-circle" size={14} className="animate-spin" />پیش‌نمایش در حال ساخت… <button type="button" className="acc" onClick={() => onLog(building.id)}>لاگ</button></p>
         : app.source === "git" ? (
           <div className="flex flex-wrap gap-2 mt-4">
-            <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " h-10 max-w-xs font-mono text-left text-sm"} />
-            <AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={15} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
+            <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " max-w-xs font-mono text-left text-sm"} />
+            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={15} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
           </div>
         ) : <p className="text-xs text-white/50 mt-4">برای اپ‌های ZIP: <code dir="ltr">gereh deploy --preview</code></p>}
     </Card>
@@ -416,8 +416,8 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
                 <span className="block text-[11px] text-white/50 mt-1">{TRIG[d.trigger] ?? d.trigger}{d.ref ? " · " : ""}<span dir="ltr" className="font-mono">{d.ref}</span> · {d.at}{d.seconds !== null ? " · " + fa(d.seconds) + " ثانیه" : ""}</span>
               </span>
               <span className="flex gap-2">
-                <button type="button" onClick={() => onLog(d.id)} className={BTN_G + " h-8 px-3 text-xs"}>لاگ</button>
-                {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={13} />بازگشت</AsyncButton>}
+                <button type="button" onClick={() => onLog(d.id)} className={BTN_G + BTN_SM}>لاگ</button>
+                {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + BTN_SM} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={13} />بازگشت</AsyncButton>}
               </span>
             </li>
           ))}
@@ -463,7 +463,7 @@ function AppDomains({ app }: { app: PaasApp }) {
               <span dir="ltr" className="text-sm">{d.host}</span>
               <span className="flex items-center gap-2">
                 {d.status === "active" ? <Badge tone="green">فعال · SSL</Badge> : d.status === "pending" ? <Badge tone="amber">در انتظار DNS</Badge> : <Badge tone="red">تأیید نشد</Badge>}
-                {d.status !== "active" && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} onClick={async () => { await api.paas.checkDomain(d.id); notify("دامنه تأیید شد", "check"); }}>بررسی دوباره</AsyncButton>}
+                {d.status !== "active" && <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.paas.checkDomain(d.id); notify("دامنه تأیید شد", "check"); }}>بررسی دوباره</AsyncButton>}
                 <button type="button" aria-label={"حذف " + d.host} onClick={async () => { if (await confirm("دامنه " + d.host + " جدا شود؟", { danger: true, ok: "حذف" })) await api.paas.removeDomain(d.id); }} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10 hover:text-rose-300"><Icon name="trash-2" size={14} /></button>
               </span>
             </li>
@@ -472,7 +472,7 @@ function AppDomains({ app }: { app: PaasApp }) {
         <form className="flex gap-2 mt-4" onSubmit={(e) => e.preventDefault()}>
           <label className="sr-only" htmlFor="new-host">دامنه جدید</label>
           <input id="new-host" value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="www.example.ir" className={INPUT + " text-left"} />
-          <AsyncButton className={BTN_P + " h-11 px-4 text-sm shrink-0"} onClick={async () => { await api.paas.addDomain(app.id, host); setHost(""); notify("دامنه اضافه شد", "globe"); }}>افزودن</AsyncButton>
+          <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { await api.paas.addDomain(app.id, host); setHost(""); notify("دامنه اضافه شد", "globe"); }}>افزودن</AsyncButton>
         </form>
       </Card>
       <Card title="تنظیم DNS" icon="network">
@@ -488,7 +488,7 @@ function AppDomains({ app }: { app: PaasApp }) {
           <p className="text-sm text-white/65 leading-7 max-w-2xl">پاسخ‌هایی که اپ با <code dir="ltr">Cache-Control</code> قابل کش اعلام کند (تصاویر، CSS، JS، صفحه‌های عمومی) در لبه شبکه نگه داشته می‌شوند و بدون رسیدن به اپ سرو می‌شوند؛ سریع‌تر و با مصرف کمتر. پاسخ‌هایی که کوکی تنظیم می‌کنند یا <code dir="ltr">private</code> هستند هرگز کش نمی‌شوند. فشرده‌سازی Gzip و Brotli همیشه روشن است. وضعیت هر پاسخ در سربرگ <code dir="ltr">X-Cache-Status</code> دیده می‌شود.</p>
           <Switch on={app.cdn} onChange={async (v) => { await api.paas.updateApp(app.id, { cdn: v }); notify(v ? "CDN روشن شد" : "CDN خاموش شد", "zap"); }} label="CDN" />
         </div>
-        {app.cdn && <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />پاک کردن کش</AsyncButton>}
+        {app.cdn && <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />پاک کردن کش</AsyncButton>}
       </Card>
       <DomainOptions app={app} />
     </div>
@@ -512,14 +512,14 @@ function AppDbs({ app }: { app: PaasApp }) {
             return (
               <li key={l.dbId} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
                 <span><Link href={("/panel/databases/" + l.dbId) as never} className="font-bold text-sm hover:underline">{d?.name ?? l.dbId}</Link><span className="block text-[11px] text-white/55">{DB_ENGINES.find((e) => e.id === d?.engine)?.label} → <span dir="ltr" className="font-mono">{l.envKey}</span></span></span>
-                <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText={"اتصال برداشته و متغیر " + l.envKey + " حذف شود؟"} onClick={() => api.paas.unlink(app.id, l.dbId)}>جدا کردن</AsyncButton>
+                <AsyncButton className={BTN_G + BTN_SM} confirmText={"اتصال برداشته و متغیر " + l.envKey + " حذف شود؟"} onClick={() => api.paas.unlink(app.id, l.dbId)}>جدا کردن</AsyncButton>
               </li>
             );
           })}</ul>
         )}
       </Card>
       <Card title="اتصال پایگاه داده" icon="plus">
-        {free.length === 0 ? <Empty icon="database" title="پایگاه داده آزادی ندارید" action={<Link href="/panel/databases?new=1" className={BTN_P + " h-10 px-4 text-sm"}>ساخت پایگاه داده</Link>} /> : (
+        {free.length === 0 ? <Empty icon="database" title="پایگاه داده آزادی ندارید" action={<Link href="/panel/databases?new=1" className={BTN_P + BTN_MD}>ساخت پایگاه داده</Link>} /> : (
           <div className="space-y-4">
             <Field label="پایگاه داده"><Select label="پایگاه داده" value={pick || free[0].id} onChange={setPick} options={free.map((d) => ({ value: d.id, label: d.name + " (" + (DB_ENGINES.find((e) => e.id === d.engine)?.label ?? d.engine) + ")" }))} /></Field>
             <Field label="نام متغیر" hint="آدرس اتصال کامل با این نام به اپ داده می‌شود"><input value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} dir="ltr" placeholder={chosen ? defaultEnvKeyFor(chosen.engine) : "DATABASE_URL"} className={INPUT + " text-left font-mono"} /></Field>
@@ -550,7 +550,7 @@ function AppScale({ app }: { app: PaasApp }) {
           <Field label="دیسک دائمی (گیگ)" hint={app.diskGb ? "قابل کاهش نیست" : "فقط با یک نمونه"}><Select label="دیسک دائمی" value={String(s.diskGb)} onChange={(v) => setS({ ...s, diskGb: Number(v), instances: Number(v) ? 1 : s.instances })} options={[0, 1, 5, 10, 20, 50, 100].filter((n) => n >= app.diskGb).map((n) => ({ value: String(n), label: n ? fa(n) + " گیگ" : "ندارد" }))} /></Field>
           {!s.diskGb && (s.instances > 1 || s.autoscale)
             ? <p className="text-[11px] text-emerald-300/90 leading-6 flex gap-1.5"><Icon name="shield-check" size={14} className="shrink-0 mt-1" />دسترس‌پذیری بالا: نمونه‌ها روی سرورهای فیزیکی مختلف پخش می‌شوند و به‌روزرسانی یا خرابی یک سرور، اپ را از دسترس خارج نمی‌کند.</p>
-            : <p className="text-[11px] text-white/45 leading-6">برای دسترس‌پذیری بالا (پخش روی چند سرور) دست‌کم ۲ نمونه انتخاب کنید.</p>}
+            : <p className="text-[11px] text-white/50 leading-6">برای دسترس‌پذیری بالا (پخش روی چند سرور) دست‌کم ۲ نمونه انتخاب کنید.</p>}
           <div className="pt-3 border-t border-white/[0.08]"><Cost monthly={monthly} />{s.autoscale && <span className="block text-[11px] text-white/50 mt-1">در اوج بار تا {toman(plan ? appMonthly(plan, s.maxInstances, s.diskGb) : 0)} در ماه</span>}</div>
           <AsyncButton onClick={async () => { await api.paas.scale(app.id, s); notify("منابع به‌روز شد", "gauge"); }}>اعمال</AsyncButton>
         </div>
@@ -589,7 +589,7 @@ function AppSettings({ app }: { app: PaasApp }) {
             <div className="flex items-center justify-between text-sm mb-3"><span>استقرار خودکار شاخه <b dir="ltr">{app.gitBranch}</b></span><Switch on={app.autoDeploy} onChange={async (v) => { await api.paas.updateApp(app.id, { autoDeploy: v }); }} label="استقرار خودکار" /></div>
             <div className="flex items-center justify-between gap-3 text-sm mb-3"><span>پیش‌نمایش خودکار برای push به شاخه‌های دیگر<span className="block text-[11px] text-white/50">روی <span dir="ltr">{app.previewUrl.replace("https://", "")}</span>؛ هزینه یک نمونه اضافه تا وقتی فعال است</span></span><Switch on={app.previews} onChange={async (v) => { await api.paas.updateApp(app.id, { previews: v }); }} label="پیش‌نمایش خودکار" /></div>
             <Field label="Webhook URL" hint="در GitHub: Settings › Webhooks › Add webhook (Content type: application/json، رویداد push). در GitLab: Settings › Webhooks › Push events."><CopyText text={app.hookUrl} className="font-mono text-[11px] break-all" /></Field>
-            <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-3"} confirmText="آدرس فعلی از کار می‌افتد و باید در مخزن آدرس جدید را ثبت کنید. ادامه؟" onClick={async () => { await api.paas.regenHook(app.id); notify("آدرس جدید ساخته شد", "key-round"); }}>ساخت توکن جدید</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="آدرس فعلی از کار می‌افتد و باید در مخزن آدرس جدید را ثبت کنید. ادامه؟" onClick={async () => { await api.paas.regenHook(app.id); notify("آدرس جدید ساخته شد", "key-round"); }}>ساخت توکن جدید</AsyncButton>
           </Card>
         )}
         <CiTemplates app={app} />

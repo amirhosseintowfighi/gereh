@@ -2,7 +2,7 @@
 /* Gereh Apps operator tools, part 2: log search and live tail, metric history charts, .env
    import/export and raw editing, and the release history. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { fa } from "@/lib/format";
 import { ENV_KEY_RE, ENV_RESERVED } from "@/lib/paas";
 import { LOG_DAYS, LOG_LEVELS, logLevel, METRIC_RANGES, parseDotenv, toDotenv, type LogLevel, type MetricRange } from "@/lib/paas-tools";
@@ -14,7 +14,7 @@ import { Badge, Card, Empty } from "../ui";
 import { AreaChart, AsyncButton, Select, Switch, Tabs } from "../ui-client";
 import { DeployPill } from "./paas-shared";
 
-const LEVEL_TONE: Record<LogLevel, string> = { error: "text-rose-300", warn: "text-amber-200", info: "text-white/85", debug: "text-white/45" };
+const LEVEL_TONE: Record<LogLevel, string> = { error: "text-rose-300", warn: "text-amber-200", info: "text-white/85", debug: "text-white/50" };
 const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 
 /* ================= logs ================= */
@@ -68,25 +68,25 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); setApplied(q); setNonce((n) => n + 1); }}>
           <label className="sr-only" htmlFor="log-q">جستجو در لاگ</label>
-          <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="search…" className={INPUT + " h-9 w-52 text-left text-xs"} />
+          <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="search…" className={INPUT_BASE + " h-9 w-52 text-left text-xs"} />
           <button type="submit" aria-label="جستجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
         </form>
         <span className="flex gap-1" role="group" aria-label="سطح لاگ">
-          {LOG_LEVELS.map((l) => <button key={l.id} type="button" aria-pressed={levels.includes(l.id)} onClick={() => toggle(l.id)} className={"h-8 px-2.5 rounded-lg text-[11px] border " + (levels.includes(l.id) ? "border-white/30 bg-white/[0.08] " + LEVEL_TONE[l.id] : "border-white/[0.08] text-white/40")}>{l.label}</button>)}
+          {LOG_LEVELS.map((l) => <button key={l.id} type="button" aria-pressed={levels.includes(l.id)} onClick={() => toggle(l.id)} className={"h-8 px-2.5 rounded-lg text-[11px] border " + (levels.includes(l.id) ? "border-white/30 bg-white/[0.08] " + LEVEL_TONE[l.id] : "border-white/[0.08] text-white/50")}>{l.label}</button>)}
         </span>
-        <label className="text-[11px] text-white/55 flex items-center gap-1">از<input type="datetime-local" value={from} max={localInput(new Date())} onChange={(e) => setFrom(e.target.value)} className={INPUT + " h-8 w-auto text-[11px]"} /></label>
-        <label className="text-[11px] text-white/55 flex items-center gap-1">تا<input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className={INPUT + " h-8 w-auto text-[11px]"} /></label>
+        <label className="text-[11px] text-white/55 flex items-center gap-1">از<input type="datetime-local" value={from} max={localInput(new Date())} onChange={(e) => setFrom(e.target.value)} className={INPUT_BASE + " h-8 w-auto text-[11px]"} /></label>
+        <label className="text-[11px] text-white/55 flex items-center gap-1">تا<input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className={INPUT_BASE + " h-8 w-auto text-[11px]"} /></label>
         <span className="flex items-center gap-1.5 text-[11px] text-white/70 mr-auto"><Switch on={live} onChange={setLive} label="دنبال کردن زنده" />زنده</span>
         <span className="flex items-center gap-1.5 text-[11px] text-white/70"><Switch on={wrap} onChange={setWrap} label="شکستن خطوط" />شکستن خط</span>
-        <a href={exportUrl()} className={BTN_G + " h-8 px-3 text-[11px]"}><Icon name="download" size={13} />‎.txt</a>
+        <a href={exportUrl()} className={BTN_G + BTN_SM + " text-[11px]"}><Icon name="download" size={13} />‎.txt</a>
       </div>
       {error && <p role="alert" className="text-sm text-rose-300 mb-2">{error}</p>}
       <div ref={box} dir="ltr" tabIndex={0} role="log" aria-label="لاگ اپ" className={"text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[60vh] overflow-auto " + (wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
         {more !== null && <button type="button" onClick={() => older(more)} className="text-[11px] acc mb-2">↑ older</button>}
         {lines === null ? "…" : lines.length === 0 ? <span className="text-white/50">{app.status === "running" ? "لاگی با این فیلترها پیدا نشد؛ لاگ‌ها هر ۵ دقیقه جمع‌آوری می‌شوند." : "اپ در حال اجرا نیست."}</span>
-          : lines.map((l) => <div key={l.id} className={LEVEL_TONE[l.level]}><span className="text-white/35">{l.at.slice(5, 19).replace("T", " ")} </span>{l.instance && <span className="text-white/30">[{l.instance.slice(-5)}] </span>}{l.line}</div>)}
+          : lines.map((l) => <div key={l.id} className={LEVEL_TONE[l.level]}><span className="text-white/50">{l.at.slice(5, 19).replace("T", " ")} </span>{l.instance && <span className="text-white/30">[{l.instance.slice(-5)}] </span>}{l.line}</div>)}
       </div>
-      <p className="text-[11px] text-white/45 mt-2">لاگ‌ها {fa(days)} روز نگه داشته می‌شوند (بسته به پلن). جستجو روی متن کامل خطوط است.</p>
+      <p className="text-[11px] text-white/50 mt-2">لاگ‌ها {fa(days)} روز نگه داشته می‌شوند (بسته به پلن). جستجو روی متن کامل خطوط است.</p>
     </Card>
   );
 }
@@ -122,7 +122,7 @@ export function AppMetrics({ app }: { app: PaasApp }) {
               <span className="tabular">{values.length ? "میانگین " + fa(Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10, 1) + " " + unit : ""}</span></div>
             {data === null ? <div className="h-[140px] grid place-items-center"><Icon name="loader-circle" size={16} className="animate-spin" /></div>
               : values.length > 1 ? <AreaChart data={values} labels={labels} height={140} unit={unit} fmt={(v) => fa(Math.round(v * 10) / 10, 1)} />
-              : <div className="h-[140px] grid place-items-center text-[11px] text-white/45">داده‌ای برای این بازه نیست؛ نمونه‌برداری هر ۵ دقیقه انجام می‌شود.</div>}
+              : <div className="h-[140px] grid place-items-center text-[11px] text-white/50">داده‌ای برای این بازه نیست؛ نمونه‌برداری هر ۵ دقیقه انجام می‌شود.</div>}
           </Card>
         ))}
       </div>
@@ -160,9 +160,9 @@ export function EnvBulk({ app }: { app: PaasApp }) {
   return (
     <Card title="فایل ‎.env" icon="file-text" className="mt-4" action={<div className="flex flex-wrap gap-2">
       <input ref={file} type="file" accept=".env,text/plain" className="sr-only" aria-label="فایل ‎.env" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { await apply(await f.text(), false); } catch (er) { notify((er as Error).message, "circle-alert"); } }} />
-      <button type="button" onClick={() => file.current?.click()} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="upload" size={14} />وارد کردن</button>
-      <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => download(await api.paas.envFile(app.id))}><Icon name="download" size={14} />خروجی ‎.env</AsyncButton>
-      <button type="button" aria-expanded={raw !== null} onClick={() => setRaw(raw === null ? toDotenv(current.map((e) => ({ key: e.key, value: e.secret ? "" : e.value ?? "" }))) : null)} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="file-pen" size={14} />ویرایش متنی</button>
+      <button type="button" onClick={() => file.current?.click()} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />وارد کردن</button>
+      <AsyncButton className={BTN_G + BTN_SM} onClick={async () => download(await api.paas.envFile(app.id))}><Icon name="download" size={14} />خروجی ‎.env</AsyncButton>
+      <button type="button" aria-expanded={raw !== null} onClick={() => setRaw(raw === null ? toDotenv(current.map((e) => ({ key: e.key, value: e.secret ? "" : e.value ?? "" }))) : null)} className={BTN_G + BTN_SM}><Icon name="file-pen" size={14} />ویرایش متنی</button>
     </div>}>
       {raw === null ? <p className="text-xs text-white/55 leading-6">فایل ‎.env را وارد کنید (متغیرهای هم‌نام جایگزین می‌شوند)، از همه متغیرها (با مقدار محرمانه‌ها؛ ثبت می‌شود) خروجی بگیرید، یا همه را یک‌جا به‌صورت متن ویرایش کنید.</p> : (
         <div>
@@ -170,8 +170,8 @@ export function EnvBulk({ app }: { app: PaasApp }) {
           <textarea id="env-raw" value={raw} onChange={(e) => setRaw(e.target.value)} dir="ltr" spellCheck={false} rows={14} className={TEXTAREA + " font-mono text-xs leading-6 text-left resize-y"} />
           <p className="text-[11px] text-white/50 mt-1">هر خط KEY=value. مقدار خالی برای متغیر محرمانه یعنی بدون تغییر؛ خط‌هایی که حذف کنید، متغیرشان حذف می‌شود.</p>
           <div className="flex justify-end gap-2 mt-3">
-            <button type="button" onClick={() => setRaw(null)} className={BTN_G + " h-10 px-4 text-sm"}>انصراف</button>
-            <AsyncButton className={BTN_P + " h-10 px-4 text-sm"} onClick={async () => { await apply(raw, true); setRaw(null); }}>ذخیره و اعمال</AsyncButton>
+            <button type="button" onClick={() => setRaw(null)} className={BTN_G + BTN_MD}>انصراف</button>
+            <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { await apply(raw, true); setRaw(null); }}>ذخیره و اعمال</AsyncButton>
           </div>
         </div>
       )}
@@ -199,9 +199,9 @@ export function AppReleases({ app }: { app: PaasApp }) {
                 <span className="block text-[11px] text-white/50 mt-1">{r.at}{r.branch ? " · شاخه " : ""}<span dir="ltr">{r.branch}</span>{r.ref ? " · " : ""}<span dir="ltr" className="font-mono">{r.ref.slice(0, 12)}</span>{r.seconds !== null ? " · " + fa(r.seconds) + " ثانیه" : ""}</span>
               </span>
               <span className="flex gap-2">
-                {r.commitUrl && <a href={r.commitUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-8 px-3 text-xs"}><Icon name="external-link" size={13} />کامیت</a>}
-                {r.source ? <a href={r.source} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="download" size={13} />سورس</a>
-                  : r.archiveUrl ? <a href={r.archiveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-8 px-3 text-xs"}><Icon name="download" size={13} />سورس</a> : null}
+                {r.commitUrl && <a href={r.commitUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="external-link" size={13} />کامیت</a>}
+                {r.source ? <a href={r.source} className={BTN_G + BTN_SM}><Icon name="download" size={13} />سورس</a>
+                  : r.archiveUrl ? <a href={r.archiveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="download" size={13} />سورس</a> : null}
               </span>
             </li>
           ))}
@@ -221,7 +221,7 @@ export function PlanLogRetention() {
       {!rows ? <p className="text-sm text-white/55 p-2">…</p> : (
         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-1">{rows.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-2 p-2">
-            <span className="text-sm">{r.name} <span className="text-[11px] text-white/45">{r.id}</span></span>
+            <span className="text-sm">{r.name} <span className="text-[11px] text-white/50">{r.id}</span></span>
             <Select label={"نگهداری لاگ " + r.name} value={String(r.logDays)} onChange={async (v) => { await api.paas.adminSetLogDays(r.id, Number(v)); setRows(rows.map((x) => (x.id === r.id ? { ...x, logDays: Number(v) } : x))); notify("ذخیره شد", "check"); }}
               options={LOG_DAYS.map((d) => ({ value: String(d), label: fa(d) + " روز" }))} />
           </li>

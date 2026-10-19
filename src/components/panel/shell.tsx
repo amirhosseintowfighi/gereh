@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { BUILDER } from "@/lib/builder";
-import { BTN_G, BTN_P } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
 import { useLocs } from "@/lib/use-locs";
@@ -76,7 +76,7 @@ export function PanelGate({ kind, children }: { kind: "user" | "admin"; children
   if (!session) return <div className="min-h-screen grid place-items-center" aria-busy="true"><Icon name="loader-circle" size={28} className="animate-spin text-white/50" /><span className="sr-only-focusable">در حال بارگذاری</span></div>;
   if (kind === "admin" && session.role !== "admin") return (
     <main id="main" className="max-w-lg mx-auto px-4 py-28 text-center">
-      <Empty icon="lock" title="دسترسی به پنل مدیریت ندارید" text="با حساب مدیر وارد شوید." action={<Link href="/panel" className={BTN_P + " px-5 h-10 text-sm"}>رفتن به پنل کاربری</Link>} />
+      <Empty icon="lock" title="دسترسی به پنل مدیریت ندارید" text="با حساب مدیر وارد شوید." action={<Link href="/panel" className={BTN_P + BTN_MD}>رفتن به پنل کاربری</Link>} />
     </main>
   );
   return <PanelShell kind={kind}>{children}</PanelShell>;
@@ -137,7 +137,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
       </div>
       <nav aria-label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} className="flex-1 overflow-auto p-3 space-y-0.5">
         {nav.map((n, i) => (<Fragment key={n.href}>
-          {n.group && n.group !== nav[i - 1]?.group && <div className="px-3 pt-4 pb-1.5 text-[11px] font-bold text-white/40">{n.group}</div>}
+          {n.group && n.group !== nav[i - 1]?.group && <div className="px-3 pt-4 pb-1.5 text-[11px] font-bold text-white/50">{n.group}</div>}
           <Link href={n.href as never} aria-current={active.href === n.href ? "page" : undefined}
             className={"w-full flex items-center gap-3 px-3 h-11 rounded-xl text-sm text-right transition " + (active.href === n.href ? "bg-white/[0.09] text-white font-bold shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "text-white/55 hover:text-white hover:bg-white/[0.04]")}>
             <Icon name={n.icon} size={18} className={active.href === n.href ? "acc" : ""} />
@@ -175,7 +175,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           <div className="flex items-center gap-1.5">
             {kind === "user" && <AccountSwitcher />}
             {kind === "admin" && <AdminSearch />}
-            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs max-sm:hidden"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
+            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + BTN_MD + " max-sm:hidden"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
               items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => api.account.readOne(n.id) })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />
@@ -192,13 +192,13 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         {kind === "user" && session?.role === "admin" && session.actorId && session.userId !== session.actorId && (
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="eye" size={16} />در حال مشاهده پنل <b>{user.name}</b> به‌عنوان مدیر؛ همه اقدامات در گزارش فعالیت ثبت می‌شود.</span>
-            <button type="button" onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + " px-3 h-8 text-xs"}>پایان و بازگشت به مدیریت</button>
+            <button type="button" onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + BTN_SM}>پایان و بازگشت به مدیریت</button>
           </div>
         )}
         {kind === "user" && session?.teamRole && (
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-sky-300/25 bg-sky-400/[0.07] px-4 py-3 text-sm text-sky-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="users-round" size={16} />در حساب <b>{user?.name}</b> با نقش «{roleLabel(session.teamRole)}» کار می‌کنید.</span>
-            <button type="button" onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }} className={BTN_G + " px-3 h-8 text-xs"}>بازگشت به حساب خودم</button>
+            <button type="button" onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }} className={BTN_G + BTN_SM}>بازگشت به حساب خودم</button>
           </div>
         )}
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>

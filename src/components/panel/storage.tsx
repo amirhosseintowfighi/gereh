@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BTN_D, BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { hourlyOf } from "@/lib/paas";
 import { BUCKET_STATUS, CORS_METHODS, DOMAIN_STATUS, GB, SDKS, SHARE_TTLS, SSL_STATUS, baseName, bucketNameError, bytes, crumbs, snippet, type SdkId } from "@/lib/storage";
@@ -28,14 +28,14 @@ export function UserStorage({ create = false }: { create?: boolean }) {
   return (
     <div>
       <PageTitle title="فضای ذخیره‌سازی ابری" sub="ذخیره‌سازی سازگار با S3 برای فایل‌ها، تصاویر، بکاپ و استاتیک سایت؛ پرداخت ساعتی از کیف پول."
-        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />باکت جدید</button>} />
+        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />باکت جدید</button>} />
       <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های فضای ذخیره‌سازی" options={[
         { id: "buckets", label: "باکت‌ها", icon: "hard-drive", badge: buckets.length ? fa(buckets.length) : undefined }, { id: "keys", label: "کلیدهای دسترسی", icon: "key-round" }, { id: "connect", label: "اتصال", icon: "plug" },
       ]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "buckets" && (buckets.length === 0 ? (
           <Card><Empty icon="hard-drive" title="هنوز باکتی ندارید" text="یک باکت بسازید، کلید دسترسی بگیرید و با هر ابزار سازگار با S3 (aws-cli، rclone، SDKها) فایل‌ها را مدیریت کنید."
-            action={<div className="flex flex-wrap gap-2 justify-center"><button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-5 text-sm"}>ساخت باکت</button><Link href={"/storage" as never} className={BTN_G + " h-10 px-4 text-sm"}>بیشتر بدانید</Link></div>} /></Card>
+            action={<div className="flex flex-wrap gap-2 justify-center"><button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}>ساخت باکت</button><Link href={"/storage" as never} className={BTN_G + BTN_MD}>بیشتر بدانید</Link></div>} /></Card>
         ) : (
           <ul className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {buckets.map((b) => { const plan = db.storage.plans.find((p) => p.id === b.planId); return (
@@ -112,7 +112,7 @@ function SecretModal({ secret, onClose }: { secret: { accessKey: string; secretK
         {[["Access Key", secret.accessKey], ["Secret Key", secret.secretKey], ["Endpoint", db.storage.endpoint], ["Region", db.storage.region]].map(([l, v]) => (
           <Field key={l} label={l}><div className="rounded-xl bg-black/30 px-3 py-2.5 break-all"><CopyText text={v} className="font-mono text-sm" /></div></Field>
         ))}
-        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + " h-10 px-4 text-sm"} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={15} />کپی به‌صورت ‎.env</button><button type="button" className={BTN_P + " h-10 px-4 text-sm"} onClick={onClose}>ذخیره کردم</button></div>
+        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + BTN_MD} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={15} />کپی به‌صورت ‎.env</button><button type="button" className={BTN_P + BTN_MD} onClick={onClose}>ذخیره کردم</button></div>
       </div>}
     </Modal>
   );
@@ -160,7 +160,7 @@ function Keys({ buckets }: { buckets: StorageBucket[] }) {
   const [secret, setSecret] = useState<{ accessKey: string; secretKey: string } | null>(null);
   const name = (id: string) => buckets.find((b) => b.id === id)?.name ?? id;
   return (
-    <Card pad="p-3 sm:p-4" title="کلیدهای دسترسی" icon="key-round" action={<button type="button" onClick={() => setEdit("new")} className={BTN_P + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />کلید جدید</button>}>
+    <Card pad="p-3 sm:p-4" title="کلیدهای دسترسی" icon="key-round" action={<button type="button" onClick={() => setEdit("new")} className={BTN_P + BTN_SM}><Icon name="plus" size={14} />کلید جدید</button>}>
       {db.storage.keys.length === 0 ? <Empty icon="key-round" title="کلید دسترسی ندارید" text="هر برنامه یا سرور را با کلید جداگانه و فقط به باکت‌های لازم وصل کنید؛ هر وقت لازم شد کلید را باطل کنید." /> : (
         <ul className="divide-y divide-white/[0.06]">
           {db.storage.keys.map((k) => (
@@ -168,8 +168,8 @@ function Keys({ buckets }: { buckets: StorageBucket[] }) {
               <div className="min-w-0">
                 <b className="text-sm">{k.name}</b>
                 <div className="mt-1"><CopyText text={k.accessKey} className="font-mono text-xs text-white/70" /></div>
-                <div className="flex flex-wrap gap-1.5 mt-2">{k.grants.length ? k.grants.map((g) => <Badge key={g.bucketId} tone={g.perm === "write" ? "amber" : "gray"}><span dir="ltr">{name(g.bucketId)}</span> · {PERM_LABEL[g.perm]}</Badge>) : <span className="text-[11px] text-white/45">به هیچ باکتی دسترسی ندارد</span>}</div>
-                <span className="block text-[11px] text-white/45 mt-1.5">ساخته‌شده {k.at}{k.rotated ? " · تعویض کلید مخفی " + k.rotated : ""}</span>
+                <div className="flex flex-wrap gap-1.5 mt-2">{k.grants.length ? k.grants.map((g) => <Badge key={g.bucketId} tone={g.perm === "write" ? "amber" : "gray"}><span dir="ltr">{name(g.bucketId)}</span> · {PERM_LABEL[g.perm]}</Badge>) : <span className="text-[11px] text-white/50">به هیچ باکتی دسترسی ندارد</span>}</div>
+                <span className="block text-[11px] text-white/50 mt-1.5">ساخته‌شده {k.at}{k.rotated ? " · تعویض کلید مخفی " + k.rotated : ""}</span>
               </div>
               <Menu label={"عملیات " + k.name} trigger={<Icon name="sliders-horizontal" size={16} />} items={[
                 { icon: "pencil", label: "ویرایش دسترسی", run: () => setEdit(k) },
@@ -215,7 +215,7 @@ export function StorageDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const b = db.storage.buckets.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("files");
-  if (!b) return <Card><Empty icon="hard-drive" title="باکت پیدا نشد" action={<Link href={"/panel/storage" as never} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت</Link>} /></Card>;
+  if (!b) return <Card><Empty icon="hard-drive" title="باکت پیدا نشد" action={<Link href={"/panel/storage" as never} className={BTN_G + BTN_MD}>بازگشت</Link>} /></Card>;
   const plan = db.storage.plans.find((p) => p.id === b.planId);
   return (
     <div>
@@ -295,8 +295,8 @@ function Files({ b }: { b: StorageBucket }) {
       </nav>
     } action={
       <div className="flex gap-2">
-        <button type="button" onClick={() => setModal({ kind: "mkdir", key: prefix })} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="folder-open" size={14} />پوشه جدید</button>
-        <button type="button" onClick={() => fileRef.current?.click()} className={BTN_P + " h-9 px-3 text-xs"}><Icon name="upload" size={14} />بارگذاری</button>
+        <button type="button" onClick={() => setModal({ kind: "mkdir", key: prefix })} className={BTN_G + BTN_SM}><Icon name="folder-open" size={14} />پوشه جدید</button>
+        <button type="button" onClick={() => fileRef.current?.click()} className={BTN_P + BTN_SM}><Icon name="upload" size={14} />بارگذاری</button>
         <input ref={fileRef} type="file" multiple className="hidden" aria-label="انتخاب فایل" onChange={(e) => upload(e.target.files)} />
       </div>
     }>
@@ -306,7 +306,7 @@ function Files({ b }: { b: StorageBucket }) {
           {ups.every((u) => u.pct === 100 || u.error) && <li><button type="button" className="text-[11px] text-white/55 hover:text-white" onClick={() => setUps([])}>بستن</button></li>}
         </ul>
       )}
-      {err ? <Empty icon="circle-alert" title="فهرست فایل‌ها بارگیری نشد" text={err} action={<button type="button" onClick={() => { setErr(""); reload(); }} className={BTN_G + " h-9 px-4 text-sm"}>تلاش دوباره</button>} />
+      {err ? <Empty icon="circle-alert" title="فهرست فایل‌ها بارگیری نشد" text={err} action={<button type="button" onClick={() => { setErr(""); reload(); }} className={BTN_G + BTN_SM}>تلاش دوباره</button>} />
         : loading && !res ? <div className="py-14 grid place-items-center" aria-busy="true"><Icon name="loader-circle" size={24} className="animate-spin text-white/50" /></div>
         : res && res.list.folders.length === 0 && objects.length === 0 ? <Empty icon="folder-open" title="این پوشه خالی است" text="فایل‌ها را بارگذاری کنید یا با aws-cli و rclone همگام کنید." />
         : res && (
@@ -323,7 +323,7 @@ function Files({ b }: { b: StorageBucket }) {
             ))}
             {objects.map((o) => (
               <li key={o.key} className="flex items-center justify-between gap-2 py-2 px-1">
-                <span className="flex-1 min-w-0 flex items-center gap-2"><Icon name="file-text" size={17} className="text-white/50 shrink-0" /><span className="min-w-0"><span dir="ltr" className="block truncate text-sm text-right">{o.name}</span><span className="block text-[11px] text-white/45">{bytes(o.size)} · {when(o.modified)}</span></span></span>
+                <span className="flex-1 min-w-0 flex items-center gap-2"><Icon name="file-text" size={17} className="text-white/50 shrink-0" /><span className="min-w-0"><span dir="ltr" className="block truncate text-sm text-right">{o.name}</span><span className="block text-[11px] text-white/50">{bytes(o.size)} · {when(o.modified)}</span></span></span>
                 <Menu label={"عملیات " + o.name} trigger={<Icon name="sliders-horizontal" size={15} />} items={[
                   { icon: "download", label: "دانلود", run: () => download(o.key) },
                   { icon: "share-2", label: "لینک اشتراک موقت", run: () => setModal({ kind: "share", key: o.key }) },
@@ -336,7 +336,7 @@ function Files({ b }: { b: StorageBucket }) {
             ))}
           </ul>
         )}
-      {res?.list.next && <div className="text-center mt-3"><AsyncButton className={BTN_G + " h-9 px-4 text-xs"} onClick={async () => { const more = await api.storage.objects(b.id, prefix, res.list.next); setRes({ ...res, list: { ...res.list, next: more.next }, more: [...res.more, ...more.objects] }); }}>فایل‌های بیشتر</AsyncButton></div>}
+      {res?.list.next && <div className="text-center mt-3"><AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const more = await api.storage.objects(b.id, prefix, res.list.next); setRes({ ...res, list: { ...res.list, next: more.next }, more: [...res.more, ...more.objects] }); }}>فایل‌های بیشتر</AsyncButton></div>}
       <FileModal b={b} modal={modal} onClose={() => setModal(null)} onDone={reload} />
     </Card>
   );
@@ -364,7 +364,7 @@ function FileModal({ b, modal, onClose, onDone }: { b: StorageBucket; modal: { k
       {modal?.kind === "share" && <div className="space-y-4">
         <p className="text-sm text-white/70 leading-7">هر کس این لینک را داشته باشد تا پایان مهلت می‌تواند <b dir="ltr">{baseName(modal.key)}</b> را دانلود کند؛ پس از آن لینک کار نمی‌کند.</p>
         <Field label="مدت اعتبار"><Select label="مدت اعتبار" value={ttl} onChange={setTtl} options={SHARE_TTLS.map((t) => ({ value: String(t.value), label: t.label }))} /></Field>
-        {link && <div className="rounded-xl bg-black/30 px-3 py-2.5 break-all text-xs"><CopyText text={abs(link.url)} className="font-mono" /><span className="block text-[11px] text-white/45 mt-1">معتبر تا {when(link.expiresAt)}</span></div>}
+        {link && <div className="rounded-xl bg-black/30 px-3 py-2.5 break-all text-xs"><CopyText text={abs(link.url)} className="font-mono" /><span className="block text-[11px] text-white/50 mt-1">معتبر تا {when(link.expiresAt)}</span></div>}
         <div className="flex justify-end"><AsyncButton onClick={async () => setLink(await api.storage.share(b.id, modal.key, Number(ttl)))}><Icon name="share-2" size={15} />ساخت لینک</AsyncButton></div>
       </div>}
     </Modal>
@@ -388,7 +388,7 @@ function Usage({ b }: { b: StorageBucket }) {
         <StatCard icon="activity" label="درخواست‌ها (۷ روز)" value={sum("requests")} />
         <StatCard icon="arrow-down-up" label="ترافیک ورودی / خروجی (۷ روز)" value={bytes(sum("bytesIn")) + " / " + bytes(sum("bytesOut"))} />
       </div>
-      <Card><Meter value={b.usedBytes} max={(plan?.sizeGb ?? 1) * GB} label="حجم پلن" right={bytes(b.usedBytes) + " از " + (plan?.name ?? "")} /><p className="text-[11px] text-white/45 mt-3">{b.usageAt ? "آخرین به‌روزرسانی: " + b.usageAt + " (هر ساعت)" : "آمار مصرف هر ساعت به‌روز می‌شود."}</p></Card>
+      <Card><Meter value={b.usedBytes} max={(plan?.sizeGb ?? 1) * GB} label="حجم پلن" right={bytes(b.usedBytes) + " از " + (plan?.name ?? "")} /><p className="text-[11px] text-white/50 mt-3">{b.usageAt ? "آخرین به‌روزرسانی: " + b.usageAt + " (هر ساعت)" : "آمار مصرف هر ساعت به‌روز می‌شود."}</p></Card>
       <div className="grid lg:grid-cols-3 gap-4">
         <Card title="حجم ذخیره‌شده" icon="hard-drive"><Bars data={days.map((d) => row(d)?.sizeBytes ?? 0)} labels={labels} fmt={bytes} /></Card>
         <Card title="درخواست‌ها" icon="activity"><Bars data={days.map((d) => row(d)?.requests ?? 0)} labels={labels} /></Card>
@@ -409,10 +409,10 @@ function Domains({ b }: { b: StorageBucket }) {
           <ul className="divide-y divide-white/[0.06]">
             {b.domains.map((d) => (
               <li key={d.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
-                <span className="min-w-0"><b dir="ltr" className="text-sm break-all">{d.host}</b><span className="flex flex-wrap gap-1.5 mt-1.5"><Pill map={DOMAIN_STATUS} s={d.status} />{d.status === "active" && <span className="inline-flex items-center gap-1 text-[11px]">SSL: <Pill map={SSL_STATUS} s={d.ssl} /></span>}</span>{d.checked && <span className="block text-[11px] text-white/45 mt-1">بررسی: {d.checked}</span>}</span>
+                <span className="min-w-0"><b dir="ltr" className="text-sm break-all">{d.host}</b><span className="flex flex-wrap gap-1.5 mt-1.5"><Pill map={DOMAIN_STATUS} s={d.status} />{d.status === "active" && <span className="inline-flex items-center gap-1 text-[11px]">SSL: <Pill map={SSL_STATUS} s={d.ssl} /></span>}</span>{d.checked && <span className="block text-[11px] text-white/50 mt-1">بررسی: {d.checked}</span>}</span>
                 <span className="flex gap-2">
-                  <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} onClick={async () => { const r = await api.storage.verifyDomain(b.id, d.id); notify(r.status === "active" ? "CNAME درست است" : "CNAME هنوز به باکت اشاره نمی‌کند", r.status === "active" ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی</AsyncButton>
-                  <AsyncButton className={BTN_D + " h-8 px-3 text-xs"} onClick={async () => { if (await confirm("دامنه " + d.host + " جدا شود؟", { danger: true, ok: "حذف" })) await api.storage.removeDomain(b.id, d.id); }}><Icon name="trash-2" size={13} /></AsyncButton>
+                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.storage.verifyDomain(b.id, d.id); notify(r.status === "active" ? "CNAME درست است" : "CNAME هنوز به باکت اشاره نمی‌کند", r.status === "active" ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی</AsyncButton>
+                  <AsyncButton className={BTN_D + BTN_SM} onClick={async () => { if (await confirm("دامنه " + d.host + " جدا شود؟", { danger: true, ok: "حذف" })) await api.storage.removeDomain(b.id, d.id); }}><Icon name="trash-2" size={13} /></AsyncButton>
                 </span>
               </li>
             ))}
@@ -478,7 +478,7 @@ function Settings({ b }: { b: StorageBucket }) {
         </Card>
       </div>
       <div className="space-y-4">
-        <Card title="قوانین CORS" icon="network" action={<button type="button" disabled={rules.length >= 10} onClick={() => setRules([...rules, { ...EMPTY_RULE }])} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="plus" size={13} />قانون</button>}>
+        <Card title="قوانین CORS" icon="network" action={<button type="button" disabled={rules.length >= 10} onClick={() => setRules([...rules, { ...EMPTY_RULE }])} className={BTN_G + BTN_SM}><Icon name="plus" size={13} />قانون</button>}>
           <p className="text-[11px] text-white/55 leading-6 mb-3">برای خواندن یا بارگذاری مستقیم از مرورگر (JavaScript سایت شما) لازم است.</p>
           {rules.length === 0 && <p className="text-sm text-white/55">قانونی تعریف نشده است.</p>}
           <ul className="space-y-3">

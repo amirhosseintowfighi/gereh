@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { answerFor, GEO_TYPES, SYNC_LABEL, SYNC_STATUS, ZONE_STATUS, type GeoRecordType } from "@/lib/geo";
 import { api, useDB, useMyId, type GeoRecordInput } from "@/lib/store";
@@ -13,7 +13,7 @@ import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
 
 const Pill = ({ map, s }: { map: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]>; s: string }) => { const [l, t] = map[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
-const Up = ({ v }: { v: boolean | null }) => v === null ? <span className="text-white/40">—</span> : v ? <span className="text-emerald-300 inline-flex items-center gap-1"><Icon name="circle-check" size={13} />در دسترس</span> : <span className="text-rose-300 inline-flex items-center gap-1"><Icon name="circle-alert" size={13} />قطع</span>;
+const Up = ({ v }: { v: boolean | null }) => v === null ? <span className="text-white/50">—</span> : v ? <span className="text-emerald-300 inline-flex items-center gap-1"><Icon name="circle-check" size={13} />در دسترس</span> : <span className="text-rose-300 inline-flex items-center gap-1"><Icon name="circle-alert" size={13} />قطع</span>;
 
 /* ================= list + order ================= */
 export function UserGeo({ create = false }: { create?: boolean }) {
@@ -23,10 +23,10 @@ export function UserGeo({ create = false }: { create?: boolean }) {
   return (
     <div>
       <PageTitle title="Geo DNS" sub="بازدیدکننده ایرانی به سرور ایران، بقیه دنیا و گوگل به سرور خارج؛ سایت در قطعی اینترنت هم دیده می‌شود و رتبه گوگل حفظ می‌شود."
-        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />دامنه جدید</button>} />
+        action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />دامنه جدید</button>} />
       {zones.length === 0 ? (
         <Card><Empty icon="globe" title="هنوز دامنه‌ای در Geo DNS ندارید" text="دامنه، IP سرور ایران و IP سرور خارج را وارد کنید؛ بقیه کار با ماست."
-          action={<div className="flex flex-wrap gap-2 justify-center"><button type="button" onClick={() => setOpen(true)} className={BTN_P + " h-10 px-5 text-sm"}>شروع</button><Link href={"/geo-dns" as never} className={BTN_G + " h-10 px-4 text-sm"}>Geo DNS چیست؟</Link></div>} /></Card>
+          action={<div className="flex flex-wrap gap-2 justify-center"><button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}>شروع</button><Link href={"/geo-dns" as never} className={BTN_G + BTN_MD}>Geo DNS چیست؟</Link></div>} /></Card>
       ) : (
         <ul className="grid md:grid-cols-2 gap-4">
           {zones.map((z) => { const plan = db.geo.plans.find((p) => p.id === z.planId); return (
@@ -91,7 +91,7 @@ export function GeoDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const z = db.geo.zones.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState(z && !z.nsOk ? "setup" : "records");
-  if (!z) return <Card><Empty icon="globe" title="دامنه پیدا نشد" action={<Link href={"/panel/geo" as never} className={BTN_G + " px-4 h-10 text-sm"}>بازگشت</Link>} /></Card>;
+  if (!z) return <Card><Empty icon="globe" title="دامنه پیدا نشد" action={<Link href={"/panel/geo" as never} className={BTN_G + BTN_MD}>بازگشت</Link>} /></Card>;
   const plan = db.geo.plans.find((p) => p.id === z.planId);
   return (
     <div>
@@ -130,7 +130,7 @@ function Setup({ z }: { z: GeoZone }) {
             <div className="mt-2 space-y-1.5">{db.geo.nameservers.map((n) => <div key={n} className="rounded-lg bg-black/30 px-3 py-2"><CopyText text={n} className="font-mono text-sm" /></div>)}</div>
             <p className="text-[11px] text-white/50 mt-2">پیش از تغییر، همه رکوردهای فعلی دامنه (به‌خصوص MX ایمیل) را در تب «رکوردها» وارد کنید تا چیزی قطع نشود. اعمال تغییر بین چند دقیقه تا ۲۴ ساعت طول می‌کشد.</p>
             <div className="flex flex-wrap items-center gap-3 mt-3">
-              <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={async () => { const r = await api.geo.checkNs(z.id); notify(r.ok ? "NS درست است؛ Geo DNS فعال شد" : "هنوز NS دامنه تغییر نکرده است", r.ok ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی دوباره</AsyncButton>
+              <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.geo.checkNs(z.id); notify(r.ok ? "NS درست است؛ Geo DNS فعال شد" : "هنوز NS دامنه تغییر نکرده است", r.ok ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی دوباره</AsyncButton>
               <span className="text-[11px] text-white/50">{z.nsChecked ? "آخرین بررسی: " + z.nsChecked : ""}{z.nsSeen.length ? " · NS فعلی: " : ""}<span dir="ltr">{z.nsSeen.join(", ")}</span></span>
             </div>
           </>)}
@@ -158,7 +158,7 @@ function Records({ z }: { z: GeoZone }) {
   const fqdn = (r: GeoRecord) => (r.name === "@" ? z.domain : r.name + "." + z.domain);
   return (
     <Card pad="p-3 sm:p-4" title={<span className="flex items-center gap-2">رکوردها <Badge>{fa(z.records.length)} از {fa(plan?.records ?? 0)}</Badge></span>}
-      action={<button type="button" onClick={() => setEdit({ id: null, r: { ...EMPTY } })} className={BTN_P + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />رکورد</button>}>
+      action={<button type="button" onClick={() => setEdit({ id: null, r: { ...EMPTY } })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} />رکورد</button>}>
       {z.records.length === 0 ? <Empty icon="network" title="رکوردی ندارید" /> : (
         <ul className="divide-y divide-white/[0.06]">
           {z.records.map((r) => { const geo = GEO_TYPES.find((t) => t.id === r.type)!.geo && !!r.world; return (
@@ -252,7 +252,7 @@ function Settings({ z }: { z: GeoZone }) {
         <div className="flex items-center justify-between gap-3 text-sm"><span>تمدید خودکار ماهانه از کیف پول<span className="block text-[11px] text-white/50">اعتبار فعلی تا {z.paidUntil}</span></span><Switch on={z.autoRenew} onChange={async (v) => { await api.geo.settings(z.id, { autoRenew: v }); notify(v ? "تمدید خودکار روشن شد" : "تمدید خودکار خاموش شد", "refresh-cw"); }} label="تمدید خودکار" /></div>
         {plan?.healthChecks && <div className="mt-5">
           <Field label="مسیر بررسی سلامت" hint="نام‌سرورها هر چند ثانیه این مسیر را با HTTPS روی هر دو سرور باز می‌کنند؛ اگر پاسخ نیاید، ترافیک به سرور دیگر می‌رود."><input value={path} onChange={(e) => setPath(e.target.value.trim())} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <AsyncButton disabled={path === z.healthPath} className={BTN_G + " h-9 px-3 text-xs mt-2"} onClick={async () => { await api.geo.settings(z.id, { healthPath: path }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+          <AsyncButton disabled={path === z.healthPath} className={BTN_G + BTN_SM + " mt-2"} onClick={async () => { await api.geo.settings(z.id, { healthPath: path }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
         </div>}
       </Card>
       <Card title="حذف از Geo DNS" icon="trash-2" className="lg:col-span-2">

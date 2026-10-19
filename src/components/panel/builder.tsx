@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, MAINTAIN_MODES, SCAN_EVERY, type MaintainMode, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView } from "@/lib/builder";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, refresh, useDB, useMyId } from "@/lib/store";
 import { useApp } from "../app-context";
@@ -56,7 +56,7 @@ export function BuildHome() {
                 <Tabs size="sm" label="نوع پروژه" value={stack} onChange={(v) => setStack(v as typeof stack)} options={[{ id: "auto", label: "خودکار" }, ...BUILDER_STACKS.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))]} />
                 {models.length > 1 && <div className="w-44 max-w-full"><Select label="مدل" value={modelId} onChange={setModel} options={models.map((m) => ({ value: m.id, label: m.name }))} /></div>}
               </div>
-              <button type="button" onClick={() => void start()} disabled={busy} className={BTN_P + " h-11 px-6 text-sm"}>
+              <button type="button" onClick={() => void start()} disabled={busy} className={BTN_P + BTN_MD}>
                 <Icon name={busy ? "loader-circle" : "sparkles"} size={17} className={busy ? "animate-spin" : ""} />بساز
               </button>
             </div>
@@ -79,7 +79,7 @@ export function BuildHome() {
       </ol>
 
       <Card title="پروژه‌های شما" icon="folder" pad="p-4 sm:p-6">
-        {list === null ? <div className="h-24 grid place-items-center"><Icon name="loader-circle" className="animate-spin text-white/40" /></div>
+        {list === null ? <div className="h-24 grid place-items-center"><Icon name="loader-circle" className="animate-spin text-white/50" /></div>
           : list.length === 0 ? <Empty icon="sparkles" title="هنوز پروژه‌ای نساخته‌اید" text="یکی از ایده‌های نمونه را انتخاب کنید یا ایده خودتان را بنویسید." />
           : (
             <ul className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -89,7 +89,7 @@ export function BuildHome() {
                     <span className="flex items-start justify-between gap-2"><b className="leading-7 line-clamp-2">{p.name}</b><StatusTag s={p.status} /></span>
                     <span className="block text-xs text-white/50 mt-1">{BUILDER_STACKS.find((s) => s.id === p.stack)?.label} · نسخه {fa(p.version)} · {fa(p.files)} فایل</span>
                     {p.liveUrl && <span dir="ltr" className="block text-xs acc mt-3 truncate text-right">{p.liveUrl.replace("https://", "")}</span>}
-                    <span className="flex justify-between text-[11px] text-white/45 mt-3"><span>{p.updatedAt}</span><span className="tabular">هزینه AI: {toman(p.spent)}</span></span>
+                    <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{p.updatedAt}</span><span className="tabular">هزینه AI: {toman(p.spent)}</span></span>
                   </Link>
                 </li>
               ))}
@@ -185,8 +185,8 @@ export function BuildStudio({ id }: { id: string }) {
     }).catch(() => setMissing(true));
   }, [id, send]);
 
-  if (missing) return <Card><Empty icon="search-x" title="پروژه پیدا نشد" action={<Link href={"/panel/build" as never} className={BTN_P + " h-10 px-5 text-sm"}>بازگشت به پروژه‌ها</Link>} /></Card>;
-  if (!v) return <div className="h-[60vh] grid place-items-center" aria-busy="true"><Icon name="loader-circle" size={26} className="animate-spin text-white/45" /></div>;
+  if (missing) return <Card><Empty icon="search-x" title="پروژه پیدا نشد" action={<Link href={"/panel/build" as never} className={BTN_P + BTN_MD}>بازگشت به پروژه‌ها</Link>} /></Card>;
+  if (!v) return <div className="h-[60vh] grid place-items-center" aria-busy="true"><Icon name="loader-circle" size={26} className="animate-spin text-white/50" /></div>;
 
   const busy = !!live || v.runs.some((r) => r.status === "running" && (r.kind === "generate" || r.kind === "edit"));
   const deploying = v.status === "deploying" || v.status === "fixing";
@@ -214,7 +214,7 @@ export function BuildStudio({ id }: { id: string }) {
             ? <button type="button" onClick={stop} className={BTN_G + " h-[52px] w-[52px] shrink-0 text-rose-200"} aria-label="توقف ساخت" title="توقف"><Icon name="square" size={17} /></button>
             : <button type="submit" disabled={busy || !input.trim()} className={BTN_P + " h-[52px] w-[52px] shrink-0"} aria-label="ارسال"><Icon name="send" size={18} className="-scale-x-100" /></button>}
         </div>
-        <p className="mt-1.5 text-[11px] text-white/40 px-1">Enter برای ارسال · هزینه هر درخواست از کیف پول کم می‌شود</p>
+        <p className="mt-1.5 text-[11px] text-white/50 px-1">Enter برای ارسال · هزینه هر درخواست از کیف پول کم می‌شود</p>
       </form>
     </div>
   );
@@ -242,7 +242,7 @@ export function BuildStudio({ id }: { id: string }) {
           </div>
         )}
       </div>
-      {v.stack === "node" && v.version > 0 && !showLive && <p className="px-3 py-2 text-[11px] text-white/45 border-t border-white/[0.06]">پیش‌نمایش فقط ظاهر اپ را نشان می‌دهد؛ ذخیره اطلاعات و API پس از انتشار کار می‌کند.</p>}
+      {v.stack === "node" && v.version > 0 && !showLive && <p className="px-3 py-2 text-[11px] text-white/50 border-t border-white/[0.06]">پیش‌نمایش فقط ظاهر اپ را نشان می‌دهد؛ ذخیره اطلاعات و API پس از انتشار کار می‌کند.</p>}
     </div>
   );
 
@@ -262,8 +262,8 @@ export function BuildStudio({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="hidden xl:inline-flex items-center gap-1 text-xs text-white/55 px-2"><Icon name="wallet" size={14} />هزینه AI: <b className="text-white/80 tabular">{toman(v.spent)}</b></span>
           {models.length > 1 && <div className="w-40 hidden sm:block"><Select label="مدل" value={modelId} onChange={async (m) => { await api.builder.update(v.id, { model: m }); await load(); }} options={models.map((m) => ({ value: m.id, label: m.name }))} /></div>}
-          <button type="button" onClick={() => setModal("versions")} className={BTN_G + " h-10 px-3 text-xs"} title="تاریخچه نسخه‌ها"><Icon name="history" size={15} />نسخه {fa(v.version)}</button>
-          {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-10 px-3 text-xs max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={15} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
+          <button type="button" onClick={() => setModal("versions")} className={BTN_G + BTN_MD} title="تاریخچه نسخه‌ها"><Icon name="history" size={15} />نسخه {fa(v.version)}</button>
+          {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_MD + " max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={15} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
           <Menu label="بیشتر" triggerClass={BTN_G + " h-10 w-10"} trigger={<Icon name="ellipsis-vertical" size={16} />} items={[
             { icon: "heart-pulse", label: "نگهداری و سلامت", run: () => setModal("maintain") },
             ...(v.version ? [{ icon: "download", label: "دانلود کد (نسخه فعلی)", run: () => { const a = document.createElement("a"); a.href = "/api/build/download/" + v.id; a.download = ""; a.click(); } }] : []),
@@ -272,7 +272,7 @@ export function BuildStudio({ id }: { id: string }) {
             "-",
             { icon: "trash-2", label: "حذف پروژه", danger: true, run: async () => { await api.builder.remove(v.id); notify("پروژه حذف شد", "trash-2"); router.push("/panel/build" as never); } },
           ]} />
-          <button type="button" onClick={() => setModal("deploy")} disabled={!v.version || deploying || busy} className={BTN_P + " h-10 px-4 text-sm"}>
+          <button type="button" onClick={() => setModal("deploy")} disabled={!v.version || deploying || busy} className={BTN_P + BTN_MD}>
             <Icon name={deploying ? "loader-circle" : "rocket"} size={16} className={deploying ? "animate-spin" : ""} />{deploying ? (v.status === "fixing" ? "رفع خطا…" : "در حال انتشار…") : v.deployedVersion ? (unpublished ? "انتشار تغییرات" : "انتشار دوباره") : "انتشار"}
           </button>
         </div>
@@ -353,21 +353,21 @@ function Message({ m, run, projectId, onChange, links }: { m: BuilderProjectView
           {run.status === "failed" && <Badge tone="red">ناموفق</Badge>}
           {run.status === "cancelled" && <Badge tone="gray">متوقف شد</Badge>}
           {run.version && <Badge tone="gray">نسخه {fa(run.version)}</Badge>}
-          {run.cost > 0 && <span className="text-[10px] text-white/40 tabular mr-auto">{toman(run.cost)}</span>}
+          {run.cost > 0 && <span className="text-[10px] text-white/50 tabular mr-auto">{toman(run.cost)}</span>}
         </div>
       )}
       <p className="text-sm leading-7 text-white/85 whitespace-pre-line [overflow-wrap:anywhere]"><Linked text={m.content} links={links} /></p>
       {changed.length > 0 && (
         <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="فایل‌های تغییرکرده">
           {changed.slice(0, 8).map((f) => <li key={f} dir="ltr" className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/30 border border-white/[0.08] text-white/65">{run!.diff.added.includes(f) ? "+ " : "~ "}{f}</li>)}
-          {changed.length > 8 && <li className="text-[10px] text-white/45">و {fa(changed.length - 8)} فایل دیگر</li>}
+          {changed.length > 8 && <li className="text-[10px] text-white/50">و {fa(changed.length - 8)} فایل دیگر</li>}
         </ul>
       )}
       {run?.kind === "maintain" && run.hasPatch && !run.applied && (
-        <AsyncButton className={BTN_P + " mt-3 h-9 px-3 text-xs"} confirmText="وصله پیشنهادی اعمال و نسخه جدید منتشر شود؟" onClick={async () => { await api.builder.applyPatch(projectId, run.id); await onChange(); }}><Icon name="hammer" size={14} />اعمال وصله و انتشار</AsyncButton>
+        <AsyncButton className={BTN_P + BTN_SM + " mt-3"} confirmText="وصله پیشنهادی اعمال و نسخه جدید منتشر شود؟" onClick={async () => { await api.builder.applyPatch(projectId, run.id); await onChange(); }}><Icon name="hammer" size={14} />اعمال وصله و انتشار</AsyncButton>
       )}
       {run?.kind === "maintain" && run.applied && <p className="mt-2 text-[11px] text-emerald-300 flex items-center gap-1"><Icon name="circle-check" size={12} />وصله اعمال شد</p>}
-      <p className="mt-2 text-[10px] text-white/35">{m.at}</p>
+      <p className="mt-2 text-[10px] text-white/50">{m.at}</p>
     </div>
   );
 }
@@ -389,7 +389,7 @@ function DeployCard({ v }: { v: BuilderProjectView }) {
           {STEPS.map(([k, l], i) => (
             <li key={k} className="text-center">
               <span className={"block h-1.5 rounded-full " + (i < at ? "bg-emerald-400" : i === at ? "bg-sky-300 animate-pulse" : "bg-white/10")} />
-              <span className={"block mt-1.5 text-[10px] leading-4 " + (i <= at ? "text-white/80" : "text-white/40")}>{l}</span>
+              <span className={"block mt-1.5 text-[10px] leading-4 " + (i <= at ? "text-white/80" : "text-white/50")}>{l}</span>
             </li>
           ))}
         </ol>
@@ -433,7 +433,7 @@ function CodeView({ v, onSaved, locked }: { v: BuilderProjectView; onSaved: () =
             const prev = v.tree[v.tree.indexOf(f) - 1]?.path.split("/").slice(0, -1).join("/");
             return (
               <Fragment key={f.path}>
-                {dir && dir !== prev && <li className="px-2 pt-2 pb-0.5 text-[10px] text-white/40 flex items-center gap-1" dir="ltr"><Icon name="folder" size={11} />{dir}/</li>}
+                {dir && dir !== prev && <li className="px-2 pt-2 pb-0.5 text-[10px] text-white/50 flex items-center gap-1" dir="ltr"><Icon name="folder" size={11} />{dir}/</li>}
                 <li><button type="button" onClick={() => setPath(f.path)} dir="ltr" aria-current={cur === f.path ? "true" : undefined}
                   className={"w-full flex items-center gap-1.5 rounded-lg py-1.5 text-[12px] font-mono text-left transition " + (cur === f.path ? "bg-white/[0.1] text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white")} style={{ paddingLeft: 8 + depth * 10 }}>
                   <Icon name="file" size={12} className="shrink-0 opacity-60" /><span className="truncate">{name}</span></button></li>
@@ -447,13 +447,13 @@ function CodeView({ v, onSaved, locked }: { v: BuilderProjectView; onSaved: () =
           <div className="md:hidden flex-1 min-w-0"><Select label="فایل" ltr value={cur} onChange={setPath} options={v.tree.map((f) => f.path)} /></div>
           <span className="hidden md:block flex-1 min-w-0 text-xs font-mono text-white/55 truncate" dir="ltr">{cur}</span>
           {draft === null
-            ? <button type="button" disabled={locked || content === null} onClick={() => setDraft(content ?? "")} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="pencil" size={13} />ویرایش</button>
-            : <><button type="button" onClick={() => setDraft(null)} className={BTN_G + " h-9 px-3 text-xs"}>انصراف</button><AsyncButton className={BTN_P + " h-9 px-3 text-xs"} onClick={save}><Icon name="check" size={13} />ذخیره</AsyncButton></>}
+            ? <button type="button" disabled={locked || content === null} onClick={() => setDraft(content ?? "")} className={BTN_G + BTN_SM}><Icon name="pencil" size={13} />ویرایش</button>
+            : <><button type="button" onClick={() => setDraft(null)} className={BTN_G + BTN_SM}>انصراف</button><AsyncButton className={BTN_P + BTN_SM} onClick={save}><Icon name="check" size={13} />ذخیره</AsyncButton></>}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           {draft !== null
             ? <textarea value={draft} onChange={(e) => setDraft(e.target.value)} dir="ltr" spellCheck={false} aria-label={"ویرایش " + cur} className="w-full h-full min-h-[360px] rounded-xl bg-black/40 border border-white/[0.1] p-3 font-mono text-[12px] leading-6 outline-none focus:border-white/30 resize-none" />
-            : content === null ? <div className="h-40 grid place-items-center"><Icon name="loader-circle" className="animate-spin text-white/40" /></div>
+            : content === null ? <div className="h-40 grid place-items-center"><Icon name="loader-circle" className="animate-spin text-white/50" /></div>
             : <CodeBlock code={content} label={cur} title={cur} className="h-full flex flex-col [&>pre]:flex-1" maxH="max-h-[calc(100dvh-16rem)]" />}
         </div>
       </div>
@@ -474,14 +474,14 @@ function DeployModal({ open, v, onClose, onDone }: { open: boolean; v: BuilderPr
   };
   return (
     <Modal open={open} onClose={onClose} title={v.appId ? "انتشار نسخه " + fa(v.version) : "انتشار روی گره اپ"} icon="rocket"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " h-10 px-4 text-sm"}>انصراف</button><AsyncButton onClick={go}><Icon name="rocket" size={16} />{v.appId ? "انتشار" : "ساخت اپ و انتشار"}</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={go}><Icon name="rocket" size={16} />{v.appId ? "انتشار" : "ساخت اپ و انتشار"}</AsyncButton></>}>
       <div className="space-y-4 text-sm leading-7">
         {v.appId ? <p className="text-white/70">نسخه {fa(v.version)} روی اپ <b dir="ltr">{v.appName}</b> منتشر می‌شود؛ تا آماده شدن نسخه جدید، نسخه فعلی در دسترس می‌ماند.</p>
           : <p className="text-white/70">یک اپ گره با ارزان‌ترین پلن ساخته می‌شود و پروژه روی آن اجرا می‌شود. اگر بیلد خطا بدهد، AI خودش لاگ را می‌خواند و تا سه بار خطا را رفع می‌کند.</p>}
         {p && (
           <dl className="rounded-2xl bg-white/[0.04] border border-white/[0.1] divide-y divide-white/[0.06]">
             <div className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-white/55">پلن</dt><dd className="font-bold">{p.name}</dd></div>
-            <div className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-white/55">هزینه اپ</dt><dd className="tabular">{toman(p.hourly)} در ساعت <span className="text-white/45">(حدود {toman(p.monthly)} در ماه)</span></dd></div>
+            <div className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-white/55">هزینه اپ</dt><dd className="tabular">{toman(p.hourly)} در ساعت <span className="text-white/50">(حدود {toman(p.monthly)} در ماه)</span></dd></div>
             {p.dbMonthly > 0 && <div className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-white/55">پایگاه داده PostgreSQL</dt><dd className="tabular">حدود {toman(p.dbMonthly)} در ماه</dd></div>}
           </dl>
         )}
@@ -500,12 +500,12 @@ function VersionsModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
           {v.versions.map((x) => (
             <li key={x.version} className={"rounded-2xl p-3 border flex flex-wrap items-center gap-3 " + (x.version === v.version ? "bg-violet-400/[0.08] border-violet-300/25" : "bg-white/[0.035] border-white/[0.08]")}>
               <span className="w-10 h-10 rounded-xl tile grid place-items-center text-sm font-black shrink-0">{fa(x.version)}</span>
-              <span className="flex-1 min-w-0"><span className="block text-sm leading-6 [overflow-wrap:anywhere]">{x.message || "نسخه " + fa(x.version)}</span><span className="block text-[11px] text-white/45">{x.at} · {fa(x.files)} فایل{x.version === v.deployedVersion ? " · منتشرشده" : ""}</span></span>
+              <span className="flex-1 min-w-0"><span className="block text-sm leading-6 [overflow-wrap:anywhere]">{x.message || "نسخه " + fa(x.version)}</span><span className="block text-[11px] text-white/50">{x.at} · {fa(x.files)} فایل{x.version === v.deployedVersion ? " · منتشرشده" : ""}</span></span>
               <span className="flex gap-1.5">
-                <a href={"/api/build/preview/" + token + ".v" + x.version + "/index.html"} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-8 px-2.5 text-xs"}><Icon name="eye" size={13} />دیدن</a>
-                <a href={"/api/build/download/" + v.id + "?v=" + x.version} download className={BTN_G + " h-8 px-2.5 text-xs"} aria-label={"دانلود نسخه " + fa(x.version)}><Icon name="download" size={13} />دانلود</a>
+                <a href={"/api/build/preview/" + token + ".v" + x.version + "/index.html"} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="eye" size={13} />دیدن</a>
+                <a href={"/api/build/download/" + v.id + "?v=" + x.version} download className={BTN_G + BTN_SM} aria-label={"دانلود نسخه " + fa(x.version)}><Icon name="download" size={13} />دانلود</a>
                 {x.version === v.version ? <Badge tone="violet">فعلی</Badge>
-                  : <AsyncButton className={BTN_G + " h-8 px-2.5 text-xs"} confirmText={"فایل‌های نسخه " + fa(x.version) + " به‌عنوان نسخه جدید بازگردانی شود؟"} onClick={async () => { await api.builder.restore(v.id, x.version); await onDone(); onClose(); }}><Icon name="rotate-ccw" size={13} />بازگردانی</AsyncButton>}
+                  : <AsyncButton className={BTN_G + BTN_SM} confirmText={"فایل‌های نسخه " + fa(x.version) + " به‌عنوان نسخه جدید بازگردانی شود؟"} onClick={async () => { await api.builder.restore(v.id, x.version); await onDone(); onClose(); }}><Icon name="rotate-ccw" size={13} />بازگردانی</AsyncButton>}
               </span>
             </li>
           ))}
@@ -536,7 +536,7 @@ function MaintainModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
                   {m.id === "incident" && <Badge tone="green">پیشنهادی</Badge>}
                 </span>
                 <span className="block text-xs text-white/60 leading-6 mt-1.5 ps-[3.25rem]">{m.text}</span>
-                <span className={"block text-[11px] mt-1 ps-[3.25rem] " + (m.id === "continuous" ? "text-amber-200/90" : "text-white/45")}>{m.cost}</span>
+                <span className={"block text-[11px] mt-1 ps-[3.25rem] " + (m.id === "continuous" ? "text-amber-200/90" : "text-white/50")}>{m.cost}</span>
                 {m.id === "continuous" && on && (
                   <span className="mt-3 ms-[3.25rem] flex flex-wrap items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
                     <span className="text-white/60">هر</span>
@@ -565,18 +565,18 @@ function MaintainModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
           </div>
           <Field label="سقف هزینه AI نگهداری در ماه (تومان)" hint={"مصرف این ماه: " + toman(v.maintainSpent)}>
             <div className="flex gap-2"><input value={cap} onChange={(e) => setCap(e.target.value.replace(/[^\d۰-۹]/g, ""))} inputMode="numeric" dir="ltr" className={INPUT} />
-              <AsyncButton className={BTN_G + " h-11 px-4 text-sm shrink-0"} onClick={async () => { await api.builder.update(v.id, { maintainCap: Number(cap.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))) || 0 }); await onDone(); }}>ذخیره</AsyncButton></div>
+              <AsyncButton className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.builder.update(v.id, { maintainCap: Number(cap.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))) || 0 }); await onDone(); }}>ذخیره</AsyncButton></div>
           </Field>
-          {v.checkedAt && v.maintainMode !== "manual" && <p className="text-[11px] text-white/45">آخرین بررسی خودکار: {v.checkedAt}</p>}
+          {v.checkedAt && v.maintainMode !== "manual" && <p className="text-[11px] text-white/50">آخرین بررسی خودکار: {v.checkedAt}</p>}
         </div>
         {last && <div className="rounded-2xl bg-white/[0.035] border border-white/[0.08] p-4"><b className="text-xs text-white/55">آخرین تشخیص ({last.at})</b><p className="mt-1.5 whitespace-pre-line">{last.summary || "—"}</p></div>}
-        <AsyncButton className={BTN_P + " h-11 px-5 text-sm w-full"} disabled={!v.appId} onClick={async () => { await api.builder.healthCheck(v.id); await onDone(); onClose(); }}><Icon name="sparkles" size={16} />بررسی سلامت با AI</AsyncButton>
-        {!v.appId && <p className="text-xs text-white/45 text-center -mt-3">پس از اولین انتشار در دسترس است.</p>}
-        {v.appId && <p className="text-[11px] text-white/45 text-center -mt-3">یک دور کامل: اگر مشکلی باشد{v.autoMaintain ? " رفع و منتشر می‌شود" : " وصله پیشنهاد می‌شود"}؛ اگر نباشد، می‌گوید اپ سالم است.</p>}
+        <AsyncButton className={BTN_P + BTN_LG + " w-full"} disabled={!v.appId} onClick={async () => { await api.builder.healthCheck(v.id); await onDone(); onClose(); }}><Icon name="sparkles" size={16} />بررسی سلامت با AI</AsyncButton>
+        {!v.appId && <p className="text-xs text-white/50 text-center -mt-3">پس از اولین انتشار در دسترس است.</p>}
+        {v.appId && <p className="text-[11px] text-white/50 text-center -mt-3">یک دور کامل: اگر مشکلی باشد{v.autoMaintain ? " رفع و منتشر می‌شود" : " وصله پیشنهاد می‌شود"}؛ اگر نباشد، می‌گوید اپ سالم است.</p>}
         {v.simulator && v.appId && (
           <div className="rounded-2xl border border-dashed border-amber-300/30 bg-amber-400/[0.05] p-4">
             <p className="text-xs text-amber-100/80 leading-6">محیط نمایشی: یک توقف ناگهانی اپ (قطع اتصال پایگاه داده) شبیه‌سازی می‌شود تا واکنش عامل نگهداری را ببینید.</p>
-            <AsyncButton className={BTN_G + " mt-3 h-10 px-4 text-xs w-full"} onClick={async () => { await api.builder.simulateIncident(v.id); await onDone(); onClose(); }}><Icon name="zap" size={14} />شبیه‌سازی خرابی</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_MD + " mt-3 w-full"} onClick={async () => { await api.builder.simulateIncident(v.id); await onDone(); onClose(); }}><Icon name="zap" size={14} />شبیه‌سازی خرابی</AsyncButton>
           </div>
         )}
       </div>

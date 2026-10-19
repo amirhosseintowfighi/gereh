@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { DISK_PRICE_GB, engineOf, stackOf } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
@@ -39,7 +39,7 @@ export function AdminPaas() {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[{ id: "apps", label: "اپ‌ها", icon: "rocket" }, { id: "dbs", label: "پایگاه داده", icon: "database" }, { id: "plans", label: "پلن‌ها", icon: "tag" }, { id: "platform", label: "زیرساخت", icon: "radio-tower" }]} />
-        {(tab === "apps" || tab === "dbs") && <><label className="sr-only" htmlFor="paas-q">جستجو</label><input id="paas-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="نام، مشتری یا ایمیل" className={INPUT + " h-10 max-w-xs"} /></>}
+        {(tab === "apps" || tab === "dbs") && <><label className="sr-only" htmlFor="paas-q">جستجو</label><input id="paas-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="نام، مشتری یا ایمیل" className={INPUT + " max-w-xs"} /></>}
       </div>
 
       {tab === "apps" && (
@@ -53,10 +53,10 @@ export function AdminPaas() {
                   const last = a.deployments[0];
                   return (
                     <tr key={a.id} className="border-t border-white/[0.06] align-top">
-                      <td className="p-3"><a href={a.url} target="_blank" rel="noopener" dir="ltr" className="font-bold hover:underline">{a.name}</a><span className="block text-[11px] text-white/45">{a.id} · {a.at}</span></td>
-                      <td className="p-3"><UserLink id={a.userId} name={owner(a.userId)?.name} /><span dir="ltr" className="block text-[11px] text-white/45 text-right">{owner(a.userId)?.email}</span></td>
-                      <td className="p-3">{stackOf(a.stack)?.label ?? a.stack}<span className="block text-[11px] text-white/45" dir="ltr">{a.source === "git" ? a.gitUrl.replace(/^https:\/\/[^@]*@/, "https://") : a.source === "image" ? a.image : a.source}</span></td>
-                      <td className="p-3 text-xs">{plan?.name ?? a.planId} × {fa(a.instances)}{a.autoscale ? " (تا " + fa(a.maxInstances) + ")" : ""}{a.diskGb ? " · " + fa(a.diskGb) + " گیگ" : ""}<span className="block text-white/45">{fa(a.domains.length)} دامنه · {fa(a.links.length)} پایگاه داده</span></td>
+                      <td className="p-3"><a href={a.url} target="_blank" rel="noopener" dir="ltr" className="font-bold hover:underline">{a.name}</a><span className="block text-[11px] text-white/50">{a.id} · {a.at}</span></td>
+                      <td className="p-3"><UserLink id={a.userId} name={owner(a.userId)?.name} /><span dir="ltr" className="block text-[11px] text-white/50 text-right">{owner(a.userId)?.email}</span></td>
+                      <td className="p-3">{stackOf(a.stack)?.label ?? a.stack}<span className="block text-[11px] text-white/50" dir="ltr">{a.source === "git" ? a.gitUrl.replace(/^https:\/\/[^@]*@/, "https://") : a.source === "image" ? a.image : a.source}</span></td>
+                      <td className="p-3 text-xs">{plan?.name ?? a.planId} × {fa(a.instances)}{a.autoscale ? " (تا " + fa(a.maxInstances) + ")" : ""}{a.diskGb ? " · " + fa(a.diskGb) + " گیگ" : ""}<span className="block text-white/50">{fa(a.domains.length)} دامنه · {fa(a.links.length)} پایگاه داده</span></td>
                       <td className="p-3"><StatusPill s={a.status} />{last && last.status === "failed" && <span className="block text-[11px] text-rose-300 mt-1">آخرین بیلد ناموفق</span>}</td>
                       <td className="p-3 tabular text-xs">{fa(a.hourly)} / ساعت</td>
                       <td className="p-3"><SuspendButton kind="app" id={a.id} suspended={a.status === "suspended"} name={a.name} /></td>
@@ -80,11 +80,11 @@ export function AdminPaas() {
                   const lastBk = d.backupList[0];
                   return (
                     <tr key={d.id} className="border-t border-white/[0.06] align-top">
-                      <td className="p-3"><b dir="ltr">{d.name}</b><span className="block text-[11px] text-white/45">{d.id} · {d.links.length ? "← " + d.links.map((l) => l.appName).join("، ") : "بدون اتصال"}</span></td>
+                      <td className="p-3"><b dir="ltr">{d.name}</b><span className="block text-[11px] text-white/50">{d.id} · {d.links.length ? "← " + d.links.map((l) => l.appName).join("، ") : "بدون اتصال"}</span></td>
                       <td className="p-3"><UserLink id={d.userId} name={owner(d.userId)?.name} /></td>
                       <td className="p-3">{engineOf(d.engine)?.label ?? d.engine} {d.version}{d.publicAccess && <Badge tone="amber">عمومی</Badge>}</td>
                       <td className="p-3 text-xs">{plan ? plan.name + " · " + fa(plan.diskGb) + " گیگ" : d.planId}</td>
-                      <td className="p-3 text-xs">{d.backups ? "روزانه" : "خاموش"}<span className="block text-white/45">{lastBk ? "آخرین: " + lastBk.at : "هنوز ندارد"}</span></td>
+                      <td className="p-3 text-xs">{d.backups ? "روزانه" : "خاموش"}<span className="block text-white/50">{lastBk ? "آخرین: " + lastBk.at : "هنوز ندارد"}</span></td>
                       <td className="p-3"><StatusPill s={d.status} /></td>
                       <td className="p-3 tabular text-xs">{fa(d.hourly)} / ساعت</td>
                       <td className="p-3"><SuspendButton kind="db" id={d.id} suspended={d.status === "suspended"} name={d.name} /></td>
@@ -118,8 +118,8 @@ export function AdminPaas() {
 function SuspendButton({ kind, id, suspended, name }: { kind: "app" | "db"; id: string; suspended: boolean; name: string }) {
   const { notify } = useApp();
   return suspended
-    ? <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} confirmText={"«" + name + "» دوباره روشن شود؟"} onClick={async () => { await api.paas.adminSuspend(kind, id, false); notify("رفع تعلیق شد", "play"); }}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>
-    : <AsyncButton danger className={BTN_G + " h-8 px-3 text-xs"} confirmText={"«" + name + "» معلق و خاموش شود؟ مشتری تا رفع تعلیق نمی‌تواند روشنش کند."} onClick={async () => { await api.paas.adminSuspend(kind, id, true); notify("معلق شد", "pause"); }}><Icon name="pause" size={13} />تعلیق</AsyncButton>;
+    ? <AsyncButton className={BTN_G + BTN_SM} confirmText={"«" + name + "» دوباره روشن شود؟"} onClick={async () => { await api.paas.adminSuspend(kind, id, false); notify("رفع تعلیق شد", "play"); }}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>
+    : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"«" + name + "» معلق و خاموش شود؟ مشتری تا رفع تعلیق نمی‌تواند روشنش کند."} onClick={async () => { await api.paas.adminSuspend(kind, id, true); notify("معلق شد", "pause"); }}><Icon name="pause" size={13} />تعلیق</AsyncButton>;
 }
 
 function PlanRow({ p }: { p: PaasPlanRow }) {
@@ -135,10 +135,10 @@ function PlanRow({ p }: { p: PaasPlanRow }) {
       </div>
       <div className="grid grid-cols-[1fr_9rem_auto] gap-2 items-center">
         <label className="sr-only" htmlFor={"pn-" + p.id}>نام {p.id}</label>
-        <input id={"pn-" + p.id} value={name} onChange={(e) => setName(e.target.value)} className={INPUT + " h-10"} />
+        <input id={"pn-" + p.id} value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
         <label className="sr-only" htmlFor={"pp-" + p.id}>قیمت ماهانه {p.id}</label>
-        <input id={"pp-" + p.id} value={price} inputMode="numeric" onChange={(e) => setPrice(e.target.value)} dir="ltr" className={INPUT + " h-10 text-left tabular"} />
-        <AsyncButton disabled={!dirty} className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { await api.paas.adminPlan(p.id, { name, price: num(price) }); notify("ذخیره شد · " + toman(num(price)), "check"); }}>ذخیره</AsyncButton>
+        <input id={"pp-" + p.id} value={price} inputMode="numeric" onChange={(e) => setPrice(e.target.value)} dir="ltr" className={INPUT + " text-left tabular"} />
+        <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.paas.adminPlan(p.id, { name, price: num(price) }); notify("ذخیره شد · " + toman(num(price)), "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
   );
@@ -158,7 +158,7 @@ function Platform() {
           {sim ? "هنوز به کلاستر وصل نیست؛ اپ‌ها شبیه‌سازی می‌شوند (برای توسعه و دمو). برای اتصال واقعی، متغیرهای PAAS_K8S_API و PAAS_K8S_TOKEN را در فایل env سرور بگذارید و سرویس را ری‌استارت کنید (راهنما: deploy/paas/README.md)."
             : "اپ‌ها روی کلاستر Kubernetes بیلد و اجرا می‌شوند. هر مشتری یک namespace جدا دارد."}
         </p>
-        <AsyncButton className={BTN_G + " h-9 px-3 text-xs mt-4"} onClick={async () => {
+        <AsyncButton className={BTN_G + BTN_SM + " mt-4"} onClick={async () => {
           try { const r = await api.paas.adminTest(); setTest({ ok: true, text: r.driver + " · " + r.version }); }
           catch (e) { setTest({ ok: false, text: (e as Error).message }); }
         }}><Icon name="activity" size={13} />تست اتصال</AsyncButton>

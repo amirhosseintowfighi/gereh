@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { api, byId, invGross, invTotal, useDB, useMyId, type Invoice } from "@/lib/store";
 import { SITE_URL } from "@/lib/seo";
@@ -33,7 +33,7 @@ export function UserAffiliate() {
         <Card title="لینک اختصاصی شما" icon="share-2">
           <div className="rounded-xl bg-black/30 border border-white/10 p-3 flex items-center justify-between gap-3"><CopyText text={link} className="mono text-xs ltr break-all" /></div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm"><span className="text-white/55">کد معرف:</span><CopyText text={a.code} className="mono font-bold" /></div>
-          <button type="button" onClick={share} className={BTN_P + " mt-5 px-4 h-10 text-sm"}><Icon name="share-2" size={16} /> اشتراک‌گذاری</button>
+          <button type="button" onClick={share} className={BTN_P + BTN_MD + " mt-5"}><Icon name="share-2" size={16} /> اشتراک‌گذاری</button>
         </Card>
         <Card title="چطور کار می‌کند" icon="life-buoy">
           <ol className="space-y-3 text-sm text-white/70 leading-7 list-decimal pr-5">
@@ -75,7 +75,7 @@ export function OfficialInvoiceModal({ inv, onClose }: { inv: Invoice; onClose: 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   return (
     <Modal open onClose={onClose} title={"فاکتور رسمی " + inv.id} icon="file-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button>
         <AsyncButton onClick={async () => { await api.billing.setOfficial(inv.id, f); notify("اطلاعات فاکتور رسمی ذخیره شد", "file-check"); onClose(); window.open("/panel/billing/" + inv.id + "/print", "_blank", "noopener"); }}>ذخیره و چاپ</AsyncButton></>}>
       <p className="text-sm text-white/60 leading-7 mb-5">مشخصات خریدار طبق کارت ملی یا آگهی تأسیس شرکت. این اطلاعات روی فاکتور رسمی چاپ می‌شود.</p>
       <div className="grid sm:grid-cols-2 gap-4">
@@ -93,15 +93,15 @@ export function OfficialInvoiceModal({ inv, onClose }: { inv: Invoice; onClose: 
 export function InvoicePrint({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const inv = db.invoices.find((i) => i.id === id && i.userId === myId) ?? db.invoices.find((i) => i.id === id);
-  if (!inv) return <Card><Empty icon="receipt" title="صورتحساب پیدا نشد" action={<Link href="/panel/billing" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت</Link>} /></Card>;
+  if (!inv) return <Card><Empty icon="receipt" title="صورتحساب پیدا نشد" action={<Link href="/panel/billing" className={BTN_G + BTN_MD}>بازگشت</Link>} /></Card>;
   const s = db.settings;
   const sub = invTotal(inv), total = invGross(inv, s.tax), tax = total - sub;
   const o = inv.official;
   return (
     <div>
       <div className="flex flex-wrap justify-between gap-3 mb-6 print:hidden">
-        <Link href="/panel/billing" className={BTN_G + " px-4 h-10 text-sm"}><Icon name="arrow-left" size={16} className="rotate-180" /> بازگشت</Link>
-        <button type="button" onClick={() => window.print()} className={BTN_P + " px-5 h-10 text-sm"}><Icon name="printer" size={16} /> چاپ / ذخیره PDF</button>
+        <Link href="/panel/billing" className={BTN_G + BTN_MD}><Icon name="arrow-left" size={16} className="rotate-180" /> بازگشت</Link>
+        <button type="button" onClick={() => window.print()} className={BTN_P + BTN_MD}><Icon name="printer" size={16} /> چاپ / ذخیره PDF</button>
       </div>
       <article className="print-area bg-white text-slate-900 rounded-2xl p-8 sm:p-10 max-w-[210mm] mx-auto text-[13px] leading-7 shadow-2xl">
         <header className="flex justify-between items-start border-b-2 border-slate-900 pb-5">

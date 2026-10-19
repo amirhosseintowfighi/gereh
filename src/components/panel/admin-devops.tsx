@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { DEVOPS_SERVICES, LEAD_STAGES } from "@/content/devops";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { PLAN_FA, PROJECT_STATUS } from "@/lib/devops-labels";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { api, useDB } from "@/lib/store";
@@ -35,7 +35,7 @@ export function AdminDevops() {
   return (
     <div>
       <PageTitle title="خدمات دواپس" sub="درخواست‌های مشاوره از /devops و پروژه‌های در جریان."
-        action={<button type="button" onClick={() => setCreate({ userId: "", title: "", services: [] })} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />پروژه جدید</button>} />
+        action={<button type="button" onClick={() => setCreate({ userId: "", title: "", services: [] })} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />پروژه جدید</button>} />
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         <StatCard icon="rocket" label="درخواست‌های باز" value={open.length} sub={fa(db.devopsLeads.filter((l) => l.status === "new").length) + " مورد بررسی‌نشده"} tone={db.devopsLeads.some((l) => l.status === "new") ? "down" : ""} />
         <StatCard icon="wallet" label="ارزش قیف فروش" value={fa(Math.round(pipeline / 1e6))} suffix="میلیون تومان" />
@@ -112,9 +112,9 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
         <h3 className="text-sm text-white/55 mb-2">یادداشت‌های داخلی</h3>
         <ol className="space-y-2 mb-3">{l.notes.map((n, i) => <li key={i} className="text-sm bg-white/[0.03] rounded-xl p-3"><span className="text-[11px] text-white/50 block mb-1">{n.by} · {n.at}</span>{n.text}</li>)}</ol>
         <div className="flex gap-2"><label className="sr-only" htmlFor="lead-note">یادداشت</label><input id="lead-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="مثلا: جلسه برای سه‌شنبه هماهنگ شد" className={INPUT} />
-          <AsyncButton className={BTN_G + " h-11 px-4 text-sm shrink-0"} onClick={async () => { await api.devops.noteLead(l.id, note); setNote(""); }}>ثبت</AsyncButton></div>
+          <AsyncButton className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.devops.noteLead(l.id, note); setNote(""); }}>ثبت</AsyncButton></div>
       </div>
-      {l.status !== "lost" && <button type="button" onClick={onProject} className={BTN_P + " w-full h-11 text-sm"}><Icon name="rocket" size={16} />قرارداد بسته شد: ساخت پروژه</button>}
+      {l.status !== "lost" && <button type="button" onClick={onProject} className={BTN_P + BTN_LG + " w-full"}><Icon name="rocket" size={16} />قرارداد بسته شد: ساخت پروژه</button>}
     </div>
   );
 }
@@ -126,8 +126,8 @@ function CreateProject({ init, onClose, onCreated }: { init: { leadId?: string; 
   const customers = db.users.filter((u) => u.role === "user");
   return (
     <Modal open onClose={onClose} title="پروژه دواپس جدید" icon="rocket" size="max-w-xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " h-10 px-4 text-sm"}>انصراف</button>
-        <AsyncButton className={BTN_P + " h-10 px-5 text-sm"} onClick={async () => { const id = await api.devops.createProject({ userId: f.userId, leadId: f.leadId, title: f.title.trim(), plan: f.plan, services: f.services, monthlyFee: num(f.fee), hoursIncluded: num(f.hours), engineer: f.engineer, start: f.start }); notify("پروژه ساخته شد", "rocket"); onCreated(id); }}>ساخت پروژه</AsyncButton></>}>
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button>
+        <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { const id = await api.devops.createProject({ userId: f.userId, leadId: f.leadId, title: f.title.trim(), plan: f.plan, services: f.services, monthlyFee: num(f.fee), hoursIncluded: num(f.hours), engineer: f.engineer, start: f.start }); notify("پروژه ساخته شد", "rocket"); onCreated(id); }}>ساخت پروژه</AsyncButton></>}>
       <div className="space-y-4">
         <Field label="مشتری" hint={customers.length ? "مشتری باید حساب کاربری گره داشته باشد؛ اگر ندارد، از بخش کاربران بسازید." : undefined}>
           <Select label="مشتری" value={f.userId} onChange={(v) => setF({ ...f, userId: v })} options={[{ value: "", label: "انتخاب کنید" }, ...customers.map((u) => ({ value: u.id, label: (u.company ? u.company + " — " : "") + u.name + " (" + u.email + ")" }))]} />
@@ -168,14 +168,14 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
         <ul className="space-y-2">{ms.map((m, i) => (
           <li key={m.id || i} className="flex items-center gap-2">
             <input type="checkbox" aria-label={"انجام شد: " + m.title} checked={m.done} onChange={(e) => setMs(ms.map((x, j) => j === i ? { ...x, done: e.target.checked } : x))} className="w-4 h-4 accent-sky-300 shrink-0" />
-            <input aria-label="عنوان مرحله" value={m.title} onChange={(e) => setMs(ms.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} className={INPUT + " h-9"} />
-            <input aria-label="موعد" value={m.due} onChange={(e) => setMs(ms.map((x, j) => j === i ? { ...x, due: e.target.value } : x))} placeholder="۱۴۰۵/۰۸/۱۵" className={INPUT + " h-9 w-32 shrink-0"} />
+            <input aria-label="عنوان مرحله" value={m.title} onChange={(e) => setMs(ms.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} className={INPUT_BASE + " h-9"} />
+            <input aria-label="موعد" value={m.due} onChange={(e) => setMs(ms.map((x, j) => j === i ? { ...x, due: e.target.value } : x))} placeholder="۱۴۰۵/۰۸/۱۵" className={INPUT_BASE + " h-9 w-32 shrink-0"} />
             <button type="button" aria-label={"حذف " + m.title} onClick={() => setMs(ms.filter((_, j) => j !== i))} className="w-9 h-9 grid place-items-center rounded-lg hover:bg-white/10 shrink-0"><Icon name="x" size={15} /></button>
           </li>
         ))}</ul>
         <div className="flex gap-2 mt-3">
-          <button type="button" onClick={() => setMs([...ms, { id: "", title: "", due: "", done: false }])} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="plus" size={14} />مرحله</button>
-          <AsyncButton className={BTN_P + " h-9 px-4 text-xs"} onClick={async () => { await api.devops.setMilestones(p.id, ms.filter((m) => m.title.trim()).map((m) => ({ ...m, id: m.id || undefined }))); notify("مراحل ذخیره شد"); }}>ذخیره مراحل</AsyncButton>
+          <button type="button" onClick={() => setMs([...ms, { id: "", title: "", due: "", done: false }])} className={BTN_G + BTN_SM}><Icon name="plus" size={14} />مرحله</button>
+          <AsyncButton className={BTN_P + BTN_SM} onClick={async () => { await api.devops.setMilestones(p.id, ms.filter((m) => m.title.trim()).map((m) => ({ ...m, id: m.id || undefined }))); notify("مراحل ذخیره شد"); }}>ذخیره مراحل</AsyncButton>
         </div>
       </section>
 
@@ -183,7 +183,7 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
         <h3 className="font-extrabold mb-3">گزارش پیشرفت برای مشتری</h3>
         <label className="sr-only" htmlFor="proj-update">متن گزارش</label>
         <textarea id="proj-update" rows={3} value={update} onChange={(e) => setUpdate(e.target.value)} placeholder="این گزارش در پنل مشتری نمایش داده و ایمیل می‌شود." className={TEXTAREA} />
-        <AsyncButton className={BTN_P + " h-9 px-4 text-xs mt-2"} onClick={async () => { await api.devops.postUpdate(p.id, update); setUpdate(""); notify("گزارش برای مشتری ارسال شد", "send"); }}>ارسال گزارش</AsyncButton>
+        <AsyncButton className={BTN_P + BTN_SM + " mt-2"} onClick={async () => { await api.devops.postUpdate(p.id, update); setUpdate(""); notify("گزارش برای مشتری ارسال شد", "send"); }}>ارسال گزارش</AsyncButton>
         <ol className="mt-4 space-y-2">{p.updates.map((u, i) => <li key={i} className="text-sm bg-white/[0.03] rounded-xl p-3"><span className="text-[11px] text-white/50 block mb-1">{u.by} · {u.at}</span><span className="whitespace-pre-wrap">{u.text}</span></li>)}</ol>
       </section>
 
@@ -192,7 +192,7 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
         <div className="grid sm:grid-cols-[1fr_10rem_auto] gap-2">
           <label className="sr-only" htmlFor="inv-desc">شرح</label><input id="inv-desc" value={inv.desc} onChange={(e) => setInv({ ...inv, desc: e.target.value })} placeholder="مثلا: ۱۲ ساعت اضافه مهر" className={INPUT} />
           <label className="sr-only" htmlFor="inv-amount">مبلغ (تومان)</label><input id="inv-amount" inputMode="numeric" value={inv.amount} onChange={(e) => setInv({ ...inv, amount: e.target.value })} placeholder="مبلغ (تومان)" dir="ltr" className={INPUT + " text-left"} />
-          <AsyncButton className={BTN_G + " h-11 px-4 text-sm"} onClick={async () => { const id = await api.devops.invoice(p.id, { desc: inv.desc, amount: num(inv.amount) }); setInv({ desc: "", amount: "" }); notify("صورتحساب " + id + " صادر شد", "receipt"); }}>صدور</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const id = await api.devops.invoice(p.id, { desc: inv.desc, amount: num(inv.amount) }); setInv({ desc: "", amount: "" }); notify("صورتحساب " + id + " صادر شد", "receipt"); }}>صدور</AsyncButton>
         </div>
       </section>
     </div>

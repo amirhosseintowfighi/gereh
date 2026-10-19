@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { locLabel } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { useLocs } from "@/lib/use-locs";
 import { api, useDB, type UndeliveredOrder } from "@/lib/store";
@@ -37,7 +37,7 @@ export function AdminOrders() {
     <div>
       <PageTitle title="سفارش‌های تحویل‌نشده" sub="سفارش‌هایی که پرداخت شده‌اند اما سرویسشان هنوز تحویل نشده است."
         action={<div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setAssign(true)} className={BTN_G + " px-4 h-10 text-sm"}><Icon name="user-plus" size={15} /> تخصیص دستی سرور</button>
+          <button type="button" onClick={() => setAssign(true)} className={BTN_G + BTN_MD}><Icon name="user-plus" size={15} /> تخصیص دستی سرور</button>
           {list.length > 0 && <AsyncButton confirmText="برای همه سفارش‌ها دوباره تلاش شود؟" onClick={async () => { const n = await api.provisioning.retryAll(); notify(fa(n) + " سفارش دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={15} /> تلاش دوباره برای همه</AsyncButton>}
         </div>} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
@@ -60,18 +60,18 @@ export function AdminOrders() {
                     {r.serverName && <span className="mono text-xs text-white/55 ltr">{r.serverName}</span>}
                   </div>
                   <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
-                    <div><dt className="text-white/45">مشتری</dt><dd className="mt-0.5"><UserLink id={r.userId} name={r.userName} /><div className="text-white/45 ltr text-right truncate">{r.email}</div></dd></div>
-                    <div><dt className="text-white/45">صورتحساب</dt><dd className="mt-0.5 mono">{r.invoiceId} · ردیف {fa(r.index + 1)}</dd></div>
-                    <div><dt className="text-white/45">مبلغ</dt><dd className="mt-0.5 tabular">{toman(r.amount)}</dd></div>
-                    <div><dt className="text-white/45">عمر / تلاش</dt><dd className="mt-0.5">{age(r.ageMin)} · {fa(r.attempts)} تلاش{r.ticket ? <> · <Link className="acc" href={("/admin/tickets/" + r.ticket) as never}>{r.ticket}</Link></> : null}</dd></div>
+                    <div><dt className="text-white/50">مشتری</dt><dd className="mt-0.5"><UserLink id={r.userId} name={r.userName} /><div className="text-white/50 ltr text-right truncate">{r.email}</div></dd></div>
+                    <div><dt className="text-white/50">صورتحساب</dt><dd className="mt-0.5 mono">{r.invoiceId} · ردیف {fa(r.index + 1)}</dd></div>
+                    <div><dt className="text-white/50">مبلغ</dt><dd className="mt-0.5 tabular">{toman(r.amount)}</dd></div>
+                    <div><dt className="text-white/50">عمر / تلاش</dt><dd className="mt-0.5">{age(r.ageMin)} · {fa(r.attempts)} تلاش{r.ticket ? <> · <Link className="acc" href={("/admin/tickets/" + r.ticket) as never}>{r.ticket}</Link></> : null}</dd></div>
                   </dl>
                   {r.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-48 overflow-auto ltr text-left" dir="auto">{r.error}</pre>}
                 </div>
                 <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
-                  <button type="button" onClick={() => setDetail(r)} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="file-text" size={14} /> جزئیات</button>
-                  <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={async () => { await api.provisioning.retry(r.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={14} /> تلاش دوباره</AsyncButton>
-                  {r.kind !== "ip" && <button type="button" onClick={() => setDeliver(r)} className={BTN_G + " px-3 h-9 text-xs"}><Icon name="circle-check" size={14} /> تحویل دستی</button>}
-                  {!r.vpsid && <button type="button" onClick={() => setRefund(r)} className={BTN_G + " px-3 h-9 text-xs text-rose-200"}><Icon name="wallet" size={14} /> بازگشت وجه</button>}
+                  <button type="button" onClick={() => setDetail(r)} className={BTN_P + BTN_SM}><Icon name="file-text" size={14} /> جزئیات</button>
+                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.provisioning.retry(r.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={14} /> تلاش دوباره</AsyncButton>
+                  {r.kind !== "ip" && <button type="button" onClick={() => setDeliver(r)} className={BTN_G + BTN_SM}><Icon name="circle-check" size={14} /> تحویل دستی</button>}
+                  {!r.vpsid && <button type="button" onClick={() => setRefund(r)} className={BTN_G + BTN_SM + " text-rose-200"}><Icon name="wallet" size={14} /> بازگشت وجه</button>}
                 </div>
               </div>
             </Card>
@@ -92,7 +92,7 @@ function AssignModal({ onClose }: { onClose: () => void }) {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((c) => ({ ...c, [k]: e.target.value }));
   return (
     <Modal open onClose={onClose} title="تخصیص دستی سرور به مشتری" icon="user-plus" size="max-w-2xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
         await api.provisioning.assign({ ...manual(v), email: f.email.trim(), plan: f.plan.trim(), cpu: num(f.cpu), ram: num(f.ram), disk: num(f.disk), loc: f.loc, os: f.os.trim(), price: num(f.price), billing: f.billing as "monthly" | "hourly", months: num(f.months) });
         notify("سرور به مشتری تخصیص یافت", "circle-check"); onClose();
       }}>تخصیص</AsyncButton></>}>
@@ -129,7 +129,7 @@ export function VirtDryRun() {
   const [out, setOut] = useState<{ level: "error" | "warn" | "ok"; text: string }[] | null>(null);
   const tone = { error: "text-rose-200", warn: "text-amber-200", ok: "text-emerald-200" };
   return (
-    <Card title="بررسی آزمایشی سفارش" icon="list-checks" action={<AsyncButton className={BTN_P + " px-4 h-9 text-xs"} onClick={async () => setOut(await api.provisioning.dryRun())}><Icon name="activity" size={14} /> اجرای بررسی</AsyncButton>}>
+    <Card title="بررسی آزمایشی سفارش" icon="list-checks" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => setOut(await api.provisioning.dryRun())}><Icon name="activity" size={14} /> اجرای بررسی</AsyncButton>}>
       <p className="text-xs text-white/55 leading-6">بدون ساختن VPS، همه پلن‌ها، Plan IDها، گروه‌های سرور موقعیت‌ها و قالب‌های سیستم‌عامل را با Virtualizor مقایسه می‌کند.</p>
       {out && <ul className="mt-4 space-y-2 text-sm">{out.map((x, i) => <li key={i} className={"flex gap-2 leading-6 " + tone[x.level]}><Icon name={x.level === "ok" ? "circle-check" : x.level === "warn" ? "triangle-alert" : "circle-alert"} size={16} className="mt-1 shrink-0" />{x.text}</li>)}</ul>}
     </Card>

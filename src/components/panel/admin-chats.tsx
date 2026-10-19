@@ -1,7 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { inline } from "@/lib/markdown";
 import { api, refresh, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
@@ -69,7 +69,7 @@ export function AdminChats() {
                   <h2 className="font-extrabold">{sel.name} {sel.userId && <Badge tone="green">مشتری {sel.userId}</Badge>}</h2>
                   <p className="text-[11px] text-white/55 mt-1 flex flex-wrap gap-x-3">{sel.email && <span className="ltr">{sel.email}</span>}<span>شروع {sel.at}</span>{sel.page && <span className="ltr">{sel.page}</span>}</p>
                 </div>
-                {sel.status === "open" && <button type="button" onClick={async () => { await api.chat.close(sel.id); notify("گفتگو بسته شد"); }} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="circle-check" size={14} />بستن گفتگو</button>}
+                {sel.status === "open" && <button type="button" onClick={async () => { await api.chat.close(sel.id); notify("گفتگو بسته شد"); }} className={BTN_G + BTN_SM}><Icon name="circle-check" size={14} />بستن گفتگو</button>}
               </header>
               <ol ref={list} aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-3">
                 {sel.messages.map((m) => m.from === "system" ? (
@@ -78,7 +78,7 @@ export function AdminChats() {
                   <li key={m.id} className={"max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-7 whitespace-pre-wrap break-words " + (m.from === "staff" ? "mr-auto bg-sky-400/15 border border-sky-300/20" : "ml-auto bg-white/[0.07]")}>
                     <span className="block text-[11px] text-white/55 mb-0.5">{m.from === "staff" ? m.author : sel.name}</span>
                     {m.text}
-                    <span className="block text-[10px] text-white/45 mt-1">{m.at}</span>
+                    <span className="block text-[10px] text-white/50 mt-1">{m.at}</span>
                   </li>
                 ))}
               </ol>
@@ -87,7 +87,7 @@ export function AdminChats() {
                 <textarea id="chat-reply" rows={2} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void reply(); } }}
                   placeholder="پاسخ خود را بنویسید… (Enter ارسال، Shift+Enter خط جدید)" className={INPUT + " h-auto py-2.5 resize-none leading-6"} />
-                <button type="submit" disabled={busy || !text.trim()} className={BTN_P + " h-11 px-4 text-sm shrink-0"}><Icon name="send" size={15} />ارسال</button>
+                <button type="submit" disabled={busy || !text.trim()} className={BTN_P + BTN_MD + " shrink-0"}><Icon name="send" size={15} />ارسال</button>
               </form>
             </div>
           )}

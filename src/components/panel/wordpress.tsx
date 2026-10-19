@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { PAAS_NAME_RE } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
@@ -23,7 +23,7 @@ export function UserWordpress() {
   return (
     <div>
       <PageTitle title="وردپرس مدیریت‌شده" sub="وردپرس روی زیرساخت ابری گره با پایگاه داده جدا، پشتیبان روزانه و انتقال رایگان از cPanel."
-        action={<button type="button" onClick={() => setCreate(WP_PLANS[0])} className={BTN_P + " h-10 px-4 text-sm"}><Icon name="plus" size={16} />سایت جدید</button>} />
+        action={<button type="button" onClick={() => setCreate(WP_PLANS[0])} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />سایت جدید</button>} />
       {sites.length === 0 ? (
         <div className="grid md:grid-cols-2 gap-4">{WP_PLANS.map((p) => <PlanCard key={p.id} p={p} onPick={() => setCreate(p)} />)}</div>
       ) : (
@@ -42,7 +42,7 @@ function PlanCard({ p, onPick }: { p: WpPlan; onPick: () => void }) {
       <p className="text-sm text-white/60 mt-1">{p.for}</p>
       <p className="text-2xl font-black tabular mt-4">{fa(wpMonthly(p, db.paasPlans))} <span className="text-sm font-normal text-white/60">تومان در ماه، ساعتی</span></p>
       <ul className="space-y-2 mt-4 text-sm text-white/75">{p.features.map((f) => <li key={f} className="flex gap-2"><Icon name="check" size={16} className="acc shrink-0 mt-0.5" />{f}</li>)}</ul>
-      <button type="button" onClick={onPick} className={BTN_P + " w-full h-11 mt-5"}>شروع با {p.name}</button>
+      <button type="button" onClick={onPick} className={BTN_P + BTN_LG + " w-full mt-5"}>شروع با {p.name}</button>
     </Card>
   );
 }
@@ -63,10 +63,10 @@ function SiteRow({ s }: { s: PaasApp }) {
           <span className="block text-[11px] text-white/50 mt-1">{toman(s.hourly)} در ساعت</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={url + "/wp-admin/"} target="_blank" rel="noopener noreferrer" className={BTN_P + " h-9 px-3 text-xs"}><Icon name="layout-dashboard" size={14} />پیشخوان وردپرس</a>
-          <Link href={("/panel/apps/" + s.id) as never} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="settings-2" size={14} />دامنه، لاگ و منابع</Link>
-          <button type="button" onClick={() => setImp(true)} className={BTN_G + " h-9 px-3 text-xs"}><Icon name="upload" size={14} />انتقال از cPanel</button>
-          {plan && <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText={"بسته به " + (plan.id === "eco" ? "توربو" : "اکو") + " تغییر کند؟ سایت چند ثانیه راه‌اندازی مجدد می‌شود."} onClick={async () => { await api.wp.changePlan(s.id, plan.id === "eco" ? "turbo" : "eco"); notify("بسته تغییر کرد", "gauge"); }}>{plan.id === "eco" ? "ارتقا به توربو" : "تغییر به اکو"}</AsyncButton>}
+          <a href={url + "/wp-admin/"} target="_blank" rel="noopener noreferrer" className={BTN_P + BTN_SM}><Icon name="layout-dashboard" size={14} />پیشخوان وردپرس</a>
+          <Link href={("/panel/apps/" + s.id) as never} className={BTN_G + BTN_SM}><Icon name="settings-2" size={14} />دامنه، لاگ و منابع</Link>
+          <button type="button" onClick={() => setImp(true)} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />انتقال از cPanel</button>
+          {plan && <AsyncButton className={BTN_G + BTN_SM} confirmText={"بسته به " + (plan.id === "eco" ? "توربو" : "اکو") + " تغییر کند؟ سایت چند ثانیه راه‌اندازی مجدد می‌شود."} onClick={async () => { await api.wp.changePlan(s.id, plan.id === "eco" ? "turbo" : "eco"); notify("بسته تغییر کرد", "gauge"); }}>{plan.id === "eco" ? "ارتقا به توربو" : "تغییر به اکو"}</AsyncButton>}
         </div>
       </div>
       {job?.status === "failed" && <pre dir="ltr" className="mt-3 text-left text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-40 overflow-auto whitespace-pre-wrap">{job.output.split("\n").slice(-8).join("\n")}</pre>}
@@ -113,7 +113,7 @@ function CreateSite({ initial, onClose }: { initial: WpPlan; onClose: () => void
           <BackupPicker onUploaded={setUpload} />
           <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm"><span>آدرس سایت را تغییر نده<span className="block text-[11px] text-white/50">اگر دامنه فعلی را به این سایت وصل می‌کنید روشن بگذارید؛ خاموش: آدرس به ‎{name || "mysite"}.gereh.dev‎ تغییر می‌کند</span></span><Switch on={keepUrl} onChange={setKeepUrl} label="حفظ آدرس" /></div>
         </>}
-        <AsyncButton disabled={!PAAS_NAME_RE.test(name) || (migrate && !upload)} className={BTN_P + " w-full h-11"} onClick={async () => {
+        <AsyncButton disabled={!PAAS_NAME_RE.test(name) || (migrate && !upload)} className={BTN_P + BTN_LG + " w-full"} onClick={async () => {
           await api.wp.create({ name, plan: plan.id, uploadId: migrate ? upload! : undefined, keepUrl });
           notify(migrate ? "سایت ساخته شد؛ انتقال پس از آماده شدن شروع می‌شود" : "سایت ساخته شد؛ تا دو دقیقه دیگر آماده است", "rocket"); onClose();
         }}><Icon name="rocket" size={16} />ساخت سایت</AsyncButton>

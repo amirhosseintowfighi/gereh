@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa } from "@/lib/format";
 import { appMonthly, engineOf, PAAS_NAME_RE, stackOf } from "@/lib/paas";
 import { parseStack, STACK_GALLERY, stackAppName, stackFromCompose, StackError, type StackPlan } from "@/lib/paas-stack";
@@ -43,7 +43,7 @@ export function StackTemplates() {
   return (
     <div>
       <PageTitle title="قالب ترکیبی" sub="چند اپ و پایگاه داده را با یک فایل YAML با هم بسازید و به هم وصل کنید." back={["/panel/apps/templates", "اپ‌های آماده"]}
-        action={<Link href={"/docs/paas/stack-templates" as never} className={BTN_G + " h-10 px-4 text-sm"}><Icon name="book-open" size={15} />راهنمای قالب</Link>} />
+        action={<Link href={"/docs/paas/stack-templates" as never} className={BTN_G + BTN_MD}><Icon name="book-open" size={15} />راهنمای قالب</Link>} />
       <h2 className="text-sm font-bold text-white/80 mb-3">گالری</h2>
       <ul className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
         {STACK_GALLERY.map((g) => (
@@ -58,8 +58,8 @@ export function StackTemplates() {
       </ul>
       <div className="grid xl:grid-cols-[1fr_22rem] gap-4 items-start">
         <Card title="ویرایشگر" icon="file-pen" action={<div className="flex gap-2">
-          <button type="button" onClick={() => setCompose("")} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="upload" size={13} />از docker-compose</button>
-          <button type="button" onClick={() => { setYaml(BLANK); setNotes([]); }} className={BTN_G + " h-8 px-3 text-xs"}><Icon name="file-plus" size={13} />خالی</button>
+          <button type="button" onClick={() => setCompose("")} className={BTN_G + BTN_SM}><Icon name="upload" size={13} />از docker-compose</button>
+          <button type="button" onClick={() => { setYaml(BLANK); setNotes([]); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={13} />خالی</button>
         </div>}>
           <textarea value={yaml} onChange={(e) => setYaml(e.target.value)} dir="ltr" rows={24} spellCheck={false} aria-label="قالب YAML" className={TEXTAREA + " font-mono text-xs leading-6 text-left"} />
           <p className="text-[11px] text-white/50 mt-2 leading-6">
@@ -76,7 +76,7 @@ export function StackTemplates() {
                   <li key={a.suffix || "main"} className="rounded-xl bg-white/[0.04] p-3">
                     <span className="flex items-center gap-2"><Icon name="rocket" size={14} className="acc" /><b dir="ltr" className="font-mono text-xs">{names[i]}</b>{i === 0 && <Badge tone="green">عمومی</Badge>}</span>
                     <span className="block text-[11px] text-white/55 mt-1" dir="ltr" style={{ textAlign: "right" }}>{a.image ?? a.git!.url} · {stackOf(a.stack)?.label}{a.version ? " " + a.version : ""} · :{a.port}</span>
-                    {a.env.some((e) => "db" in e) && <span className="block text-[11px] text-white/45 mt-1">اتصال: {[...new Set(a.env.filter((e) => "db" in e).map((e) => (e as { db: string }).db))].join("، ")}</span>}
+                    {a.env.some((e) => "db" in e) && <span className="block text-[11px] text-white/50 mt-1">اتصال: {[...new Set(a.env.filter((e) => "db" in e).map((e) => (e as { db: string }).db))].join("، ")}</span>}
                   </li>
                 ))}
                 {plan.databases.map((d) => (
@@ -84,7 +84,7 @@ export function StackTemplates() {
                 ))}
               </ul>
               <div className="mt-4 pt-4 border-t border-white/[0.08]"><Cost monthly={monthly} /></div>
-              <AsyncButton disabled={!!nameError} className={BTN_P + " w-full h-11 mt-4"} onClick={async () => {
+              <AsyncButton disabled={!!nameError} className={BTN_P + BTN_LG + " w-full mt-4"} onClick={async () => {
                 const r = await api.paas.createStack(yaml, name);
                 notify(fa(r.appIds.length) + " اپ و " + fa(r.dbIds.length) + " پایگاه داده ساخته شد", "rocket");
                 router.push(("/panel/apps/" + r.appIds[0]) as never);
@@ -97,7 +97,7 @@ export function StackTemplates() {
         <Modal open onClose={() => setCompose(null)} title="تبدیل docker-compose" icon="upload" size="max-w-2xl">
           <p className="text-sm text-white/65 leading-7">محتوای docker-compose.yml را بچسبانید؛ سرویس‌های postgres، mysql، mariadb، mongo و redis به پایگاه داده مدیریت‌شده تبدیل می‌شوند.</p>
           <textarea value={compose} onChange={(e) => setCompose(e.target.value)} dir="ltr" rows={14} aria-label="docker-compose.yml" className={TEXTAREA + " font-mono text-xs mt-3 text-left"} />
-          <AsyncButton className={BTN_P + " w-full h-11 mt-3"} onClick={async () => { const r = stackFromCompose(compose); setYaml(r.yaml); setNotes(r.notes); setCompose(null); }}><Icon name="refresh-cw" size={16} />تبدیل</AsyncButton>
+          <AsyncButton className={BTN_P + BTN_LG + " w-full mt-3"} onClick={async () => { const r = stackFromCompose(compose); setYaml(r.yaml); setNotes(r.notes); setCompose(null); }}><Icon name="refresh-cw" size={16} />تبدیل</AsyncButton>
         </Modal>
       )}
     </div>

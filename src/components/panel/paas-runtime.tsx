@@ -3,7 +3,7 @@
    templates, cloning and the deploy-failure explanation. Data comes from api.paas.runtime(). */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { FAILURES, GB, MAX_DNS, NGINX_STACKS, PHP_STACKS, TIMEZONES, ciTemplates, type FailureKind, type RuntimeConfig } from "@/lib/paas-runtime";
 import { SITE_URL } from "@/lib/seo";
@@ -125,7 +125,7 @@ function BasicAuthCard({ app, view, reload }: { app: PaasApp; view: PaasRuntimeV
       </div>
       <div className="flex gap-2 mt-3">
         <AsyncButton disabled={o.password.length < 8} onClick={async () => { await api.paas.setBasicAuth(app.id, o); setO({ ...o, password: "" }); await reload(); notify("رمز عبور مسیر فعال شد", "lock"); }}>{view.config.authOn ? "به‌روزرسانی" : "فعال کردن"}</AsyncButton>
-        {view.config.authOn && <AsyncButton className={BTN_G + " h-11 px-4 text-sm"} confirmText="رمز عبور مسیر برداشته شود؟" onClick={async () => { await api.paas.setBasicAuth(app.id, null); await reload(); notify("رمز عبور مسیر برداشته شد"); }}>برداشتن</AsyncButton>}
+        {view.config.authOn && <AsyncButton className={BTN_G + BTN_MD} confirmText="رمز عبور مسیر برداشته شود؟" onClick={async () => { await api.paas.setBasicAuth(app.id, null); await reload(); notify("رمز عبور مسیر برداشته شد"); }}>برداشتن</AsyncButton>}
       </div>
     </Card>
   );
@@ -152,7 +152,7 @@ export function AppUsage({ app }: { app: PaasApp }) {
         </div>
         <div className="flex items-center justify-between gap-3 text-sm mt-3"><span>با رسیدن به سقف، اپ خاموش شود<span className="block text-[11px] text-white/50">خاموش نشود: فقط اعلان می‌گیرید</span></span><Switch on={form.stop} onChange={(v) => setB({ ...form, stop: v })} label="خاموش شدن در سقف بودجه" /></div>
         <Field label="هشدار ترافیک ماهانه (گیگابایت)" hint="خالی = بدون هشدار" className="mt-3"><input value={form.traffic} inputMode="numeric" onChange={(e) => setB({ ...form, traffic: e.target.value.replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-        <AsyncButton className={BTN_P + " h-10 px-4 text-sm mt-4"} onClick={async () => {
+        <AsyncButton className={BTN_P + BTN_MD + " mt-4"} onClick={async () => {
           await api.paas.setRuntime(app.id, { budget: num(form.budget), budgetAlertPct: num(form.pct) || 80, budgetStop: form.stop, trafficAlertGb: num(form.traffic) });
           setB(null); await reload(); notify("بودجه و هشدارها ذخیره شد", "check");
         }}>ذخیره</AsyncButton>
@@ -165,7 +165,7 @@ export function AppUsage({ app }: { app: PaasApp }) {
             <div className="mt-4 flex items-end gap-[3px] h-24" role="img" aria-label="ترافیک روزانه ۳۰ روز اخیر">
               {data.traffic.days.map((d) => <span key={d.day} title={d.day + " · " + bytes(d.bytes)} className="flex-1 acc-bg rounded-t opacity-80" style={{ height: Math.max(3, (d.bytes / maxDay) * 100) + "%" }} />)}
             </div>
-          ) : <p className="text-[11px] text-white/45 mt-3">ترافیک هر ۵ دقیقه ثبت می‌شود.</p>}
+          ) : <p className="text-[11px] text-white/50 mt-3">ترافیک هر ۵ دقیقه ثبت می‌شود.</p>}
         </Card>
         <Card title="IP خروجی" icon="network">
           {data.egressIps.length ? <>
@@ -232,7 +232,7 @@ export function FailureHint({ kind }: { kind?: string }) {
 export function DeployNoCache({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
   const { notify } = useApp();
   if (app.source !== "git" && app.source !== "image") return null;
-  return <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText="بیلد کامل بدون کش؟ (کندتر؛ برای رفع مشکلات کش)" onClick={async () => { const dep = await api.paas.deploy(app.id, { noCache: true, message: "استقرار بدون کش" }); onLog(dep); notify("بیلد بدون کش شروع شد", "rocket"); }}><Icon name="rotate-ccw" size={13} />استقرار بدون کش</AsyncButton>;
+  return <AsyncButton className={BTN_G + BTN_SM} confirmText="بیلد کامل بدون کش؟ (کندتر؛ برای رفع مشکلات کش)" onClick={async () => { const dep = await api.paas.deploy(app.id, { noCache: true, message: "استقرار بدون کش" }); onLog(dep); notify("بیلد بدون کش شروع شد", "rocket"); }}><Icon name="rotate-ccw" size={13} />استقرار بدون کش</AsyncButton>;
 }
 
 /* ================= domain options ================= */
@@ -258,23 +258,23 @@ export function DomainOptions({ app }: { app: PaasApp }) {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm"><span dir="ltr">{d.host}</span>{r ? <span className="text-[11px] text-white/55"> → {fa(r.code)} <span dir="ltr">{r.target}</span></span> : null}</span>
                   <span className="flex gap-2">
-                    <button type="button" className={BTN_G + " h-8 px-3 text-xs"} onClick={() => setEdit({ id: d.id, target: r?.target ?? "https://", code: (r?.code === 302 ? 302 : 301), keepPath: r?.keepPath ?? true })}>ریدایرکت</button>
-                    {r && <AsyncButton className={BTN_G + " h-8 px-3 text-xs"} onClick={async () => { await api.paas.setRedirect(d.id, null); await reload(); notify("ریدایرکت برداشته شد"); }}>سرو اپ</AsyncButton>}
-                    {others.length > 0 && <button type="button" className={BTN_G + " h-8 px-3 text-xs"} onClick={() => setMove({ id: d.id, to: others[0].id })}>انتقال</button>}
+                    <button type="button" className={BTN_G + BTN_SM} onClick={() => setEdit({ id: d.id, target: r?.target ?? "https://", code: (r?.code === 302 ? 302 : 301), keepPath: r?.keepPath ?? true })}>ریدایرکت</button>
+                    {r && <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.paas.setRedirect(d.id, null); await reload(); notify("ریدایرکت برداشته شد"); }}>سرو اپ</AsyncButton>}
+                    {others.length > 0 && <button type="button" className={BTN_G + BTN_SM} onClick={() => setMove({ id: d.id, to: others[0].id })}>انتقال</button>}
                   </span>
                 </div>
                 {edit?.id === d.id && (
                   <div className="grid sm:grid-cols-[1fr_8rem_auto] gap-2 mt-3 items-end">
-                    <Field label="مقصد"><input value={edit.target} onChange={(e) => setEdit({ ...edit, target: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left h-10"} /></Field>
+                    <Field label="مقصد"><input value={edit.target} onChange={(e) => setEdit({ ...edit, target: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
                     <Field label="نوع"><Select label="نوع ریدایرکت" value={String(edit.code)} onChange={(v) => setEdit({ ...edit, code: v === "302" ? 302 : 301 })} options={[{ value: "301", label: "۳۰۱ دائمی" }, { value: "302", label: "۳۰۲ موقت" }]} /></Field>
-                    <AsyncButton className={BTN_P + " h-10 px-4 text-sm"} onClick={async () => { await api.paas.setRedirect(d.id, { target: edit.target, code: edit.code, keepPath: edit.keepPath }); setEdit(null); await reload(); notify("ریدایرکت ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+                    <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { await api.paas.setRedirect(d.id, { target: edit.target, code: edit.code, keepPath: edit.keepPath }); setEdit(null); await reload(); notify("ریدایرکت ذخیره شد", "check"); }}>ذخیره</AsyncButton>
                     <span className="flex items-center gap-2 text-xs text-white/70 sm:col-span-3"><Switch on={edit.keepPath} onChange={(v) => setEdit({ ...edit, keepPath: v })} label="حفظ مسیر" />مسیر و پارامترهای درخواست به مقصد اضافه شود</span>
                   </div>
                 )}
                 {move?.id === d.id && (
                   <div className="flex flex-wrap gap-2 mt-3 items-center">
                     <Select label="اپ مقصد" value={move.to} onChange={(v) => setMove({ ...move, to: v })} options={others.map((a) => ({ value: a.id, label: a.name }))} className="min-w-48" />
-                    <AsyncButton className={BTN_P + " h-10 px-4 text-sm"} confirmText={"دامنه " + d.host + " به اپ دیگر منتقل شود؟"} onClick={async () => { await api.paas.moveDomain(d.id, move.to); setMove(null); notify("دامنه منتقل شد", "globe"); }}>انتقال</AsyncButton>
+                    <AsyncButton className={BTN_P + BTN_MD} confirmText={"دامنه " + d.host + " به اپ دیگر منتقل شود؟"} onClick={async () => { await api.paas.moveDomain(d.id, move.to); setMove(null); notify("دامنه منتقل شد", "globe"); }}>انتقال</AsyncButton>
                     <button type="button" className="text-xs text-white/55" onClick={() => setMove(null)}>انصراف</button>
                   </div>
                 )}
@@ -310,7 +310,7 @@ export function CloneApp({ app }: { app: PaasApp }) {
       <div className="flex gap-2 mt-3">
         <label className="sr-only" htmlFor="clone-name">نام اپ جدید</label>
         <input id="clone-name" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-left"} />
-        <AsyncButton className={BTN_P + " h-11 px-4 text-sm shrink-0"} onClick={async () => { const id = await api.paas.cloneApp(app.id, name); notify("کپی ساخته شد؛ استقرار شروع شد", "copy"); router.push(("/panel/apps/" + id) as never); }}>ساخت کپی</AsyncButton>
+        <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.cloneApp(app.id, name); notify("کپی ساخته شد؛ استقرار شروع شد", "copy"); router.push(("/panel/apps/" + id) as never); }}>ساخت کپی</AsyncButton>
       </div>
     </Card>
   );
@@ -326,10 +326,10 @@ export function PlanLimits() {
       {!rows ? <p className="text-sm text-white/55 p-2">…</p> : (
         <ul className="space-y-1">{rows.map((r, i) => (
           <li key={r.id} className="grid grid-cols-2 sm:grid-cols-[1fr_8rem_8rem_auto] gap-2 items-end p-2 max-sm:border-b max-sm:border-white/[0.06]">
-            <span className="text-sm sm:pb-2.5 max-sm:col-span-2">{r.name} <span className="text-[11px] text-white/45">{r.id}</span></span>
-            <Field label="بیلد در روز (۰ = نامحدود)"><input value={r.deploysPerDay} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, deploysPerDay: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " h-10 text-left"} /></Field>
-            <Field label="حداکثر دقیقه بیلد"><input value={r.maxBuildMinutes} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, maxBuildMinutes: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " h-10 text-left"} /></Field>
-            <AsyncButton className={BTN_G + " h-10 px-3 text-xs max-sm:col-span-2"} onClick={async () => { await api.paas.adminSetPlanLimits(r.id, { deploysPerDay: r.deploysPerDay, maxBuildMinutes: r.maxBuildMinutes }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+            <span className="text-sm sm:pb-2.5 max-sm:col-span-2">{r.name} <span className="text-[11px] text-white/50">{r.id}</span></span>
+            <Field label="بیلد در روز (۰ = نامحدود)"><input value={r.deploysPerDay} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, deploysPerDay: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="حداکثر دقیقه بیلد"><input value={r.maxBuildMinutes} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, maxBuildMinutes: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <AsyncButton className={BTN_G + BTN_MD + " max-sm:col-span-2"} onClick={async () => { await api.paas.adminSetPlanLimits(r.id, { deploysPerDay: r.deploysPerDay, maxBuildMinutes: r.maxBuildMinutes }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
           </li>
         ))}</ul>
       )}

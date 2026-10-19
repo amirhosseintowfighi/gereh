@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PLAN_NUMS, VPS } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { useDB, type Server } from "@/lib/store";
 import { WEEKDAYS, type FwRuleIn, type VpsExtrasView } from "@/lib/vps-billing";
@@ -43,12 +43,12 @@ export function NetworkExtras({ s }: { s: Server }) {
   const { notify } = useApp();
   return <Wrap x={x}>{(v) => (
     <Card title="آدرس‌های IPv4 و Reverse DNS" icon="hash" className="lg:col-span-2" action={
-      <AsyncButton className={BTN_P + " px-3 h-9 text-xs"} disabled={v.ips.length - 1 >= v.prices.maxIps} confirmText={"یک IPv4 اضافه با هزینه " + toman(v.prices.ip) + " در ماه (ساعتی از کیف پول) اضافه شود؟"}
+      <AsyncButton className={BTN_P + BTN_SM} disabled={v.ips.length - 1 >= v.prices.maxIps} confirmText={"یک IPv4 اضافه با هزینه " + toman(v.prices.ip) + " در ماه (ساعتی از کیف پول) اضافه شود؟"}
         onClick={async () => { const ip = await vpsApi.addIp(s.id); notify("IPv4 " + ip + " اضافه شد", "hash"); x.reload(); }}><Icon name="plus" size={15} /> IPv4 اضافه</AsyncButton>} pad="p-3 sm:p-4">
       <div className="space-y-2">{v.ips.map((ip) => <PtrRow key={ip.id} sid={s.id} ip={ip} onDone={x.reload} />)}</div>
       <div className="flex flex-wrap items-center justify-between gap-3 mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
         <p className="text-xs text-white/55 leading-6">بازنشانی شبکه، پیکربندی کارت شبکه را از روی آدرس‌های بالا بازسازی می‌کند (برای وقتی که دسترسی شبکه با تغییر تنظیمات از دست رفته است).</p>
-        <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} confirmText="تنظیمات شبکه سرور بازنشانی و سرور ری‌استارت شود؟" onClick={async () => { await vpsApi.networkReset(s.id); notify("بازنشانی شبکه انجام شد", "network"); }}><Icon name="refresh-cw" size={14} /> بازنشانی شبکه</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_SM} confirmText="تنظیمات شبکه سرور بازنشانی و سرور ری‌استارت شود؟" onClick={async () => { await vpsApi.networkReset(s.id); notify("بازنشانی شبکه انجام شد", "network"); }}><Icon name="refresh-cw" size={14} /> بازنشانی شبکه</AsyncButton>
       </div>
     </Card>
   )}</Wrap>;
@@ -60,9 +60,9 @@ function PtrRow({ sid, ip, onDone }: { sid: string; ip: VpsExtrasView["ips"][num
   return (
     <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2 items-center p-3 rounded-xl hover:bg-white/[0.03]">
       <div className="flex items-center gap-2"><span className="mono text-sm ltr">{ip.ip}</span>{ip.primary ? <Badge>اصلی</Badge> : <Badge tone="blue">{toman(ip.price)}/ماه</Badge>}</div>
-      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلا mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT + " h-9 text-left text-xs"} />
+      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلا mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT_BASE + " h-9 text-left text-xs"} />
       <div className="flex gap-1 justify-end">
-        <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={async () => { const h = ptr.trim().toLowerCase().replace(/\.$/, ""); if (h && !FQDN_RE.test(h)) throw new Error("نام دامنه معتبر نیست."); await vpsApi.setPtr(sid, ip.id, h); notify("PTR ذخیره شد"); onDone(); }}>ذخیره</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const h = ptr.trim().toLowerCase().replace(/\.$/, ""); if (h && !FQDN_RE.test(h)) throw new Error("نام دامنه معتبر نیست."); await vpsApi.setPtr(sid, ip.id, h); notify("PTR ذخیره شد"); onDone(); }}>ذخیره</AsyncButton>
         {!ip.primary && <IconBtn icon="trash-2" label={"حذف " + ip.ip} className="hover:text-rose-300" onClick={async () => { if (await confirm("آدرس " + ip.ip + " حذف و به استخر برگردانده شود؟", { danger: true, ok: "حذف" })) { await vpsApi.removeIp(sid, ip.id); notify("آدرس حذف شد"); onDone(); } }} />}
       </div>
     </div>
@@ -76,14 +76,14 @@ export function DisksPanel({ s }: { s: Server }) {
   const [add, setAdd] = useState<{ name: string; size: string } | null>(null);
   const [grow, setGrow] = useState<{ id: string; name: string; size: string; min: number } | null>(null);
   return <Wrap x={x}>{(v) => <>
-    <Card title="دیسک‌های اضافه" icon="hard-drive" action={<button type="button" disabled={v.disks.length >= v.prices.maxDisks} onClick={() => setAdd({ name: "data", size: "50" })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> دیسک جدید</button>} pad="p-3 sm:p-4">
+    <Card title="دیسک‌های اضافه" icon="hard-drive" action={<button type="button" disabled={v.disks.length >= v.prices.maxDisks} onClick={() => setAdd({ name: "data", size: "50" })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> دیسک جدید</button>} pad="p-3 sm:p-4">
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">هر گیگابایت {toman(v.prices.diskGb)} در ماه، ساعتی از کیف پول. اندازه دیسک فقط افزایش می‌یابد؛ پس از افزایش، پارتیشن را در سیستم‌عامل بزرگ کنید. دیسک جداشده داده‌هایش را نگه می‌دارد و به سرورهای همین موقعیت وصل می‌شود.</p>
       {v.disks.length === 0 ? <Empty icon="hard-drive" title="دیسک اضافه‌ای ندارید" text="برای داده، لاگ یا بکاپ، یک دیسک جدا بسازید." /> : v.disks.map((d) => (
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
           <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-right">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}</div></div></div>
           <div className="flex gap-1">
-            <button type="button" onClick={() => setGrow({ id: d.id, name: d.name, size: String(d.sizeGb + 10), min: d.sizeGb + 1 })} className={BTN_G + " px-3 h-8 text-xs"}>افزایش اندازه</button>
-            <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} confirmText={"دیسک " + d.name + " از سرور جدا شود؟ پیش از آن، آن را در سیستم‌عامل unmount کنید."} onClick={async () => { await vpsApi.detachDisk(d.id); notify("دیسک جدا شد"); x.reload(); }}>جدا کردن</AsyncButton>
+            <button type="button" onClick={() => setGrow({ id: d.id, name: d.name, size: String(d.sizeGb + 10), min: d.sizeGb + 1 })} className={BTN_G + BTN_SM}>افزایش اندازه</button>
+            <AsyncButton className={BTN_G + BTN_SM} confirmText={"دیسک " + d.name + " از سرور جدا شود؟ پیش از آن، آن را در سیستم‌عامل unmount کنید."} onClick={async () => { await vpsApi.detachDisk(d.id); notify("دیسک جدا شد"); x.reload(); }}>جدا کردن</AsyncButton>
           </div>
         </div>
       ))}
@@ -93,13 +93,13 @@ export function DisksPanel({ s }: { s: Server }) {
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
           <div className="text-sm"><span className="font-bold ltr">{d.name}</span> <span className="text-white/55 text-xs">{fa(d.sizeGb)} گیگابایت</span></div>
           <div className="flex gap-1">
-            <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} onClick={async () => { await vpsApi.attachDisk(d.id, s.id); notify("دیسک وصل شد"); x.reload(); }}>اتصال به این سرور</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await vpsApi.attachDisk(d.id, s.id); notify("دیسک وصل شد"); x.reload(); }}>اتصال به این سرور</AsyncButton>
             <IconBtn icon="trash-2" label={"حذف دیسک " + d.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("دیسک " + d.name + " و همه داده‌هایش برای همیشه حذف شود؟", { danger: true, ok: "حذف" })) { await vpsApi.deleteDisk(d.id, d.name); notify("دیسک حذف شد"); x.reload(); } }} />
           </div>
         </div>
       ))}
     </Card>}
-    <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><button type="button" onClick={() => setAdd(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+    <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button>
       <AsyncButton onClick={async () => { if (!add) return; await vpsApi.addDisk(s.id, { name: add.name.trim().toLowerCase(), sizeGb: num(add.size) }); setAdd(null); notify("دیسک ساخته و وصل شد", "hard-drive"); x.reload(); }}>ساخت</AsyncButton></>}>
       {add && <div className="grid grid-cols-2 gap-4">
         <Field label="نام" hint="حروف کوچک انگلیسی، عدد و خط تیره"><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
@@ -107,7 +107,7 @@ export function DisksPanel({ s }: { s: Server }) {
         <p className="col-span-2 text-xs text-white/55">هزینه ماهانه: {toman(num(add.size) * v.prices.diskGb)}</p>
       </div>}
     </Modal>
-    <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><button type="button" onClick={() => setGrow(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+    <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><button type="button" onClick={() => setGrow(null)} className={BTN_G + BTN_MD}>انصراف</button>
       <AsyncButton onClick={async () => { if (!grow) return; await vpsApi.resizeDisk(grow.id, num(grow.size)); setGrow(null); notify("اندازه دیسک افزایش یافت"); x.reload(); }}>اعمال</AsyncButton></>}>
       {grow && <Field label="اندازه جدید (گیگابایت)" hint={"دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>}
     </Modal>
@@ -133,7 +133,7 @@ function SnapForm({ s, v, reload }: { s: Server; v: VpsExtrasView; reload: () =>
       </div>
       {v.schedule && <p className="text-[11px] text-white/55 mt-3">اجرای بعدی: {v.schedule.next}{v.schedule.last ? "، آخرین اجرا: " + v.schedule.last : ""}</p>}
       <div className="mt-4 flex justify-end gap-2">
-        {v.schedule && <AsyncButton className={BTN_G + " px-4 h-10 text-sm"} onClick={async () => { await vpsApi.setSnapSchedule(s.id, null); notify("زمان‌بندی حذف شد"); reload(); }}>خاموش کردن</AsyncButton>}
+        {v.schedule && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await vpsApi.setSnapSchedule(s.id, null); notify("زمان‌بندی حذف شد"); reload(); }}>خاموش کردن</AsyncButton>}
         <AsyncButton onClick={async () => { await vpsApi.setSnapSchedule(s.id, { frequency: f.frequency, retention: +f.retention, hour: +f.hour, weekday: +f.weekday }); notify("زمان‌بندی ذخیره شد", "calendar-clock"); reload(); }}>ذخیره</AsyncButton>
       </div>
     </Card>
@@ -226,10 +226,10 @@ export function VncFullPage({ id }: { id: string }) {
   const db = useDB();
   const s = db.servers.find((x) => x.id === id);
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" /></Card>;
-  if (!s.vpsid) return <Card><Empty icon="loader-circle" title="سرور هنوز در حال آماده‌سازی است" text="کنسول پس از تحویل سرور در دسترس است." action={<Link href={`/panel/servers/${s.id}`} className={BTN_G + " px-4 h-9 text-xs"}>بازگشت به سرور</Link>} /></Card>;
+  if (!s.vpsid) return <Card><Empty icon="loader-circle" title="سرور هنوز در حال آماده‌سازی است" text="کنسول پس از تحویل سرور در دسترس است." action={<Link href={`/panel/servers/${s.id}`} className={BTN_G + BTN_SM}>بازگشت به سرور</Link>} /></Card>;
   return (
     <div>
-      <div className="flex items-center justify-between mb-4"><h1 className="text-xl font-black">کنسول <span className="ltr inline-block">{s.name}</span></h1><Link href={`/panel/servers/${s.id}`} className={BTN_G + " px-4 h-9 text-xs"}>بازگشت به سرور</Link></div>
+      <div className="flex items-center justify-between mb-4"><h1 className="text-xl font-black">کنسول <span className="ltr inline-block">{s.name}</span></h1><Link href={`/panel/servers/${s.id}`} className={BTN_G + BTN_SM}>بازگشت به سرور</Link></div>
       <div className="rounded-[14px] overflow-hidden border border-white/[0.1]"><VncScreen s={s} fallback={<Empty icon="monitor-smartphone" title={s.status === "running" ? "کنسول وب در این محیط در دسترس نیست" : "سرور خاموش است"} text="در محیط آزمایشی، کنسول شبیه‌سازی‌شده در صفحه سرور نمایش داده می‌شود." />} /></div>
     </div>
   );
@@ -271,7 +271,7 @@ export function FirewallGroups({ s }: { s: Server }) {
   const [edit, setEdit] = useState<{ id?: string; name: string; rules: FwRuleIn[] } | null>(null);
   const blank: FwRuleIn = { proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" };
   return <Wrap x={x}>{(v) => <>
-    <Card className="mt-4" title="گروه‌های فایروال ابری" icon="shield-plus" action={<button type="button" onClick={() => setEdit({ name: "", rules: [{ ...blank, port: "22", note: "SSH" }] })} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="plus" size={15} /> گروه جدید</button>} pad="p-3 sm:p-4">
+    <Card className="mt-4" title="گروه‌های فایروال ابری" icon="shield-plus" action={<button type="button" onClick={() => setEdit({ name: "", rules: [{ ...blank, port: "22", note: "SSH" }] })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> گروه جدید</button>} pad="p-3 sm:p-4">
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">یک مجموعه قانون بسازید و روی چند سرور اعمال کنید؛ تغییر گروه روی همه سرورهای متصل اعمال می‌شود. قوانین گروه در کنار قوانین اختصاصی همین سرور اجرا می‌شوند.</p>
       {v.groups.length === 0 ? <Empty icon="shield" title="گروهی ندارید" /> : v.groups.map((g) => (
         <div key={g.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
@@ -284,7 +284,7 @@ export function FirewallGroups({ s }: { s: Server }) {
         </div>
       ))}
     </Card>
-    <Modal open={!!edit} onClose={() => setEdit(null)} size="max-w-3xl" title={edit?.id ? "ویرایش گروه فایروال" : "گروه فایروال جدید"} icon="shield-plus" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
+    <Modal open={!!edit} onClose={() => setEdit(null)} size="max-w-3xl" title={edit?.id ? "ویرایش گروه فایروال" : "گروه فایروال جدید"} icon="shield-plus" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button>
       <AsyncButton onClick={async () => { if (!edit) return; await vpsApi.fwGroupSave(edit); setEdit(null); notify("گروه ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></>}>
       {edit && <div className="space-y-3">
         <Field label="نام گروه"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className={INPUT} /></Field>
@@ -293,15 +293,15 @@ export function FirewallGroups({ s }: { s: Server }) {
           return (
             <div key={i} className="grid grid-cols-2 sm:grid-cols-[90px_1fr_1fr_100px_1fr_auto] gap-2 items-center">
               <Select label="پروتکل" value={r.proto} onChange={(p) => set({ proto: p })} options={["TCP", "UDP", "ICMP"]} ltr />
-              <input value={r.proto === "ICMP" ? "—" : r.port} disabled={r.proto === "ICMP"} onChange={(e) => set({ port: e.target.value })} dir="ltr" placeholder="پورت" aria-label="پورت" className={INPUT + " h-10 text-left mono text-xs"} />
-              <input value={r.source} onChange={(e) => set({ source: e.target.value })} dir="ltr" aria-label="مبدأ" className={INPUT + " h-10 text-left mono text-xs"} />
+              <input value={r.proto === "ICMP" ? "—" : r.port} disabled={r.proto === "ICMP"} onChange={(e) => set({ port: e.target.value })} dir="ltr" placeholder="پورت" aria-label="پورت" className={INPUT + " text-left mono text-xs"} />
+              <input value={r.source} onChange={(e) => set({ source: e.target.value })} dir="ltr" aria-label="مبدأ" className={INPUT + " text-left mono text-xs"} />
               <Select label="عملکرد" value={r.action} onChange={(a) => set({ action: a as "allow" | "deny" })} options={[{ value: "allow", label: "اجازه" }, { value: "deny", label: "مسدود" }]} />
-              <input value={r.note} maxLength={60} onChange={(e) => set({ note: e.target.value })} placeholder="توضیح" aria-label="توضیح" className={INPUT + " h-10 text-xs"} />
+              <input value={r.note} maxLength={60} onChange={(e) => set({ note: e.target.value })} placeholder="توضیح" aria-label="توضیح" className={INPUT + " text-xs"} />
               <IconBtn icon="x" label="حذف قانون" onClick={() => setEdit({ ...edit, rules: edit.rules.filter((_, j) => j !== i) })} />
             </div>
           );
         })}
-        <button type="button" onClick={() => setEdit({ ...edit, rules: [...edit.rules, { ...blank }] })} className={BTN_G + " px-3 h-9 text-xs"}><Icon name="plus" size={14} /> قانون</button>
+        <button type="button" onClick={() => setEdit({ ...edit, rules: [...edit.rules, { ...blank }] })} className={BTN_G + BTN_SM}><Icon name="plus" size={14} /> قانون</button>
       </div>}
     </Modal>
   </>}</Wrap>;

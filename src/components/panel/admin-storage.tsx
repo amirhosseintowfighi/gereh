@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_SM, INPUT, INPUT_BASE } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { BUCKET_STATUS, bytes, GB } from "@/lib/storage";
 import { api, useDB } from "@/lib/store";
@@ -26,7 +26,7 @@ export function AdminStorage() {
   return (
     <div>
       <PageTitle title="فضای ذخیره‌سازی ابری" sub={"باکت‌های مشتریان و پلن‌ها. درایور: " + (s.driver === "s3" ? "MinIO / S3" : "شبیه‌ساز (STORAGE_S3_* تنظیم نشده)")}
-        action={<AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={15} />تست اتصال</AsyncButton>} />
+        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={15} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="hard-drive" label="باکت‌ها" value={s.buckets.length} sub={fa(active.length) + " فعال"} />
@@ -36,7 +36,7 @@ export function AdminStorage() {
       </div>
       <div className="mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[{ id: "buckets", label: "باکت‌ها", icon: "hard-drive" }, { id: "plans", label: "پلن‌ها", icon: "tag" }]} /></div>
       {tab === "buckets" && (
-        <Card pad="p-3 sm:p-4" action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی باکت یا مشتری" aria-label="جست‌وجو" className={INPUT + " h-9 w-56"} />} title="باکت‌ها" icon="hard-drive">
+        <Card pad="p-3 sm:p-4" action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی باکت یا مشتری" aria-label="جست‌وجو" className={INPUT_BASE + " h-9 w-56"} />} title="باکت‌ها" icon="hard-drive">
           {list.length === 0 ? <Empty icon="hard-drive" title="باکتی پیدا نشد" /> : (
             <ul className="divide-y divide-white/[0.06]">
               {list.map((b) => { const plan = planOf(b.planId); const o = owner(b.userId); return (
@@ -46,8 +46,8 @@ export function AdminStorage() {
                   <span className="flex flex-wrap items-center gap-2 justify-end">
                     <Badge tone={BUCKET_STATUS[b.status]?.[1]} dot>{BUCKET_STATUS[b.status]?.[0]}{b.suspendReason === "billing" ? " (اعتبار)" : b.suspendReason === "staff" ? " (پشتیبانی)" : ""}</Badge>
                     {b.status === "suspended"
-                      ? <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} onClick={() => api.storage.adminSuspend(b.id, false)}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
-                      : <AsyncButton danger className={BTN_G + " h-9 px-3 text-xs"} confirmText={"دسترسی به باکت " + b.name + " متوقف شود؟"} onClick={() => api.storage.adminSuspend(b.id, true)}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
+                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.storage.adminSuspend(b.id, false)}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
+                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی به باکت " + b.name + " متوقف شود؟"} onClick={() => api.storage.adminSuspend(b.id, true)}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
                   </span>
                 </li>
               ); })}
@@ -74,9 +74,9 @@ function PlanRow({ p }: { p: ReturnType<typeof useDB>["storage"]["plans"][number
       <div className="flex items-center justify-between gap-2 mb-2"><span className="text-[11px] text-white/55">{p.id} · {fa(p.sizeGb)} گیگابایت · {toman(Math.ceil(p.price / 720))} در ساعت</span>
         <Switch on={p.active} onChange={async (v) => { await api.storage.adminPlan(p.id, { active: v }); notify("ذخیره شد", "check"); }} label={"فعال بودن " + p.name} /></div>
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_9rem_auto] gap-2 items-center">
-        <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT + " h-10"} />
-        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " h-10 text-left tabular"} />
-        <AsyncButton disabled={!dirty} className={BTN_G + " h-10 px-3 text-xs"} onClick={async () => { await api.storage.adminPlan(p.id, { name: f.name, price: num(f.price) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
+        <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
+        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
+        <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.storage.adminPlan(p.id, { name: f.name, price: num(f.price) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
   );

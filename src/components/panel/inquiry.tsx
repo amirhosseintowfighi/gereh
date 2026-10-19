@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { INQUIRY_CATEGORIES, INQUIRY_SERVICES, inquiryDef, type InquiryField } from "@/lib/inquiry";
 import { api, useDB, useMyId } from "@/lib/store";
@@ -80,12 +80,12 @@ function Activate({ kyc }: { kyc: string }) {
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.1] p-5">
             {kyc === "verified" ? <>
               <p className="text-sm text-white/70 leading-7">با فعال‌سازی، شناسه کاربری، API Key و رمز API برای شما ساخته می‌شود.</p>
-              <AsyncButton className={BTN_P + " w-full h-11 mt-4"} onClick={async () => { await api.inquiry.activate(); notify("دسترسی API فعال شد", "key-round"); }}><Icon name="key-round" size={16} />فعال‌سازی API</AsyncButton>
+              <AsyncButton className={BTN_P + BTN_LG + " w-full mt-4"} onClick={async () => { await api.inquiry.activate(); notify("دسترسی API فعال شد", "key-round"); }}><Icon name="key-round" size={16} />فعال‌سازی API</AsyncButton>
             </> : <>
               <p className="text-sm text-white/70 leading-7">به دلیل حساسیت اطلاعات، سرویس‌های استعلام فقط به حساب‌های <b>احرازشده</b> ارائه می‌شوند.</p>
-              <Link href="/panel/account" className={BTN_P + " w-full h-11 mt-4"}><Icon name="fingerprint" size={16} />تکمیل احراز هویت</Link>
+              <Link href="/panel/account" className={BTN_P + BTN_LG + " w-full mt-4"}><Icon name="fingerprint" size={16} />تکمیل احراز هویت</Link>
             </>}
-            <Link href={"/docs/inquiry" as never} className={BTN_G + " w-full h-10 mt-2 text-sm"}><Icon name="book-open" size={15} />مستندات API</Link>
+            <Link href={"/docs/inquiry" as never} className={BTN_G + BTN_MD + " w-full mt-2"}><Icon name="book-open" size={15} />مستندات API</Link>
           </div>
         </div>
       </Card>
@@ -111,7 +111,7 @@ function Credentials() {
         : <button type="button" onClick={async () => setSecret(await api.inquiry.reveal())} className="text-sm acc inline-flex items-center gap-1.5"><Icon name="eye" size={14} />نمایش رمز</button>)}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
         <span className="text-[11px] text-white/50">فعال از {a.since}</span>
-        <AsyncButton className={BTN_G + " h-9 px-3 text-xs"} confirmText="رمز فعلی بلافاصله از کار می‌افتد و باید رمز جدید را در برنامه‌تان جایگزین کنید. ادامه؟" onClick={async () => { await api.inquiry.rotate(); setSecret(null); notify("رمز جدید ساخته شد؛ آن را در برنامه‌تان جایگزین کنید", "key-round"); }}><Icon name="refresh-cw" size={13} />ساخت رمز جدید</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز فعلی بلافاصله از کار می‌افتد و باید رمز جدید را در برنامه‌تان جایگزین کنید. ادامه؟" onClick={async () => { await api.inquiry.rotate(); setSecret(null); notify("رمز جدید ساخته شد؛ آن را در برنامه‌تان جایگزین کنید", "key-round"); }}><Icon name="refresh-cw" size={13} />ساخت رمز جدید</AsyncButton>
       </div>
     </Card>
   );
@@ -128,7 +128,7 @@ function Topup() {
       <div className="flex flex-wrap gap-2 mt-3">
         {QUICK.map((v) => <button key={v} type="button" onClick={() => setAmount(String(v))} aria-pressed={n === v} className={"h-8 px-3 rounded-full text-xs border transition " + (n === v ? "bg-sky-400/15 border-sky-300/50 text-white" : "border-white/[0.14] text-white/70 hover:text-white")}>{fa(v / 1e6)} میلیون</button>)}
       </div>
-      <AsyncButton disabled={n < 100_000} className={BTN_P + " w-full h-11 mt-4"} onClick={async () => { if (n > 500_000_000) throw new Error("حداکثر مبلغ هر پرداخت ۵۰۰ میلیون تومان است."); await api.billing.topup(n); }}>
+      <AsyncButton disabled={n < 100_000} className={BTN_P + BTN_LG + " w-full mt-4"} onClick={async () => { if (n > 500_000_000) throw new Error("حداکثر مبلغ هر پرداخت ۵۰۰ میلیون تومان است."); await api.billing.topup(n); }}>
         <Icon name="lock" size={16} />{n >= 100_000 ? "پرداخت " + toman(n) : "مبلغ را وارد کنید"}
       </AsyncButton>
       <p className="text-[11px] text-white/50 mt-3 leading-6">حداقل ۱۰۰ هزار و حداکثر ۵۰۰ میلیون تومان. موجودی بلافاصله پس از پرداخت قابل استفاده است و برای همه سرویس‌های گره مشترک است.</p>
@@ -222,7 +222,7 @@ function Logs() {
                 <span className="text-sm tabular text-left">{c.charged ? toman(c.charged) : "رایگان"}</span>
                 <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}{c.source === "panel" && <span>از پنل</span>}<span dir="ltr" className="font-mono">{c.input}</span></span>
                 <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{c.at}</span>
-                <span className="col-span-2 text-[11px] text-white/40" dir="ltr">{c.id} · {fa(c.latencyMs)}ms</span>
+                <span className="col-span-2 text-[11px] text-white/50" dir="ltr">{c.id} · {fa(c.latencyMs)}ms</span>
               </li>
             ); })}
           </ul>
@@ -261,7 +261,7 @@ function Playground() {
           </div>
           <div className="flex flex-wrap gap-2">
             <AsyncButton confirmText={sandbox ? undefined : "این درخواست واقعی است و " + (svc ? toman(svc.price) : "") + " از کیف پول کم می‌شود (در صورت پاسخ قطعی). ادامه؟"} onClick={async () => setOut(await api.inquiry.test(sid, vals, sandbox))}><Icon name="send" size={15} />ارسال</AsyncButton>
-            {def && <button type="button" className={BTN_G + " h-11 px-4 text-sm"} onClick={() => setVals(Object.fromEntries(def.fields.filter((f) => f.kind !== "image").map((f) => [f.key, f.example])))}>پر کردن با نمونه</button>}
+            {def && <button type="button" className={BTN_G + BTN_MD} onClick={() => setVals(Object.fromEntries(def.fields.filter((f) => f.kind !== "image").map((f) => [f.key, f.example])))}>پر کردن با نمونه</button>}
           </div>
         </div>}
       </Card>

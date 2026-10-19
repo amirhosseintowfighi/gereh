@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { Markdown } from "@/lib/markdown";
 import { api, useDB } from "@/lib/store";
 import type { Post } from "@/lib/types";
@@ -33,9 +33,9 @@ export function AdminBlog() {
     <div>
       <PageTitle title={d.id ? "ویرایش نوشته" : "نوشته جدید"} back={["/admin/blog", "بلاگ"]}
         action={<div className="flex gap-2">
-          <button type="button" onClick={() => setD(null)} className={BTN_G + " h-10 px-4 text-sm"}>بازگشت به فهرست</button>
-          <AsyncButton className={BTN_G + " h-10 px-4 text-sm"} onClick={() => save("draft")}>ذخیره پیش‌نویس</AsyncButton>
-          <AsyncButton className={BTN_P + " h-10 px-4 text-sm"} onClick={() => save("published")}><Icon name="send" size={15} />{d.status === "published" ? "به‌روزرسانی" : "انتشار"}</AsyncButton>
+          <button type="button" onClick={() => setD(null)} className={BTN_G + BTN_MD}>بازگشت به فهرست</button>
+          <AsyncButton className={BTN_G + BTN_MD} onClick={() => save("draft")}>ذخیره پیش‌نویس</AsyncButton>
+          <AsyncButton className={BTN_P + BTN_MD} onClick={() => save("published")}><Icon name="send" size={15} />{d.status === "published" ? "به‌روزرسانی" : "انتشار"}</AsyncButton>
         </div>} />
       <div className="grid xl:grid-cols-[1fr_20rem] gap-4 items-start">
         <Card>
@@ -69,7 +69,7 @@ export function AdminBlog() {
   return (
     <div>
       <PageTitle title="بلاگ" sub="نوشته‌های منتشرشده در /blog، نقشه سایت و خوراک RSS نمایش داده می‌شوند."
-        action={<button type="button" onClick={() => { setD(blank); setSlugTouched(false); setView("write"); }} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="plus" size={16} /> نوشته جدید</button>} />
+        action={<button type="button" onClick={() => { setD(blank); setSlugTouched(false); setView("write"); }} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> نوشته جدید</button>} />
       <Card pad="p-3 sm:p-4">
         {db.posts.length === 0 ? <Empty icon="newspaper" title="هنوز نوشته‌ای ندارید" /> : db.posts.map((p) => (
           <div key={p.id} className="p-3 rounded-xl hover:bg-white/[0.03] flex flex-wrap items-center justify-between gap-3">

@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BUILDER } from "@/lib/builder";
-import { BTN_D, BTN_G, BTN_P } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P } from "@/lib/cls";
 import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
 import { priceSku } from "@/lib/catalog";
@@ -98,8 +98,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       {cartOpen && <CartDrawer cart={cart} onClose={() => setCartOpen(false)} />}
       <Modal open={!!ask} onClose={() => answer(false)} title={ask?.opts.title || "تأیید"} icon={ask?.opts.danger ? "circle-alert" : "circle-check"}
         footer={<>
-          <button type="button" onClick={() => answer(false)} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button>
-          <button type="button" onClick={() => answer(true)} className={(ask?.opts.danger ? BTN_D : BTN_P) + " px-5 h-10 text-sm"}>{ask?.opts.ok || "تأیید"}</button>
+          <button type="button" onClick={() => answer(false)} className={BTN_G + BTN_MD}>انصراف</button>
+          <button type="button" onClick={() => answer(true)} className={(ask?.opts.danger ? BTN_D : BTN_P) + BTN_MD}>{ask?.opts.ok || "تأیید"}</button>
         </>}>
         <p className="text-sm text-white/75 leading-7">{ask?.text}</p>
       </Modal>
@@ -257,7 +257,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
                 <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>
                   <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} dir="ltr" aria-label="کد تخفیف" placeholder="کد تخفیف" aria-invalid={!!codeErr}
                     className="flex-1 min-w-0 h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3 outline-none focus:border-white/40 mono text-left" />
-                  <button type="submit" disabled={!code.trim() || checking} className={BTN_G + " px-4 h-10 text-xs"}>{checking ? <Icon name="loader-circle" size={14} className="animate-spin" /> : "اعمال"}</button>
+                  <button type="submit" disabled={!code.trim() || checking} className={BTN_G + BTN_MD}>{checking ? <Icon name="loader-circle" size={14} className="animate-spin" /> : "اعمال"}</button>
                 </form>
               )}
               {codeErr && <div role="alert" className="text-xs text-rose-300">{codeErr}</div>}

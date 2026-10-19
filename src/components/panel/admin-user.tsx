@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SearchHit, Series, ServiceRow, TxFilter, UserActivity, UserOrders, UserServices, UserSummary, UserTab, UserUsage } from "@/lib/admin-detail";
 import { adminDetailApi } from "@/lib/admin-detail-api";
-import { BTN_G, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { api } from "@/lib/store";
 import { billingApi } from "@/lib/vps-billing-api";
@@ -87,12 +87,12 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
         <Card title="اقدامات" icon="settings-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {u.status === "suspended"
-              ? <AsyncButton className={BTN_G + " h-10 text-sm"} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={15} /> رفع تعلیق حساب</AsyncButton>
+              ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={15} /> رفع تعلیق حساب</AsyncButton>
               : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟"} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); await reload(); }}><Icon name="ban" size={15} /> تعلیق حساب</AsyncButton>}
-            {u.kyc !== "verified" && <AsyncButton className={BTN_G + " h-10 text-sm"} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); await reload(); }}><Icon name="fingerprint" size={15} /> تأیید احراز</AsyncButton>}
-            {u.twofa && <AsyncButton className={BTN_G + " h-10 text-sm"} confirmText={"ورود دومرحله‌ای " + u.name + " غیرفعال شود؟ پس از تأیید هویت مشتری این کار را انجام دهید."} onClick={async () => { await adminDetailApi.resetTwofa(u.id); notify("ورود دومرحله‌ای غیرفعال شد", "shield-check"); await reload(); }}><Icon name="shield-alert" size={15} /> بازنشانی ورود دومرحله‌ای</AsyncButton>}
-            {u.role === "user" && <AsyncButton className={BTN_G + " h-10 text-sm"} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={15} /> ورود به‌جای کاربر</AsyncButton>}
-            <AsyncButton className={BTN_G + " h-10 text-sm"} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={15} /> ارسال بازیابی رمز</AsyncButton>
+            {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); await reload(); }}><Icon name="fingerprint" size={15} /> تأیید احراز</AsyncButton>}
+            {u.twofa && <AsyncButton className={BTN_G + BTN_MD} confirmText={"ورود دومرحله‌ای " + u.name + " غیرفعال شود؟ پس از تأیید هویت مشتری این کار را انجام دهید."} onClick={async () => { await adminDetailApi.resetTwofa(u.id); notify("ورود دومرحله‌ای غیرفعال شد", "shield-check"); await reload(); }}><Icon name="shield-alert" size={15} /> بازنشانی ورود دومرحله‌ای</AsyncButton>}
+            {u.role === "user" && <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={15} /> ورود به‌جای کاربر</AsyncButton>}
+            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={15} /> ارسال بازیابی رمز</AsyncButton>
           </div>
           <Field label="سطح حساب" className="mt-4"><Select value={s.levelId} label="سطح حساب"
             onChange={async (v) => { try { await billingApi.adminSetLevel(u.id, v); notify("سطح حساب تغییر کرد"); await reload(); } catch (e) { notify(errText(e), "circle-alert"); } }}
@@ -119,7 +119,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
         </Card>
         <Card title="تیم" icon="users">
           {s.team.members.length === 0 && s.team.memberOf.length === 0 ? <p className="text-sm text-white/55">عضو تیمی ندارد.</p> : <ul className="text-sm space-y-2">
-            {s.team.members.map((m) => <li key={m.id} className="flex justify-between gap-2"><Link href={userHref(m.id)} className="hover:underline truncate">{m.name} <span className="text-white/45 text-xs" dir="ltr">{m.email}</span></Link><Badge>{m.role}</Badge></li>)}
+            {s.team.members.map((m) => <li key={m.id} className="flex justify-between gap-2"><Link href={userHref(m.id)} className="hover:underline truncate">{m.name} <span className="text-white/50 text-xs" dir="ltr">{m.email}</span></Link><Badge>{m.role}</Badge></li>)}
             {s.team.memberOf.map((m) => <li key={m.id} className="flex justify-between gap-2"><span className="truncate">عضو تیم <Link href={userHref(m.id)} className="hover:underline">{m.name}</Link></span><Badge tone="blue">{m.role}</Badge></li>)}
           </ul>}
         </Card>
@@ -155,7 +155,7 @@ function OrdersTab({ id }: { id: string }) {
                   <span className="tabular text-xs">{toman(l.amount)}</span>
                   <Badge tone={LINE_TONE[l.state.state]} dot>{l.state.label}</Badge>
                   {l.state.state === "delivered" && l.state.href && <Link href={l.state.href as never} className="text-xs acc hover:underline">سرویس</Link>}
-                  {l.amount > 0 && l.state.state !== "renewal" && <button type="button" onClick={() => setDetail({ inv: inv.id, index: l.index })} className={BTN_G + " px-3 h-8 text-xs"}><Icon name="file-text" size={13} /> جزئیات</button>}
+                  {l.amount > 0 && l.state.state !== "renewal" && <button type="button" onClick={() => setDetail({ inv: inv.id, index: l.index })} className={BTN_G + BTN_SM}><Icon name="file-text" size={13} /> جزئیات</button>}
                 </div>
               </li>
             ))}
@@ -221,7 +221,7 @@ function ServicesTab({ id }: { id: string }) {
                 </div>
                 <div className="text-[11px] text-white/55 mt-1 [overflow-wrap:anywhere]" dir="auto">{r.info}</div>
                 {r.actions.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">
-                  {r.actions.map((a) => <AsyncButton key={a} className={BTN_G + " px-3 h-8 text-xs" + (a === "delete" || a === "suspend" ? " text-rose-200" : "")} danger={a === "delete"}
+                  {r.actions.map((a) => <AsyncButton key={a} className={BTN_G + BTN_SM + (a === "delete" || a === "suspend" ? " text-rose-200" : "")} danger={a === "delete"}
                     confirmText={a === "delete" ? "«" + r.name + "» برای همیشه حذف شود؟" : a === "suspend" ? "«" + r.name + "» معلق شود؟" : undefined}
                     onClick={async () => { await runAction(r, a); notify(ACTION[a][0] + " انجام شد"); await t.load(); }}><Icon name={ACTION[a][1]} size={13} /> {ACTION[a][0]}</AsyncButton>)}
                 </div>}
@@ -273,9 +273,9 @@ function UsageTab({ id }: { id: string }) {
   };
   return (
     <div className="space-y-4">
-      <Card title="تراکنش‌های کیف پول" icon="wallet" pad="p-3 sm:p-5" action={<AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={exportCsv}><Icon name="download" size={14} /> CSV</AsyncButton>}>
+      <Card title="تراکنش‌های کیف پول" icon="wallet" pad="p-3 sm:p-5" action={<AsyncButton className={BTN_G + BTN_SM} onClick={exportCsv}><Icon name="download" size={14} /> CSV</AsyncButton>}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 mb-4">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو در شرح یا شناسه" aria-label="جست‌وجو در تراکنش‌ها" className={INPUT + " h-10"} />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو در شرح یا شناسه" aria-label="جست‌وجو در تراکنش‌ها" className={INPUT} />
           <Select value={f.type} onChange={set("type")} options={TX_TYPES} label="نوع تراکنش" />
           <Select value={f.product} onChange={set("product")} options={PRODUCTS} label="محصول" />
           <Select value={f.days} onChange={set("days")} options={[{ value: "7", label: "۷ روز اخیر" }, { value: "30", label: "۳۰ روز اخیر" }, { value: "90", label: "۹۰ روز اخیر" }, { value: "365", label: "یک سال اخیر" }, { value: "0", label: "همه" }]} label="بازه" />
@@ -303,7 +303,7 @@ function UsageTab({ id }: { id: string }) {
                   <div className="flex justify-between text-sm mb-1.5"><b>{p.label}</b><span className="tabular text-xs text-white/60">{toman(p.months.reduce((s, m) => s + m.amount, 0))}</span></div>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                     {p.months.map((m) => <div key={m.month} className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2 min-w-0">
-                      <div className="text-[10px] text-white/45 truncate">{monthLabel(m.month)}</div>
+                      <div className="text-[10px] text-white/50 truncate">{monthLabel(m.month)}</div>
                       <div className="text-xs tabular mt-0.5 truncate">{m.amount ? fa(m.amount) : "—"}</div>
                       <div className="h-1 mt-1.5 rounded bg-white/[0.06]"><div className="h-1 rounded bg-[#9cc9ff]" style={{ width: Math.round((m.amount / max) * 100) + "%" }} /></div>
                     </div>)}
@@ -356,15 +356,15 @@ function ActivityTab({ id }: { id: string }) {
       </Card>
       <Card title="فعالیت حساب" icon="history" pad="p-3 sm:p-4">
         {d.activity.length === 0 ? empty("فعالیتی ثبت نشده است.") : <ul className="space-y-2 max-h-[28rem] overflow-auto">{d.activity.map((a, i) => (
-          <li key={i} className="flex gap-2.5 text-sm"><Icon name={a.icon} size={15} className="mt-1 text-white/50 shrink-0" /><span className="min-w-0"><span className="[overflow-wrap:anywhere]">{a.text}</span><span className="block text-[11px] text-white/45">{a.at}{a.ip ? " · " : ""}<span dir="ltr">{a.ip}</span></span></span></li>))}</ul>}
+          <li key={i} className="flex gap-2.5 text-sm"><Icon name={a.icon} size={15} className="mt-1 text-white/50 shrink-0" /><span className="min-w-0"><span className="[overflow-wrap:anywhere]">{a.text}</span><span className="block text-[11px] text-white/50">{a.at}{a.ip ? " · " : ""}<span dir="ltr">{a.ip}</span></span></span></li>))}</ul>}
       </Card>
       <Card title="گزارش اقدامات کارکنان" icon="scroll-text" pad="p-3 sm:p-4">
         {d.audit.length === 0 ? empty("اقدامی درباره این مشتری ثبت نشده است.") : <ul className="space-y-2 max-h-[28rem] overflow-auto">{d.audit.map((a, i) => (
-          <li key={i} className="text-sm"><b>{a.actor}</b> — <span className="[overflow-wrap:anywhere]">{a.action}</span><span className="block text-[11px] text-white/45"><span className="mono" dir="ltr">{a.target}</span> · {a.at}</span></li>))}</ul>}
+          <li key={i} className="text-sm"><b>{a.actor}</b> — <span className="[overflow-wrap:anywhere]">{a.action}</span><span className="block text-[11px] text-white/50"><span className="mono" dir="ltr">{a.target}</span> · {a.at}</span></li>))}</ul>}
       </Card>
       <Card title="اعلان‌های ارسال‌شده" icon="bell" pad="p-3 sm:p-4">
         {d.notifications.length === 0 ? empty("اعلانی ارسال نشده است.") : <ul className="space-y-2 max-h-[28rem] overflow-auto">{d.notifications.map((n, i) => (
-          <li key={i} className="flex gap-2.5 text-sm"><Icon name={n.icon} size={15} className="mt-1 text-white/50 shrink-0" /><span className="min-w-0"><span className="[overflow-wrap:anywhere]">{n.text}</span><span className="block text-[11px] text-white/45">{n.at} · {n.read ? "خوانده شد" : "خوانده نشده"}</span></span></li>))}</ul>}
+          <li key={i} className="flex gap-2.5 text-sm"><Icon name={n.icon} size={15} className="mt-1 text-white/50 shrink-0" /><span className="min-w-0"><span className="[overflow-wrap:anywhere]">{n.text}</span><span className="block text-[11px] text-white/50">{n.at} · {n.read ? "خوانده شد" : "خوانده نشده"}</span></span></li>))}</ul>}
       </Card>
     </div>
   );
@@ -397,7 +397,7 @@ function SearchPanel({ onPick, autoFocus }: { onPick: () => void; autoFocus?: bo
           else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
           else if (e.key === "Enter") { e.preventDefault(); go(hits[active]); }
         }}
-        className={INPUT + " h-10 pr-9"} />
+        className={INPUT + " pr-9"} />
       {hits && <ul id="admin-search-hits" role="listbox" className="absolute z-50 top-full mt-1.5 inset-x-0 max-h-80 overflow-auto rounded-xl bg-[#0b0d16] border border-white/[0.14] shadow-2xl p-1">
         {hits.length === 0 ? <li className="p-3 text-sm text-white/55">نتیجه‌ای پیدا نشد.</li> : hits.map((h, i) => (
           <li key={h.kind + h.label + h.userId} role="option" aria-selected={i === active}>

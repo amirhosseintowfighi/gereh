@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { locLabel } from "@/lib/catalog";
-import { BTN_G } from "@/lib/cls";
+import { BTN_G, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import type { Server } from "@/lib/store";
 import { Icon } from "../icon";
@@ -37,7 +37,7 @@ export function ServerPending({ s }: { s: Server }) {
                 : "پرداخت ثبت شد و سرور در حال ساخت است. معمولا چند دقیقه طول می‌کشد؛ پس از آماده شدن، مشخصات ورود ایمیل می‌شود."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Link href="/panel/tickets" className={BTN_G + " px-4 h-9 text-xs"}><Icon name="message-circle" size={14} /> پیگیری با پشتیبانی</Link>
+              <Link href="/panel/tickets" className={BTN_G + BTN_SM}><Icon name="message-circle" size={14} /> پیگیری با پشتیبانی</Link>
             </div>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function ServerPending({ s }: { s: Server }) {
             {s.tasks.length === 0 ? <li className="text-white/55">در صف ساخت…</li> : s.tasks.slice(0, 6).map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2"><Icon name={t.status === "failed" ? "circle-alert" : t.status === "running" ? "loader-circle" : "circle-check"} size={15} className={t.status === "running" ? "animate-spin acc" : t.status === "failed" ? "text-amber-300" : "text-emerald-300"} />{t.action}</span>
-                <span className="text-[11px] text-white/45">{t.at}</span>
+                <span className="text-[11px] text-white/50">{t.at}</span>
               </li>
             ))}
           </ul>
