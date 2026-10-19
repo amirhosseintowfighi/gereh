@@ -10,6 +10,7 @@ import type { DB, Tx } from "../db/client";
 import { paasDbConfig, paasDbDatabases, paasDbEvents, paasDbImports, paasDbPanels, paasDbs, paasDbUsers } from "../db/schema";
 import { enqueue } from "../jobs";
 import { uploadRoot } from "./service";
+import { pgExtAvailable } from "./engines";
 
 export type DbRow = typeof paasDbs.$inferSelect;
 export type DbConfig = typeof paasDbConfig.$inferSelect;
@@ -29,7 +30,7 @@ export const saveConfig = (db: DB | Tx, dbId: string, patch: Partial<Omit<DbConf
 /** a new database: its settings row (new PostgreSQL servers get the PostGIS/pgvector image) and the
     first-run setup that waits for it to become ready */
 export async function afterCreateDb(db: DB | Tx, row: Pick<DbRow, "id" | "engine">, o: { replicaSet?: boolean; seed?: DbConfig["seed"] } = {}) {
-  await db.insert(paasDbConfig).values({ dbId: row.id, extImage: row.engine === "postgres", replicaSet: !!o.replicaSet && row.engine === "mongodb", seed: o.seed ?? null }).onConflictDoNothing();
+  await db.insert(paasDbConfig).values({ dbId: row.id, extImage: row.engine === "postgres" && pgExtAvailable(), replicaSet: !!o.replicaSet && row.engine === "mongodb", seed: o.seed ?? null }).onConflictDoNothing();
   await enqueue(db, "dbaas.init", { dbId: row.id, since: Date.now() }, { runAt: new Date(Date.now() + Number(process.env.PAAS_POLL_MS ?? 3000)) });
 }
 

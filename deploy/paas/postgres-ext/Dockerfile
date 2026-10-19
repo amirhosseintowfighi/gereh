@@ -1,5 +1,5 @@
 # PostgreSQL with PostGIS and pgvector for Gereh managed databases (new PostgreSQL servers use it).
-#   docker build --build-arg PG=17 -t registry.gereh.net/gereh/postgres-ext:17 . && docker push …
+#   docker build --build-arg PG=17 -t registry.<apps domain>/gereh/postgres-ext:17 . && docker push …
 # Build one tag per offered major version (18 … 11); set PAAS_PG_EXT_IMAGE to the repository.
 # pgvector packages exist for PostgreSQL 13 and newer; older tags get PostGIS only.
 ARG PG=17

@@ -154,8 +154,13 @@ describe("admin panels, firewall, tuning, extensions", () => {
     await settle();
     const spec = await specOf(id);
     expect(spec.extensions).toEqual(["postgis", "vector", "pg_trgm", "pg_stat_statements"]);
+    // the official image until the extension image is built and named
+    const image = () => ((dbObjects(spec) as never as Record<string, any>[])[1].spec.template.spec.containers[0]).image;
+    expect(image()).toBe("postgres:17-alpine");
+    process.env.PAAS_PG_EXT_IMAGE = "registry.gereh.dev/gereh/postgres-ext";
+    expect(image()).toBe("registry.gereh.dev/gereh/postgres-ext:17");
+    delete process.env.PAAS_PG_EXT_IMAGE;
     const ct = (dbObjects(spec) as never as Record<string, any>[])[1].spec.template.spec.containers[0];
-    expect(ct.image).toBe("registry.gereh.net/gereh/postgres-ext:17");
     expect(ct.args).toContain("shared_preload_libraries=pg_stat_statements");
     expect([...simState(spec).ext].sort()).toEqual(["pg_stat_statements", "pg_trgm", "postgis", "vector"]);
     // an old database on the plain image cannot get PostGIS

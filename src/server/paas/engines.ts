@@ -15,7 +15,10 @@ const fromSecret = (d: Pick<DbSpec, "name">, key = "password") => ({ valueFrom: 
 const half = (d: DbSpec) => Math.max(256, Math.floor(d.ramMb / 2));
 
 /** the PostgreSQL image with PostGIS and pgvector (deploy/paas/postgres-ext), one tag per major version */
-export const pgExtImage = (version: string) => (process.env.PAAS_PG_EXT_IMAGE || "registry.gereh.net/gereh/postgres-ext") + ":" + version;
+export const pgExtImage = (version: string) => process.env.PAAS_PG_EXT_IMAGE + ":" + version;
+/** the extension image exists only once it is built and PAAS_PG_EXT_IMAGE names it (the simulator always has it);
+    until then PostgreSQL runs on the official image and PostGIS/pgvector are offered as unavailable */
+export const pgExtAvailable = () => !!process.env.PAAS_PG_EXT_IMAGE || !process.env.PAAS_K8S_API;
 
 export type EngineK8s = {
   image: (d: DbSpec) => string;
@@ -60,7 +63,7 @@ const mysqlArgs = (d: DbSpec) => {
 
 export const ENGINES: Record<string, EngineK8s> = {
   postgres: {
-    image: (d) => (d.extImage ? pgExtImage(d.version) : "postgres:" + d.version + "-alpine"), port: 5432, data: "/var/lib/postgresql/data",
+    image: (d) => (d.extImage && process.env.PAAS_PG_EXT_IMAGE ? pgExtImage(d.version) : "postgres:" + d.version + "-alpine"), port: 5432, data: "/var/lib/postgresql/data",
     env: (d) => [{ name: "POSTGRES_USER", value: d.username }, { name: "POSTGRES_PASSWORD", ...fromSecret(d) }, { name: "POSTGRES_DB", value: d.dbName }, { name: "PGDATA", value: "/var/lib/postgresql/data/pgdata" }],
     probe: 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"', args: (d) => pgArgs(d, false),
   },
