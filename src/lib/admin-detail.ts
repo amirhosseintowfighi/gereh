@@ -28,7 +28,7 @@ export type Series = { labels: string[]; data: number[] };
 export type UserSummary = {
   tab: "summary";
   user: { id: string; name: string; email: string; phone: string; company: string; role: string; status: string; kyc: string; balance: number; joined: string; twofa: boolean; autoPay: boolean; referralCode: string; virtUid: number | null };
-  level: string; wallets: { id: string; name: string; balance: number }[];
+  level: string; levelId: string; wallets: { id: string; name: string; balance: number }[];
   forecast: { burn: number; days: number | null; until: string; threshold: number };
   team: { members: { id: string; name: string; email: string; role: string }[]; memberOf: { id: string; name: string; role: string }[] };
   lastLogin: { at: string; ip: string; device: string } | null;

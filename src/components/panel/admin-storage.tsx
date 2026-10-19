@@ -8,6 +8,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Meter } from "../ui";
 import { AsyncButton, PageTitle, StatCard, Switch, Tabs } from "../ui-client";
+import { UserLink } from "./admin-order-detail";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 
@@ -40,7 +41,7 @@ export function AdminStorage() {
             <ul className="divide-y divide-white/[0.06]">
               {list.map((b) => { const plan = planOf(b.planId); const o = owner(b.userId); return (
                 <li key={b.id} className="p-3 grid md:grid-cols-[1.4fr_1fr_auto] gap-3 items-center">
-                  <span className="min-w-0"><b dir="ltr">{b.name}</b> {b.access === "public" && <Badge tone="blue">عمومی</Badge>}<span className="block text-xs text-white/55 mt-0.5">{o?.name ?? b.userId}{o?.email ? " · " + o.email : ""} · {b.at}</span></span>
+                  <span className="min-w-0"><b dir="ltr">{b.name}</b> {b.access === "public" && <Badge tone="blue">عمومی</Badge>}<span className="block text-xs text-white/55 mt-0.5"><UserLink id={b.userId} name={o?.name} />{o?.email ? " · " + o.email : ""} · {b.at}</span></span>
                   <Meter value={b.usedBytes} max={(plan?.sizeGb ?? 1) * GB} label={fa(b.objects) + " فایل"} right={bytes(b.usedBytes) + " / " + (plan?.name ?? b.planId)} />
                   <span className="flex flex-wrap items-center gap-2 justify-end">
                     <Badge tone={BUCKET_STATUS[b.status]?.[1]} dot>{BUCKET_STATUS[b.status]?.[0]}{b.suspendReason === "billing" ? " (اعتبار)" : b.suspendReason === "staff" ? " (پشتیبانی)" : ""}</Badge>

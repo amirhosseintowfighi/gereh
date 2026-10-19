@@ -310,7 +310,7 @@ export async function userSummary(db: DB, uid: string): Promise<UserSummary> {
   return {
     tab: "summary",
     user: { id: u!.id, name: u!.name, email: u!.email, phone: u!.phone, company: u!.company, role: u!.role, status: u!.status, kyc: u!.kyc, balance: u!.balance, joined: faDate(u!.createdAt), twofa: !!u!.twofaSecret, autoPay: u!.autoPay, referralCode: u!.referralCode, virtUid: u!.virtUid },
-    level: levelLabel(meta.level), wallets: wallets.map((w) => ({ id: w.id, name: w.name, balance: w.balance })),
+    level: levelLabel(meta.level), levelId: meta.level, wallets: wallets.map((w) => ({ id: w.id, name: w.name, balance: w.balance })),
     forecast: { burn: fc.burn, days: fc.days === null ? null : Math.floor(fc.days), until: fc.until ? faDate(fc.until) : "", threshold: fc.threshold },
     team: { members, memberOf },
     lastLogin: sess ? { at: faDateTime(sess.lastSeenAt), ip: sess.ip, device: sess.device } : null,

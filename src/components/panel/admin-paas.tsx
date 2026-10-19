@@ -12,6 +12,7 @@ import { AsyncButton, PageTitle, StatCard, Switch, Tabs } from "../ui-client";
 import { cpuLabel, ramLabel, StatusPill } from "./paas-shared";
 import { PlanLogRetention } from "./paas-observe";
 import { PlanLimits } from "./paas-runtime";
+import { UserLink } from "./admin-order-detail";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 
@@ -53,7 +54,7 @@ export function AdminPaas() {
                   return (
                     <tr key={a.id} className="border-t border-white/[0.06] align-top">
                       <td className="p-3"><a href={a.url} target="_blank" rel="noopener" dir="ltr" className="font-bold hover:underline">{a.name}</a><span className="block text-[11px] text-white/45">{a.id} · {a.at}</span></td>
-                      <td className="p-3">{owner(a.userId)?.name ?? a.userId}<span dir="ltr" className="block text-[11px] text-white/45 text-right">{owner(a.userId)?.email}</span></td>
+                      <td className="p-3"><UserLink id={a.userId} name={owner(a.userId)?.name} /><span dir="ltr" className="block text-[11px] text-white/45 text-right">{owner(a.userId)?.email}</span></td>
                       <td className="p-3">{stackOf(a.stack)?.label ?? a.stack}<span className="block text-[11px] text-white/45" dir="ltr">{a.source === "git" ? a.gitUrl.replace(/^https:\/\/[^@]*@/, "https://") : a.source === "image" ? a.image : a.source}</span></td>
                       <td className="p-3 text-xs">{plan?.name ?? a.planId} × {fa(a.instances)}{a.autoscale ? " (تا " + fa(a.maxInstances) + ")" : ""}{a.diskGb ? " · " + fa(a.diskGb) + " گیگ" : ""}<span className="block text-white/45">{fa(a.domains.length)} دامنه · {fa(a.links.length)} پایگاه داده</span></td>
                       <td className="p-3"><StatusPill s={a.status} />{last && last.status === "failed" && <span className="block text-[11px] text-rose-300 mt-1">آخرین بیلد ناموفق</span>}</td>
@@ -80,7 +81,7 @@ export function AdminPaas() {
                   return (
                     <tr key={d.id} className="border-t border-white/[0.06] align-top">
                       <td className="p-3"><b dir="ltr">{d.name}</b><span className="block text-[11px] text-white/45">{d.id} · {d.links.length ? "← " + d.links.map((l) => l.appName).join("، ") : "بدون اتصال"}</span></td>
-                      <td className="p-3">{owner(d.userId)?.name ?? d.userId}</td>
+                      <td className="p-3"><UserLink id={d.userId} name={owner(d.userId)?.name} /></td>
                       <td className="p-3">{engineOf(d.engine)?.label ?? d.engine} {d.version}{d.publicAccess && <Badge tone="amber">عمومی</Badge>}</td>
                       <td className="p-3 text-xs">{plan ? plan.name + " · " + fa(plan.diskGb) + " گیگ" : d.planId}</td>
                       <td className="p-3 text-xs">{d.backups ? "روزانه" : "خاموش"}<span className="block text-white/45">{lastBk ? "آخرین: " + lastBk.at : "هنوز ندارد"}</span></td>

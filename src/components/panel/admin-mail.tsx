@@ -8,6 +8,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty } from "../ui";
 import { AsyncButton, PageTitle, StatCard, Switch, Tabs } from "../ui-client";
+import { UserLink } from "./admin-order-detail";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 
@@ -47,7 +48,7 @@ export function AdminMail() {
               {shown.map((d) => { const [label, tone] = MAIL_DOMAIN_STATUS[d.status] ?? [d.status, "gray"]; return (
                 <li key={d.id} className="p-3 flex flex-wrap items-center justify-between gap-2">
                   <span className="min-w-0">
-                    <b dir="ltr">{d.domain}</b> <span className="text-xs text-white/55">— {d.owner} · {data.plans.find((p) => p.id === d.planId)?.name ?? d.planId} · {fa(d.mailboxes)} صندوق · {fa(d.sent30)} ارسال در ۳۰ روز</span>
+                    <b dir="ltr">{d.domain}</b> <span className="text-xs text-white/55">— <UserLink id={d.userId} name={d.owner} /> · {data.plans.find((p) => p.id === d.planId)?.name ?? d.planId} · {fa(d.mailboxes)} صندوق · {fa(d.sent30)} ارسال در ۳۰ روز</span>
                   </span>
                   <span className="flex flex-wrap items-center gap-2">
                     {d.mode === "live" ? <Badge tone="green">LIVE</Badge> : <Badge tone="amber">DEV</Badge>}

@@ -13,6 +13,7 @@ import { Badge, Card, Empty, Field, Meter, STATUS, StatusBadge } from "../ui";
 import { AreaChart, AsyncButton, Bars, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 import { InvoiceModal, TicketThread } from "./user";
 import { UndeliveredCard, VirtDryRun } from "./admin-orders";
+import { UserLink } from "./admin-order-detail";
 
 const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 const amountInput = (v: string) => toEnDigits(v).replace(/\D/g, "");
@@ -70,7 +71,7 @@ export function AdminUsers() {
     <div>
       <PageTitle title="کاربران" sub={fa(customers.length) + " کاربر"} action={<button type="button" onClick={() => setNewU({ name: "", email: "", phone: "" })} className={BTN_P + " px-4 h-10 text-sm"}><Icon name="user-plus" size={16} /> کاربر جدید</button>} />
       <DataTable rows={customers} searchKeys={["name", "email", "phone"]} searchPlaceholder="نام، ایمیل یا موبایل" filters={[{ key: "status", label: "وضعیت", options: ["active", "pending", "suspended"] }, { key: "kyc", label: "احراز", options: ["verified", "pending", "none"] }]}
-        onRowClick={(r) => { setSel(r.id); setAdj({ amount: "", reason: "" }); }} pageSize={10}
+        onRowClick={(r) => router.push(("/admin/users/" + encodeURIComponent(r.id)) as never)} pageSize={10}
         columns={[
           { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/55 ltr text-right">{r.email}</div></div></div> },
           { key: "phone", label: "موبایل", render: (r) => <span className="mono text-xs text-white/60">{r.phone}</span> },
@@ -79,10 +80,11 @@ export function AdminUsers() {
           { key: "kyc", label: "احراز", render: (r) => <StatusBadge s={r.kyc} /> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
           { key: "joined", label: "عضویت", sortable: true },
+          { key: "a", label: "", className: "text-left", render: (r) => <button type="button" onClick={(e) => { e.stopPropagation(); setSel(r.id); setAdj({ amount: "", reason: "" }); }} className={ICON_BTN} aria-label={"اقدامات سریع " + r.name}><Icon name="settings-2" size={17} /></button> },
         ]} />
       <SideDrawer open={!!u} onClose={() => setSel(null)} title="جزئیات کاربر">
         {u && <>
-          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/55 ltr text-right">{u.email}</div></div></div>
+          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div className="flex-1 min-w-0"><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/55 ltr text-right">{u.email}</div></div><Link href={("/admin/users/" + encodeURIComponent(u.id)) as never} className={BTN_G + " px-3 h-9 text-xs shrink-0"}><Icon name="external-link" size={14} /> نمای کامل</Link></div>
           <div className="flex flex-wrap gap-2 mt-4"><StatusBadge s={u.status} /><StatusBadge s={u.kyc} />{u.company && <Badge>{u.company}</Badge>}</div>
           <dl className="grid grid-cols-2 gap-4 mt-6 text-sm">{[["موبایل", u.phone], ["عضویت", u.joined], ["سرویس‌ها", fa(u.services)], ["موجودی", toman(u.balance)]].map(([k, v]) => <div key={k} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3"><dt className="text-[11px] text-white/55">{k}</dt><dd className="mt-1 font-bold tabular">{v}</dd></div>)}</dl>
           <div className="mt-6 space-y-2">
@@ -144,7 +146,7 @@ export function AdminServices() {
   const db = useDB();
   const { notify, confirm } = useApp();
   const [tab, setTab] = useState("servers");
-  const owner = (id: string) => byId(db.users, id)?.name || "—";
+  const owner = (id: string) => <UserLink id={id} name={byId(db.users, id)?.name || "—"} />;
   const actions = (kind: "servers" | "hosting", r: { id: string; status: string; name?: string; domain?: string }) => (
     <Menu label="اقدامات" triggerClass={ICON_BTN} trigger={<Icon name="settings-2" size={17} />} items={[
       r.status !== "suspended" && { icon: "ban", label: "تعلیق", danger: true, run: async () => { if (!(await confirm("سرویس " + (r.name || r.domain) + " معلق شود؟", { danger: true, ok: "تعلیق" }))) return; if (kind === "servers") await api.servers.setStatus(r.id, "suspended"); else await api.hosting.setStatus(r.id, "suspended"); notify("سرویس معلق شد"); } },
@@ -192,7 +194,7 @@ export function AdminBilling() {
   const { notify, confirm } = useApp();
   const [view, setView] = useState<Invoice | null>(null);
   const [create, setCreate] = useState<{ userId: string; desc: string; amount: string } | null>(null);
-  const owner = (id: string) => byId(db.users, id)?.name || "—";
+  const owner = (id: string) => <UserLink id={id} name={byId(db.users, id)?.name || "—"} />;
   const gross = (i: Invoice) => invGross(i, db.settings.tax);
   const sum = (st: string) => db.invoices.filter((i) => i.status === st).reduce((s, i) => s + gross(i), 0);
   return (
@@ -216,7 +218,7 @@ export function AdminBilling() {
             <Menu label={"اقدامات " + r.id} triggerClass={ICON_BTN} trigger={<Icon name="settings-2" size={17} />} items={[
               { icon: "file-text", label: "مشاهده", run: () => setView(r) },
               r.status !== "paid" && r.status !== "refunded" && { icon: "circle-check", label: "علامت پرداخت‌شده", run: async () => { if (await confirm("صورتحساب " + r.id + " پرداخت‌شده علامت بخورد؟")) { await api.billing.markPaid(r.id); notify("علامت‌گذاری شد"); } } },
-              r.status !== "paid" && r.status !== "refunded" && { icon: "mail", label: "ارسال یادآوری", run: () => notify("یادآوری پرداخت برای " + owner(r.userId) + " ارسال شد", "mail") },
+              r.status !== "paid" && r.status !== "refunded" && { icon: "mail", label: "ارسال یادآوری", run: () => notify("یادآوری پرداخت برای " + (byId(db.users, r.userId)?.name || "مشتری") + " ارسال شد", "mail") },
               r.status === "paid" && { icon: "refresh-cw", label: "بازگشت وجه", danger: true, run: async () => { if (await confirm("مبلغ " + toman(invGross(r, db.settings.tax)) + " به کیف پول مشتری بازگردانده شود؟", { danger: true, ok: "بازگشت وجه" })) { await api.billing.refund(r.id); notify("بازگشت وجه انجام شد"); } } },
             ]} />
           ) },
@@ -245,7 +247,7 @@ export function AdminTickets({ id }: { id?: string }) {
   const db = useDB(); const router = useRouter();
   const { notify } = useApp();
   const t = id ? byId(db.tickets, id) : undefined;
-  const owner = (uid: string) => byId(db.users, uid)?.name || "—";
+  const owner = (uid: string) => <UserLink id={uid} name={byId(db.users, uid)?.name || "—"} />;
   if (id && !t) return <Card><Empty icon="message-circle" title="تیکت پیدا نشد" action={<Link href="/admin/tickets" className={BTN_G + " px-4 h-10 text-sm"}>بازگشت به فهرست</Link>} /></Card>;
   if (t) return (
     <div>

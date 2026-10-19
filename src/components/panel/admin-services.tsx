@@ -10,6 +10,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { CALL_STATUS } from "./inquiry";
+import { UserLink } from "./admin-order-detail";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 const Pill = ({ map, s }: { map: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]>; s: string }) => { const [l, t] = map[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
@@ -113,7 +114,7 @@ function Accounts() {
         <ul className="divide-y divide-white/[0.06]">
           {db.inquiry.accounts.map((a) => (
             <li key={a.userId} className="p-3 flex flex-wrap items-center justify-between gap-3">
-              <span className="min-w-0"><b className="text-sm">{a.name}</b><span dir="ltr" className="block text-[11px] text-white/50 text-right">{a.email} · #{a.accountNo}</span></span>
+              <span className="min-w-0"><b className="text-sm"><UserLink id={a.userId} name={a.name} /></b><span dir="ltr" className="block text-[11px] text-white/50 text-right">{a.email} · #{a.accountNo}</span></span>
               <span className="text-xs text-white/60 tabular">{fa(a.calls30)} درخواست · {toman(a.spend30)} در ۳۰ روز</span>
               {a.status === "active"
                 ? <AsyncButton danger className={BTN_G + " h-8 px-3 text-xs"} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={13} />تعلیق</AsyncButton>
@@ -135,7 +136,7 @@ function Calls() {
         <ul className="divide-y divide-white/[0.06]">
           {db.inquiry.calls.map((c) => { const [l, t] = CALL_STATUS[c.status] ?? [c.status, "gray"]; return (
             <li key={c.id} className="py-2.5 px-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="min-w-0"><b>{user(c.userId)}</b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/40 text-right">{c.id} · {c.input}</span></span>
+              <span className="min-w-0"><b><UserLink id={c.userId} name={user(c.userId)} /></b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/40 text-right">{c.id} · {c.input}</span></span>
               <span className="flex items-center gap-2 text-xs"><Badge tone={t}>{l}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}<span className="tabular">{c.charged ? toman(c.charged) : "—"}</span><span className="text-white/45">{c.at}</span></span>
             </li>
           ); })}
@@ -171,7 +172,7 @@ export function AdminGeo() {
               {g.zones.map((z) => { const plan = g.plans.find((p) => p.id === z.planId); return (
                 <li key={z.id} className="p-3 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="min-w-0"><b dir="ltr">{z.domain}</b> <span className="text-xs text-white/55">— {owner(z.userId)?.name ?? z.userId} · {plan?.name} · تا {z.paidUntil}</span></span>
+                    <span className="min-w-0"><b dir="ltr">{z.domain}</b> <span className="text-xs text-white/55">— <UserLink id={z.userId} name={owner(z.userId)?.name} /> · {plan?.name} · تا {z.paidUntil}</span></span>
                     <span className="flex flex-wrap items-center gap-2"><Pill map={ZONE_STATUS} s={z.status} />{plan?.sync !== "none" && <Pill map={SYNC_STATUS} s={z.syncStatus} />}</span>
                   </div>
                   <div className="flex flex-wrap items-end gap-2">

@@ -10,6 +10,7 @@ import { useLocs } from "@/lib/use-locs";
 import { useApp } from "../app-context";
 import { VirguleLink, VirguleMark, Wordmark } from "../brand";
 import { AccountSwitcher, roleLabel } from "./team";
+import { AdminSearch } from "./admin-user";
 import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { Menu, useDialog } from "../ui-client";
@@ -173,6 +174,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           </div>
           <div className="flex items-center gap-1.5">
             {kind === "user" && <AccountSwitcher />}
+            {kind === "admin" && <AdminSearch />}
             {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + " h-10 px-3 text-xs max-sm:hidden"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}

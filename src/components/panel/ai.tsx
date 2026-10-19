@@ -12,6 +12,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, Bars, CodeBlock, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { AiSettingsCard, EmbedPlayground, KnowledgeBases, Projects, RequestLogs, UsageReport, WebChat } from "./ai-plus";
+import { UserLink } from "./admin-order-detail";
 
 const USAGE_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
   success: ["موفق", "green"], error: ["خطا", "red"], denied: ["رد شده", "amber"], cancelled: ["لغو شده", "gray"],
@@ -224,7 +225,7 @@ function UsageList({ admin = false }: { admin?: boolean }) {
             <li key={u.id} className="py-3 px-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
               <span className="text-sm font-bold truncate" dir="ltr" style={{ textAlign: "right" }}>{u.model}</span>
               <span className="text-sm tabular text-left">{u.charged ? toman(u.charged) : "رایگان"}</span>
-              <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge><Badge>{AI_FORMAT_LABEL[u.format] ?? u.format}</Badge>{u.stream && <Badge tone="blue">stream</Badge>}{u.keyName && <span>{u.keyName}</span>}{admin && <span dir="ltr">{u.userId}</span>}</span>
+              <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge><Badge>{AI_FORMAT_LABEL[u.format] ?? u.format}</Badge>{u.stream && <Badge tone="blue">stream</Badge>}{u.keyName && <span>{u.keyName}</span>}{admin && <UserLink id={u.userId} className="ltr" />}</span>
               <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{u.at}</span>
               <span className="col-span-2 text-[11px] text-white/40">{fa(u.inTokens)} ورودی · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
             </li>

@@ -2,13 +2,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { locLabel } from "@/lib/catalog";
-import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_P, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { useLocs } from "@/lib/use-locs";
 import { api, useDB, type UndeliveredOrder } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
+import { DeliverModal, ManualFields, OrderDetailModal, RefundModal, UserLink, manual } from "./admin-order-detail";
 import { AsyncButton, Modal, PageTitle, Select, StatCard } from "../ui-client";
 
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
@@ -26,6 +27,7 @@ export function AdminOrders() {
   const [deliver, setDeliver] = useState<UndeliveredOrder | null>(null);
   const [refund, setRefund] = useState<UndeliveredOrder | null>(null);
   const [assign, setAssign] = useState(false);
+  const [detail, setDetail] = useState<UndeliveredOrder | null>(null);
   const load = useCallback(async () => {
     try { setRows(await api.provisioning.list()); setErr(""); } catch (e) { setErr(e instanceof Error ? e.message : "خطا"); }
   }, []);
@@ -58,7 +60,7 @@ export function AdminOrders() {
                     {r.serverName && <span className="mono text-xs text-white/55 ltr">{r.serverName}</span>}
                   </div>
                   <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
-                    <div><dt className="text-white/45">مشتری</dt><dd className="mt-0.5"><Link className="hover:underline" href="/admin/users">{r.userName || r.userId}</Link><div className="text-white/45 ltr text-right truncate">{r.email}</div></dd></div>
+                    <div><dt className="text-white/45">مشتری</dt><dd className="mt-0.5"><UserLink id={r.userId} name={r.userName} /><div className="text-white/45 ltr text-right truncate">{r.email}</div></dd></div>
                     <div><dt className="text-white/45">صورتحساب</dt><dd className="mt-0.5 mono">{r.invoiceId} · ردیف {fa(r.index + 1)}</dd></div>
                     <div><dt className="text-white/45">مبلغ</dt><dd className="mt-0.5 tabular">{toman(r.amount)}</dd></div>
                     <div><dt className="text-white/45">عمر / تلاش</dt><dd className="mt-0.5">{age(r.ageMin)} · {fa(r.attempts)} تلاش{r.ticket ? <> · <Link className="acc" href={("/admin/tickets/" + r.ticket) as never}>{r.ticket}</Link></> : null}</dd></div>
@@ -66,6 +68,7 @@ export function AdminOrders() {
                   {r.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-48 overflow-auto ltr text-left" dir="auto">{r.error}</pre>}
                 </div>
                 <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
+                  <button type="button" onClick={() => setDetail(r)} className={BTN_P + " px-3 h-9 text-xs"}><Icon name="file-text" size={14} /> جزئیات</button>
                   <AsyncButton className={BTN_G + " px-3 h-9 text-xs"} onClick={async () => { await api.provisioning.retry(r.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={14} /> تلاش دوباره</AsyncButton>
                   {r.kind !== "ip" && <button type="button" onClick={() => setDeliver(r)} className={BTN_G + " px-3 h-9 text-xs"}><Icon name="circle-check" size={14} /> تحویل دستی</button>}
                   {!r.vpsid && <button type="button" onClick={() => setRefund(r)} className={BTN_G + " px-3 h-9 text-xs text-rose-200"}><Icon name="wallet" size={14} /> بازگشت وجه</button>}
@@ -76,61 +79,8 @@ export function AdminOrders() {
       {deliver && <DeliverModal r={deliver} onClose={() => setDeliver(null)} onDone={load} />}
       {refund && <RefundModal r={refund} onClose={() => setRefund(null)} onDone={load} />}
       {assign && <AssignModal onClose={() => setAssign(false)} />}
+      {detail && <OrderDetailModal invoiceId={detail.invoiceId} index={detail.index} onClose={() => setDetail(null)} onChanged={load} />}
     </div>
-  );
-}
-
-function ServerFields({ v, set }: { v: { vpsid: string; ip: string; hostname: string; rootpass: string }; set: (k: "vpsid" | "ip" | "hostname" | "rootpass", x: string) => void }) {
-  return (
-    <div className="grid sm:grid-cols-2 gap-3">
-      <Field label="شناسه VPS در Virtualizor" hint="با وارد کردن آن، IP و hostname از Virtualizor خوانده می‌شود."><input value={v.vpsid} onChange={(e) => set("vpsid", e.target.value)} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
-      <Field label="آدرس IPv4"><input value={v.ip} onChange={(e) => set("ip", e.target.value)} dir="ltr" placeholder="185.143.233.20" className={INPUT + " text-left mono"} /></Field>
-      <Field label="Hostname"><input value={v.hostname} onChange={(e) => set("hostname", e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-      <Field label="رمز root" hint="اگر وارد شود، یک بار برای مشتری ایمیل می‌شود."><input value={v.rootpass} onChange={(e) => set("rootpass", e.target.value)} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
-    </div>
-  );
-}
-const manual = (v: { vpsid: string; ip: string; hostname: string; rootpass: string }) => ({ ...(num(v.vpsid) ? { vpsid: num(v.vpsid) } : {}), ...(v.ip.trim() ? { ip: v.ip.trim() } : {}), ...(v.hostname.trim() ? { hostname: v.hostname.trim() } : {}), ...(v.rootpass ? { rootpass: v.rootpass } : {}) });
-
-function DeliverModal({ r, onClose, onDone }: { r: UndeliveredOrder; onClose: () => void; onDone: () => Promise<void> }) {
-  const { notify } = useApp();
-  const [v, setV] = useState({ vpsid: r.vpsid ? String(r.vpsid) : "", ip: "", hostname: "", rootpass: "" });
-  const [o, setO] = useState({ domain: r.sku?.t === "hosting" ? r.sku.domain ?? "" : r.sku?.t === "domain" ? r.sku.name : "", username: "", password: "", server: "" });
-  const [note, setNote] = useState("");
-  const submit = async () => {
-    if (r.kind === "server") await api.provisioning.deliverServer(r.key, { ...manual(v), ...(note ? { note } : {}) });
-    else await api.provisioning.deliverOther(r.key, { domain: o.domain.trim(), ...(o.username ? { username: o.username.trim() } : {}), ...(o.password ? { password: o.password } : {}), ...(o.server ? { server: o.server.trim() } : {}), ...(note ? { note } : {}) });
-    notify("سفارش تحویل شد و به مشتری اطلاع داده شد", "circle-check");
-    await onDone(); onClose();
-  };
-  return (
-    <Modal open onClose={onClose} title={"تحویل دستی " + KIND[r.kind][0]} icon="circle-check" size="max-w-xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton onClick={submit}>تحویل و اطلاع به مشتری</AsyncButton></>}>
-      <p className="text-xs text-white/60 leading-6 mb-4">{r.item} — {r.userName}</p>
-      {r.kind === "server" ? <ServerFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} /> : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="دامنه"><input value={o.domain} onChange={(e) => setO((c) => ({ ...c, domain: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-          {r.kind === "hosting" && <>
-            <Field label="نام کاربری cPanel"><input value={o.username} onChange={(e) => setO((c) => ({ ...c, username: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="رمز cPanel" hint="یک بار برای مشتری ایمیل می‌شود."><input value={o.password} onChange={(e) => setO((c) => ({ ...c, password: e.target.value }))} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="سرور هاست"><input value={o.server} onChange={(e) => setO((c) => ({ ...c, server: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-          </>}
-        </div>
-      )}
-      <Field label="یادداشت داخلی" className="mt-3"><input value={note} onChange={(e) => setNote(e.target.value)} className={INPUT} /></Field>
-    </Modal>
-  );
-}
-
-function RefundModal({ r, onClose, onDone }: { r: UndeliveredOrder; onClose: () => void; onDone: () => Promise<void> }) {
-  const { notify } = useApp();
-  const [note, setNote] = useState("");
-  return (
-    <Modal open onClose={onClose} title="بازگشت وجه به کیف پول" icon="wallet"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + " px-4 h-10 text-sm"}>انصراف</button><AsyncButton danger onClick={async () => { const a = await api.provisioning.refund(r.key, note.trim()); notify(toman(a) + " به کیف پول مشتری بازگشت", "wallet"); await onDone(); onClose(); }}>بازگشت {toman(r.amount)}</AsyncButton></>}>
-      <p className="text-sm text-white/70 leading-7">مبلغ ردیف «{r.item}» (با مالیات و پس از سهم تخفیف) به کیف پول {r.userName} برمی‌گردد، سفارش بسته می‌شود و سرور در حال آماده‌سازی حذف می‌شود.</p>
-      <Field label="پیام برای مشتری (اختیاری)" className="mt-4"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={TEXTAREA} /></Field>
-    </Modal>
   );
 }
 
@@ -156,7 +106,7 @@ function AssignModal({ onClose }: { onClose: () => void }) {
         <Field label="نوع صورتحساب"><Select value={f.billing} onChange={(x) => setF((c) => ({ ...c, billing: x }))} options={[{ value: "monthly", label: "ماهانه" }, { value: "hourly", label: "ساعتی" }]} label="نوع صورتحساب" /></Field>
         <Field label="پرداخت‌شده تا (ماه از امروز)" hint="۰ = سررسید امروز"><input value={f.months} onChange={set("months")} inputMode="numeric" className={INPUT + " text-center"} /></Field>
       </div>
-      <ServerFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} />
+      <ManualFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} />
     </Modal>
   );
 }
