@@ -47,7 +47,7 @@ const PUBLIC = [
 const EXPECT_404 = ["/not-a-page"];
 const PANEL = (ids) => [
   "/panel", "/panel/account", "/panel/affiliate", "/panel/ai", "/panel/apps", "/panel/apps/new", "/panel/apps/stack", "/panel/apps/templates",
-  "/panel/apps/" + ids.app, "/panel/billing", "/panel/billing/" + ids.invoice + "/print", "/panel/databases", "/panel/databases/" + ids.db,
+  "/panel/apps/" + ids.app, "/panel/billing", "/panel/build", "/panel/billing/" + ids.invoice + "/print", "/panel/databases", "/panel/databases/" + ids.db,
   "/panel/devops", "/panel/domains", "/panel/domains/" + ids.domain, "/panel/geo", "/panel/geo/" + ids.geo, "/panel/hosting", "/panel/hosting/" + ids.hosting,
   "/panel/inquiry", "/panel/keys", "/panel/mail", "/panel/mail/" + ids.mail, "/panel/servers", "/panel/servers/" + ids.server,
   "/panel/servers/" + ids.server + "/console", "/panel/storage", "/panel/storage/" + ids.bucket, "/panel/tickets", "/panel/tickets/" + ids.ticket, "/panel/wordpress",
@@ -55,7 +55,7 @@ const PANEL = (ids) => [
 const ADMIN = (ids) => [
   "/admin", "/admin/ai", "/admin/announcements", "/admin/audit", "/admin/billing", "/admin/blog", "/admin/chats", "/admin/coupons", "/admin/devops",
   "/admin/domains", "/admin/geo", "/admin/infra", "/admin/inquiry", "/admin/mail", "/admin/orders", "/admin/paas", "/admin/products", "/admin/reports", "/admin/services",
-  "/admin/settings", "/admin/status", "/admin/storage", "/admin/tickets", "/admin/tickets/" + ids.ticket, "/admin/users", "/admin/virtualizor", "/admin/vps-billing",
+  "/admin/settings", "/admin/status", "/admin/storage", "/admin/tickets", "/admin/tickets/" + ids.ticket, "/admin/users", "/admin/users/" + ids.user, "/admin/virtualizor", "/admin/vps-billing",
 ];
 
 // ---------- in-page checks ----------
@@ -216,7 +216,7 @@ const st = await (await user.request.get(BASE + "/api/state?scope=customer")).js
 const d = st.db;
 const ids = {
   app: d.paasApps?.[0]?.id, invoice: d.invoices?.[0]?.id, db: d.paasDbs?.[0]?.id, domain: d.domains?.[0]?.id, geo: d.geo?.zones?.[0]?.id,
-  hosting: d.hosting?.[0]?.id, server: d.servers?.[0]?.id, ticket: d.tickets?.[0]?.id, mail: "none", bucket: "none",
+  hosting: d.hosting?.[0]?.id, server: d.servers?.[0]?.id, ticket: d.tickets?.[0]?.id, mail: "none", bucket: "none", user: d.servers?.[0]?.userId,
 };
 try { const m = await rpc(user, "mail.overview"); ids.mail = m.domains[0]?.id || (await rpc(user, "mail.create", { domain: "mail.audit-demo.ir", planId: m.plans[0].id })).id; } catch (e) { console.warn("mail demo:", e.message); }
 try { ids.bucket = d.storage.buckets[0]?.id || await rpc(user, "storage.create", { name: "audit-" + Date.now().toString(36), planId: d.storage.plans[0].id, access: "private" }); } catch (e) { console.warn("storage demo:", e.message); }
