@@ -266,6 +266,7 @@ export function BuildStudio({ id }: { id: string }) {
           {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-10 px-3 text-xs max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={15} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
           <Menu label="بیشتر" triggerClass={BTN_G + " h-10 w-10"} trigger={<Icon name="ellipsis-vertical" size={16} />} items={[
             { icon: "heart-pulse", label: "نگهداری و سلامت", run: () => setModal("maintain") },
+            ...(v.version ? [{ icon: "download", label: "دانلود کد (نسخه فعلی)", run: () => { const a = document.createElement("a"); a.href = "/api/build/download/" + v.id; a.download = ""; a.click(); } }] : []),
             { icon: "pencil", label: "تغییر نام", run: () => setModal("rename") },
             v.appId ? { icon: "rocket", label: "مدیریت اپ در گره اپ", run: () => router.push(("/panel/apps/" + v.appId) as never) } : null,
             "-",
@@ -502,6 +503,7 @@ function VersionsModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
               <span className="flex-1 min-w-0"><span className="block text-sm leading-6 [overflow-wrap:anywhere]">{x.message || "نسخه " + fa(x.version)}</span><span className="block text-[11px] text-white/45">{x.at} · {fa(x.files)} فایل{x.version === v.deployedVersion ? " · منتشرشده" : ""}</span></span>
               <span className="flex gap-1.5">
                 <a href={"/api/build/preview/" + token + ".v" + x.version + "/index.html"} target="_blank" rel="noopener noreferrer" className={BTN_G + " h-8 px-2.5 text-xs"}><Icon name="eye" size={13} />دیدن</a>
+                <a href={"/api/build/download/" + v.id + "?v=" + x.version} download className={BTN_G + " h-8 px-2.5 text-xs"} aria-label={"دانلود نسخه " + fa(x.version)}><Icon name="download" size={13} />دانلود</a>
                 {x.version === v.version ? <Badge tone="violet">فعلی</Badge>
                   : <AsyncButton className={BTN_G + " h-8 px-2.5 text-xs"} confirmText={"فایل‌های نسخه " + fa(x.version) + " به‌عنوان نسخه جدید بازگردانی شود؟"} onClick={async () => { await api.builder.restore(v.id, x.version); await onDone(); onClose(); }}><Icon name="rotate-ccw" size={13} />بازگردانی</AsyncButton>}
               </span>

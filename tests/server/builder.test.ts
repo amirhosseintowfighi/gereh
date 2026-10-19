@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { filesError, guessStack, pathError, type BuilderEvent, type BuilderProjectView } from "@/lib/builder";
 import { setAiUpstream } from "@/server/ai/upstream";
-import { preflight } from "@/server/builder/deploy";
+import { healthPathOf, preflight, shippedFiles } from "@/server/builder/deploy";
 import { parseOutput, render } from "@/server/builder/format";
 import { seedBuilderDemo } from "@/server/builder/demo";
 import { builderMaintain } from "@/server/builder/maintain";
@@ -323,6 +323,41 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     await d.update(builderProjects).set({ maintainSpent: 10_000_000, scannedAt: new Date(0) }).where(eq(builderProjects.id, id));
     await builderMaintain(d);
     expect(await maintainRuns()).toHaveLength(2);
+  });
+
+  it("ships a Dockerfile for the cluster and downloads any version as a ZIP", async () => {
+    const st = shippedFiles({ "index.html": "<h1>hi</h1>" }, "static");
+    expect(st.Dockerfile).toMatch(/^FROM nginx:/);
+    expect(st.Dockerfile).toContain("COPY . /usr/share/nginx/html");
+    const nd = shippedFiles({ "package.json": "{}", "server.js": "app.get('/healthz')" }, "node");
+    expect(nd.Dockerfile).toMatch(/^FROM node:22-alpine/);
+    expect(nd.Dockerfile).toContain("ARG NPM_CONFIG_REGISTRY");
+    expect(shippedFiles({ Dockerfile: "FROM busybox", "index.html": "x" }, "static").Dockerfile).toBe("FROM busybox");
+    expect(healthPathOf({ "server.js": "app.get('/healthz', h)" })).toBe("/healthz");
+    expect(healthPathOf({ "server.js": "app.get('/', h)" })).toBe("/");
+
+    await asUser();
+    const id = await newProject("لندینگ معرفی رستوران", "static");
+    await run(id, "رنگ سایت را سبز کن");
+    const v = await view(id);
+    expect(v.version).toBeGreaterThanOrEqual(2);
+    const { GET } = await import("@/app/api/build/download/[id]/route");
+    const dl = (q: string, pid = id) => GET(new Request("http://x/api/build/download/" + pid + q, { headers: { host: "x" } }), { params: Promise.resolve({ id: pid }) } as never);
+    const cur = await dl("");
+    expect(cur.status).toBe(200);
+    expect(cur.headers.get("content-type")).toBe("application/zip");
+    expect(cur.headers.get("content-disposition")).toContain("-v" + v.version + ".zip");
+    const buf = Buffer.from(await cur.arrayBuffer());
+    expect(buf.subarray(0, 2).toString()).toBe("PK");
+    expect(buf.includes(Buffer.from("index.html"))).toBe(true);
+    expect((await dl("?v=1")).status).toBe(200);
+    expect((await dl("?v=99")).status).toBe(404);
+    expect((await dl("?v=abc")).status).toBe(404);
+    // another customer cannot download it
+    const { jar } = await import("./helpers");
+    jar.clear();
+    await call("auth.register", { name: "سارا نوری", email: "sara2@example.com", phone: "09351112244", password: "Abcdefg1" });
+    expect((await dl("")).status).toBe(404);
   });
 
   it("auto-maintenance applies the patch and redeploys by itself", async () => {

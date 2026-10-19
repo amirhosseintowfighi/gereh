@@ -61,6 +61,34 @@ export function preflight(files: Record<string, string>, stack: Project["stack"]
   return null;
 }
 
+/* ---------- what ships: the files plus a Dockerfile, so the cluster never has to guess the stack ---------- */
+// Nixpacks has no plan for a bare index.html, and a Node app needs no detection; the package-mirror build
+// args (NPM_CONFIG_REGISTRY …) reach npm through ARG so installs go through the Gereh mirror.
+const STATIC_DOCKERFILE = [
+  "FROM nginx:1.29-alpine",
+  "RUN printf 'server {\\n  listen 80;\\n  root /usr/share/nginx/html;\\n  index index.html;\\n  location / { try_files $uri $uri/ $uri.html /index.html; }\\n}\\n' > /etc/nginx/conf.d/default.conf",
+  "COPY . /usr/share/nginx/html",
+  "RUN rm -f /usr/share/nginx/html/Dockerfile /usr/share/nginx/html/.dockerignore",
+  "EXPOSE 80",
+].join("\n") + "\n";
+const NODE_DOCKERFILE = [
+  "FROM node:22-alpine",
+  "ARG NPM_CONFIG_REGISTRY",
+  "WORKDIR /app",
+  "ENV NODE_ENV=production PORT=8080",
+  "COPY package*.json ./",
+  "RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi",
+  "COPY . .",
+  "EXPOSE 8080",
+  'CMD ["npm", "start"]',
+].join("\n") + "\n";
+export function shippedFiles(files: Record<string, string>, stack: Project["stack"]): Record<string, string> {
+  if (files["Dockerfile"]) return files;
+  return { ...files, Dockerfile: stack === "node" ? NODE_DOCKERFILE : STATIC_DOCKERFILE, ".dockerignore": "node_modules\n.git\n" };
+}
+/** the probe path: /healthz when the server answers it, else the home page */
+export const healthPathOf = (files: Record<string, string>) => (Object.entries(files).some(([p, c]) => /\.(c|m)?js$/.test(p) && c.includes("/healthz")) ? "/healthz" : "/");
+
 export const needsDb = (files: Record<string, string>, stack: Project["stack"]) => stack === "node" && Object.values(files).some((c) => c.includes("DATABASE_URL"));
 
 /** the cheapest active plans: what one click deploys on */
@@ -111,7 +139,7 @@ export async function startDeploy(ctx: Ctx, projectId: string, attempt = 1): Pro
   const path = await uploadPathFor(uid, uploadId);
   // the deployed pages load Tailwind and the font from Gereh, not from foreign CDNs
   const site = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
-  const shipped = /^https:\/\//.test(site) ? localizeFiles(files, site) : files;
+  const shipped = shippedFiles(/^https:\/\//.test(site) ? localizeFiles(files, site) : files, p.stack);
   await writeFile(path!, zip(Object.entries(shipped).map(([n, c]) => [n, Buffer.from(c, "utf8")])));
   let appId = p.appId, depId: string;
   const [app] = appId ? await ctx.db.select().from(paasApps).where(and(eq(paasApps.id, appId), eq(paasApps.userId, uid))) : [];
@@ -125,12 +153,13 @@ export async function startDeploy(ctx: Ctx, projectId: string, attempt = 1): Pro
       name, stack: p.stack === "node" ? "node" : "static", source: "zip", uploadId, port: p.stack === "node" ? 8080 : 80, planId: plan.id,
       startCommand: p.stack === "node" ? "npm start" : "", env: [],
     });
-    if (p.stack === "node") await ctx.db.update(paasApps).set({ healthPath: "/healthz" }).where(eq(paasApps.id, appId));
+    if (p.stack === "node") await ctx.db.update(paasApps).set({ healthPath: healthPathOf(files) }).where(eq(paasApps.id, appId));
     if (dbId) await call(ctx, "paas.link", appId, dbId, "DATABASE_URL");
     const [d] = await ctx.db.select({ id: paasDeployments.id }).from(paasDeployments).where(eq(paasDeployments.appId, appId)).orderBy(desc(paasDeployments.createdAt)).limit(1);
     depId = d.id;
     await ctx.db.update(builderProjects).set({ appId, dbId }).where(eq(builderProjects.id, p.id));
   } else {
+    if (p.stack === "node" && app.healthPath !== healthPathOf(files)) await ctx.db.update(paasApps).set({ healthPath: healthPathOf(files) }).where(eq(paasApps.id, app.id));
     depId = await call<string>(ctx, "paas.deploy", app.id, { uploadId, message: (attempt > 1 ? "رفع خودکار خطا — " : "") + BUILDER.name + " نسخه " + p.version });
   }
   await ctx.db.update(builderProjects).set({ status: "deploying", deploymentId: depId, deployAttempt: attempt, deployError: "", updatedAt: new Date() }).where(eq(builderProjects.id, p.id));
