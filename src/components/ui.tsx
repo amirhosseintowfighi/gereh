@@ -5,13 +5,13 @@ import { Icon } from "./icon";
 const TONES = {
   green: "bg-emerald-400/10 text-emerald-300 border-emerald-300/20", amber: "bg-amber-400/10 text-amber-200 border-amber-300/20",
   red: "bg-rose-400/10 text-rose-300 border-rose-300/20", blue: "bg-sky-400/10 text-sky-200 border-sky-300/20",
-  gray: "bg-white/[0.06] text-white/60 border-white/10", violet: "bg-violet-400/10 text-violet-200 border-violet-300/20",
+  gray: "bg-white/[0.06] text-white/70 border-white/10", violet: "bg-violet-400/10 text-violet-200 border-violet-300/20",
 };
 export type Tone = keyof typeof TONES;
 export function Badge({ tone = "gray", children, dot = false }: { tone?: Tone; children: React.ReactNode; dot?: boolean }) {
   return (
-    <span className={"inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap " + TONES[tone]}>
-      {dot && <span className="w-1.5 h-1.5 rounded-full bg-current" />}{children}
+    <span className={"inline-flex items-center gap-1.5 h-[22px] text-[11px] leading-none font-medium px-2 rounded-md border whitespace-nowrap align-middle " + TONES[tone]}>
+      {dot && <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden="true" />}{children}
     </span>
   );
 }
@@ -34,8 +34,8 @@ export function Card({ title, icon, action, children, className = "", pad = "p-5
   return (
     <section className={GLASS + " min-w-0 rounded-[1.4rem] " + className}>
       {title && (
-        <header className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 pt-5">
-          <h2 className="font-extrabold flex items-center gap-2 text-base min-w-0">{icon && <Icon name={icon} size={18} className="acc" />}{title}</h2>{action}
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 sm:px-6 pt-5 min-h-14">
+          <h2 className="font-extrabold flex items-center gap-2 text-base leading-7 min-w-0">{icon && <Icon name={icon} size={18} className="acc shrink-0" />}<span className="min-w-0">{title}</span></h2>{action}
         </header>
       )}
       <div className={pad}>{children}</div>
@@ -45,11 +45,11 @@ export function Card({ title, icon, action, children, className = "", pad = "p-5
 
 export function Empty({ icon = "package-open", title, text, action }: { icon?: string; title: string; text?: string; action?: React.ReactNode }) {
   return (
-    <div className="py-14 text-center">
-      <div className="w-14 h-14 mx-auto rounded-2xl tile grid place-items-center"><Icon name={icon} size={24} /></div>
-      <div className="font-bold mt-5">{title}</div>
-      {text && <p className="text-white/50 text-sm mt-2 leading-7 max-w-sm mx-auto">{text}</p>}
-      {action && <div className="mt-5">{action}</div>}
+    <div className="py-10 sm:py-12 px-4 text-center">
+      <div className="w-12 h-12 mx-auto rounded-2xl tile grid place-items-center" aria-hidden="true"><Icon name={icon} size={22} /></div>
+      <div className="font-bold leading-7 mt-4">{title}</div>
+      {text && <p className="text-white/55 text-sm mt-1.5 leading-7 max-w-sm mx-auto">{text}</p>}
+      {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
 }
@@ -82,10 +82,12 @@ export function IconTile({ name, size = 22, cls = "w-12 h-12 rounded-2xl" }: { n
 
 export function Field({ label, hint, error, children, className = "" }: { label?: string; hint?: string; error?: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className={"block " + className}>
-      {label && <span className="block text-xs text-white/60 mb-2">{label}</span>}
+    // a flex column whose label takes up any spare height: in a grid row, a label that wraps onto two lines
+    // no longer pushes its input below the neighbouring inputs
+    <label className={"flex flex-col min-w-0 " + className}>
+      {label && <span className="flex flex-1 items-end text-xs font-medium leading-5 text-white/65 mb-1.5">{label}</span>}
       {children}
-      {error ? <span className="block text-[11px] text-rose-300 mt-1.5" role="alert">{error}</span> : hint ? <span className="block text-[11px] text-white/50 mt-1.5">{hint}</span> : null}
+      {error ? <span className="block text-[11px] leading-5 text-rose-300 mt-1.5" role="alert">{error}</span> : hint ? <span className="block text-[11px] leading-5 text-white/55 mt-1.5">{hint}</span> : null}
     </label>
   );
 }

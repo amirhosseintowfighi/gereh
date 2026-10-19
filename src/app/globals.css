@@ -112,7 +112,10 @@ button:disabled { cursor: not-allowed; }
 .scan { animation: scan 2.8s cubic-bezier(.6,0,.4,1) infinite; }
 @keyframes scan { 0% { transform: translateY(-100%); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(100%); opacity: 0; } }
 
-:focus-visible { outline: 2px solid #9cc9ff; outline-offset: 3px; border-radius: 10px; }
+/* one focus ring everywhere; it follows the element's own radius (setting border-radius here would reshape
+   pills, switches and cards while they are focused) */
+:focus-visible { outline: 2px solid #9cc9ff; outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 .ltr { direction: ltr; unicode-bidi: isolate; }
 /* code is LTR and left-aligned; every line is its own bidi paragraph that takes its direction from its
    first letter (unicode-bidi: plaintext), so a Persian comment inside a shell snippet reads correctly */
