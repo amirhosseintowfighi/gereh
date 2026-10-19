@@ -55,6 +55,21 @@ describe("Virtualizor client", () => {
     expect(calls[1].body!.has("space")).toBe(false);
   });
 
+  it("retries an order without IPv6 when no node has an IPv6 pool", async () => {
+    let tries = 0;
+    reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" } } }
+      : ++tries === 1 ? { error: { no_server: "No server found which fits in the criteria for your VPS configuration : Server ID: 0, Reason: localhost | Required number of IPv6 : 1 and I support : 0" } }
+      : { newvs: { vpsid: "77", ips: ["185.1.2.9"] } };
+    const r = await v().create({ uid: 7, plid: 12, osid: 347, hostname: "a.b.c", rootpass: "x", serverGroup: "Default" });
+    expect(r).toMatchObject({ vpsid: 77, ip: "185.1.2.9", ipv6: "" });
+    const orders = calls.filter((c) => new URL(c.url).searchParams.get("act") === "addvs");
+    expect(orders.map((c) => c.body!.get("num_ips6"))).toEqual(["1", "0"]);
+    // any other failure is not retried
+    tries = 0;
+    reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" } } } : { error: { x: "Not enough RAM" } };
+    await expect(v().create({ uid: 7, plid: 12, osid: 347, hostname: "a.b.c", rootpass: "x", serverGroup: "Default" })).rejects.toThrow(/RAM/);
+  });
+
   it("creates without a plan from explicit resources and explains a missing group", async () => {
     reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" } } } : { newvs: { vpsid: "9" } };
     await v().create({ uid: 7, plid: 0, osid: 347, hostname: "a.b.c", rootpass: "x", serverGroup: "Default", virt: "xen", space: 40, ram: 2048, cores: 1, bandwidth: 0 });

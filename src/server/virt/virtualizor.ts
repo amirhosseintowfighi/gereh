@@ -128,14 +128,24 @@ export class VirtualizorDriver implements VirtDriver {
     if (!p.plid && !(p.space && p.ram && p.cores)) throw new VirtualizorError("addvs", "بدون Plan ID باید فضای دیسک، رم و تعداد هسته مشخص باشد");
     const sgid = await this.groupId(p.serverGroup);
     const virt = p.virt || process.env.VIRTUALIZOR_VIRT || "kvm";
-    const j = await this.admin<{ newvs?: { vpsid?: number | string; ips?: string[]; ipv6?: string[]; vnc?: string; vncport?: number | string; vncpass?: string }; vs_info?: { vpsid?: number | string } }>("addvs", {}, {
+    type AddVs = { newvs?: { vpsid?: number | string; ips?: string[]; ipv6?: string[]; vnc?: string; vncport?: number | string; vncpass?: string }; vs_info?: { vpsid?: number | string } };
+    // IPv6 only where the server has an IPv6 pool: VIRTUALIZOR_IPV6=0 turns it off; without it, a node that
+    // rejects the order for lack of IPv6 is retried once with none
+    const ipv6 = process.env.VIRTUALIZOR_IPV6 === "0" ? 0 : 1;
+    const order = (num_ips6: number) => this.admin<AddVs>("addvs", {}, {
       addvps: 1, virt, uid: p.uid, osid: p.osid, hostname: p.hostname, rootpass: p.rootpass,
-      node_select: 1, server_group: sgid, num_ips: 1, num_ips6: 1, vnc: 1,
+      node_select: 1, server_group: sgid, num_ips: 1, num_ips6, vnc: 1,
       ...(p.plid ? { plid: p.plid } : {}),
       // space GB, ram MB, bandwidth GB/month (0 = unlimited) (verify: 3.x also accepts space[0][size])
       ...(p.space ? { space: p.space } : {}), ...(p.ram ? { ram: p.ram } : {}), ...(p.cores ? { cores: p.cores } : {}), ...(p.bandwidth !== undefined ? { bandwidth: p.bandwidth } : {}),
       ...(p.sshKey ? { sshkey: p.sshKey } : {}), ...(p.cloudInit ? { cloud_init: p.cloudInit } : {}),
     });
+    let j: AddVs;
+    try { j = await order(ipv6); }
+    catch (e) {
+      if (!ipv6 || !(e instanceof VirtualizorError) || !/ipv6/i.test(e.message)) throw e;
+      j = await order(0);
+    }
     const vs = j.newvs ?? j.vs_info ?? {};
     const vpsid = Number(vs.vpsid);
     if (!vpsid) throw new VirtualizorError("addvs", "no vpsid in response");
