@@ -108,7 +108,11 @@ export class SimulatorDriver implements VirtDriver {
   async plans() { return [10, 11, 12, 13, 14, 15, 16].map((plid, i) => ({ plid, name: "plan-" + (i + 1) })); }
   async servers() { return [{ serid: 1, name: "thr-hv-01", group: "thr-cloud", sgid: 1, cpu: 62, ram: 71, disk: 48, vms: 38 }]; }
   async groups() { return ["thr-cloud", "thr-metal", "isf-cloud", "fra-cloud", "fra-metal", "ams-cloud"].map((name, i) => ({ sgid: i + 1, name })); }
-  async osTemplates() { return [{ osid: 347, name: "Ubuntu 24.04", distro: "ubuntu" }, { osid: 351, name: "Debian 12", distro: "debian" }, { osid: 901, name: "Windows Server 2022", distro: "windows" }]; }
+  // the same set the demo seed shows, so a demo sync keeps them
+  async osTemplates() {
+    return [[347, "Ubuntu 24.04", "ubuntu"], [342, "Ubuntu 22.04", "ubuntu"], [351, "Debian 12", "debian"], [338, "Debian 11", "debian"], [360, "AlmaLinux 9", "almalinux"], [362, "Rocky Linux 9", "rocky"],
+      [370, "CentOS Stream 9", "centos"], [381, "Windows Server 2022", "windows"], [377, "Windows Server 2019", "windows"], [390, "FreeBSD 14", "freebsd"]].map(([osid, name, distro]) => ({ osid: osid as number, name: name as string, distro: distro as string }));
+  }
   private ipSeq = 0;
   async setIps(vpsid: number, keep: string[], count: number) {
     const out = keep.slice(0, count);

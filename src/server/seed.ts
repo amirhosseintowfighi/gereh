@@ -103,7 +103,8 @@ export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; a
   ]).onConflictDoNothing();
   await db.insert(t.tlds).values(TLDS.map((x, i) => ({ tld: x.tld, reg: x.reg, renew: x.renew, transfer: x.transfer, cat: x.cat, hot: !!x.hot, promo: !!x.promo, position: i }))).onConflictDoNothing();
   await db.insert(t.planMap).values(VPS.cloud.concat(VPS.metal).map((p, i) => ({ id: p.id, name: p.name, plid: opts.demo ? 10 + i : 0, group: i < 4 ? "thr-cloud" : "thr-metal" }))).onConflictDoNothing();
-  await db.insert(t.osTemplates).values([
+  // sample templates for the demo only; a real install takes its list from Virtualizor (همگام‌سازی قالب‌ها)
+  if (opts.demo) await db.insert(t.osTemplates).values([
     { osid: 347, name: "Ubuntu 24.04", distro: "ubuntu", on: true }, { osid: 342, name: "Ubuntu 22.04", distro: "ubuntu", on: true },
     { osid: 351, name: "Debian 12", distro: "debian", on: true }, { osid: 338, name: "Debian 11", distro: "debian", on: true },
     { osid: 360, name: "AlmaLinux 9", distro: "almalinux", on: true }, { osid: 362, name: "Rocky Linux 9", distro: "rocky", on: true },

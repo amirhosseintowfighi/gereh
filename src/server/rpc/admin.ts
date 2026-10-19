@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, ne, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Plan } from "@/lib/catalog";
 import { EMAIL_RE, PHONE_RE, toEnDigits } from "@/lib/format";
@@ -237,8 +237,12 @@ export const adminRpc = {
       detail = list.length.toLocaleString("fa-IR") + " سرور";
     } else if (/قالب/.test(label)) {
       const list = await v.osTemplates();
-      for (const o of list) await ctx.db.insert(osTemplates).values({ osid: o.osid, name: o.name, distro: o.distro, on: false }).onConflictDoUpdate({ target: osTemplates.osid, set: { name: o.name, distro: o.distro } });
-      detail = list.length.toLocaleString("fa-IR") + " قالب (موارد جدید پنهان اضافه شدند)";
+      // the master's own list replaces ours: templates it lacks would fail every order («The OS you submitted is invalid»)
+      const removed = list.length ? await ctx.db.delete(osTemplates).where(notInArray(osTemplates.osid, list.map((o) => o.osid))).returning({ osid: osTemplates.osid }) : [];
+      // new templates of the common families are offered right away; others stay hidden until staff enable them
+      const COMMON = /ubuntu|debian|alma|rocky|centos|windows/i;
+      for (const o of list) await ctx.db.insert(osTemplates).values({ osid: o.osid, name: o.name, distro: o.distro, on: COMMON.test(o.name + " " + o.distro) }).onConflictDoUpdate({ target: osTemplates.osid, set: { name: o.name, distro: o.distro } });
+      detail = list.length.toLocaleString("fa-IR") + " قالب" + (removed.length ? "؛ " + removed.length.toLocaleString("fa-IR") + " قالبِ ناموجود در Virtualizor حذف شد" : "");
     } else if (/پلن/.test(label)) {
       detail = (await v.plans()).length.toLocaleString("fa-IR") + " پلن در Virtualizor";
     } else if (/ترافیک/.test(label)) {
