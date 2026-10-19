@@ -16,7 +16,9 @@ import { cloudInitFor } from "../apps";
 import { virt } from "../virt/driver";
 import { addTask, genPassword, logActivity, nextId, notify, randomSecret, rid } from "../util";
 
-export type Payload = { userId: string; invoiceId: string; index: number; sku: Sku };
+/** override: staff fixes from the order detail (a synced OS template, a Virtualizor Plan ID) */
+export type Override = { osid?: number; plid?: number };
+export type Payload = { userId: string; invoiceId: string; index: number; sku: Sku; override?: Override };
 const ref = (p: Payload) => p.invoiceId + ":" + p.index;
 
 async function owner(db: DB, id: string) {
@@ -52,7 +54,7 @@ export type ServerSpec = {
   plid: number; group: string; virt: string; osLabel: string; tpl: { osid: number; name: string } | null; hourly: boolean; problems: string[];
 };
 /** what a server order needs from Virtualizor, plus every configuration problem in Persian */
-export async function serverSpec(db: DB | Tx, sku: Extract<Sku, { t: "plan" } | { t: "custom" }>): Promise<ServerSpec> {
+export async function serverSpec(db: DB | Tx, sku: Extract<Sku, { t: "plan" } | { t: "custom" }>, override: Override = {}): Promise<ServerSpec> {
   const locs = await getLocations(db);
   const loc = locs.find((l) => l.id === sku.loc);
   const problems: string[] = [];
@@ -73,17 +75,20 @@ export async function serverSpec(db: DB | Tx, sku: Extract<Sku, { t: "plan" } | 
     mapId = "custom";
   }
   const [m] = await db.select().from(planMap).where(eq(planMap.id, mapId));
-  const plid = m?.plid ?? 0;
+  const plid = override.plid ?? m?.plid ?? 0;
   if (!plid && !res) problems.push(`پلن «${name}» در ${VIRT_PAGE} به Plan ID وصل نشده است و منابع آن (CPU، رم، دیسک) هم در «محصولات و قیمت» مشخص نیست.`);
   const kind = sku.t === "plan" ? sku.kind : "cloud";
   const group = locationGroup(loc, kind) || (m?.group ? m.group.replace(/^thr/, sku.loc) : "");
   if (!group) problems.push(`برای موقعیت «${loc?.label ?? sku.loc}» گروه سرور Virtualizor (${kind === "metal" ? "اختصاصی" : "ابری"}) تعیین نشده است؛ در «زیرساخت › موقعیت‌ها» فیلد Server Group را پر کنید.`);
   const osLabel = OSES.find((o) => o.id === ((sku as { os?: string }).os || "ubuntu"))?.label ?? (sku as { os?: string }).os ?? "Ubuntu 24.04";
   const distro = osLabel.split(" ")[0].toLowerCase();
-  const [tpl] = await db.select().from(osTemplates)
-    .where(sql`${osTemplates.on} and (${osTemplates.name} = ${osLabel} or ${osTemplates.distro} = ${distro} or lower(${osTemplates.name}) like ${distro + "%"})`)
-    .orderBy(sql`(${osTemplates.name} = ${osLabel}) desc`, desc(osTemplates.osid)).limit(1);
-  if (!tpl) problems.push(`هیچ قالب سیستم‌عامل فعالی برای «${osLabel}» نیست؛ در «اتصال Virtualizor › قالب‌های سیستم‌عامل» قالب‌ها را همگام و فعال کنید.`);
+  const [tpl] = override.osid
+    ? await db.select().from(osTemplates).where(eq(osTemplates.osid, override.osid))
+    : await db.select().from(osTemplates)
+      .where(sql`${osTemplates.on} and (${osTemplates.name} = ${osLabel} or ${osTemplates.distro} = ${distro} or lower(${osTemplates.name}) like ${distro + "%"})`)
+      .orderBy(sql`(${osTemplates.name} = ${osLabel}) desc`, desc(osTemplates.osid)).limit(1);
+  if (!tpl && override.osid) problems.push(`قالب سیستم‌عامل OSID ${override.osid} که برای این سفارش انتخاب شده دیگر وجود ندارد؛ در جزئیات سفارش قالب دیگری انتخاب کنید.`);
+  else if (!tpl) problems.push(`هیچ قالب سیستم‌عامل فعالی برای «${osLabel}» نیست؛ در «اتصال Virtualizor › قالب‌های سیستم‌عامل» قالب‌ها را همگام و فعال کنید.`);
   return {
     name, cpu: res?.cpu ?? 0, ram: res?.ram ?? 0, disk: res?.disk ?? 0, traffic: res?.traffic ?? 0, price, months, plid, group, virt: m?.virt ?? "",
     osLabel, tpl: tpl ? { osid: tpl.osid, name: tpl.name } : null, hourly: !!(sku as { hourly?: boolean }).hourly, problems,
@@ -118,7 +123,7 @@ export async function provisionServer(db: DB, p: Payload) {
   // delivered (by the worker or by hand) or refunded
   if (row && (row.vpsid || row.status !== "provisioning")) return;
   const u = await owner(db, p.userId);
-  const spec = await serverSpec(db, sku);
+  const spec = await serverSpec(db, sku, p.override);
 
   if (!row) {
     const hostBase = (u.email.split("@")[0].replace(/[^a-z0-9]/gi, "").toLowerCase() || "vps").slice(0, 12);
