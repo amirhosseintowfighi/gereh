@@ -116,6 +116,8 @@ export class VirtualizorDriver implements VirtDriver {
     if (/^\d+$/.test(g)) return Number(g);
     const list = await this.groups();
     const hit = list.find((x) => x.name.toLowerCase() === g.toLowerCase());
+    // a single group (a fresh Virtualizor has only «Default», id 0) is the only place a VPS can go
+    if (!hit && list.length === 1) return list[0].sgid;
     if (!hit) throw new VirtualizorError("addvs", `گروه سرور «${g}» در Virtualizor پیدا نشد؛ گروه‌های موجود: ${list.map((x) => x.name + " (" + x.sgid + ")").join("، ") || "هیچ"}. در «زیرساخت › موقعیت‌ها» نام یا شناسه درست Server Group را وارد کنید.`);
     return hit.sgid;
   }

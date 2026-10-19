@@ -60,6 +60,11 @@ describe("Virtualizor client", () => {
     await v().create({ uid: 7, plid: 0, osid: 347, hostname: "a.b.c", rootpass: "x", serverGroup: "Default", virt: "xen", space: 40, ram: 2048, cores: 1, bandwidth: 0 });
     expect(Object.fromEntries(calls[1].body!)).toMatchObject({ virt: "xen", server_group: "0", space: "40", ram: "2048", cores: "1", bandwidth: "0" });
     expect(calls[1].body!.has("plid")).toBe(false);
+    // one group only (a fresh Virtualizor): an unknown name lands there
+    await v().create({ uid: 7, plid: 0, osid: 1, hostname: "a.b.c", rootpass: "x", serverGroup: "thr-cloud", space: 1, ram: 1, cores: 1 });
+    expect(Object.fromEntries(calls[calls.length - 1].body!)).toMatchObject({ server_group: "0" });
+    // several groups: an unknown name is an error that lists them
+    reply = (u) => u.searchParams.get("act") === "servergroups" ? { servergroups: { 0: { sgid: "0", sg_name: "Default" }, 3: { sgid: "3", sg_name: "esf" } } } : { newvs: { vpsid: "9" } };
     await expect(v().create({ uid: 7, plid: 0, osid: 1, hostname: "a.b.c", rootpass: "x", serverGroup: "nope", space: 1, ram: 1, cores: 1 })).rejects.toThrow(/nope.*Default \(0\)/);
     await expect(v().create({ uid: 7, plid: 0, osid: 1, hostname: "a.b.c", rootpass: "x", serverGroup: "5" })).rejects.toThrow(/Plan ID/);
   });
