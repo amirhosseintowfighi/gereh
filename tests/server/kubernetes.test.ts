@@ -343,3 +343,15 @@ describe("scan, backup verification and PITR manifests", () => {
     } finally { delete process.env.PAAS_PITR_S3_ENDPOINT; }
   });
 });
+
+describe("pending pods", () => {
+  it("explains an unschedulable pod and an image it cannot pull", async () => {
+    const { pendingReason } = await import("@/server/paas/kubernetes");
+    expect(pendingReason({ metadata: { name: "a" }, status: { phase: "Pending", conditions: [{ type: "PodScheduled", status: "False", reason: "Unschedulable", message: "0/1 nodes are available: 1 Insufficient memory." }] } }))
+      .toMatch(/not scheduled — 0\/1 nodes are available: 1 Insufficient memory[\s\S]*HINT: the cluster has no free CPU\/memory/);
+    expect(pendingReason({ metadata: { name: "b" }, status: { phase: "Pending", initContainerStatuses: [{ name: "prepare", restartCount: 0, state: { waiting: { reason: "ImagePullBackOff", message: "Back-off pulling image" } } }] } }))
+      .toMatch(/prepare ImagePullBackOff — Back-off pulling image[\s\S]*HINT: the node cannot pull/);
+    expect(pendingReason({ metadata: { name: "c" }, status: { phase: "Running" } })).toBe("");
+    expect(pendingReason({ metadata: { name: "d" }, status: { phase: "Pending", containerStatuses: [{ name: "app", restartCount: 0, state: { waiting: { reason: "ContainerCreating" } } }] } })).toBe("");
+  });
+});

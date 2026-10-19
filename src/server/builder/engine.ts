@@ -2,6 +2,9 @@
    billed through the AI gateway's meter (wallet reserve → real cost), parsed, validated and saved as a
    new version of the project's files. Without an upstream key the simulator answers (./sim.ts). */
 import "server-only";
+
+/** the longest one model call of the builder may take */
+const AGENT_TIMEOUT_MS = Number(process.env.BUILDER_AGENT_TIMEOUT_MS || 6 * 60_000);
 import { and, asc, desc, eq, gt, gte, sql } from "drizzle-orm";
 import { costOf, estimateTokens } from "@/lib/ai";
 import { BUILDER_DEFAULT_MODEL, filesError, pathError, type BuilderEvent, type BuilderStack } from "@/lib/builder";
@@ -150,6 +153,8 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   const abort = new AbortController();
   const onAbort = () => abort.abort();
   o.signal?.addEventListener("abort", onAbort);
+  // a stalled upstream must not hold a worker job (or the panel stream) forever
+  const stall = setTimeout(() => abort.abort(), AGENT_TIMEOUT_MS);
   let text = "", usage: ChatUsage | null = null, plan = "";
   const seen = new Set<string>();
   try {
@@ -162,7 +167,9 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
       for (const path of streamedPaths(text)) if (!seen.has(path)) { seen.add(path); emit({ type: "file", path }); }
     }
     if (o.signal?.aborted) throw new Stopped();
+    clearTimeout(stall);
   } catch (e) {
+    clearTimeout(stall);
     o.signal?.removeEventListener("abort", onAbort);
     const stopped = e instanceof Stopped || abort.signal.aborted || (e as Error).name === "AbortError";
     const outT = estimateTokens(text.length);

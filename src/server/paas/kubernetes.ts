@@ -781,6 +781,11 @@ export class KubernetesDriver implements PaasDriver {
     if (job.status?.succeeded) return { state: "succeeded", log: clean + "\n==> Image pushed", image: imageFor(app, handle.replace(/^build-/, "")), ref, manifest: m64 ? Buffer.from(m64, "base64").toString("utf8") : undefined };
     const failed = job.status?.failed || job.status?.conditions?.some((x) => x.type === "Failed" && x.status === "True");
     if (failed) return { state: "failed", log: clean + "\nERROR: " + (job.status?.conditions?.find((x) => x.type === "Failed")?.message || "build failed") };
+    if (!clean) {
+      const pods = await k8s("GET", "/api/v1/namespaces/" + ns + "/pods?labelSelector=" + encodeURIComponent("job-name=" + handle)).catch(() => ({ items: [] }));
+      const why = ((pods.items as PodInfo[]) ?? []).map(pendingReason).find(Boolean);
+      if (why) return { state: "running", log: "==> Waiting for the build to start\n" + why };
+    }
     return { state: "running", log: clean };
   }
 
@@ -924,6 +929,7 @@ export class KubernetesDriver implements PaasDriver {
       } else if (wait && ["CreateContainerConfigError", "InvalidImageName", "ErrImageNeverPull"].includes(wait)) { lines.push("pod " + p.metadata.name + ": " + wait + " " + (cs.state?.waiting?.message ?? "")); fatal = true; }
       else if (wait === "ImagePullBackOff" || wait === "ErrImagePull") lines.push("pod " + p.metadata.name + ": " + wait + " " + (cs.state?.waiting?.message ?? ""));
     }
+    for (const p of pods) { const why = pendingReason(p); if (why) lines.push(why); }
     for (const e of (await this.unhealthy(app, pods.map((p) => p.metadata.name))).slice(-3)) lines.push("pod " + e.involvedObject.name + ": " + (e.message ?? "").trim());
     return lines.length ? { fatal, log: lines.join("\n") } : null;
   }
@@ -1210,10 +1216,23 @@ export class KubernetesDriver implements PaasDriver {
   }
 }
 
-type PodInfo = { metadata: { name: string }; status?: { containerStatuses?: {
+type ContainerStatus = {
   name: string; restartCount: number; state?: { waiting?: { reason?: string; message?: string } };
   lastState?: { terminated?: { reason?: string; exitCode?: number; finishedAt?: string } };
-}[] } };
+};
+type PodInfo = { metadata: { name: string }; status?: { phase?: string; conditions?: { type: string; status: string; reason?: string; message?: string }[]; containerStatuses?: ContainerStatus[]; initContainerStatuses?: ContainerStatus[] } };
+
+/** why a pod has not started yet: unschedulable (no room on the nodes) or an image it cannot pull */
+export function pendingReason(p: PodInfo): string {
+  if (p.status?.phase && p.status.phase !== "Pending") return "";
+  const sched = p.status?.conditions?.find((c) => c.type === "PodScheduled" && c.status === "False");
+  if (sched) return "pod " + p.metadata.name + ": not scheduled — " + (sched.message || sched.reason || "no node can run it") + (/insufficient|didn't match|untolerated/i.test(sched.message ?? "") ? "\nHINT: the cluster has no free CPU/memory for this pod; free resources, use a smaller plan, or add a node" : "");
+  for (const cs of [...(p.status?.initContainerStatuses ?? []), ...(p.status?.containerStatuses ?? [])]) {
+    const w = cs.state?.waiting;
+    if (w?.reason && w.reason !== "PodInitializing" && w.reason !== "ContainerCreating") return "pod " + p.metadata.name + ": " + cs.name + " " + w.reason + (w.message ? " — " + w.message : "") + (/ImagePull|ErrImage/.test(w.reason) ? "\nHINT: the node cannot pull this image; check the registry mirror (CONTAINERD_HTTP_PROXY / registry-mirror) and that the image exists" : "");
+  }
+  return "";
+}
 
 /* quantities from metrics-server: "12345678n", "250m", "1"; "123456Ki", "512Mi" */
 export function parseCpu(q: string) {

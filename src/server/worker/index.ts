@@ -103,6 +103,20 @@ export async function tickSchedule(db: DB) {
   }
 }
 
+/** the longest a job may run before it is abandoned and retried (minutes); a handler that never returns
+    must not stop the queue behind it */
+const LONG_JOBS: Partial<Record<JobType, number>> = {
+  "dbaas.import": 90, "paas.diskBackup": 60, "paas.backup": 60, "wp.import": 90, "paas.toolsDaily": 30, "paas.daily": 30,
+  "dbaas.init": 20, "builder.maintain": 20, "builder.fix": 10, "paas.collect": 10, "virt.reconcile": 20,
+};
+const jobLimitMs = (type: string) => (LONG_JOBS[type as JobType] ?? 5) * 60_000;
+class JobTimeout extends Error {}
+function withLimit<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let t: ReturnType<typeof setTimeout>;
+  return Promise.race([p, new Promise<never>((_, rej) => { t = setTimeout(() => rej(new JobTimeout(label + " ran over " + Math.round(ms / 60_000) + " min; abandoned and retried")), ms); t.unref?.(); })])
+    .finally(() => clearTimeout(t));
+}
+
 /** processes due jobs until none are left (or `max` were run); returns how many ran */
 export async function drain(db: DB, max = 100) {
   let ran = 0;
@@ -112,7 +126,7 @@ export async function drain(db: DB, max = 100) {
     for (const job of batch) {
       ran++;
       try {
-        await handlers[job.type as JobType](db, (job.payload as Record<string, unknown>) ?? {});
+        await withLimit(Promise.resolve(handlers[job.type as JobType](db, (job.payload as Record<string, unknown>) ?? {})), jobLimitMs(job.type), job.type + " #" + job.id);
         await complete(db, job.id);
       } catch (e) {
         const dead = await retry(db, job.id, job.attempts, e instanceof Error ? e.stack || e.message : String(e));

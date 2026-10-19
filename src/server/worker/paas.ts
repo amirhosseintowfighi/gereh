@@ -18,6 +18,8 @@ import { ZipError } from "../unzip";
 import { paasBudgets, paasRuntimeCollect, recordSpend } from "./paas-runtime";
 
 const MAX_LOG = 200_000;
+/** the live "what the release waits on" block at the end of a deployment log */
+const WAITING = "\n==> Waiting:\n";
 const BUILD_TIMEOUT_MS = 30 * 60_000;
 const buildTimeoutMs = (spec: AppSpec) => (spec.runtime?.build.timeoutMin ?? 30) * 60_000;
 const ROLLOUT_TIMEOUT_MS = 10 * 60_000;
@@ -141,8 +143,12 @@ export async function paasPoll(db: DB, p: { deploymentId: string; phase: "build"
   if (!(await d.rolloutReady(spec))) {
     const problem = await d.rolloutProblem(spec).catch(() => null);
     const what = spec.runtime?.health.type === "command" ? "the health command" : spec.runtime?.health.type === "tcp" ? "port " + spec.port : spec.healthPath;
-    if (problem?.fatal) return fail(db, dep.id, app.id, dep.log + "\n" + problem.log + "\nERROR: the new version did not become healthy on " + what + "; the previous version keeps serving");
-    if (Date.now() - p.since > ROLLOUT_TIMEOUT_MS) return fail(db, dep.id, app.id, dep.log + (problem ? "\n" + problem.log : "") + "\nERROR: the new version did not become healthy on " + what + " within 10 minutes");
+    if (problem?.fatal) return fail(db, dep.id, app.id, dep.log.split(WAITING)[0] + "\n" + problem.log + "\nERROR: the new version did not become healthy on " + what + "; the previous version keeps serving");
+    const base = dep.log.split(WAITING)[0];
+    if (Date.now() - p.since > ROLLOUT_TIMEOUT_MS) return fail(db, dep.id, app.id, base + (problem ? "\n" + problem.log : "") + "\nERROR: the new version did not become healthy on " + what + " within 10 minutes");
+    // what the release is waiting on, shown live (replaced on every poll)
+    const live = problem ? base + WAITING + problem.log : base;
+    if (live !== dep.log) await db.update(paasDeployments).set({ log: live.slice(-MAX_LOG) }).where(eq(paasDeployments.id, dep.id));
     await enqueue(db, "paas.poll", p, { runAt: later(pollMs()) });
     return;
   }
