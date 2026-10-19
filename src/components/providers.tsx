@@ -98,8 +98,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       {cartOpen && <CartDrawer cart={cart} onClose={() => setCartOpen(false)} />}
       <Modal open={!!ask} onClose={() => answer(false)} title={ask?.opts.title || "تأیید"} icon={ask?.opts.danger ? "circle-alert" : "circle-check"}
         footer={<>
-          <button type="button" onClick={() => answer(false)} className={BTN_G + BTN_MD}>انصراف</button>
-          <button type="button" onClick={() => answer(true)} className={(ask?.opts.danger ? BTN_D : BTN_P) + BTN_MD}>{ask?.opts.ok || "تأیید"}</button>
+          <button type="button" onClick={() => answer(true)} className={(ask?.opts.danger ? BTN_D : BTN_P) + BTN_MD}>{ask?.opts.ok || "تأیید"}</button><button type="button" autoFocus={!!ask?.opts.danger} onClick={() => answer(false)} className={BTN_G + BTN_MD}>انصراف</button>
         </>}>
         <p className="text-sm text-white/75 leading-7">{ask?.text}</p>
       </Modal>

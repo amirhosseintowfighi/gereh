@@ -221,10 +221,11 @@ export function InvoiceModal({ inv, onClose, onPay }: { inv: Invoice | null; onC
   const sub = invTotal(inv), total = invGross(inv, db.settings.tax), tax = total - sub;
   return (
     <Modal open onClose={onClose} title={"صورتحساب " + inv.id} icon="receipt" size="max-w-2xl"
-      footer={<>{inv.userId === myId && (inv.official
+      footer={<>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + BTN_MD}><Icon name="wallet" size={16} /> پرداخت</button>}
+        {inv.userId === myId && (inv.official
         ? <Link href={("/panel/billing/" + inv.id + "/print") as never} target="_blank" className={BTN_G + BTN_MD}><Icon name="file-check" size={16} /> فاکتور رسمی</Link>
         : <button type="button" onClick={() => setOfficial(true)} className={BTN_G + BTN_MD}><Icon name="file-check" size={16} /> درخواست فاکتور رسمی</button>)}
-        <button type="button" onClick={() => window.print()} className={BTN_G + BTN_MD}><Icon name="printer" size={16} /> چاپ</button>{(inv.status === "unpaid" || inv.status === "overdue") && onPay && <button type="button" onClick={() => onPay(inv)} className={BTN_P + BTN_MD}>پرداخت</button>}</>}>
+        <button type="button" onClick={() => window.print()} className={BTN_G + BTN_MD}><Icon name="printer" size={16} /> چاپ</button></>}>
       <div className="print-area">
         <div className="flex justify-between items-start">
           <div><Wordmark size={30} /><div className="text-xs text-white/55 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
@@ -313,7 +314,7 @@ export function UserBilling() {
       </div>
       <InvoiceModal inv={view} onClose={() => setView(null)} onPay={(i) => { setView(null); openPay(i); }} />
       <Modal open={!!pay} onClose={() => setPay(null)} title={pay ? "پرداخت " + pay.id : ""} icon="lock"
-        footer={<><button type="button" onClick={() => setPay(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!pay) return; await api.billing.pay(pay.id, method); setPay(null); notify("صورتحساب پرداخت شد", "circle-check"); }}>پرداخت {pay ? toman(total(pay)) : ""}</AsyncButton></>}>
+        footer={<><AsyncButton onClick={async () => { if (!pay) return; await api.billing.pay(pay.id, method); setPay(null); notify("صورتحساب پرداخت شد", "circle-check"); }}>پرداخت {pay ? toman(total(pay)) : ""}</AsyncButton><button type="button" onClick={() => setPay(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {pay && <>
           <div className="text-center mb-6"><div className="text-xs text-white/55">مبلغ قابل پرداخت</div><div className="text-3xl font-black silver mt-2 tabular">{toman(total(pay))}</div></div>
           <div className="space-y-2" role="radiogroup" aria-label="روش پرداخت">
@@ -392,12 +393,12 @@ export function UserTickets({ id }: { id?: string }) {
           { key: "updated", label: "آخرین به‌روزرسانی" }, { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
         ]} />
       <Modal open={open} onClose={() => setOpen(false)} title="تیکت جدید" icon="message-circle" size="max-w-2xl"
-        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (f.subject.trim().length < 3) throw new Error("موضوع را وارد کنید.");
           if (f.message.trim().length < 10) throw new Error("توضیح باید حداقل ۱۰ کاراکتر باشد.");
           const nid = await api.tickets.create({ ...f, subject: f.subject.trim(), message: f.message.trim() });
           setOpen(false); setF(EMPTY_TICKET); notify("تیکت " + nid + " ثبت شد", "send"); router.push(("/panel/tickets/" + nid) as never);
-        }}><Icon name="send" size={15} /> ثبت تیکت</AsyncButton></>}>
+        }}><Icon name="send" size={15} /> ثبت تیکت</AsyncButton><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="واحد"><Select value={f.dept} label="واحد" onChange={(v) => setF((s) => ({ ...s, dept: v }))} options={["فنی", "مالی", "فروش", "دواپس"]} /></Field>
           <Field label="اولویت"><Select value={f.priority} label="اولویت" onChange={(v) => setF((s) => ({ ...s, priority: v }))} options={[{ value: "low", label: "کم" }, { value: "normal", label: "معمولی" }, { value: "high", label: "فوری" }]} /></Field>
@@ -443,11 +444,11 @@ export function UserKeys() {
       </div>
       <AgentConnect />
       <Modal open={keyM} onClose={() => setKeyM(false)} title="افزودن کلید SSH" icon="key-round"
-        footer={<><button type="button" onClick={() => setKeyM(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (!k.name.trim()) throw new Error("یک نام برای کلید بنویسید.");
           if (!/^(ssh-(rsa|ed25519)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/]{40,}={0,3}( .*)?$/.test(k.pub.trim())) throw new Error("کلید عمومی معتبر نیست؛ باید با ssh-ed25519 یا ssh-rsa شروع شود.");
           await api.account.addKey(k); setK({ name: "", pub: "" }); setKeyM(false); notify("کلید اضافه شد", "key-round");
-        }}>افزودن</AsyncButton></>}>
+        }}>افزودن</AsyncButton><button type="button" onClick={() => setKeyM(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="space-y-4">
           <Field label="نام کلید"><input value={k.name} maxLength={60} onChange={(e) => setK((s) => ({ ...s, name: e.target.value }))} placeholder="مثلا لپ‌تاپ کار" className={INPUT} /></Field>
           <Field label="کلید عمومی" hint="محتوای فایل ~/.ssh/id_ed25519.pub"><textarea value={k.pub} onChange={(e) => setK((s) => ({ ...s, pub: e.target.value }))} rows={4} dir="ltr" className={TEXTAREA + " mono text-xs text-left"} placeholder="ssh-ed25519 AAAA…" /></Field>
@@ -486,7 +487,7 @@ function TwoFactorModal({ onClose, account }: { onClose: () => void; account: st
   }, [secret, account]);
   return (
     <Modal open onClose={onClose} title="فعال‌سازی ورود دومرحله‌ای" icon="shield-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(true, secret, otp); onClose(); notify("ورود دومرحله‌ای فعال شد", "shield-check"); }}>تأیید و فعال‌سازی</AsyncButton></>}>
+      footer={<><AsyncButton onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(true, secret, otp); onClose(); notify("ورود دومرحله‌ای فعال شد", "shield-check"); }}>تأیید و فعال‌سازی</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <ol className="space-y-5 text-sm">
         <li><div className="font-bold">۱. اسکن کنید</div><p className="text-white/50 mt-1">با Google Authenticator، Microsoft Authenticator یا Authy این کد را اسکن کنید.</p>
           <div className="w-44 h-44 mx-auto mt-4 bg-white p-2 rounded-xl grid place-items-center" role="img" aria-label="کد QR ورود دومرحله‌ای">
@@ -506,7 +507,7 @@ function TwoFactorOffModal({ onClose }: { onClose: () => void }) {
   const [otp, setOtp] = useState("");
   return (
     <Modal open onClose={onClose} title="غیرفعال‌سازی ورود دومرحله‌ای" icon="shield-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(false, undefined, otp); onClose(); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton></>}>
+      footer={<><AsyncButton danger onClick={async () => { if (otp.length !== 6) throw new Error("کد ۶ رقمی را وارد کنید."); await api.account.setTwofa(false, undefined, otp); onClose(); notify("ورود دومرحله‌ای غیرفعال شد"); }}>غیرفعال‌سازی</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <p className="text-sm text-white/60 leading-7 mb-4">برای تأیید، کد فعلی اپلیکیشن Authenticator را وارد کنید. با غیرفعال‌سازی، امنیت حساب کاهش می‌یابد.</p>
       <OtpInput value={otp} onChange={setOtp} />
     </Modal>

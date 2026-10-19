@@ -126,8 +126,7 @@ function CreateProject({ init, onClose, onCreated }: { init: { leadId?: string; 
   const customers = db.users.filter((u) => u.role === "user");
   return (
     <Modal open onClose={onClose} title="پروژه دواپس جدید" icon="rocket" size="max-w-xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button>
-        <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { const id = await api.devops.createProject({ userId: f.userId, leadId: f.leadId, title: f.title.trim(), plan: f.plan, services: f.services, monthlyFee: num(f.fee), hoursIncluded: num(f.hours), engineer: f.engineer, start: f.start }); notify("پروژه ساخته شد", "rocket"); onCreated(id); }}>ساخت پروژه</AsyncButton></>}>
+      footer={<><AsyncButton className={BTN_P + BTN_MD} onClick={async () => { const id = await api.devops.createProject({ userId: f.userId, leadId: f.leadId, title: f.title.trim(), plan: f.plan, services: f.services, monthlyFee: num(f.fee), hoursIncluded: num(f.hours), engineer: f.engineer, start: f.start }); notify("پروژه ساخته شد", "rocket"); onCreated(id); }}>ساخت پروژه</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <div className="space-y-4">
         <Field label="مشتری" hint={customers.length ? "مشتری باید حساب کاربری گره داشته باشد؛ اگر ندارد، از بخش کاربران بسازید." : undefined}>
           <Select label="مشتری" value={f.userId} onChange={(v) => setF({ ...f, userId: v })} options={[{ value: "", label: "انتخاب کنید" }, ...customers.map((u) => ({ value: u.id, label: (u.company ? u.company + " — " : "") + u.name + " (" + u.email + ")" }))]} />

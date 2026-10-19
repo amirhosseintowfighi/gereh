@@ -474,7 +474,7 @@ function DeployModal({ open, v, onClose, onDone }: { open: boolean; v: BuilderPr
   };
   return (
     <Modal open={open} onClose={onClose} title={v.appId ? "انتشار نسخه " + fa(v.version) : "انتشار روی گره اپ"} icon="rocket"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={go}><Icon name="rocket" size={16} />{v.appId ? "انتشار" : "ساخت اپ و انتشار"}</AsyncButton></>}>
+      footer={<><AsyncButton onClick={go}><Icon name="rocket" size={16} />{v.appId ? "انتشار" : "ساخت اپ و انتشار"}</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <div className="space-y-4 text-sm leading-7">
         {v.appId ? <p className="text-white/70">نسخه {fa(v.version)} روی اپ <b dir="ltr">{v.appName}</b> منتشر می‌شود؛ تا آماده شدن نسخه جدید، نسخه فعلی در دسترس می‌ماند.</p>
           : <p className="text-white/70">یک اپ گره با ارزان‌ترین پلن ساخته می‌شود و پروژه روی آن اجرا می‌شود. اگر بیلد خطا بدهد، AI خودش لاگ را می‌خواند و تا سه بار خطا را رفع می‌کند.</p>}

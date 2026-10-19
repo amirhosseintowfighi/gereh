@@ -101,8 +101,7 @@ export function BillingExtras() {
           <AsyncButton disabled={!apply.inv} onClick={async () => { await billingApi.useProfile(apply.inv, apply.profile || v.profiles.find((p) => p.isDefault)?.id || v.profiles[0].id); done("مشخصات خریدار روی صورتحساب ثبت شد"); }}>ثبت روی صورتحساب</AsyncButton>
         </div>}
       </Card>
-      <Modal open={!!prof} onClose={() => setProf(null)} title="پروفایل صورتحساب" icon="file-text" footer={<><button type="button" onClick={() => setProf(null)} className={BTN_G + BTN_MD}>انصراف</button>
-        <AsyncButton onClick={async () => { if (!prof) return; await billingApi.saveProfile(prof); setProf(null); done("پروفایل ذخیره شد"); }}>ذخیره</AsyncButton></>}>
+      <Modal open={!!prof} onClose={() => setProf(null)} title="پروفایل صورتحساب" icon="file-text" footer={<><AsyncButton onClick={async () => { if (!prof) return; await billingApi.saveProfile(prof); setProf(null); done("پروفایل ذخیره شد"); }}>ذخیره</AsyncButton><button type="button" onClick={() => setProf(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {prof && <div className="grid sm:grid-cols-2 gap-4">
           <Field label="عنوان"><input value={prof.label} onChange={(e) => setProf({ ...prof, label: e.target.value })} className={INPUT} placeholder="مثلا شرکت" /></Field>
           <Field label="نام شخص یا شرکت"><input value={prof.name} onChange={(e) => setProf({ ...prof, name: e.target.value })} className={INPUT} /></Field>
@@ -213,8 +212,7 @@ export function TeamExtras() {
         <p className="text-sm text-white/55 leading-7">سرورها همراه IPv4 و دیسک‌های اضافه‌شان به حساب یکی از اعضای تیم منتقل می‌شوند و هزینه از آن پس با او است.</p>
         <div className="mt-4 flex justify-end"><button type="button" onClick={() => setMove({ member: members[0].id, servers: [], confirm: "" })} className={BTN_G + BTN_MD}>انتقال سرور</button></div>
       </Card>}
-      <Modal open={!!edit} onClose={() => setEdit(null)} title="نقش سفارشی" icon="users-round" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button>
-        <AsyncButton onClick={async () => { if (!edit) return; await teamApi.saveRole(edit); setEdit(null); notify("نقش ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></>}>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="نقش سفارشی" icon="users-round" footer={<><AsyncButton onClick={async () => { if (!edit) return; await teamApi.saveRole(edit); setEdit(null); notify("نقش ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && <div className="space-y-3">
           <Field label="نام نقش"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className={INPUT} /></Field>
           {Object.entries(TEAM_SERVICES).map(([k, l]) => (
@@ -223,8 +221,7 @@ export function TeamExtras() {
           ))}
         </div>}
       </Modal>
-      <Modal open={!!move} onClose={() => setMove(null)} title="انتقال مالکیت سرور" icon="arrow-up-down" footer={<><button type="button" onClick={() => setMove(null)} className={BTN_G + BTN_MD}>انصراف</button>
-        <AsyncButton danger disabled={!move?.servers.length} onClick={async () => { if (!move) return; await teamApi.transferServers(move.servers, move.member, move.confirm); setMove(null); notify("مالکیت منتقل شد"); }}>انتقال</AsyncButton></>}>
+      <Modal open={!!move} onClose={() => setMove(null)} title="انتقال مالکیت سرور" icon="arrow-up-down" footer={<><AsyncButton danger disabled={!move?.servers.length} onClick={async () => { if (!move) return; await teamApi.transferServers(move.servers, move.member, move.confirm); setMove(null); notify("مالکیت منتقل شد"); }}>انتقال</AsyncButton><button type="button" onClick={() => setMove(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {move && <div className="space-y-3">
           <Field label="عضو مقصد"><Select label="عضو" value={move.member} onChange={(m) => setMove({ ...move, member: m })} options={members.map((m) => ({ value: m.id, label: m.name }))} /></Field>
           <div className="space-y-1">{db.servers.filter((s) => s.status !== "suspended").map((s) => (

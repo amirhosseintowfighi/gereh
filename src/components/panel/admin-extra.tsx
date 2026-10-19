@@ -40,7 +40,7 @@ export function AdminStatus() {
         ))}
       </Card>
       <Modal open={!!f} onClose={() => setF(null)} title={f?.id ? "به‌روزرسانی رخداد" : "رخداد جدید"} icon="activity" size="max-w-2xl"
-        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; if (!f.components.length) throw new Error("حداقل یک بخش را انتخاب کنید."); await api.admin.saveIncident(f); setF(null); notify("منتشر شد", "activity"); }}>انتشار</AsyncButton></>}>
+        footer={<><AsyncButton onClick={async () => { if (!f) return; if (!f.components.length) throw new Error("حداقل یک بخش را انتخاب کنید."); await api.admin.saveIncident(f); setF(null); notify("منتشر شد", "activity"); }}>انتشار</AsyncButton><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {f && <div className="space-y-4">
           <Field label="عنوان"><input value={f.title} onChange={(e) => setF((x) => x && { ...x, title: e.target.value })} className={INPUT} /></Field>
           <div className="grid grid-cols-2 gap-4">

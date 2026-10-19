@@ -124,13 +124,13 @@ export function AdminUsers() {
         </>}
       </SideDrawer>
       <Modal open={!!newU} onClose={() => setNewU(null)} title="کاربر جدید" icon="user-plus"
-        footer={<><button type="button" onClick={() => setNewU(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (!newU) return;
           const v = { name: newU.name.trim(), email: newU.email.trim().toLowerCase(), phone: toEnDigits(newU.phone.trim()) };
           if (v.name.length < 2 || !EMAIL_RE.test(v.email)) throw new Error("نام و ایمیل معتبر لازم است.");
           if (v.phone && !PHONE_RE.test(v.phone)) throw new Error("شماره موبایل معتبر نیست.");
           await api.admin.createUser(v); setNewU(null); notify("کاربر ساخته شد", "user-plus");
-        }}>ساخت کاربر</AsyncButton></>}>
+        }}>ساخت کاربر</AsyncButton><button type="button" onClick={() => setNewU(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {newU && <div className="space-y-4">
           <Field label="نام"><input value={newU.name} onChange={(e) => setNewU((s) => s && { ...s, name: e.target.value })} className={INPUT} /></Field>
           <Field label="ایمیل"><input type="email" value={newU.email} onChange={(e) => setNewU((s) => s && { ...s, email: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
@@ -225,12 +225,12 @@ export function AdminBilling() {
         ]} />
       <InvoiceModal inv={view} onClose={() => setView(null)} />
       <Modal open={!!create} onClose={() => setCreate(null)} title="صدور صورتحساب دستی" icon="receipt"
-        footer={<><button type="button" onClick={() => setCreate(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (!create) return;
           const a = +amountInput(create.amount);
           if (!create.desc.trim() || !a) throw new Error("شرح و مبلغ لازم است.");
           await api.billing.createInvoice({ userId: create.userId, due: nowFa(), items: [{ desc: create.desc.trim(), amount: a }] }); setCreate(null); notify("صورتحساب صادر شد", "receipt");
-        }}>صدور</AsyncButton></>}>
+        }}>صدور</AsyncButton><button type="button" onClick={() => setCreate(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {create && <div className="space-y-4">
           <Field label="مشتری"><Select value={create.userId} label="مشتری" onChange={(v) => setCreate((s) => s && { ...s, userId: v })} options={db.users.filter((u) => u.role === "user").map((u) => ({ value: u.id, label: u.name + " (" + u.email + ")" }))} /></Field>
           <Field label="شرح"><input value={create.desc} onChange={(e) => setCreate((s) => s && { ...s, desc: e.target.value })} className={INPUT} /></Field>
@@ -323,7 +323,7 @@ export function AdminProducts() {
         )}
       </div>
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit ? "ویرایش " + edit.name : ""} icon="pencil"
-        footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (!edit) return;
           if (edit.kind === "tld") {
             const [reg, renew, transfer] = [edit.reg, edit.renew, edit.transfer].map((x) => +amountInput(x));
@@ -335,7 +335,7 @@ export function AdminProducts() {
             await api.admin.updatePlan(edit.kind, edit.id, { name: edit.name.trim(), price, popular: edit.popular });
           }
           setEdit(null); notify("تغییرات ذخیره شد");
-        }}>ذخیره</AsyncButton></>}>
+        }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && (edit.kind === "tld" ? (
           <div className="grid grid-cols-3 gap-3">
             {(["reg", "renew", "transfer"] as const).map((k) => <Field key={k} label={{ reg: "ثبت", renew: "تمدید", transfer: "انتقال" }[k]}><input value={edit[k]} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, [k]: amountInput(e.target.value) } as Edit)} dir="ltr" className={INPUT + " text-left tabular"} /></Field>)}
@@ -414,7 +414,7 @@ export function AdminInfra() {
       <p className="text-[11px] text-white/55 mt-3 leading-6">نودها با «همگام‌سازی سرورها» در صفحه اتصال Virtualizor به‌روز می‌شوند و بر اساس Server Group خود، خودکار به لوکیشن مربوط وصل می‌شوند.</p>
 
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.isNew ? "افزودن لوکیشن" : "ویرایش لوکیشن"} icon="map-pin"
-        footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!edit) return; await api.admin.saveLocation(edit); notify(edit.isNew ? "لوکیشن اضافه شد" : "لوکیشن ذخیره شد"); setEdit(null); }}>ذخیره</AsyncButton></>}>
+        footer={<><AsyncButton onClick={async () => { if (!edit) return; await api.admin.saveLocation(edit); notify(edit.isNew ? "لوکیشن اضافه شد" : "لوکیشن ذخیره شد"); setEdit(null); }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && <div className="space-y-4">
           <datalist id="virt-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -438,7 +438,7 @@ export function AdminInfra() {
       </Modal>
 
       <Modal open={!!add} onClose={() => setAdd(null)} title="افزودن نود" icon="radio-tower"
-        footer={<><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!add) return; const v = { ...add, id: add.id.trim().toLowerCase(), model: add.model.trim() }; if (!/^[a-z0-9-]{3,}$/.test(v.id)) throw new Error("شناسه نود معتبر نیست."); await api.admin.addNode(v); setAdd(null); notify("نود اضافه شد"); }}>افزودن</AsyncButton></>}>
+        footer={<><AsyncButton onClick={async () => { if (!add) return; const v = { ...add, id: add.id.trim().toLowerCase(), model: add.model.trim() }; if (!/^[a-z0-9-]{3,}$/.test(v.id)) throw new Error("شناسه نود معتبر نیست."); await api.admin.addNode(v); setAdd(null); notify("نود اضافه شد"); }}>افزودن</AsyncButton><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {add && <div className="space-y-4">
           <Field label="شناسه" hint="همان نام سرور در Virtualizor، مثال: thr-hv-04"><input value={add.id} onChange={(e) => setAdd((s) => s && { ...s, id: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
           <Field label="لوکیشن"><Select value={add.loc} label="لوکیشن" onChange={(v) => setAdd((s) => s && { ...s, loc: v })} options={locs.map((l) => ({ value: l.id, label: l.label }))} /></Field>
@@ -570,14 +570,14 @@ export function AdminCoupons() {
           { key: "a", label: "", className: "text-left whitespace-nowrap", render: (r) => <><IconBtn icon="pencil" label={"ویرایش " + r.code} onClick={() => setEdit({ ...r, value: String(r.value), limit: r.limit ? String(r.limit) : "" })} /><IconBtn icon="trash-2" label={"حذف " + r.code} className="hover:text-rose-300" onClick={async () => { if (await confirm("کد " + r.code + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.deleteCoupon(r.id); notify("کد حذف شد"); } }} /></> },
         ]} />
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "ویرایش کد" : "کد تخفیف جدید"} icon="badge-percent"
-        footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           if (!edit) return;
           if (!/^[A-Z0-9]{3,20}$/.test(edit.code)) throw new Error("کد فقط حروف بزرگ انگلیسی و عدد، ۳ تا ۲۰ کاراکتر.");
           const value = +amountInput(edit.value);
           if (!value) throw new Error("مقدار تخفیف را وارد کنید.");
           if (edit.type === "percent" && value > 100) throw new Error("درصد تخفیف حداکثر ۱۰۰ است.");
           await api.admin.saveCoupon({ ...edit, value, limit: +amountInput(edit.limit) || 0, expires: edit.expires.trim() || "—" }); setEdit(null); notify("کد تخفیف ذخیره شد", "badge-percent");
-        }}>ذخیره</AsyncButton></>}>
+        }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && <div className="grid grid-cols-2 gap-4">
           <Field className="col-span-2" label="کد"><div className="flex gap-2"><input value={edit.code} onChange={(e) => setEdit((s) => s && { ...s, code: e.target.value.toUpperCase().replace(/\s/g, "") })} dir="ltr" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setEdit((s) => s && { ...s, code: "GRH" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x % 32]).join("") })} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div></Field>
           <Field label="نوع"><Select value={edit.type} label="نوع تخفیف" onChange={(v) => setEdit((s) => s && { ...s, type: v as "percent" | "fixed" })} options={[{ value: "percent", label: "درصدی" }, { value: "fixed", label: "مبلغ ثابت" }]} /></Field>
@@ -717,7 +717,7 @@ export function AdminSettings() {
             ))}
           </Card>
           <Modal open={!!st} onClose={() => setSt(null)} title="افزودن مدیر" icon="user-plus"
-            footer={<><button type="button" onClick={() => setSt(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!st) return; if (st.name.trim().length < 2 || !st.email.trim()) throw new Error("نام و ایمیل لازم است."); await api.admin.addStaff({ ...st, name: st.name.trim(), email: st.email.trim().toLowerCase() }); setSt(null); notify("مدیر اضافه شد"); }}>افزودن</AsyncButton></>}>
+            footer={<><AsyncButton onClick={async () => { if (!st) return; if (st.name.trim().length < 2 || !st.email.trim()) throw new Error("نام و ایمیل لازم است."); await api.admin.addStaff({ ...st, name: st.name.trim(), email: st.email.trim().toLowerCase() }); setSt(null); notify("مدیر اضافه شد"); }}>افزودن</AsyncButton><button type="button" onClick={() => setSt(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
             {st && <div className="space-y-4">
               <Field label="نام"><input value={st.name} onChange={(e) => setSt((x) => x && { ...x, name: e.target.value })} className={INPUT} /></Field>
               <Field label="ایمیل"><input type="email" value={st.email} onChange={(e) => setSt((x) => x && { ...x, email: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>

@@ -99,16 +99,14 @@ export function DisksPanel({ s }: { s: Server }) {
         </div>
       ))}
     </Card>}
-    <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button>
-      <AsyncButton onClick={async () => { if (!add) return; await vpsApi.addDisk(s.id, { name: add.name.trim().toLowerCase(), sizeGb: num(add.size) }); setAdd(null); notify("دیسک ساخته و وصل شد", "hard-drive"); x.reload(); }}>ساخت</AsyncButton></>}>
+    <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!add) return; await vpsApi.addDisk(s.id, { name: add.name.trim().toLowerCase(), sizeGb: num(add.size) }); setAdd(null); notify("دیسک ساخته و وصل شد", "hard-drive"); x.reload(); }}>ساخت</AsyncButton><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {add && <div className="grid grid-cols-2 gap-4">
         <Field label="نام" hint="حروف کوچک انگلیسی، عدد و خط تیره"><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
         <Field label="اندازه (گیگابایت)" hint={"حداکثر " + fa(v.prices.maxDiskGb)}><input value={add.size} onChange={(e) => setAdd({ ...add, size: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
         <p className="col-span-2 text-xs text-white/55">هزینه ماهانه: {toman(num(add.size) * v.prices.diskGb)}</p>
       </div>}
     </Modal>
-    <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><button type="button" onClick={() => setGrow(null)} className={BTN_G + BTN_MD}>انصراف</button>
-      <AsyncButton onClick={async () => { if (!grow) return; await vpsApi.resizeDisk(grow.id, num(grow.size)); setGrow(null); notify("اندازه دیسک افزایش یافت"); x.reload(); }}>اعمال</AsyncButton></>}>
+    <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!grow) return; await vpsApi.resizeDisk(grow.id, num(grow.size)); setGrow(null); notify("اندازه دیسک افزایش یافت"); x.reload(); }}>اعمال</AsyncButton><button type="button" onClick={() => setGrow(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {grow && <Field label="اندازه جدید (گیگابایت)" hint={"دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>}
     </Modal>
   </>}</Wrap>;
@@ -284,8 +282,7 @@ export function FirewallGroups({ s }: { s: Server }) {
         </div>
       ))}
     </Card>
-    <Modal open={!!edit} onClose={() => setEdit(null)} size="max-w-3xl" title={edit?.id ? "ویرایش گروه فایروال" : "گروه فایروال جدید"} icon="shield-plus" footer={<><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button>
-      <AsyncButton onClick={async () => { if (!edit) return; await vpsApi.fwGroupSave(edit); setEdit(null); notify("گروه ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></>}>
+    <Modal open={!!edit} onClose={() => setEdit(null)} size="max-w-3xl" title={edit?.id ? "ویرایش گروه فایروال" : "گروه فایروال جدید"} icon="shield-plus" footer={<><AsyncButton onClick={async () => { if (!edit) return; await vpsApi.fwGroupSave(edit); setEdit(null); notify("گروه ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {edit && <div className="space-y-3">
         <Field label="نام گروه"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className={INPUT} /></Field>
         {edit.rules.map((r, i) => {

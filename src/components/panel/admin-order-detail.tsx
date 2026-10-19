@@ -50,7 +50,7 @@ export function DeliverModal({ r, onClose, onDone }: { r: FixTarget; onClose: ()
   };
   return (
     <Modal open onClose={onClose} title={"تحویل دستی " + KIND_LABEL[r.kind]} icon="circle-check" size="max-w-xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={submit}>تحویل و اطلاع به مشتری</AsyncButton></>}>
+      footer={<><AsyncButton onClick={submit}>تحویل و اطلاع به مشتری</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <p className="text-xs text-white/60 leading-6 mb-4">{r.item} — {r.userName}</p>
       {r.kind === "server" ? <ManualFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} /> : (
         <div className="grid sm:grid-cols-2 gap-3">
@@ -72,7 +72,7 @@ export function RefundModal({ r, onClose, onDone }: { r: FixTarget; onClose: () 
   const [note, setNote] = useState("");
   return (
     <Modal open onClose={onClose} title="بازگشت وجه به کیف پول" icon="wallet"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { const a = await api.provisioning.refund(r.key, note.trim()); notify(toman(a) + " به کیف پول مشتری بازگشت", "wallet"); await onDone(); onClose(); }}>بازگشت {toman(r.amount)}</AsyncButton></>}>
+      footer={<><AsyncButton danger onClick={async () => { const a = await api.provisioning.refund(r.key, note.trim()); notify(toman(a) + " به کیف پول مشتری بازگشت", "wallet"); await onDone(); onClose(); }}>بازگشت {toman(r.amount)}</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <p className="text-sm text-white/70 leading-7">مبلغ ردیف «{r.item}» (با مالیات و پس از سهم تخفیف) به کیف پول {r.userName} برمی‌گردد، سفارش بسته می‌شود و سرور در حال آماده‌سازی حذف می‌شود.</p>
       <Field label="پیام برای مشتری (اختیاری)" className="mt-4"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className={TEXTAREA} /></Field>
     </Modal>

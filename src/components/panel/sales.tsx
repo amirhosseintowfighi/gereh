@@ -75,8 +75,7 @@ export function OfficialInvoiceModal({ inv, onClose }: { inv: Invoice; onClose: 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   return (
     <Modal open onClose={onClose} title={"فاکتور رسمی " + inv.id} icon="file-check"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button>
-        <AsyncButton onClick={async () => { await api.billing.setOfficial(inv.id, f); notify("اطلاعات فاکتور رسمی ذخیره شد", "file-check"); onClose(); window.open("/panel/billing/" + inv.id + "/print", "_blank", "noopener"); }}>ذخیره و چاپ</AsyncButton></>}>
+      footer={<><AsyncButton onClick={async () => { await api.billing.setOfficial(inv.id, f); notify("اطلاعات فاکتور رسمی ذخیره شد", "file-check"); onClose(); window.open("/panel/billing/" + inv.id + "/print", "_blank", "noopener"); }}>ذخیره و چاپ</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <p className="text-sm text-white/60 leading-7 mb-5">مشخصات خریدار طبق کارت ملی یا آگهی تأسیس شرکت. این اطلاعات روی فاکتور رسمی چاپ می‌شود.</p>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field className="sm:col-span-2" label="نام شخص یا شرکت"><input value={f.name} onChange={set("name")} className={INPUT} /></Field>

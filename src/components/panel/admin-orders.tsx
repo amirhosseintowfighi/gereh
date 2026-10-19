@@ -92,10 +92,10 @@ function AssignModal({ onClose }: { onClose: () => void }) {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((c) => ({ ...c, [k]: e.target.value }));
   return (
     <Modal open onClose={onClose} title="تخصیص دستی سرور به مشتری" icon="user-plus" size="max-w-2xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><AsyncButton onClick={async () => {
         await api.provisioning.assign({ ...manual(v), email: f.email.trim(), plan: f.plan.trim(), cpu: num(f.cpu), ram: num(f.ram), disk: num(f.disk), loc: f.loc, os: f.os.trim(), price: num(f.price), billing: f.billing as "monthly" | "hourly", months: num(f.months) });
         notify("سرور به مشتری تخصیص یافت", "circle-check"); onClose();
-      }}>تخصیص</AsyncButton></>}>
+      }}>تخصیص</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <div className="grid sm:grid-cols-2 gap-3 mb-4">
         <Field label="ایمیل مشتری"><input value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-left"} /></Field>
         <Field label="نام پلن"><input value={f.plan} onChange={set("plan")} className={INPUT} /></Field>

@@ -51,7 +51,7 @@ export function TransferInButton({ onDone }: { onDone: () => void }) {
     <>
       <button type="button" onClick={() => setOpen(true)} className={BTN_G + BTN_MD}><Icon name="arrow-left-right" size={16} /> انتقال دامنه</button>
       <Modal open={open} onClose={() => setOpen(false)} title="انتقال دامنه به گره" icon="arrow-left-right"
-        footer={<><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+        footer={<><AsyncButton onClick={async () => {
           const domain = f.domain.trim().toLowerCase();
           if (!domain) throw new Error("نام دامنه را وارد کنید.");
           if (ir && !IRNIC_RE.test(f.irnicHandle.trim())) throw new Error("شناسه ایرنیک مالک را وارد کنید؛ مثل ab1234-irnic");
@@ -59,7 +59,7 @@ export function TransferInButton({ onDone }: { onDone: () => void }) {
           await api.domains.transferIn({ domain, authCode: f.authCode.trim(), irnicHandle: f.irnicHandle.trim() });
           setOpen(false); setF({ domain: "", authCode: "", irnicHandle: "" }); onDone();
           notify("درخواست انتقال ثبت شد؛ پس از تأیید کارشناس انجام می‌شود");
-        }}>{tld && tld.transfer > 0 ? "پرداخت " + toman(tld.transfer) + " از کیف پول" : "ثبت درخواست"}</AsyncButton></>}>
+        }}>{tld && tld.transfer > 0 ? "پرداخت " + toman(tld.transfer) + " از کیف پول" : "ثبت درخواست"}</AsyncButton><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="space-y-4">
           <p className="text-sm text-white/60 leading-7">دامنه را نزد ثبت‌کننده فعلی از قفل خارج کنید و کد انتقال (EPP) را بگیرید. هزینه انتقال از کیف پول کم می‌شود و یک سال به اعتبار دامنه اضافه می‌شود؛ اگر انتقال انجام نشود مبلغ برمی‌گردد.</p>
           <Field label="نام دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="example.com" /></Field>
@@ -217,14 +217,14 @@ function RecordModal({ d, rec, setRec }: { d: Domain; rec: Rec | null; setRec: (
   const up = (p: Partial<Rec>) => rec && setRec({ ...rec, ...p });
   return (
     <Modal open={!!rec} onClose={() => setRec(null)} title={rec?.id ? "ویرایش رکورد" : "رکورد جدید"} icon="settings-2"
-      footer={<><button type="button" onClick={() => setRec(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><AsyncButton onClick={async () => {
         if (!rec) return;
         const withP = WITH_PRIORITY.includes(rec.type);
         const r = { ...rec, name: rec.name.trim(), value: rec.value.trim(), priority: withP ? Number(rec.priority ?? 10) : undefined, proxied: PROXIABLE.includes(rec.type) && !!rec.proxied };
         const err = validateRecord(r); if (err) throw new Error(err);
         if (r.id) await api.domains.updateRecord(d.id, r as DnsRecord); else await api.domains.addRecord(d.id, r);
         setRec(null); notify("رکورد ذخیره شد");
-      }}>ذخیره</AsyncButton></>}>
+      }}>ذخیره</AsyncButton><button type="button" onClick={() => setRec(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {rec && <div className="grid grid-cols-2 gap-4">
         <Field label="نوع"><Select value={rec.type} label="نوع رکورد" onChange={(v) => up({ type: v, proxied: PROXIABLE.includes(v) ? rec.proxied : false })} options={[...DNS_RECORD_TYPES]} ltr /></Field>
         <Field label="TTL"><Select value={String(rec.ttl)} label="TTL" onChange={(v) => up({ ttl: +v })} options={TTLS.some((t) => t.value === String(rec.ttl)) ? TTLS : [...TTLS, { value: String(rec.ttl), label: fa(rec.ttl) + " ثانیه" }]} /></Field>
@@ -247,12 +247,12 @@ function ZoneImport({ d, open, onClose }: { d: Domain; open: boolean; onClose: (
   const [errors, setErrors] = useState<string[]>([]);
   return (
     <Modal open={open} onClose={onClose} title="ورود فایل زون (BIND)" icon="upload" size="max-w-2xl"
-      footer={<><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>بستن</button><AsyncButton confirmText={mode === "replace" ? "همه رکوردهای فعلی حذف و با فایل جایگزین شوند؟" : undefined} danger={mode === "replace"} onClick={async () => {
+      footer={<><AsyncButton confirmText={mode === "replace" ? "همه رکوردهای فعلی حذف و با فایل جایگزین شوند؟" : undefined} danger={mode === "replace"} onClick={async () => {
         const r = await api.domains.importZone(d.id, text, mode);
         setErrors(r.errors);
         notify(fa(r.added) + " رکورد وارد شد" + (r.errors.length ? "؛ " + fa(r.errors.length) + " خط نادیده ماند" : ""));
         if (!r.errors.length) { setText(""); onClose(); }
-      }}>ورود</AsyncButton></>}>
+      }}>ورود</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>بستن</button></>}>
       <div className="space-y-4">
         <p className="text-sm text-white/55 leading-7">خروجی BIND از سرویس قبلی را بچسبانید یا فایل را انتخاب کنید. SOA و NS ریشه نادیده گرفته می‌شوند؛ «; proxied» در انتهای خط یعنی عبور از CDN.</p>
         <input type="file" accept=".zone,.txt,.db,text/plain" aria-label="انتخاب فایل زون" className="text-xs" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); }} />
@@ -598,7 +598,7 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
         ))}</ul>
       )}
       <Modal open={!!f} onClose={() => setF(null)} title="قانون جدید CDN" icon="list-checks"
-        footer={<><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => { if (!f) return; await api.domains.cdnAddRule(d.id, toRule(f)); setF(null); reload(); notify("قانون اضافه شد"); }}>افزودن</AsyncButton></>}>
+        footer={<><AsyncButton onClick={async () => { if (!f) return; await api.domains.cdnAddRule(d.id, toRule(f)); setF(null); reload(); notify("قانون اضافه شد"); }}>افزودن</AsyncButton><button type="button" onClick={() => setF(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {f && <div className="space-y-4">
           <Field label="نوع قانون"><Select value={f.kind} label="نوع قانون" onChange={(k) => setF({ ...EMPTY_RULE, kind: k as CdnRule["kind"], action: k === "access" ? "deny" : "cache" })} options={Object.entries(CDN_RULE_LABEL).map(([value, label]) => ({ value, label }))} /></Field>
           {pathField}
@@ -661,7 +661,7 @@ export function AdminDomains() {
           ]} />
       )}
       <Modal open={!!reject} onClose={() => setReject(null)} title={"رد انتقال " + (reject?.t.domain ?? "")} icon="x"
-        footer={<><button type="button" onClick={() => setReject(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton danger onClick={async () => { if (!reject) return; await api.domains.adminReject(reject.t.id, reject.reason.trim()); setReject(null); list.reload(); notify("درخواست رد و مبلغ برگشت داده شد"); }}>رد درخواست</AsyncButton></>}>
+        footer={<><AsyncButton danger onClick={async () => { if (!reject) return; await api.domains.adminReject(reject.t.id, reject.reason.trim()); setReject(null); list.reload(); notify("درخواست رد و مبلغ برگشت داده شد"); }}>رد درخواست</AsyncButton><button type="button" onClick={() => setReject(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {reject && <Field label="دلیل (برای مشتری)"><textarea value={reject.reason} onChange={(e) => setReject({ ...reject, reason: e.target.value })} rows={3} className={TEXTAREA} /></Field>}
       </Modal>
     </div>

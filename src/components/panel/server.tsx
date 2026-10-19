@@ -265,13 +265,13 @@ function ServerFirewall({ s }: { s: Server }) {
       )}
     </Card>
     <Modal open={!!form} onClose={() => setForm(null)} title="قانون فایروال جدید" icon="shield-check"
-      footer={<><button type="button" onClick={() => setForm(null)} className={BTN_G + BTN_MD}>انصراف</button><AsyncButton onClick={async () => {
+      footer={<><AsyncButton onClick={async () => {
         if (!form) return;
         const port = form.proto === "ICMP" ? "—" : form.port.replace(/\s/g, "");
         if (form.proto !== "ICMP" && (!PORT_RE.test(port) || port.split(/[,-]/).some((p) => +p < 1 || +p > 65535) || port.split(",").some((r) => { const [a, b] = r.split("-").map(Number); return b !== undefined && b < a; }))) throw new Error("پورت معتبر نیست؛ مثال: 22 یا 8000-8100 یا 80,443");
         if (!CIDR_RE.test(form.source.trim())) throw new Error("مبدأ باید IP یا CIDR معتبر باشد؛ مثل 0.0.0.0/0");
         await api.servers.addRule(s.id, { ...form, port, source: form.source.trim(), note: form.note.trim() }); setForm(null); notify("قانون اضافه شد");
-      }}>افزودن قانون</AsyncButton></>}>
+      }}>افزودن قانون</AsyncButton><button type="button" onClick={() => setForm(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {form && <div className="grid grid-cols-2 gap-4">
         <Field label="پروتکل"><Select value={form.proto} label="پروتکل" onChange={(v) => setForm((f) => f && { ...f, proto: v })} options={["TCP", "UDP", "ICMP"]} ltr /></Field>
         <Field label="عملکرد"><Select value={form.action} label="عملکرد" onChange={(v) => setForm((f) => f && { ...f, action: v as "allow" | "deny" })} options={[{ value: "allow", label: "اجازه" }, { value: "deny", label: "مسدود" }]} /></Field>
