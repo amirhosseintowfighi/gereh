@@ -140,6 +140,12 @@ export function apply(obj: Obj & { apiVersion: string; kind: string; metadata: {
   return k8s("PATCH", pathOf(obj.apiVersion, obj.kind, obj.metadata.namespace ?? null, obj.metadata.name) + "?fieldManager=" + FM + "&force=true", obj, "application/apply-patch+yaml");
 }
 export const del = (apiVersion: string, kind: string, ns: string, name: string) => ignore404(k8s("DELETE", pathOf(apiVersion, kind, ns, name) + "?propagationPolicy=Background"));
+/** cleanup of something a release no longer needs: a cluster whose controller role lacks the delete right (an older
+    deploy/paas/system.yaml) must not fail the whole release over it; it is logged instead */
+const prune = (apiVersion: string, kind: string, ns: string, name: string) => del(apiVersion, kind, ns, name).catch((e) => {
+  if ((e as K8sError).status !== 403) throw e;
+  console.warn("[k8s] cannot delete " + kind + " " + ns + "/" + name + " (403); re-apply deploy/paas/system.yaml to grant it");
+});
 export const get = (apiVersion: string, kind: string, ns: string, name: string) => k8s("GET", pathOf(apiVersion, kind, ns, name));
 
 /* ---------- manifests (exported for tests) ---------- */
@@ -830,10 +836,10 @@ export class KubernetesDriver implements PaasDriver {
     for (const sv of await this.owned(ns, "Service", app.id)) if (!keep.has("Service/" + sv.metadata.name)) await del("v1", "Service", ns, sv.metadata.name);
     for (const cj of await this.owned(ns, "CronJob", app.id)) if (!keep.has("CronJob/" + cj.metadata.name)) await del("batch/v1", "CronJob", ns, cj.metadata.name);
     await this.pruneRouting(ns, app, keep);
-    if (!keep.has("ConfigMap/" + app.name + "-conf")) await del("v1", "ConfigMap", ns, app.name + "-conf");
-    if (!app.autoscale) await del("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
-    if (!objs.some((o) => o.kind === "PodDisruptionBudget")) await del("policy/v1", "PodDisruptionBudget", ns, app.name);
-    if (app.hosts.length < 2) await del("v1", "Secret", ns, app.name + "-tls");
+    if (!keep.has("ConfigMap/" + app.name + "-conf")) await prune("v1", "ConfigMap", ns, app.name + "-conf");
+    if (!app.autoscale) await prune("autoscaling/v2", "HorizontalPodAutoscaler", ns, app.name);
+    if (!objs.some((o) => o.kind === "PodDisruptionBudget")) await prune("policy/v1", "PodDisruptionBudget", ns, app.name);
+    if (app.hosts.length < 2) await prune("v1", "Secret", ns, app.name + "-tls");
   }
 
   /** routing only: the Ingresses (domains, redirects, basic auth, TLS, CDN) */

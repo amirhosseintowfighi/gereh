@@ -25,10 +25,18 @@ kind: ClusterRole
 metadata: { name: gereh-controller }
 rules:
   - apiGroups: [""]
-    resources: [namespaces, secrets, services, persistentvolumeclaims, limitranges, resourcequotas]
+    resources: [namespaces, secrets, configmaps, services, persistentvolumeclaims, limitranges, resourcequotas]
     verbs: [get, list, create, update, patch, delete]
   - apiGroups: [""]
     resources: [pods, pods/log]
+    verbs: [get, list, delete]
+  # web console, database tools and one-off commands (kubectl exec without kubectl)
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [get, create]
+  # failed health checks and scheduling reasons in the deploy log
+  - apiGroups: [""]
+    resources: [events]
     verbs: [get, list]
   - apiGroups: [apps]
     resources: [deployments, statefulsets]

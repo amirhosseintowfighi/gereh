@@ -146,6 +146,8 @@ cmd_deploy() { # first release (installer) and updates
   switch_to "$new"
   if health 60; then
     prune_releases
+    # this command itself ships with each release: new subcommands (e.g. «gereh jobs») arrive with the update
+    if [[ -f $new/deploy/gereh ]] && bash -n "$new/deploy/gereh" 2>/dev/null; then install -m 755 "$new/deploy/gereh" /usr/local/bin/gereh; fi
     say "نسخه $(cat "$new/.release-commit" 2>/dev/null) فعال شد."
   else
     journalctl -u "$SERVICE" -n 40 --no-pager >&2 || true
