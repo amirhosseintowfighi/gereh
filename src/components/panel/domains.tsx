@@ -14,7 +14,7 @@ import type { Domain } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StatCard, Switch, Tabs, useMedia } from "../ui-client";
+import { AreaChart, AsyncButton, CopyText, DataTable, FilePick, IconBtn, Modal, PageTitle, Select, StatCard, Switch, Tabs, useMedia } from "../ui-client";
 
 /** fetches on mount and on reload(); errors become a message instead of a crash */
 function useLoad<T>(fn: () => Promise<T>, key: string) {
@@ -255,7 +255,7 @@ function ZoneImport({ d, open, onClose }: { d: Domain; open: boolean; onClose: (
       }}>ورود</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>بستن</button></>}>
       <div className="space-y-4">
         <p className="text-sm text-white/55 leading-7">خروجی BIND از سرویس قبلی را بچسبانید یا فایل را انتخاب کنید. SOA و NS ریشه نادیده گرفته می‌شوند؛ «; proxied» در انتهای خط یعنی عبور از CDN.</p>
-        <input type="file" accept=".zone,.txt,.db,text/plain" aria-label="انتخاب فایل زون" className="text-xs" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); }} />
+        <FilePick label="انتخاب فایل زون" accept=".zone,.txt,.db,text/plain" onFiles={async ([f]) => { if (f) setText(await f.text()); }} />
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} dir="ltr" className={TEXTAREA + " text-left mono text-xs"} placeholder={"$ORIGIN " + d.name + ".\n@ 3600 IN A 185.143.232.17\nwww 3600 IN CNAME " + d.name + "."} />
         <div role="radiogroup" aria-label="شیوه ورود" className="flex gap-2">
           {([["merge", "افزودن به رکوردهای فعلی"], ["replace", "جایگزینی کامل"]] as const).map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={(mode === k ? BTN_P : BTN_G) + BTN_SM}>{l}</button>)}

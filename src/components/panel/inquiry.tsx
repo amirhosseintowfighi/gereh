@@ -9,7 +9,7 @@ import type { InquiryAccess } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
-import { AsyncButton, Bars, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
+import { AsyncButton, Bars, CopyText, FilePick, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 
 export const ACCESS: Record<InquiryAccess, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
   open: ["فعال", "green"], approved: ["فعال", "green"], pending: ["در حال بررسی", "amber"], rejected: ["رد شده", "red"], none: ["نیازمند تأیید", "gray"],
@@ -234,8 +234,8 @@ function Logs() {
 
 function FieldInput({ f, value, onChange }: { f: InquiryField; value: string; onChange: (v: string) => void }) {
   if (f.kind === "image") return (
-    <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={f.label} className="block w-full text-xs text-white/70 file:me-3 file:h-9 file:px-3 file:rounded-lg file:border-0 file:bg-white/10 file:text-white"
-      onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const r = new FileReader(); r.onload = () => onChange(String(r.result)); r.readAsDataURL(file); }} />
+    <FilePick label={"انتخاب تصویر " + f.label} icon="upload" accept="image/jpeg,image/png,image/webp"
+      onFiles={([file]) => { if (!file) return; const r = new FileReader(); r.onload = () => onChange(String(r.result)); r.readAsDataURL(file); }} />
   );
   return <input value={value} onChange={(e) => onChange(e.target.value)} dir={f.kind === "name" ? "rtl" : "ltr"} placeholder={f.example} className={INPUT + (f.kind === "name" ? "" : " text-left font-mono")} />;
 }
@@ -254,7 +254,7 @@ function Playground() {
       <Card title="ارسال درخواست آزمایشی" icon="terminal">
         {!usable.length ? <Empty icon="layers" title="سرویس فعالی ندارید" /> : <div className="space-y-4">
           <Field label="سرویس"><Select label="سرویس" value={sid} onChange={(v) => { setSid(v); setVals({}); setOut(null); }} options={usable.map((s) => ({ value: s.id, label: s.name }))} /></Field>
-          {def?.fields.map((f) => <Field key={f.key} label={f.label}><FieldInput f={f} value={vals[f.key] ?? ""} onChange={(v) => setVals({ ...vals, [f.key]: v })} /></Field>)}
+          {def?.fields.map((f) => <Field key={f.key} label={f.label} as={f.kind === "image" ? "div" : "label"}><FieldInput f={f} value={vals[f.key] ?? ""} onChange={(v) => setVals({ ...vals, [f.key]: v })} /></Field>)}
           <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm">
             <span>حالت آزمایشی (sandbox)<span className="block text-[11px] text-white/50">پاسخ نمونه و رایگان؛ برای پاسخ واقعی خاموش کنید ({svc ? toman(svc.price) : ""})</span></span>
             <Switch on={sandbox} onChange={setSandbox} label="حالت آزمایشی" />

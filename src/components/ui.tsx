@@ -80,15 +80,14 @@ export function IconTile({ name, size = 22, cls = "w-12 h-12 rounded-2xl" }: { n
   return <div className={cls + " grid place-items-center tile shrink-0"}><Icon name={name} size={size} sw={1.6} /></div>;
 }
 
-export function Field({ label, hint, error, children, className = "" }: { label?: string; hint?: string; error?: string; children: React.ReactNode; className?: string }) {
+/** label + control + hint/error. `as="div"` for controls that bring their own <label> (FilePick, switches) */
+export function Field({ label, hint, error, children, className = "", as: Tag = "label" }: { label?: string; hint?: string; error?: string; children: React.ReactNode; className?: string; as?: "label" | "div" }) {
   return (
-    // a flex column whose label takes up any spare height: in a grid row, a label that wraps onto two lines
-    // no longer pushes its input below the neighbouring inputs
-    <label className={"flex flex-col min-w-0 " + className}>
-      {label && <span className="flex flex-1 items-end text-xs font-medium leading-5 text-white/65 mb-1.5">{label}</span>}
+    <Tag className={"block min-w-0 " + className}>
+      {label && <span className="block text-xs font-medium leading-5 text-white/65 mb-1.5">{label}</span>}
       {children}
       {error ? <span className="block text-[11px] leading-5 text-rose-300 mt-1.5" role="alert">{error}</span> : hint ? <span className="block text-[11px] leading-5 text-white/55 mt-1.5">{hint}</span> : null}
-    </label>
+    </Tag>
   );
 }
 

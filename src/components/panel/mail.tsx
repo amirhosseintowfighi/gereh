@@ -9,7 +9,7 @@ import { api } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter } from "../ui";
-import { AreaChart, AsyncButton, CodeBlock, CopyText, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
+import { AreaChart, AsyncButton, CodeBlock, CopyText, FilePick, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 
 /* ---------- small helpers ---------- */
 const Pill = ({ map, s }: { map: Record<string, [string, Tone]>; s: string }) => { const [l, t] = map[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
@@ -297,8 +297,8 @@ function SendConsole({ d }: { d: D; reload: () => void }) {
             <Field label="برچسب (اختیاری)"><input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim() })} dir="ltr" placeholder="welcome" className={INPUT + " text-left"} /></Field>
             <Field label="List-Unsubscribe (اختیاری)"><input value={f.unsub} onChange={(e) => setF({ ...f, unsub: e.target.value.trim() })} dir="ltr" placeholder="https://… یا mailto:…" className={INPUT + " text-left"} /></Field>
           </div>
-          <Field label="پیوست‌ها" hint={"حداکثر ۱۰ مگابایت؛ فعلی " + kb(size)} error={size > MAX_ATTACHMENTS_BYTES ? "حجم پیوست‌ها بیش از ۱۰ مگابایت است" : undefined}>
-            <input type="file" multiple onChange={(e) => setFiles([...(e.target.files ?? [])])} className="block text-xs text-white/70 file:me-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white" />
+          <Field as="div" label="پیوست‌ها" hint={"حداکثر ۱۰ مگابایت؛ فعلی " + kb(size)} error={size > MAX_ATTACHMENTS_BYTES ? "حجم پیوست‌ها بیش از ۱۰ مگابایت است" : undefined}>
+            <FilePick label="افزودن پیوست" icon="paperclip" multiple onFiles={setFiles} />
           </Field>
           <AsyncButton disabled={!f.to || !f.body || size > MAX_ATTACHMENTS_BYTES} onClick={async () => {
             const attachments = await Promise.all(files.map(async (x) => ({ filename: x.name, content: await toBase64(x), contentType: x.type || undefined })));

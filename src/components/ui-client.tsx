@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { BTN_D, BTN_LG, BTN_MD, BTN_P, BTN_SM, GLASS, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, GLASS, INPUT } from "@/lib/cls";
 import { fa, strength, toEnDigits } from "@/lib/format";
 import { useApp } from "./app-context";
 import { Icon } from "./icon";
@@ -281,6 +281,21 @@ export function AsyncButton({ onClick, className, children, confirmText, danger 
       className={className || (danger ? BTN_D : BTN_P) + (size === "sm" ? BTN_SM : size === "lg" ? BTN_LG : BTN_MD)}>
       {busy && <Icon name="loader-circle" size={size === "sm" ? 14 : 16} className="animate-spin shrink-0" />}{children}
     </button>
+  );
+}
+
+/** A file picker in the panel's own button style. The browser's native control prints "Choose Files /
+    No file chosen" in the browser's language, whatever the page's. Shows the chosen file names. */
+export function FilePick({ label, accept, multiple = false, onFiles, icon = "upload", disabled = false }: { label: string; accept?: string; multiple?: boolean; onFiles: (files: File[]) => unknown; icon?: string; disabled?: boolean }) {
+  const [names, setNames] = useState<string[]>([]);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+      <label className={BTN_G + BTN_SM + " cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#9cc9ff]" + (disabled ? " opacity-60 pointer-events-none" : "")}>
+        <Icon name={icon} size={14} />{label}
+        <input type="file" accept={accept} multiple={multiple} disabled={disabled} className="sr-only" onChange={(e) => { const f = [...(e.target.files ?? [])]; setNames(f.map((x) => x.name)); void onFiles(f); }} />
+      </label>
+      <span className="text-xs text-white/55 min-w-0 [overflow-wrap:anywhere]" dir="auto">{names.length ? (names.length > 2 ? fa(names.length) + " فایل" : names.join("، ")) : "فایلی انتخاب نشده"}</span>
+    </div>
   );
 }
 

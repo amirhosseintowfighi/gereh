@@ -10,7 +10,7 @@ import { WP_PLANS, wpMonthly, wpPlanOf, type WpPlan } from "@/lib/wordpress";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Field } from "../ui";
-import { AsyncButton, Modal, PageTitle, Switch } from "../ui-client";
+import { AsyncButton, FilePick, Modal, PageTitle, Switch } from "../ui-client";
 import { StatusPill } from "./paas-shared";
 
 const IMPORT_TONE = { running: "blue", succeeded: "green", failed: "red" } as const;
@@ -81,9 +81,9 @@ function BackupPicker({ onUploaded }: { onUploaded: (id: string | null) => void 
   const [err, setErr] = useState("");
   return (
     <div className="rounded-xl border border-dashed border-white/20 p-4">
-      <input type="file" accept=".gz,.tgz,.zip,application/gzip,application/zip" aria-label="فایل پشتیبان" className="block w-full text-xs text-white/70 file:me-3 file:h-9 file:px-3 file:rounded-lg file:border-0 file:bg-white/10 file:text-white"
-        onChange={async (e) => {
-          const f = e.target.files?.[0]; if (!f) return;
+      <FilePick label="انتخاب فایل پشتیبان" accept=".gz,.tgz,.zip,application/gzip,application/zip"
+        onFiles={async ([f]) => {
+          if (!f) return;
           setErr(""); setName(f.name); setPct(0); onUploaded(null);
           try { const r = await api.wp.upload(f, setPct); onUploaded(r.uploadId); setPct(100); } catch (x) { setErr((x as Error).message); setPct(null); }
         }} />

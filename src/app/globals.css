@@ -29,6 +29,8 @@ img, svg, canvas { max-width: 100%; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 .mono { font-family: var(--font-mono); }
+/* placeholders are prose (often Persian): a monospace input would space Persian letters apart */
+::placeholder { font-family: var(--font-sans); }
 
 /* ---------- cold, metallic accent system ---------- */
 .silver { background: linear-gradient(180deg, #fff 0%, #d7dce6 45%, #7c8499 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
