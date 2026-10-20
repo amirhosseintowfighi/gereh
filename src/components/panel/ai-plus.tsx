@@ -297,7 +297,7 @@ export function RequestLogs() {
         {!data ? <p className="text-sm text-white/55">در حال بارگذاری…</p> : data.rows.length === 0 ? <Empty icon="activity" title="درخواستی با این فیلترها نیست" /> : (
           <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="درخواست‌ها">
             <table className="w-full text-xs min-w-[760px]">
-              <thead><tr className="text-white/55 text-right"><th className="p-2">زمان</th><th className="p-2">کلید</th><th className="p-2">مدل</th><th className="p-2">وضعیت</th><th className="p-2">توکن ورودی / خروجی</th><th className="p-2">هزینه</th><th className="p-2">تأخیر</th><th className="p-2">پایان</th><th className="p-2" /></tr></thead>
+              <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-2">زمان</th><th scope="col" className="text-right font-medium p-2">کلید</th><th scope="col" className="text-right font-medium p-2">مدل</th><th scope="col" className="text-right font-medium p-2">وضعیت</th><th scope="col" className="text-right font-medium p-2">توکن ورودی / خروجی</th><th scope="col" className="text-right font-medium p-2">هزینه</th><th scope="col" className="text-right font-medium p-2">تأخیر</th><th scope="col" className="text-right font-medium p-2">پایان</th><th scope="col" className="text-right font-medium p-2" /></tr></thead>
               <tbody>{data.rows.map((r) => { const [label, tone] = STATUS[r.status] ?? [r.status, "gray"]; return (
                 <tr key={r.id} className="border-t border-white/[0.06]">
                   <td className="p-2 whitespace-nowrap">{r.at}</td><td className="p-2">{r.keyName}</td>

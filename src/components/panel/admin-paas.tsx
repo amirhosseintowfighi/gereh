@@ -47,7 +47,7 @@ export function AdminPaas() {
           {apps.length === 0 ? <div className="p-6"><Empty icon="rocket" title="اپی پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="اپ‌ها">
               <table className="w-full text-sm">
-                <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">اپ</th><th className="p-3">مشتری</th><th className="p-3">پشته / منبع</th><th className="p-3">منابع</th><th className="p-3">وضعیت</th><th className="p-3">هزینه</th><th className="p-3"><span className="sr-only">عملیات</span></th></tr></thead>
+                <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">اپ</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">پشته / منبع</th><th scope="col" className="text-right font-medium p-3">منابع</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{apps.map((a) => {
                   const plan = db.paasPlans.find((p) => p.id === a.planId);
                   const last = a.deployments[0];
@@ -74,7 +74,7 @@ export function AdminPaas() {
           {dbs.length === 0 ? <div className="p-6"><Empty icon="database" title="پایگاه داده‌ای پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="پایگاه‌های داده">
               <table className="w-full text-sm">
-                <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">نام</th><th className="p-3">مشتری</th><th className="p-3">موتور</th><th className="p-3">پلن</th><th className="p-3">پشتیبان</th><th className="p-3">وضعیت</th><th className="p-3">هزینه</th><th className="p-3"><span className="sr-only">عملیات</span></th></tr></thead>
+                <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">موتور</th><th scope="col" className="text-right font-medium p-3">پلن</th><th scope="col" className="text-right font-medium p-3">پشتیبان</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{dbs.map((d) => {
                   const plan = db.paasPlans.find((p) => p.id === d.planId);
                   const lastBk = d.backupList[0];

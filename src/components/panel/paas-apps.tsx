@@ -478,7 +478,7 @@ function AppDomains({ app }: { app: PaasApp }) {
       <Card title="تنظیم DNS" icon="network">
         <p className="text-sm text-white/65 leading-7">در سرویس DNS دامنه، یک رکورد بسازید:</p>
         <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="رکورد DNS">
-          <table className="w-full text-xs" dir="ltr"><thead><tr className="text-white/55"><th className="text-left p-2">Type</th><th className="text-left p-2">Name</th><th className="text-left p-2">Value</th></tr></thead>
+          <table className="w-full text-xs" dir="ltr"><thead><tr className="text-white/55 text-xs"><th className="text-left p-2">Type</th><th className="text-left p-2">Name</th><th className="text-left p-2">Value</th></tr></thead>
             <tbody><tr className="border-t border-white/[0.08]"><td className="p-2">CNAME</td><td className="p-2">www</td><td className="p-2"><CopyText text={target} className="font-mono" /></td></tr></tbody></table>
         </div>
         <p className="text-[11px] text-white/55 leading-6 mt-3">برای ریشه دامنه (بدون www) اگر سرویس DNS شما CNAME روی @ را پشتیبانی نمی‌کند، از ALIAS/ANAME استفاده کنید. گواهی SSL پس از تأیید خودکار صادر می‌شود.{db.domains.length ? " دامنه‌های شما در گره را از بخش دامنه‌ها می‌توانید تنظیم کنید." : ""}</p>

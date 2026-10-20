@@ -194,7 +194,7 @@ export function ModelList({ models, compact = false }: { models: AiModelRow[]; c
       </div>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="قیمت مدل‌ها">
         <table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">مدل</th><th className="p-3">شناسه</th>{unit.in && <th className="p-3">{unit.in}</th>}{unit.out && <th className="p-3">{unit.out}</th>}{unit.unit && <th className="p-3">{unit.unit}</th>}{kind === "chat" && <th className="p-3">کانتکست</th>}</tr></thead>
+          <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">مدل</th><th scope="col" className="text-right font-medium p-3">شناسه</th>{unit.in && <th scope="col" className="text-right font-medium p-3">{unit.in}</th>}{unit.out && <th scope="col" className="text-right font-medium p-3">{unit.out}</th>}{unit.unit && <th scope="col" className="text-right font-medium p-3">{unit.unit}</th>}{kind === "chat" && <th scope="col" className="text-right font-medium p-3">کانتکست</th>}</tr></thead>
           <tbody>{list.map((m) => (
             <tr key={m.id} className="border-t border-white/[0.06]">
               <td className="p-3 font-bold whitespace-nowrap">{m.name}<span className="block text-[11px] font-normal text-white/50">{AI_VENDORS[m.vendor] ?? m.vendor}{m.vision ? " · تصویر" : ""}</span></td>

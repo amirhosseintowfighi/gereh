@@ -152,7 +152,7 @@ function Services() {
       {/* table on wide screens, cards on phones */}
       <div className="hidden md:block overflow-x-auto" tabIndex={0} role="region" aria-label="سرویس‌ها">
         <table className="w-full text-sm">
-          <thead><tr className="text-white/55 text-xs text-right"><th className="p-3">نام سرویس</th><th className="p-3">شناسه فنی</th><th className="p-3">قیمت هر درخواست</th><th className="p-3">وضعیت</th></tr></thead>
+          <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">نام سرویس</th><th scope="col" className="text-right font-medium p-3">شناسه فنی</th><th scope="col" className="text-right font-medium p-3">قیمت هر درخواست</th><th scope="col" className="text-right font-medium p-3">وضعیت</th></tr></thead>
           <tbody>{list.map((s) => (
             <tr key={s.id} className="border-t border-white/[0.06]">
               <td className="p-3 font-bold">{s.name}<span className="block text-[11px] font-normal text-white/50 mt-0.5 max-w-md">{inquiryDef(s.id)?.summary}</span></td>

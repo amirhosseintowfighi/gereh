@@ -206,7 +206,7 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
       <Card title="برچسب‌ها (۹۰ روز)" icon="tag" pad="p-3 sm:p-4">
         {!s.data ? <Loading /> : s.data.tags.length === 0 ? <Empty icon="tag" title="برچسبی ثبت نشده" text="با سربرگ X-Gereh-Tag یا فیلد tag، پیام‌ها را دسته‌بندی کنید." /> : (
           <div className="overflow-x-auto"><table className="w-full text-sm min-w-[520px]">
-            <thead><tr className="text-white/50 text-xs text-right"><th className="p-2 font-normal">برچسب</th><th className="p-2 font-normal">ارسال</th><th className="p-2 font-normal">تحویل</th><th className="p-2 font-normal">برگشت</th><th className="p-2 font-normal">ناموفق</th><th className="p-2 font-normal">DEV</th></tr></thead>
+            <thead><tr className="text-white/50 text-xs text-right"><th scope="col" className="text-right font-medium p-2">برچسب</th><th scope="col" className="text-right font-medium p-2">ارسال</th><th scope="col" className="text-right font-medium p-2">تحویل</th><th scope="col" className="text-right font-medium p-2">برگشت</th><th scope="col" className="text-right font-medium p-2">ناموفق</th><th scope="col" className="text-right font-medium p-2">DEV</th></tr></thead>
             <tbody>{s.data.tags.map((t) => (
               <tr key={t.tag} className="border-t border-white/[0.06]"><td className="p-2" dir="ltr">{t.tag || <span className="text-white/50">(بدون برچسب)</span>}</td><td className="p-2 tabular">{fa(t.total)}</td><td className="p-2 tabular text-emerald-300">{fa(t.delivered)}</td><td className="p-2 tabular text-rose-300">{fa(t.bounced)}</td><td className="p-2 tabular">{fa(t.failed)}</td><td className="p-2 tabular text-white/50">{fa(t.dev)}</td></tr>
             ))}</tbody>
