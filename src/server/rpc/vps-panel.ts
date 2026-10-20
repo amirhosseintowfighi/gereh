@@ -14,6 +14,7 @@ import { sendEmail } from "../messaging";
 import { virt, type UsagePoint } from "../virt/driver";
 import { layoutOf, planLayout, saveAllowance } from "../virt/layout";
 import { requestSync } from "../virt/sync";
+import { notifyStaff } from "../worker/provision";
 import { addTask, fail, genPassword, logActivity, logAudit, rid } from "../util";
 import { server, vps } from "./servers";
 
@@ -81,26 +82,36 @@ export const vpsPanelRpc = {
     const before = l.current.join("+"), after = req.sizes.join("+");
     let pass = "";
     let osName = s.os;
-    if (mode === "append") {
-      for (const size of req.sizes.slice(l.current.length)) {
-        const slot = await v.addDisk(vpsid, size);
-        await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: size, slot, billed: false });
+    try {
+      if (mode === "append") {
+        for (const size of req.sizes.slice(l.current.length)) {
+          const slot = await v.addDisk(vpsid, size);
+          await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: size, slot, billed: false });
+        }
+      } else {
+        osName = tpl!.name;
+        const slots = await v.setDiskLayout(vpsid, req.sizes);
+        pass = genPassword();
+        await v.reinstall(vpsid, tpl!.osid, pass);
+        const now = new Date();
+        for (const d of l.free) await ctx.db.update(vpsDisks).set({ goneAt: now }).where(eq(vpsDisks.id, d.id));
+        for (let i = 1; i < req.sizes.length; i++) {
+          const slot = slots[i] ?? i;
+          // a row the sync marked gone for this slot is reused, so the slot stays unique per server
+          const [old] = await ctx.db.select().from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), eq(vpsDisks.slot, slot), eq(vpsDisks.billed, false)));
+          if (old) await ctx.db.update(vpsDisks).set({ sizeGb: req.sizes[i], goneAt: null }).where(eq(vpsDisks.id, old.id));
+          else await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: req.sizes[i], slot, billed: false });
+        }
+        await ctx.db.update(servers).set({ disk: req.sizes[0], os: osName, rescue: false, iso: "" }).where(eq(servers.id, s.id));
       }
-    } else {
-      osName = tpl!.name;
-      const slots = await v.setDiskLayout(vpsid, req.sizes);
-      pass = genPassword();
-      await v.reinstall(vpsid, tpl!.osid, pass);
-      const now = new Date();
-      for (const d of l.free) await ctx.db.update(vpsDisks).set({ goneAt: now }).where(eq(vpsDisks.id, d.id));
-      for (let i = 1; i < req.sizes.length; i++) {
-        const slot = slots[i] ?? i;
-        // a row the sync marked gone for this slot is reused, so the slot stays unique per server
-        const [old] = await ctx.db.select().from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), eq(vpsDisks.slot, slot), eq(vpsDisks.billed, false)));
-        if (old) await ctx.db.update(vpsDisks).set({ sizeGb: req.sizes[i], goneAt: null }).where(eq(vpsDisks.id, old.id));
-        else await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: req.sizes[i], slot, billed: false });
-      }
-      await ctx.db.update(servers).set({ disk: req.sizes[0], os: osName, rescue: false, iso: "" }).where(eq(servers.id, s.id));
+    } catch (e) {
+      // the customer sees Virtualizor's reason; staff get the full error and the task log keeps it
+      const why = (e as Error).message.slice(0, 500);
+      console.error("[vps] layout " + s.id + " " + before + "→" + after, e);
+      await addTask(ctx.db, s.id, "تغییر چیدمان دیسک " + before + "→" + after + " ناموفق: " + why, "failed", 0);
+      await notifyStaff(ctx.db, "تغییر چیدمان دیسک " + s.name + " (vpsid " + vpsid + ") ناموفق بود: " + why);
+      await requestSync(ctx.db, s.id);
+      throw e;
     }
     await saveAllowance(ctx.db, s.id, l.allowance);
     const text = "چیدمان دیسک " + l.current.map(fa).join("+") + "→" + req.sizes.map(fa).join("+") + " گیگ" + (mode === "rebuild" ? " (با نصب مجدد " + osName + ")" : "");

@@ -187,6 +187,22 @@ describe("disk layout", () => {
     expect(await fails("servers.setLayout", SRV, { sizes: [80, 80], os: "Debian 12", confirm: (await row()).hostname })).toContain("جدا کنید");
   });
 
+  it("a layout Virtualizor refuses shows its reason (not a bare 500), logs a failed task and leaves the row as is", async () => {
+    await asUser();
+    const s = await row();
+    const { VirtualizorError } = await import("@/server/virt/virtualizor");
+    vi.spyOn(sim, "setDiskLayout").mockRejectedValue(new VirtualizorError("managevps", { space: "Invalid disk size" }));
+    const msg = await fails("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname });
+    const { errorResponse } = await import("@/server/http");
+    const res = errorResponse(await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname }).catch((e) => e));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toContain("Invalid disk size");
+    expect(msg).toContain("Invalid disk size");
+    expect(await row()).toMatchObject({ disk: s.disk, os: s.os });
+    const tasks = await (await db()).select().from(serverTasks).where(eq(serverTasks.serverId, SRV));
+    expect(tasks.some((t) => t.status === "failed" && t.action.includes("Invalid disk size"))).toBe(true);
+  });
+
   it("the order builder's split is validated and delivered as several disks", async () => {
     await asUser();
     const sku = { t: "custom", cpu: 2, ram: 4, disk: 80, loc: "thr", os: "ubuntu", ips: 0, backup: false };
