@@ -13,6 +13,7 @@ import { osTemplates, plans, servers, vpsDisks, vpsIps, vpsLayouts, vpsSync, vps
 import { enqueue } from "../jobs";
 import { addTask, rid } from "../util";
 import { virt, type VirtDriver, type VpsDetail } from "./driver";
+import { relayoutBusy } from "./layout";
 import { confirmFromPoll, pendingPower } from "./power";
 
 type Server = typeof servers.$inferSelect;
@@ -195,7 +196,9 @@ async function record(db: DB, s: Server, changes: Change[]) {
 /** syncs these servers in batches of 25 (one status call + a few detail calls at a time per batch) */
 export async function syncServers(db: DB, all: Server[]) {
   const v = await virt();
-  const list = all.filter((s) => s.vpsid);
+  // a VPS being recreated for a new disk layout (./relayout.ts) belongs to that job until it is done
+  const busy = await relayoutBusy(db, all.map((s) => s.id));
+  const list = all.filter((s) => s.vpsid && !busy.has(s.id));
   let changed = 0, missing = 0, unanswered = 0;
   for (let i = 0; i < list.length; i += 25) {
     const chunk = list.slice(i, i + 25);
@@ -238,7 +241,7 @@ export async function virtSync(db: DB, p: { serverId?: string; all?: boolean }) 
 
 /** one server now (the sync buttons): its changes, or why it could not be read */
 export async function syncNow(db: DB, s: Server): Promise<{ changes: string[]; state: "ok" | "missing" | "unanswered" }> {
-  if (!s.vpsid || !SYNCABLE.includes(s.status)) return { changes: [], state: "unanswered" };
+  if (!s.vpsid || !SYNCABLE.includes(s.status) || (await relayoutBusy(db, [s.id])).size) return { changes: [], state: "unanswered" };
   const v = await virt();
   const answers = await v.details([s.vpsid]);
   if (!answers.has(s.vpsid)) { await failed(db, s.id, "پاسخی از Virtualizor نیامد"); return { changes: [], state: "unanswered" }; }

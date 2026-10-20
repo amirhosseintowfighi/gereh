@@ -99,12 +99,13 @@ export async function reminders(db: DB) {
 
 /** hourly: meter hourly servers from the wallet; suspend when credit runs out */
 export async function hourly(db: DB) {
-  const list = await db.select().from(servers).where(and(eq(servers.billing, "hourly"), inArray(servers.status, ["running", "stopped"])));
+  // a server whose disks are being rebuilt (relayout) is still billed, but never suspended mid-rebuild
+  const list = await db.select().from(servers).where(and(eq(servers.billing, "hourly"), inArray(servers.status, ["running", "stopped", "relayout"])));
   for (const s of list) {
     const cost = Math.max(1, Math.round(s.price / 720));
     // a linked project wallet pays first; the main wallet may dip to the admin's negative grace
     const ok = await db.transaction((tx) => debit(tx, s.userId, cost, "مصرف ساعتی سرور " + s.name, { serverId: s.id }));
-    if (!ok) {
+    if (!ok && s.status !== "relayout") {
       if (s.vpsid) await (await virt()).suspend(s.vpsid);
       await db.update(servers).set({ status: "suspended", suspendedAt: new Date() }).where(eq(servers.id, s.id));
       await notify(db, s.userId, "wallet", "موجودی کیف پول تمام شد؛ سرور ساعتی " + s.name + " معلق شد");

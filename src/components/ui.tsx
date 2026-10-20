@@ -24,6 +24,7 @@ export const STATUS: Record<string, [Tone, string]> = {
   topup: ["green", "شارژ"], payment: ["gray", "پرداخت"], refund: ["blue", "بازگشت وجه"],
   provisioning: ["blue", "در حال آماده‌سازی"],
   missing: ["red", "در زیرساخت نیست"],
+  relayout: ["blue", "در حال بازسازی دیسک‌ها…"],
 };
 export const statusLabel = (s: string) => (STATUS[s] || ["gray", s])[1];
 export function StatusBadge({ s }: { s: string }) {

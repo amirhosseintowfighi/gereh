@@ -76,26 +76,47 @@ export function UsageCharts({ s }: { s: Server }) {
 export function LayoutCard({ s }: { s: Server }) {
   const db = useDB();
   const { notify } = useApp();
-  const x = useRemote(s.id + ":layout:" + s.disk, () => panelApi.layout(s.id));
+  const x = useRemote(s.id + ":layout:" + s.disk + ":" + s.status, () => panelApi.layout(s.id));
   const [sizes, setSizes] = useState<number[] | null>(null);
   const [os, setOs] = useState("");
   const [confirm, setConfirm] = useState("");
   if (x.error) return <Card title="چیدمان دیسک" icon="layers"><Empty icon="circle-alert" title="بارگذاری نشد" text={x.error} /></Card>;
   if (!x.data) return <Card title="چیدمان دیسک" icon="layers"><Loading /></Card>;
   const v = x.data;
+  // the server is being recreated with a new layout: only the progress is shown (the page re-reads itself)
+  if (v.relayout || s.status === "relayout") return (
+    <Card title="چیدمان دیسک" icon="layers" className="mb-4">
+      <div role="status" className="rounded-xl bg-sky-500/[0.08] border border-sky-400/20 p-4 text-sm text-sky-100 flex gap-3">
+        <Icon name="loader-circle" size={18} className="animate-spin shrink-0 mt-0.5" />
+        <div className="min-w-0">
+          <div className="font-bold mb-1">در حال بازسازی دیسک‌ها…</div>
+          <p className="text-xs leading-6 text-sky-100/80">
+            سرور {v.relayout ? <>با دیسک‌های <span className="tabular">{v.relayout.sizes.map((g) => fa(g)).join(" + ")}</span> گیگابایت و {v.relayout.os} </> : ""}از نو ساخته می‌شود. این کار چند دقیقه طول می‌کشد و این صفحه خودکار به‌روز می‌شود.
+            IP سرور تا جای ممکن حفظ می‌شود؛ اگر تغییر کند با اعلان و ایمیل خبر می‌دهیم. رمز root جدید پس از پایان کار ایمیل می‌شود.
+          </p>
+          {v.relayout && <p className="text-[11px] text-sky-100/60 mt-1">درخواست: <span className="tabular">{v.relayout.since}</span></p>}
+        </div>
+      </div>
+    </Card>
+  );
   const cur = v.disks.map((d) => d.sizeGb);
   const val = sizes ?? cur;
   const append = val.length > cur.length && cur.every((g, i) => val[i] === g);
   const same = val.length === cur.length && val.every((g, i) => g === cur[i]);
+  // disks only grow (or are added): edited in place, no data is lost
+  const grow = !same && !append && val.length >= cur.length && cur.every((g, i) => val[i] >= g);
+  const rebuild = !same && !append && !grow;
   const sum = val.reduce((a, b) => a + b, 0);
   const oses = db.osTemplates.filter((t) => t.on);
   return (
     <Card title="چیدمان دیسک" icon="layers" className="mb-4">
-      <p className="text-xs text-white/55 leading-6 mb-4">{fa(v.allowanceGb)} گیگابایت دیسک پلن را می‌توانید به چند دیسک تقسیم کنید، مثلاً {fa(Math.round(v.allowanceGb * 0.4))} + {fa(v.allowanceGb - Math.round(v.allowanceGb * 0.4))}. هزینه ماهانه تغییر نمی‌کند. افزودن دیسک از فضای تقسیم‌نشده داده‌ای را پاک نمی‌کند؛ هر تغییر دیگری همه دیسک‌ها را از نو می‌سازد و سیستم‌عامل دوباره نصب می‌شود.</p>
+      <p className="text-xs text-white/55 leading-6 mb-4">{fa(v.allowanceGb)} گیگابایت دیسک پلن را می‌توانید به چند دیسک تقسیم کنید، مثلاً {fa(Math.round(v.allowanceGb * 0.4))} + {fa(v.allowanceGb - Math.round(v.allowanceGb * 0.4))}. هزینه ماهانه تغییر نمی‌کند. افزودن دیسک از فضای تقسیم‌نشده و بزرگ کردن دیسک‌ها داده‌ای را پاک نمی‌کند. کوچک کردن یا حذف یک دیسک فقط با ساخت دوباره سرور ممکن است: همه داده‌ها پاک و سیستم‌عامل از نو نصب می‌شود، IP تا جای ممکن حفظ می‌شود و چند دقیقه طول می‌کشد.</p>
       <DiskLayoutEditor allowance={v.allowanceGb} sizes={val} onChange={setSizes} max={v.maxDisks} />
       {v.billed.length > 0 && <p className="text-[11px] text-white/50 mt-3">دیسک‌های خریداری‌شده جدا ({v.billed.map((d) => d.name + " " + fa(d.sizeGb) + " گیگ").join("، ")}) جزو این سهم نیستند.</p>}
-      {!same && !append && <div className="mt-5 space-y-4">
-        <div role="alert" className="rounded-xl bg-rose-500/[0.08] border border-rose-400/20 p-4 text-sm text-rose-100 flex gap-3"><Icon name="circle-alert" size={18} />همه داده‌های همه دیسک‌ها پاک می‌شود و سیستم‌عامل انتخابی نصب می‌شود. پیش از ادامه بکاپ بگیرید.</div>
+      {grow && <p role="note" className="mt-5 rounded-xl bg-white/[0.04] border border-white/10 p-4 text-xs leading-6 text-white/70">دیسک‌ها بدون پاک شدن داده بزرگ می‌شوند. پس از آن پارتیشن و فایل‌سیستم را داخل سیستم‌عامل گسترش دهید (مثلاً با <span className="mono ltr inline-block">growpart</span> و <span className="mono ltr inline-block">resize2fs</span>).</p>}
+      {rebuild && <div className="mt-5 space-y-4">
+        <div role="alert" className="rounded-xl bg-rose-500/[0.08] border border-rose-400/20 p-4 text-sm text-rose-100 flex gap-3"><Icon name="circle-alert" size={18} className="shrink-0 mt-0.5" />
+          <div className="leading-7">دیسکی کوچک‌تر یا حذف می‌شود، پس سرور با این چیدمان از نو ساخته می‌شود: همه داده‌های همه دیسک‌ها پاک و سیستم‌عامل انتخابی نصب می‌شود. IP سرور تا جای ممکن حفظ می‌شود و اگر تغییر کند خبر می‌دهیم. این کار چند دقیقه طول می‌کشد. پیش از ادامه بکاپ بگیرید.</div></div>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="سیستم‌عامل پس از تغییر"><Select value={os} onChange={setOs} label="سیستم‌عامل" ltr options={[{ value: "", label: "انتخاب کنید" }, ...oses.map((o) => ({ value: o.name, label: o.name }))]} /></Field>
           <Field label={"برای تأیید، hostname را بنویسید: " + s.hostname}><input value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
@@ -103,9 +124,15 @@ export function LayoutCard({ s }: { s: Server }) {
       </div>}
       <div className="mt-5 flex justify-end gap-2">
         {sizes && !same && <button type="button" onClick={() => { setSizes(null); setConfirm(""); }} className={BTN_G + BTN_MD}>بازگشت</button>}
-        <AsyncButton danger={!append} disabled={same || sum !== v.allowanceGb || (!append && (!os || confirm.trim().toLowerCase() !== s.hostname.toLowerCase()))}
-          onClick={async () => { const r = await panelApi.setLayout(s.id, append ? { sizes: val } : { sizes: val, os, confirm }); setSizes(null); setConfirm(""); x.reload(); notify(r.mode === "append" ? "دیسک جدید اضافه شد" : "چیدمان دیسک تغییر کرد و سیستم‌عامل در حال نصب است", "hard-drive"); }}>
-          {append ? "افزودن دیسک" : "اعمال چیدمان و نصب مجدد"}
+        <AsyncButton danger={rebuild} disabled={same || sum !== v.allowanceGb || (rebuild && (!os || confirm.trim().toLowerCase() !== s.hostname.toLowerCase()))}
+          onClick={async () => {
+            const r = await panelApi.setLayout(s.id, rebuild ? { sizes: val, os, confirm } : { sizes: val });
+            setSizes(null); setConfirm("");
+            if (r.mode === "rebuild") { notify("بازسازی دیسک‌ها شروع شد؛ چند دقیقه طول می‌کشد", "loader-circle"); await refresh(); }
+            else notify(r.mode === "append" ? "دیسک جدید اضافه شد" : "دیسک‌ها بزرگ شدند", "hard-drive");
+            x.reload();
+          }}>
+          {append ? "افزودن دیسک" : grow ? "بزرگ کردن دیسک‌ها" : "ساخت دوباره سرور با این چیدمان"}
         </AsyncButton>
       </div>
     </Card>

@@ -26,6 +26,7 @@ import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitFo
 import { vpsBilling, vpsSnapshots } from "./vps";
 import { virtSync } from "../virt/sync";
 import { confirmPower } from "../virt/power";
+import { runRelayout } from "../virt/relayout";
 import { builderFix, builderWatch } from "../builder/deploy";
 import { builderMaintain } from "../builder/maintain";
 
@@ -44,6 +45,7 @@ const handlers: Record<JobType, Handler> = {
   "virt.reconcile": async (db) => { await reconcile(db); await purgeOld(db); await sweepRateLimits(db); },
   "virt.sync": (db, p) => virtSync(db, p as never),
   "virt.power": (db, p) => confirmPower(db, p as never),
+  "virt.relayout": (db, p) => runRelayout(db, p as never),
   "tickets.sla": (db, p) => ticketSla(db, p),
   "notify.send": (db, p) => notifySend(db, p as never),
   "devops.billing": (db) => devopsBilling(db),
@@ -114,6 +116,8 @@ export async function tickSchedule(db: DB) {
 const LONG_JOBS: Partial<Record<JobType, number>> = {
   "dbaas.import": 90, "paas.diskBackup": 60, "paas.backup": 60, "wp.import": 90, "paas.toolsDaily": 30, "paas.daily": 30,
   "dbaas.init": 20, "builder.maintain": 20, "builder.fix": 10, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
+  // recreating a VPS for a new disk layout: create, delete and the address move (the build wait re-queues itself)
+  "virt.relayout": 30,
 };
 const jobLimitMs = (type: string) => (LONG_JOBS[type as JobType] ?? 5) * 60_000;
 class JobTimeout extends Error {}

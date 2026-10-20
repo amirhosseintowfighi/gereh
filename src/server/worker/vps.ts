@@ -30,7 +30,7 @@ async function addonCharges(db: DB) {
     db.select({ serverId: snapshots.serverId, gb: sql<number>`sum(${snapshots.size})::float` }).from(snapshots).groupBy(snapshots.serverId),
   ]);
   const sids = [...new Set([...ips.map((x) => x.serverId), ...disks.flatMap((d) => (d.serverId ? [d.serverId] : [])), ...snaps.map((x) => x.serverId)])];
-  const list = sids.length ? await db.select().from(servers).where(and(inArray(servers.id, sids), inArray(servers.status, ["running", "stopped"]))) : [];
+  const list = sids.length ? await db.select().from(servers).where(and(inArray(servers.id, sids), inArray(servers.status, ["running", "stopped", "relayout"]))) : [];
   for (const s of list) {
     const parts: string[] = [];
     let monthly = 0;

@@ -9,6 +9,7 @@ import { activity, chats, devopsLeads, notifications, servers, ticketMessages, t
 import { monthKey } from "../billing-extras";
 import { sendEmail, sendSms } from "../messaging";
 import { virt } from "../virt/driver";
+import { relayoutBusy } from "../virt/layout";
 import { confirmFromPoll, pendingPower, purgePower } from "../virt/power";
 import { quotaOf } from "../virt/sync";
 import { rid } from "../util";
@@ -18,7 +19,10 @@ import { rid } from "../util";
     explicit reading and never while a power action is still being confirmed (../virt/power.ts). A batch that
     fails is skipped, not the whole run. */
 export async function collectUsage(db: DB) {
-  const list = await db.select().from(servers).where(and(isNotNull(servers.vpsid), inArray(servers.status, ["running", "stopped"])));
+  const all = await db.select().from(servers).where(and(isNotNull(servers.vpsid), inArray(servers.status, ["running", "stopped"])));
+  // nor while the VPS is being recreated for a new disk layout (../virt/relayout.ts)
+  const busy = await relayoutBusy(db, all.map((s) => s.id));
+  const list = all.filter((s) => !busy.has(s.id));
   const v = await virt();
   const pending = await pendingPower(db, list.map((s) => s.id));
   const now = new Date();

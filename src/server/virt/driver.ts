@@ -3,6 +3,7 @@
      VIRTUALIZOR_KEY and VIRTUALIZOR_PASS are set.
    - SimulatorDriver: deterministic in-process stand-in for dev, CI and demos. */
 import "server-only";
+import { VirtualizorError } from "./virtualizor";
 
 export type PowerAction = "start" | "stop" | "restart" | "poweroff";
 /** plid 0 = no Virtualizor plan: the explicit resources are then required. serverGroup is a group name or its numeric id. */
@@ -12,6 +13,12 @@ export type CreateVps = {
   virt?: string;
   /** disk GB, RAM MB, vCPU cores, monthly traffic GB (0 = unlimited) */
   space?: number; ram?: number; cores?: number; bandwidth?: number;
+  /** GB per disk, primary first (multi-disk create, sent instead of `space`); stUuid: the storage they go on */
+  disks?: number[]; stUuid?: string;
+  /** a specific Virtualizor server (serid) instead of the least-loaded one of serverGroup */
+  node?: number;
+  /** these IPv4 addresses instead of one from the pool */
+  ips?: string[];
 };
 /** what the hypervisor knows about one VPS (manual delivery, double-create guard) */
 export type VpsInfo = { vpsid: number; hostname: string; ip: string; ipv6: string; uid: number; status: "running" | "stopped" | "suspended" };
@@ -43,6 +50,8 @@ export type VpsDetail = {
   osid: number; osName: string; plid: number;
   /** the Virtualizor server (node) it runs on */
   serverId: number; serverName: string;
+  /** the primary disk's storage (st_uuid), "" or absent = unknown */
+  storage?: string;
   /** "unknown": no live power reading this round; the sync then leaves the site's state alone */
   status: PowerState | "unknown"; suspendReason: string;
   /** KB/s, 0 = unlimited */
@@ -77,8 +86,8 @@ export interface VirtDriver {
   getVps(vpsid: number): Promise<VpsInfo | null>;
   /** full details per VPS; a missing key = no answer (skip it), null = confirmed absent from the hypervisor */
   details(vpsids: number[]): Promise<Map<number, VpsDetail | null>>;
-  /** a VPS with this hostname (optionally owned by uid), if one exists */
-  findVps(hostname: string, uid?: number): Promise<VpsInfo | null>;
+  /** a VPS with this hostname (optionally owned by uid, never `exclude`), if one exists */
+  findVps(hostname: string, uid?: number, exclude?: number): Promise<VpsInfo | null>;
   osTemplates(): Promise<{ osid: number; name: string; distro: string }[]>;
   /** gives the VPS `count` IPv4 addresses in total, keeping `keep`; returns them all */
   setIps(vpsid: number, keep: string[], count: number): Promise<string[]>;
@@ -91,8 +100,9 @@ export interface VirtDriver {
   vnc(vpsid: number): Promise<VncInfo>;
   /** the live power state of one VPS (vs_status, else the enduser VPS info); null = no answer */
   powerState(vpsid: number): Promise<PowerState | null>;
-  /** replaces the whole disk layout (GB per disk, primary first); returns each disk's slot. Every disk whose
-      size changes loses its data: the caller reinstalls the OS afterwards */
+  /** replaces the whole disk layout (GB per disk, primary first) through Edit VPS; returns each disk's slot. Disks
+      may only grow or be added: Virtualizor refuses to shrink one ("You cannot shrink the disk space of a vps"), so
+      such a layout is applied by recreating the VPS (./relayout.ts) */
   setDiskLayout(vpsid: number, sizes: number[]): Promise<number[]>;
   /** usage history since `since` (ms), oldest first */
   history(vpsid: number, since: number): Promise<UsagePoint[]>;
@@ -126,17 +136,25 @@ export class SimulatorDriver implements VirtDriver {
   readonly gone = new Set<number>();
   async test() { return { version: "Simulator" }; }
   async ensureUser() { return 1000 + Math.floor(Math.random() * 1000); }
+  /** tests: the node's IP pool is empty, so a create without explicit ips is refused */
+  poolFull = false;
+  /** an address that a VPS the simulator models still holds */
+  private inUse(ip: string, except = 0) { return [...this.vms.values()].some((vm) => vm.vpsid !== except && !this.gone.has(vm.vpsid) && vm.ipv4.includes(ip)); }
   async create(p: CreateVps) {
-    if (!p.plid && !(p.space && p.ram && p.cores)) throw new Error("Virtualizor addvs: space, ram and cores are required without a plan");
+    if (!p.plid && !((p.space || p.disks?.length) && p.ram && p.cores)) throw new Error("Virtualizor addvs: space, ram and cores are required without a plan");
+    if (!p.ips?.length && this.poolFull) throw new VirtualizorError("addvs", "There are no free IPs in the IP pool of the server");
+    for (const x of p.ips ?? []) if (this.inUse(x)) throw new VirtualizorError("addvs", "The IP " + x + " is already in use");
     const vpsid = ++this.seq + Math.floor(Math.random() * 100000);
     const o = (vpsid % 200) + 20;
-    const ip = "185.143.233." + o, ipv6 = "2a01:4f8:c0c:" + vpsid.toString(16) + "::1";
+    const ip = p.ips?.[0] ?? "185.143.233." + o, ipv6 = "2a01:4f8:c0c:" + vpsid.toString(16) + "::1";
     this.made.set(vpsid, { vpsid, hostname: p.hostname, ip, ipv6, uid: p.uid, status: "running", req: p });
+    const disks = p.disks?.length ? p.disks : [p.space || 20];
     this.vms.set(vpsid, {
-      vpsid, uid: p.uid, hostname: p.hostname, cores: p.cores || 1, ramMb: p.ram || 1024, disks: [{ slot: 0, sizeGb: p.space || 20, primary: true }],
-      ipv4: [ip], ipv6: [ipv6], bwLimit: p.bandwidth ?? 0, bwUsed: 0, osid: p.osid, osName: SIM_OS.find((x) => x[0] === p.osid)?.[1] ?? "", plid: p.plid,
-      serverId: 1, serverName: "thr-hv-01", status: "running", suspendReason: "", netSpeed: 0, vnc: { port: 5900 + (vpsid % 1000), password: "" },
+      vpsid, uid: p.uid, hostname: p.hostname, cores: p.cores || 1, ramMb: p.ram || 1024, disks: disks.map((sizeGb, i) => ({ slot: i, sizeGb, primary: i === 0 })),
+      ipv4: p.ips?.length ? [...p.ips] : [ip], ipv6: [ipv6], bwLimit: p.bandwidth ?? 0, bwUsed: 0, osid: p.osid, osName: SIM_OS.find((x) => x[0] === p.osid)?.[1] ?? "", plid: p.plid,
+      serverId: p.node ?? 1, serverName: p.node && p.node !== 1 ? "hv-" + p.node : "thr-hv-01", status: "running", suspendReason: "", netSpeed: 0, vnc: { port: 5900 + (vpsid % 1000), password: "" },
     });
+    if (disks.length > 1) this.slots.set(vpsid, disks.length - 1);
     return { vpsid, ip, ipv6, vncHost: "vnc-" + p.serverGroup.split("-")[0] + ".gereh.net", vncPort: 5900 + (vpsid % 1000), vncPassword: Math.random().toString(36).slice(2, 10) };
   }
   /** tests: a VPS that already exists in the hypervisor */
@@ -165,8 +183,8 @@ export class SimulatorDriver implements VirtDriver {
     }
     return out;
   }
-  async findVps(hostname: string, uid?: number) {
-    const m = [...this.made.values()].find((x) => x.hostname === hostname && (uid === undefined || x.uid === uid) && !this.gone.has(x.vpsid));
+  async findVps(hostname: string, uid?: number, exclude?: number) {
+    const m = [...this.made.values()].find((x) => x.hostname === hostname && (uid === undefined || x.uid === uid) && x.vpsid !== exclude && !this.gone.has(x.vpsid));
     if (!m) return null;
     const { req: _r, ...info } = m;
     return info;
@@ -245,6 +263,7 @@ export class SimulatorDriver implements VirtDriver {
   async osTemplates() { return SIM_OS.map(([osid, name, distro]) => ({ osid, name, distro })); }
   private ipSeq = 0;
   async setIps(vpsid: number, keep: string[], count: number) {
+    for (const x of keep) if (this.inUse(x, vpsid)) throw new VirtualizorError("managevps", "The IP " + x + " is already in use");
     const out = keep.slice(0, count);
     while (out.length < count) out.push("185.143.234." + (((vpsid + ++this.ipSeq * 7) % 230) + 20));
     const vm = this.vms.get(vpsid);
@@ -267,6 +286,8 @@ export class SimulatorDriver implements VirtDriver {
 
   async setDiskLayout(vpsid: number, sizes: number[]) {
     const vm = this.vms.get(vpsid);
+    // what the real Edit VPS answers to a smaller (or removed) disk
+    if (vm && (sizes.length < vm.disks.length || vm.disks.some((d, i) => sizes[i] < d.sizeGb))) throw new VirtualizorError("managevps", "You cannot shrink the disk space of a vps");
     const slots = sizes.map((_, i) => i);
     if (vm) vm.disks = sizes.map((sizeGb, i) => ({ slot: i, sizeGb, primary: i === 0 }));
     this.slots.set(vpsid, sizes.length - 1);

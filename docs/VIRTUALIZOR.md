@@ -66,6 +66,8 @@ Browser (Gereh panel) ──► Gereh API (your backend) ──► Virtualizor A
 | Paid again | Admin `act=vs&unsuspend=vpsid` **(verify)** |
 | Unpaid, 14 days after suspension | Admin `act=vs&delete=vpsid` **(verify)** |
 | Resize (ارتقا) | Admin **Manage VPS** (`act=managevps`, `vpsid`, `plid` or `cores`/`ram`/`space`, then `editvps=1`), and bill the prorated difference |
+| Disk layout, disks only grow or are added | Admin `act=managevps` + `editvps=1` with `space[i][size]` (+ `st_uuid`, `disk_uuid`) per disk; confirmed on a live install. Edit VPS refuses a smaller disk ("You cannot shrink the disk space of a vps") |
+| Disk layout with a smaller or removed disk | Recreate (worker job `virt.relayout`): `act=addvs` on the same node with `slave_server=<serid>` **(verify)**, `space[i][size]` + `space[i][st_uuid]` **(verify on addvs)**, then `act=vs&delete=<old vpsid>`, then `act=managevps` + `editvps=1` with `num_ips` + `ips[0..n]` = the old IPv4s (the existing IP edit; PHP reads it like `ips[]`) **(verify)**. No room or no free IP on the node: delete first, then `addvs` with `ips[]` = the old IPv4s **(verify)** |
 
 ---
 

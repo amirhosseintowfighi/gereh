@@ -160,7 +160,7 @@ export function AdminServices() {
       <PageTitle title="سرویس‌ها" sub="همه سرویس‌های مشتریان" />
       <div className="mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="نوع سرویس" options={[{ id: "servers", label: "سرورها", icon: "server" }, { id: "hosting", label: "هاست‌ها", icon: "layers" }, { id: "domains", label: "دامنه‌ها", icon: "globe" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
-        {tab === "servers" && <DataTable rows={db.servers} searchKeys={["name", "ip", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended", "missing"] },{ key: "loc", label: "موقعیت", options: LOCS.map((l) => l.id) }]} pageSize={10}
+        {tab === "servers" && <DataTable rows={db.servers} searchKeys={["name", "ip", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended", "missing", "relayout"] },{ key: "loc", label: "موقعیت", options: LOCS.map((l) => l.id) }]} pageSize={10}
           columns={[
             { key: "id", label: "شناسه", render: (r) => <span className="mono text-xs">{r.id}</span> },
             { key: "name", label: "نام", render: (r) => <span className="font-bold ltr">{r.name}</span> },

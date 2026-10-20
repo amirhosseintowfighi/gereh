@@ -1,14 +1,16 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { context } from "@/server/ctx";
-import { jobs, serverTasks, servers, transactions, usageHourly, usageSamples, vpsDisks, vpsLayouts, vpsPower, vpsSyncLog } from "@/server/db/schema";
+import { jobs, notifications, serverTasks, servers, transactions, usageHourly, usageSamples, vpsDisks, vpsLayouts, vpsPower, vpsRelayout, vpsSyncLog } from "@/server/db/schema";
+import { outbox } from "@/server/messaging";
+import { isCapacityError } from "@/server/virt/relayout";
 import { buildState } from "@/server/state";
 import { SimulatorDriver, setVirt } from "@/server/virt/driver";
 import { virtSync } from "@/server/virt/sync";
 import { drain } from "@/server/worker";
 import { collectUsage } from "@/server/worker/ops";
 import { vpsBilling } from "@/server/worker/vps";
-import { asUser, call, db, fails, fresh } from "./helpers";
+import { asAdmin, asUser, call, db, fails, fresh } from "./helpers";
 
 /* the real Virtualizor client against a scripted HTTP answer (as in virtualizor.test.ts) */
 const calls: { url: URL; body: URLSearchParams | null }[] = [];
@@ -136,49 +138,183 @@ describe("disk layout", () => {
   let sim: SimulatorDriver;
   beforeEach(async () => {
     sim = new SimulatorDriver(); setVirt(sim);
-    sim.adopt({ vpsid: 3300, hostname: (await row()).hostname, disks: [{ slot: 0, sizeGb: 160, primary: true }], ipv4: ["185.143.232.17"], ipv6: ["2a01:4f8:c0c:1042::1"], bwLimit: 2000, cores: 4, ramMb: 8192, osName: "Ubuntu 24.04" });
+    sim.adopt({ vpsid: 3300, uid: 7, hostname: (await row()).hostname, disks: [{ slot: 0, sizeGb: 160, primary: true }], ipv4: ["185.143.232.17"], ipv6: ["2a01:4f8:c0c:1042::1"], bwLimit: 2000, cores: 4, ramMb: 8192, osName: "Ubuntu 24.04", serverId: 1 });
   });
+  /** runs every due job (and the retries of failed ones) until the queue is quiet */
+  async function runJobs(rounds = 6) {
+    const d = await db();
+    for (let i = 0; i < rounds; i++) {
+      await d.update(jobs).set({ runAt: new Date(0) }).where(eq(jobs.status, "pending"));
+      if (!(await drain(d, 50))) break;
+    }
+  }
+  const relayoutRow = async () => (await (await db()).select().from(vpsRelayout).where(eq(vpsRelayout.serverId, SRV)))[0];
 
-  it("splits 160 GB into 60 + 100 with a typed hostname and a reinstall; billing stays the same", async () => {
+  it("160 → 60 + 100 recreates the VPS in a job: same IP, new vpsid, old VPS deleted, OS reinstalled, price unchanged", async () => {
     await asUser();
     const s = await row();
-    expect(await call("servers.layout", SRV)).toMatchObject({ allowanceGb: 160, disks: [{ slot: 0, sizeGb: 160, primary: true }] });
+    expect(await call("servers.layout", SRV)).toMatchObject({ allowanceGb: 160, disks: [{ slot: 0, sizeGb: 160, primary: true }], relayout: null });
     expect(await fails("servers.setLayout", SRV, { sizes: [60, 90] })).toContain("باید برابر");
     expect(await fails("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12" })).toContain("hostname");
     expect(await fails("servers.setLayout", SRV, { sizes: [60, 100], confirm: s.hostname })).toContain("سیستم‌عامل");
+    const edit = vi.spyOn(sim, "setDiskLayout");
     expect(await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname })).toEqual({ mode: "rebuild" });
-    expect(sim.vms.get(3300)!.disks.map((d) => d.sizeGb)).toEqual([60, 100]);
-    expect(sim.vms.get(3300)!.osName).toBe("Debian 12");
+    // nothing ran in the request: the server shows the transition and the edit path (which refuses a shrink) is not used
+    expect(edit).not.toHaveBeenCalled();
+    expect((await row()).status).toBe("relayout");
+    expect(sim.vms.get(3300)!.disks.map((d) => d.sizeGb)).toEqual([160]);
+    expect((await call<{ relayout: { sizes: number[] } }>("servers.layout", SRV)).relayout).toMatchObject({ sizes: [60, 100], os: "Debian 12" });
+    expect((await state()).db.servers.find((x) => x.id === SRV)!.status).toBe("relayout");
+    expect(await fails("servers.power", SRV, "stop")).toContain("بازسازی");
+    expect(await fails("servers.setLayout", SRV, { sizes: [80, 80], os: "Debian 12", confirm: s.hostname })).toContain("بازسازی");
+    // the usage poll and the sync leave it alone while the job runs
     const d = await db();
-    expect(await row()).toMatchObject({ disk: 60, os: "Debian 12", price: s.price });
-    expect((await d.select().from(vpsDisks).where(eq(vpsDisks.serverId, SRV))).map((x) => [x.sizeGb, x.billed, x.goneAt])).toEqual([[100, false, null]]);
-    const [log] = await d.select().from(vpsSyncLog).where(eq(vpsSyncLog.serverId, SRV));
-    expect(log).toMatchObject({ field: "layout", before: "160", after: "60+100" });
-    expect((await d.select().from(serverTasks).where(eq(serverTasks.serverId, SRV))).some((t) => t.action.startsWith("چیدمان دیسک ۱۶۰→۶۰+۱۰۰"))).toBe(true);
-    // the sync sees exactly this layout: nothing to log
+    await collectUsage(d);
     await virtSync(d, { all: true });
-    expect((await d.select().from(vpsSyncLog).where(eq(vpsSyncLog.serverId, SRV))).filter((l) => l.field === "disk")).toHaveLength(0);
+    expect((await row()).status).toBe("relayout");
+    expect(await d.select().from(usageSamples).where(eq(usageSamples.serverId, SRV))).toHaveLength(0);
+
+    await runJobs();
+    const after = await row();
+    expect(after).toMatchObject({ status: "running", ip: "185.143.232.17", disk: 60, os: "Debian 12", price: s.price });
+    expect(after.vpsid).not.toBe(3300);
+    expect(sim.gone.has(3300)).toBe(true);
+    const vm = sim.vms.get(after.vpsid!)!;
+    expect(vm.disks.map((x) => x.sizeGb)).toEqual([60, 100]);
+    expect(vm).toMatchObject({ osName: "Debian 12", ipv4: ["185.143.232.17"], serverId: 1, cores: 4, ramMb: 8192, bwLimit: 2000, uid: 7 });
+    // created on the same node with the new disks and a temporary address (Plan A), then the old address moved
+    expect(sim.made.get(after.vpsid!)!.req).toMatchObject({ node: 1, disks: [60, 100], uid: 7, osid: 351 });
+    expect(sim.made.get(after.vpsid!)!.req.ips).toBeUndefined();
+    expect(sim.made.size).toBe(1);
+    expect(await relayoutRow()).toBeUndefined();
+    expect((await d.select().from(vpsDisks).where(eq(vpsDisks.serverId, SRV))).map((x) => [x.sizeGb, x.billed, x.goneAt])).toEqual([[100, false, null]]);
+    const [log] = await d.select().from(vpsSyncLog).where(and(eq(vpsSyncLog.serverId, SRV), eq(vpsSyncLog.field, "layout")));
+    expect(log).toMatchObject({ before: "160", after: "60+100" });
+    const tasks = await d.select().from(serverTasks).where(eq(serverTasks.serverId, SRV));
+    expect(tasks.some((t) => t.action.startsWith("چیدمان دیسک ۱۶۰→۶۰+۱۰۰"))).toBe(true);
+    expect(tasks.filter((t) => t.status === "running")).toHaveLength(0);
+    expect(outbox.find((m) => m.subject?.startsWith("تغییر چیدمان دیسک"))!.text).toContain("رمز root جدید");
+    // the sync sees exactly this layout on the new VPS: nothing to log
+    await virtSync(d, { all: true });
+    expect((await d.select().from(vpsSyncLog).where(eq(vpsSyncLog.serverId, SRV))).filter((l) => l.field === "disk" || l.field === "ip")).toHaveLength(0);
     expect((await row()).disk).toBe(60);
     // the split disk is never charged
     await vpsBilling(d);
     expect((await d.select().from(transactions)).some((t) => t.desc.includes("دیسک"))).toBe(false);
-    // and changed again later: 40 + 60 + 60
+    // and changed again later: 40 + 60 + 60 (the 100 GB disk shrinks): recreated again
     expect(await call("servers.setLayout", SRV, { sizes: [40, 60, 60], os: "Debian 12", confirm: s.hostname })).toEqual({ mode: "rebuild" });
-    expect(sim.vms.get(3300)!.disks.map((x) => x.sizeGb)).toEqual([40, 60, 60]);
+    await runJobs();
+    const again = await row();
+    expect(sim.vms.get(again.vpsid!)!.disks.map((x) => x.sizeGb)).toEqual([40, 60, 60]);
+    expect(again.ip).toBe("185.143.232.17");
     expect((await d.select().from(vpsDisks).where(eq(vpsDisks.serverId, SRV))).filter((x) => !x.goneAt).map((x) => x.sizeGb).sort()).toEqual([60, 60]);
   });
 
-  it("adding a disk from unused allowance keeps the data (no reinstall, no hostname)", async () => {
+  it("adding a disk from unused allowance, or growing one, is edited in place (no recreate, no reinstall, no hostname)", async () => {
     await asUser();
     const s = await row();
-    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname });
-    const reinstall = vi.spyOn(sim, "reinstall");
+    const create = vi.spyOn(sim, "create"), reinstall = vi.spyOn(sim, "reinstall"), edit = vi.spyOn(sim, "setDiskLayout");
     // the plan grew by 20 GB (e.g. an upgrade); the new GB are unused
-    await (await db()).update(vpsLayouts).set({ allowanceGb: 180 }).where(eq(vpsLayouts.serverId, SRV));
+    await (await db()).insert(vpsLayouts).values({ serverId: SRV, allowanceGb: 180 });
     expect(await call("servers.layout", SRV)).toMatchObject({ allowanceGb: 180, usedGb: 160 });
-    expect(await call("servers.setLayout", SRV, { sizes: [60, 100, 20] })).toEqual({ mode: "append" });
+    expect(await call("servers.setLayout", SRV, { sizes: [160, 20] })).toEqual({ mode: "append" });
+    expect(sim.vms.get(3300)!.disks.map((x) => x.sizeGb)).toEqual([160, 20]);
+    // another 20 GB later: growing the second disk goes through Edit VPS
+    await (await db()).update(vpsLayouts).set({ allowanceGb: 200 }).where(eq(vpsLayouts.serverId, SRV));
+    expect(await call("servers.setLayout", SRV, { sizes: [160, 40] })).toEqual({ mode: "grow" });
+    expect(edit).toHaveBeenCalledWith(3300, [160, 40]);
+    expect(sim.vms.get(3300)!.disks.map((x) => x.sizeGb)).toEqual([160, 40]);
+    expect(create).not.toHaveBeenCalled();
     expect(reinstall).not.toHaveBeenCalled();
-    expect(sim.vms.get(3300)!.disks.map((x) => x.sizeGb)).toEqual([60, 100, 20]);
+    expect(await row()).toMatchObject({ vpsid: 3300, status: "running", disk: 160, os: s.os, ip: s.ip });
+    expect((await (await db()).select().from(vpsDisks).where(eq(vpsDisks.serverId, SRV))).filter((x) => !x.goneAt).map((x) => x.sizeGb)).toEqual([40]);
+    expect(await relayoutRow()).toBeUndefined();
+  });
+
+  it("the simulator refuses a shrink through Edit VPS, as the real Virtualizor does", async () => {
+    await expect(sim.setDiskLayout(3300, [60, 100])).rejects.toThrow("You cannot shrink the disk space of a vps");
+    await expect(sim.setDiskLayout(3300, [200])).resolves.toEqual([0]);
+  });
+
+  it("Plan B: no free IP for a second VPS → the old one is deleted first and the new one gets its address", async () => {
+    await asUser();
+    sim.poolFull = true;
+    const create = vi.spyOn(sim, "create"), remove = vi.spyOn(sim, "remove");
+    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: (await row()).hostname });
+    await runJobs();
+    const after = await row();
+    expect(after).toMatchObject({ status: "running", ip: "185.143.232.17", disk: 60, os: "Debian 12" });
+    expect(sim.gone.has(3300)).toBe(true);
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1][0]).toMatchObject({ ips: ["185.143.232.17"], node: 1, disks: [60, 100] });
+    // the old VPS went before the second create
+    expect(remove.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[1]);
+    expect(sim.vms.get(after.vpsid!)!.ipv4).toEqual(["185.143.232.17"]);
+    const tasks = (await (await db()).select().from(serverTasks).where(eq(serverTasks.serverId, SRV))).map((t) => t.action);
+    expect(tasks.some((t) => t.includes("جای VPS دوم را ندارد"))).toBe(true);
+  });
+
+  it("Plan A refused for another reason: the old VPS stays as it was, with Virtualizor's reason in the log", async () => {
+    await asUser();
+    const { VirtualizorError } = await import("@/server/virt/virtualizor");
+    vi.spyOn(sim, "create").mockRejectedValue(new VirtualizorError("addvs", { os: "Invalid OS template" }));
+    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: (await row()).hostname });
+    await runJobs();
+    expect(await row()).toMatchObject({ vpsid: 3300, status: "running", disk: 160, os: "Ubuntu 24.04" });
+    expect(sim.gone.has(3300)).toBe(false);
+    expect(await relayoutRow()).toBeUndefined();
+    const d = await db();
+    expect((await d.select().from(serverTasks).where(eq(serverTasks.serverId, SRV))).some((t) => t.status === "failed" && t.action.includes("Invalid OS template"))).toBe(true);
+    expect((await d.select().from(notifications).where(eq(notifications.userId, "a1"))).some((n) => n.text.includes("Invalid OS template"))).toBe(true);
+  });
+
+  it("Plan B create keeps failing → three tries, then manual delivery (undelivered orders) with the full error for staff", async () => {
+    await asUser();
+    const { VirtualizorError } = await import("@/server/virt/virtualizor");
+    const create = vi.spyOn(sim, "create").mockRejectedValue(new VirtualizorError("addvs", "There is not enough space on the storage"));
+    const d = await db();
+    await d.update(servers).set({ orderRef: "INV-9001:0" }).where(eq(servers.id, SRV));
+    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: (await row()).hostname });
+    await runJobs(10);
+    // Plan A once, then Plan B three times
+    expect(create).toHaveBeenCalledTimes(4);
+    expect(sim.gone.has(3300)).toBe(true);
+    const s = await row();
+    expect(s).toMatchObject({ status: "provisioning", vpsid: null });
+    expect(s.provisionError).toContain("not enough space");
+    expect(s.provisionTicket).toBeTruthy();
+    expect(await relayoutRow()).toMatchObject({ step: "failed", plan: "B" });
+    expect((await d.select().from(notifications).where(eq(notifications.userId, "a1"))).some((n) => n.text.includes("تحویل دستی") && n.text.includes("not enough space"))).toBe(true);
+    await asAdmin();
+    const list = await call<{ key: string; serverId: string; error: string }[]>("provisioning.list");
+    expect(list.find((x) => x.serverId === SRV)).toMatchObject({ key: "INV-9001:0" });
+    // staff fix the node and retry: the rebuild continues as Plan B (never the original order)
+    create.mockRestore();
+    await call("provisioning.retry", "INV-9001:0");
+    await runJobs();
+    expect(await row()).toMatchObject({ status: "running", ip: "185.143.232.17", disk: 60, provisionError: null });
+    expect(await relayoutRow()).toBeUndefined();
+  });
+
+  it("a retry after a crash mid-job continues from the stored step and never creates twice", async () => {
+    await asUser();
+    const create = vi.spyOn(sim, "create");
+    vi.spyOn(sim, "buildDone").mockResolvedValueOnce(false);
+    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: (await row()).hostname });
+    const d = await db();
+    await drain(d, 5);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(await relayoutRow()).toMatchObject({ step: "build" });
+    // the worker died right after addvs, before the new vpsid was stored
+    await d.update(vpsRelayout).set({ step: "create", newVpsid: null }).where(eq(vpsRelayout.serverId, SRV));
+    // and the delete of the old VPS fails once
+    vi.spyOn(sim, "remove").mockRejectedValueOnce(new Error("socket hang up"));
+    await runJobs(10);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(sim.made.size).toBe(1);
+    const s = await row();
+    expect(s).toMatchObject({ status: "running", vpsid: [...sim.made.keys()][0], ip: "185.143.232.17" });
+    expect(sim.gone.has(3300)).toBe(true);
   });
 
   it("a paid extra disk must be detached before a destructive layout", async () => {
@@ -187,14 +323,15 @@ describe("disk layout", () => {
     expect(await fails("servers.setLayout", SRV, { sizes: [80, 80], os: "Debian 12", confirm: (await row()).hostname })).toContain("جدا کنید");
   });
 
-  it("a layout Virtualizor refuses shows its reason (not a bare 500), logs a failed task and leaves the row as is", async () => {
+  it("an edit Virtualizor refuses shows its reason (not a bare 500), logs a failed task and leaves the row as is", async () => {
     await asUser();
     const s = await row();
+    await (await db()).insert(vpsLayouts).values({ serverId: SRV, allowanceGb: 200 });
     const { VirtualizorError } = await import("@/server/virt/virtualizor");
     vi.spyOn(sim, "setDiskLayout").mockRejectedValue(new VirtualizorError("managevps", { space: "Invalid disk size" }));
-    const msg = await fails("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname });
+    const msg = await fails("servers.setLayout", SRV, { sizes: [200] });
     const { errorResponse } = await import("@/server/http");
-    const res = errorResponse(await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname }).catch((e) => e));
+    const res = errorResponse(await call("servers.setLayout", SRV, { sizes: [200] }).catch((e) => e));
     expect(res.status).toBe(502);
     expect((await res.json()).error).toContain("Invalid disk size");
     expect(msg).toContain("Invalid disk size");
@@ -333,6 +470,28 @@ describe("Virtualizor request shapes", () => {
     const h = await v.history(3300, Date.now() - 3600_000);
     expect(h).toHaveLength(1);
     expect(h[0]).toMatchObject({ cpu: 12, ram: 40, netOut: 7 });
+  });
+
+  it("addvs for a relayout: several disks, one given node and explicit addresses; a normal order is unchanged", async () => {
+    reply = (u) => (act(u) === "addvs" ? { newvs: { vpsid: "5001", ips: { 0: "185.143.232.17" }, ipv6: ["2a01::5"] } } : act(u) === "servergroups" ? { servergroups: { 3: { sgid: "3", sg_name: "thr-cloud" } } } : {});
+    const v = real();
+    const made = await v.create({ uid: 7, plid: 0, osid: 351, hostname: "web.example.com", rootpass: "Secret-123", serverGroup: "", node: 4, cores: 4, ram: 8192, bandwidth: 2000, disks: [60, 100], stUuid: "st1", ips: ["185.143.232.17"] });
+    expect(made).toMatchObject({ vpsid: 5001, ip: "185.143.232.17", ipv6: "2a01::5" });
+    const post = calls.find((c) => act(c.url) === "addvs")!.body!;
+    expect(Object.fromEntries(post)).toMatchObject({ "space[0][size]": "60", "space[1][size]": "100", "space[0][st_uuid]": "st1", "space[1][st_uuid]": "st1", slave_server: "4", num_ips: "1", cores: "4", ram: "8192", bandwidth: "2000" });
+    expect(post.getAll("ips[]")).toEqual(["185.143.232.17"]);
+    for (const k of ["space", "node_select", "server_group", "plid"]) expect(post.has(k)).toBe(false);
+    expect(calls.some((c) => act(c.url) === "servergroups")).toBe(false);
+    calls.length = 0;
+    await v.create({ uid: 7, plid: 12, osid: 347, hostname: "a.example.com", rootpass: "Secret-123", serverGroup: "thr-cloud", space: 80, ram: 4096, cores: 2 });
+    const plain = calls.find((c) => act(c.url) === "addvs")!.body!;
+    expect(Object.fromEntries(plain)).toMatchObject({ space: "80", node_select: "1", server_group: "3", num_ips: "1" });
+    expect([...plain.keys()].some((k) => k.startsWith("space[") || k === "slave_server" || k === "ips[]")).toBe(false);
+  });
+
+  it("only a lack of room or addresses counts as a capacity refusal (Plan B deletes the old VPS first)", () => {
+    for (const m of ["There are no free IPs in the IP pool", "There is no storage available", "The server does not have enough RAM", "Not enough space on the storage", "Insufficient resources on the server"]) expect(isCapacityError(m)).toBe(true);
+    for (const m of ["Invalid OS template", "Plan not found for disk", "You cannot shrink the disk space of a vps", "The IP 1.2.3.4 is already in use", "HTTP 403"]) expect(isCapacityError(m)).toBe(false);
   });
 
   it("vs_status as a list of entries, and garbage status values, are read safely", async () => {

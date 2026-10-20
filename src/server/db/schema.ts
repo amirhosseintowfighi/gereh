@@ -1800,3 +1800,38 @@ export const usageHourly = pgTable("usage_hourly", {
   ioRead: real("io_read").notNull().default(0), ioWrite: real("io_write").notNull().default(0),
   n: integer("n").notNull().default(0),
 }, (t) => [uniqueIndex("usage_hourly_uq").on(t.serverId, t.hour)]);
+
+/* ---------- VPS disk layout by recreating the VPS (0030_vps_relayout) ---------- */
+/** a layout that shrinks or removes a disk: Virtualizor cannot shrink through Edit VPS, so the worker (virt.relayout)
+    creates a new VPS on the same node and deletes the old one. One row per server while it runs; each step is stored
+    so a retried job continues where it stopped and never creates twice. */
+export const vpsRelayout = pgTable("vps_relayout", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  /** GB per disk, primary first */
+  sizes: jsonb("sizes").$type<number[]>().notNull(),
+  /** the layout before, e.g. "160" or "60+100" */
+  before: text("before").notNull(),
+  allowanceGb: integer("allowance_gb").notNull(),
+  osid: integer("osid").notNull(), os: text("os").notNull(),
+  /** the new VPS's root password (sealed) */
+  passEnc: text("pass_enc").notNull(),
+  /** read | create | build | delete | ip | finish | failed */
+  step: text("step").notNull().default("read"),
+  /** A: the new VPS next to the old one, then the addresses move; B: the old VPS goes first and its addresses are reused */
+  plan: text("plan").notNull().default("A"),
+  prevStatus: text("prev_status").notNull(),
+  /** the old VPS as Virtualizor described it before anything changed */
+  old: jsonb("old").$type<{ vpsid: number; uid: number; plid: number; cores: number; ramMb: number; bwLimit: number; node: number; ipv4: string[]; ipv6: string[]; storage: string; disks: number[] }>(),
+  newVpsid: integer("new_vpsid"),
+  newIp: text("new_ip").notNull().default(""), newIpv6: text("new_ipv6").notNull().default(""),
+  vnc: jsonb("vnc").$type<{ host: string; port: number; password: string }>(),
+  /** the old addresses are on the new VPS */
+  ipKept: boolean("ip_kept").notNull().default(false),
+  checks: integer("checks").notNull().default(0),
+  errors: integer("errors").notNull().default(0),
+  lastError: text("last_error").notNull().default(""),
+  /** who asked: «مشتری» or «پشتیبانی» */
+  by: text("by").notNull().default(""),
+  requestedAt: ts("requested_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

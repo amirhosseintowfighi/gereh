@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { IP_PRICE, PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
-import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
+import { api, genPassword, refresh, useDB, useMyId, type FwRule, type Server } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
@@ -29,18 +29,26 @@ export function ServerDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const s = db.servers.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
+  // the VPS is being recreated for a new disk layout (a few minutes): the panel is re-read until it is done
+  const relayout = s?.status === "relayout";
+  useEffect(() => {
+    if (!relayout) return;
+    const t = setInterval(() => { void refresh(); }, 5000);
+    return () => clearInterval(t);
+  }, [relayout]);
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   if (!s.vpsid) return <ServerPending s={s} />;
   const suspended = s.status === "suspended";
   // gone from Virtualizor (sync): only inspection until staff sort it out
   const missing = s.status === "missing";
-  const tabs = suspended || missing ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
+  const tabs = suspended || missing ? TABS.filter((t) => READONLY_TABS.has(t.id)) : relayout ? TABS.filter((t) => READONLY_TABS.has(t.id) || t.id === "disks") : TABS;
   const cur = tabs.some((t) => t.id === tab) ? tab : "overview";
   return (
     <div>
       <PageTitle back={["/panel/servers", "سرورهای ابری"]} title={<span className="ltr inline-block">{s.name}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusBadge s={s.status} /><CopyText text={s.ip} className="mono text-xs text-white/60" /><span>{locLabel(s.loc)}</span><span>{s.os}</span></span>}
-        action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <PowerControls s={s} />} />
+        action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge>
+          : relayout ? <span role="status" className="inline-flex items-center gap-2 text-sm text-white/75"><Icon name="loader-circle" size={16} className="animate-spin" />در حال بازسازی دیسک‌ها…</span> : <PowerControls s={s} />} />
       <DelayBanner s={s} />
       <div className="mb-5"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
@@ -49,7 +57,7 @@ export function ServerDetail({ id }: { id: string }) {
         {cur === "console" && <VncPanel s={s} />}
         {cur === "access" && <ServerAccess s={s} />}
         {cur === "network" && <ServerNetwork s={s} />}
-        {cur === "disks" && <><LayoutCard s={s} /><DisksPanel s={s} /></>}
+        {cur === "disks" && <><LayoutCard s={s} />{!relayout && <DisksPanel s={s} />}</>}
         {cur === "firewall" && <ServerFirewall s={s} />}
         {cur === "backups" && <ServerBackups s={s} />}
         {cur === "boot" && <ServerBoot s={s} />}

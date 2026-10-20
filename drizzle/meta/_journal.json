@@ -197,6 +197,13 @@
       "when": 1791600029000,
       "tag": "0029_vps_panel",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791600030000,
+      "tag": "0030_vps_relayout",
+      "breakpoints": true
     }
   ]
 }

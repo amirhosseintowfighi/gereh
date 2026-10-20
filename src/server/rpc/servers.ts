@@ -31,6 +31,7 @@ export async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = 
   if (opts.write && s!.status === "suspended" && !staff) fail("این سرور معلق است؛ ابتدا صورتحساب‌ها را پرداخت کنید.", 403);
   if (opts.write && s!.status === "provisioning" && !staff) fail("سرور هنوز تحویل نشده است؛ پس از آماده شدن قابل مدیریت است.");
   if (opts.write && s!.status === "missing" && !staff) fail("این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است. برای پیگیری تیکت ثبت کنید.", 409);
+  if (opts.write && s!.status === "relayout" && !staff) fail("دیسک‌های این سرور در حال بازسازی است؛ چند دقیقه دیگر دوباره امتحان کنید.", 409);
   return s!;
 }
 export const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حال ساخت است."); return s.vpsid!; };
@@ -110,6 +111,7 @@ export const serversRpc = {
     const s = await server(ctx, sid, { write: false });
     // a paid order still being delivered is closed from Admin › undelivered orders (refund), not deleted
     if (s.status === "provisioning" && !s.vpsid) fail("این سفارش هنوز در حال آماده‌سازی است و حذف نمی‌شود؛ برای انصراف تیکت ثبت کنید.");
+    if (s.status === "relayout") fail("دیسک‌های این سرور در حال بازسازی است؛ پس از پایان آن می‌توانید سرور را حذف کنید.", 409);
     if (s.vpsid) await (await virt()).remove(s.vpsid);
     await ctx.db.delete(servers).where(eq(servers.id, s.id));
     await log(ctx, s, "trash-2", "حذف سرور " + s.name);

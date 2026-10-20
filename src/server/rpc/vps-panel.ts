@@ -8,14 +8,14 @@ import { z } from "zod";
 import { faDateTime } from "@/lib/jalali";
 import { vpsPrices } from "../billing-extras";
 import { actor, isStaff, method, type Ctx } from "../ctx";
-import { osTemplates, serverTasks, servers, sshKeys, usageHourly, usageSamples, users, vpsDisks, vpsSync, vpsSyncLog } from "../db/schema";
+import { osTemplates, serverTasks, servers, sshKeys, usageHourly, usageSamples, vpsDisks, vpsRelayout, vpsSync, vpsSyncLog } from "../db/schema";
 import { rateLimit } from "../auth";
-import { sendEmail } from "../messaging";
 import { virt, type UsagePoint } from "../virt/driver";
-import { layoutOf, planLayout, saveAllowance } from "../virt/layout";
+import { layoutOf, planLayout, saveAllowance, writeLayoutDisks } from "../virt/layout";
+import { startRelayout } from "../virt/relayout";
 import { requestSync } from "../virt/sync";
 import { notifyStaff } from "../worker/provision";
-import { addTask, fail, genPassword, logActivity, logAudit, rid } from "../util";
+import { addTask, fail, logActivity, logAudit, rid } from "../util";
 import { server, vps } from "./servers";
 
 const id = z.string().max(40);
@@ -56,32 +56,45 @@ export const vpsPanelRpc = {
   /* ---------- disk layout ---------- */
   "servers.layout": method(z.tuple([id]), async (ctx, [sid]) => {
     const s = await server(ctx, sid, { write: false });
-    const [l, p] = await Promise.all([layoutOf(ctx.db, s), vpsPrices(ctx.db)]);
+    const [l, p, [r]] = await Promise.all([layoutOf(ctx.db, s), vpsPrices(ctx.db), ctx.db.select().from(vpsRelayout).where(eq(vpsRelayout.serverId, s.id))]);
     return {
       allowanceGb: l.allowance, usedGb: l.used, maxDisks: p.maxDisks + 1,
       disks: [{ slot: 0, sizeGb: s.disk, primary: true }, ...l.free.map((d) => ({ slot: d.slot ?? 0, sizeGb: d.sizeGb, primary: false }))],
       billed: l.billed.map((d) => ({ name: d.name, sizeGb: d.sizeGb })),
+      // a layout being applied by recreating the VPS: what it becomes and how far it got
+      relayout: r ? { sizes: r.sizes, os: r.os, step: r.step, since: faDateTime(r.requestedAt) } : null,
     };
   }),
 
   /** sizes: GB per disk, primary first, summing to the allowance. Appending disks from unused allowance keeps every
-      byte; anything else recreates the disks and reinstalls `os`, after the hostname is typed as confirmation. */
+      byte, and so does growing disks (Virtualizor's Edit VPS). A disk that shrinks or goes away cannot be edited:
+      the VPS is recreated with `os` by the worker (../virt/relayout.ts), after the hostname is typed as confirmation;
+      that answers { mode: "rebuild" } at once and the server shows the transition until it is done. */
   "servers.setLayout": method(z.tuple([id, z.object({ sizes: z.array(z.number().int().min(1).max(100_000)).min(1).max(16), os: z.string().max(80).optional(), confirm: z.string().max(253).optional() })]), async (ctx, [sid, req]) => {
     const s = await server(ctx, sid);
     const vpsid = vps(s);
     const [l, p] = await Promise.all([layoutOf(ctx.db, s), vpsPrices(ctx.db)]);
     const mode = planLayout(l.current, req.sizes, l.allowance, p.maxDisks + 1);
     const [tpl] = mode === "rebuild" && req.os ? await ctx.db.select().from(osTemplates).where(and(eq(osTemplates.name, req.os), eq(osTemplates.on, true))) : [];
+    const billedMsg = "دیسک‌های اضافه خریداری‌شده (" + l.billed.map((d) => d.name).join("، ") + ") به سرور وصل‌اند؛ پیش از تغییر چیدمان آن‌ها را جدا کنید تا داده‌شان حفظ شود.";
     if (mode === "rebuild") {
       if ((req.confirm ?? "").trim().toLowerCase() !== s.hostname.toLowerCase()) fail("برای تأیید، hostname سرور را دقیق بنویسید: " + s.hostname);
-      if (l.billed.length) fail("دیسک‌های اضافه خریداری‌شده (" + l.billed.map((d) => d.name).join("، ") + ") به سرور وصل‌اند؛ پیش از تغییر چیدمان آن‌ها را جدا کنید تا داده‌شان حفظ شود.");
+      if (l.billed.length) fail(billedMsg);
       if (!tpl) fail("سیستم‌عاملی را که پس از تغییر چیدمان نصب می‌شود انتخاب کنید.");
+      if (s.status !== "running" && s.status !== "stopped") fail("سرور باید روشن یا خاموش باشد تا دیسک‌هایش بازسازی شود.", 409);
     }
+    // Edit VPS rewrites the whole disk list: a paid disk left out of it would be dropped
+    if (mode === "grow" && l.billed.length) fail(billedMsg);
     await limit(ctx, s, "layout", 3, 600);
-    const v = await virt();
+    const staffDid = isStaff(ctx, "services") && ctx.auth!.uid !== s.userId;
     const before = l.current.join("+"), after = req.sizes.join("+");
-    let pass = "";
-    let osName = s.os;
+    if (mode === "rebuild") {
+      await startRelayout(ctx.db, s, { sizes: req.sizes, before: l.current, allowance: l.allowance, osid: tpl!.osid, os: tpl!.name, by: staffDid ? "پشتیبانی" : "مشتری" });
+      await log(ctx, s, "hard-drive", "درخواست چیدمان دیسک " + l.current.map(fa).join("+") + "→" + req.sizes.map(fa).join("+") + " گیگ (ساخت دوباره سرور) روی " + s.name);
+      if (staffDid) await logAudit(ctx.db, actor(ctx), "تغییر چیدمان دیسک " + after + " (ساخت دوباره)", s.id, ctx.ip);
+      return { mode };
+    }
+    const v = await virt();
     try {
       if (mode === "append") {
         for (const size of req.sizes.slice(l.current.length)) {
@@ -89,20 +102,8 @@ export const vpsPanelRpc = {
           await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: size, slot, billed: false });
         }
       } else {
-        osName = tpl!.name;
         const slots = await v.setDiskLayout(vpsid, req.sizes);
-        pass = genPassword();
-        await v.reinstall(vpsid, tpl!.osid, pass);
-        const now = new Date();
-        for (const d of l.free) await ctx.db.update(vpsDisks).set({ goneAt: now }).where(eq(vpsDisks.id, d.id));
-        for (let i = 1; i < req.sizes.length; i++) {
-          const slot = slots[i] ?? i;
-          // a row the sync marked gone for this slot is reused, so the slot stays unique per server
-          const [old] = await ctx.db.select().from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), eq(vpsDisks.slot, slot), eq(vpsDisks.billed, false)));
-          if (old) await ctx.db.update(vpsDisks).set({ sizeGb: req.sizes[i], goneAt: null }).where(eq(vpsDisks.id, old.id));
-          else await ctx.db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: req.sizes[i], slot, billed: false });
-        }
-        await ctx.db.update(servers).set({ disk: req.sizes[0], os: osName, rescue: false, iso: "" }).where(eq(servers.id, s.id));
+        await writeLayoutDisks(ctx.db, s, req.sizes, slots);
       }
     } catch (e) {
       // the customer sees Virtualizor's reason; staff get the full error and the task log keeps it
@@ -114,16 +115,12 @@ export const vpsPanelRpc = {
       throw e;
     }
     await saveAllowance(ctx.db, s.id, l.allowance);
-    const text = "چیدمان دیسک " + l.current.map(fa).join("+") + "→" + req.sizes.map(fa).join("+") + " گیگ" + (mode === "rebuild" ? " (با نصب مجدد " + osName + ")" : "");
+    const text = "چیدمان دیسک " + l.current.map(fa).join("+") + "→" + req.sizes.map(fa).join("+") + " گیگ" + (mode === "grow" ? " (بدون پاک شدن داده)" : "");
     await addTask(ctx.db, s.id, text);
-    await ctx.db.insert(vpsSyncLog).values({ serverId: s.id, userId: s.userId, field: "layout", before, after, text: text + " توسط " + (isStaff(ctx, "services") && ctx.auth!.uid !== s.userId ? "پشتیبانی" : "مشتری") });
+    await ctx.db.insert(vpsSyncLog).values({ serverId: s.id, userId: s.userId, field: "layout", before, after, text: text + " توسط " + (staffDid ? "پشتیبانی" : "مشتری") });
     await log(ctx, s, "hard-drive", text + " روی " + s.name);
-    if (isStaff(ctx, "services") && ctx.auth!.uid !== s.userId) await logAudit(ctx.db, actor(ctx), "تغییر چیدمان دیسک " + after, s.id, ctx.ip);
+    if (staffDid) await logAudit(ctx.db, actor(ctx), "تغییر چیدمان دیسک " + after, s.id, ctx.ip);
     await requestSync(ctx.db, s.id);
-    if (pass) {
-      const [owner] = await ctx.db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
-      if (owner) await sendEmail(owner.email, "تغییر چیدمان دیسک " + s.name, "دیسک‌های " + s.name + " (" + s.ip + ") به " + after + " گیگابایت تغییر کرد و " + osName + " دوباره نصب شد.\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
-    }
     return { mode };
   }),
 

@@ -6,11 +6,12 @@ import { z } from "zod";
 import { BILLING, type Sku } from "@/lib/catalog";
 import { faDateTime, addMonths } from "@/lib/jalali";
 import { actor, method, needStaff, type Ctx } from "../ctx";
-import { hosting, jobs, planMap, plans, servers, transactions, users, domains, osTemplates } from "../db/schema";
+import { hosting, jobs, planMap, plans, servers, transactions, users, domains, osTemplates, vpsRelayout } from "../db/schema";
 import { enqueue } from "../jobs";
 import { getLocations, locationGroup } from "../locations";
 import { lineAmount, listUndelivered } from "../provisioning";
 import { virt } from "../virt/driver";
+import { retryRelayout } from "../virt/relayout";
 import { addTask, fail, logActivity, logAudit, nextId, notify, rid } from "../util";
 import { NS, errorText, sendCredentials, serverSpec } from "../worker/provision";
 
@@ -44,6 +45,8 @@ const cycleMonths = (sku: Sku | null) => (sku?.t === "plan" ? BILLING.find((b) =
 async function retryOne(ctx: Ctx, k: string) {
   const o = await order(ctx, k);
   if (o.resolved) fail("این سفارش قبلا بسته شده است.");
+  // a disk-layout rebuild that could not recreate the VPS continues from its stored step (never the original order)
+  if (o.srv && (await retryRelayout(ctx.db, o.srv.id))) return;
   if (o.srv?.vpsid && o.srv.status === "building") {
     // build timed out: poll the hypervisor again with the original root password
     const [w] = await ctx.db.select().from(jobs).where(and(eq(jobs.type, "provision.server"), sql`(${jobs.payload}->>'serverId') = ${o.srv.id}`)).orderBy(desc(jobs.id)).limit(1);
@@ -73,6 +76,8 @@ async function deliverServer(ctx: Ctx, o: Awaited<ReturnType<typeof order>>, d: 
   let sid = o.srv?.id;
   if (o.srv) {
     const billing = extra.billing ?? o.srv.billing;
+    // delivered by hand: a failed disk-layout rebuild is closed with it
+    await ctx.db.delete(vpsRelayout).where(eq(vpsRelayout.serverId, o.srv.id));
     await ctx.db.update(servers).set({ vpsid: d.vpsid ?? null, ip: info.ip, ipv6: info.ipv6, hostname: info.hostname, status: info.status, provisionError: null,
       paidUntil: billing === "hourly" ? null : addMonths(new Date(), months) }).where(eq(servers.id, o.srv.id));
   } else {

@@ -2,10 +2,10 @@
    The primary disk is servers.disk; the other disks of the layout are vps_disks rows with billed=false (never
    charged: the plan price covers the allowance). Disks bought separately (billed=true) are not part of it. */
 import "server-only";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { servers, vpsDisks, vpsLayouts } from "../db/schema";
-import { fail } from "../util";
+import { servers, vpsDisks, vpsLayouts, vpsRelayout } from "../db/schema";
+import { fail, rid } from "../util";
 
 type Server = typeof servers.$inferSelect;
 export const MIN_PRIMARY_GB = 10, MIN_DISK_GB = 5;
@@ -23,8 +23,9 @@ export async function layoutOf(db: DB, s: Server) {
 }
 
 /** "append": only new disks from unused allowance, nothing existing changes (no data is lost);
-    "rebuild": any existing disk changes size or goes away, so the disks are recreated and the OS reinstalled */
-export function planLayout(current: number[], sizes: number[], allowance: number, maxDisks: number): "append" | "rebuild" {
+    "grow": existing disks only grow (and new ones may be added): Virtualizor's Edit VPS does it in place;
+    "rebuild": an existing disk shrinks or goes away, which Edit VPS refuses, so the VPS is recreated (./relayout.ts) */
+export function planLayout(current: number[], sizes: number[], allowance: number, maxDisks: number): "append" | "grow" | "rebuild" {
   if (!sizes.length) fail("دست‌کم یک دیسک لازم است.");
   if (sizes.length > maxDisks) fail("حداکثر " + maxDisks.toLocaleString("fa-IR") + " دیسک.");
   if (sizes.some((x) => !Number.isInteger(x))) fail("اندازه دیسک‌ها باید عدد صحیح (گیگابایت) باشد.");
@@ -33,7 +34,8 @@ export function planLayout(current: number[], sizes: number[], allowance: number
   const sum = sizes.reduce((a, b) => a + b, 0);
   if (sum !== allowance) fail("جمع دیسک‌ها (" + sum.toLocaleString("fa-IR") + ") باید برابر سهم دیسک سرور (" + allowance.toLocaleString("fa-IR") + " گیگابایت) باشد.");
   if (sizes.length === current.length && sizes.every((x, i) => x === current[i])) fail("چیدمان دیسک تغییری نکرده است.");
-  return sizes.length > current.length && current.every((x, i) => sizes[i] === x) ? "append" : "rebuild";
+  if (sizes.length > current.length && current.every((x, i) => sizes[i] === x)) return "append";
+  return sizes.length >= current.length && current.every((x, i) => sizes[i] >= x) ? "grow" : "rebuild";
 }
 
 /** after a plan change to `totalGb`: on a split server the primary takes the difference so the other layout disks
@@ -44,6 +46,26 @@ export async function primaryFor(db: DB, s: Server, totalGb: number) {
   const extra = l.used - s.disk;
   return { primary: Math.max(MIN_PRIMARY_GB, totalGb - extra), allowance: l.allowance, split: true };
 }
+/** after a layout was applied: the primary is servers.disk, disks 1..n are unbilled vps_disks rows by slot */
+export async function writeLayoutDisks(db: DB, s: Server, sizes: number[], slots: number[]) {
+  const now = new Date();
+  await db.update(vpsDisks).set({ goneAt: now }).where(and(eq(vpsDisks.serverId, s.id), eq(vpsDisks.billed, false), isNull(vpsDisks.goneAt)));
+  for (let i = 1; i < sizes.length; i++) {
+    const slot = slots[i] ?? i;
+    // a row the sync marked gone for this slot is reused, so the slot stays unique per server
+    const [old] = await db.select().from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), eq(vpsDisks.slot, slot), eq(vpsDisks.billed, false)));
+    if (old) await db.update(vpsDisks).set({ sizeGb: sizes[i], goneAt: null }).where(eq(vpsDisks.id, old.id));
+    else await db.insert(vpsDisks).values({ id: rid("vd"), userId: s.userId, serverId: s.id, name: "disk-" + slot, loc: s.loc, sizeGb: sizes[i], slot, billed: false });
+  }
+  await db.update(servers).set({ disk: sizes[0] }).where(eq(servers.id, s.id));
+}
+
+/** servers whose VPS is being recreated for a new layout (./relayout.ts): no poll or sync may touch them */
+export async function relayoutBusy(db: DB, ids: string[]) {
+  if (!ids.length) return new Set<string>();
+  return new Set((await db.select({ id: vpsRelayout.serverId }).from(vpsRelayout).where(and(inArray(vpsRelayout.serverId, ids), ne(vpsRelayout.step, "failed")))).map((r) => r.id));
+}
+
 export async function saveAllowance(db: DB, serverId: string, allowanceGb: number) {
   await db.insert(vpsLayouts).values({ serverId, allowanceGb }).onConflictDoUpdate({ target: vpsLayouts.serverId, set: { allowanceGb, updatedAt: new Date() } });
 }

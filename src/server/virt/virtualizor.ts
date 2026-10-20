@@ -52,6 +52,12 @@ export function parseDisks(raw: unknown): VpsDetail["disks"] {
   }).filter((d) => d.sizeGb > 0);
   return list.sort((a, b) => Number(b.primary) - Number(a.primary) || a.slot - b.slot);
 }
+/** st_uuid of the primary disk (else the first that has one); "" = unknown */
+export function primaryStorage(raw: unknown): string {
+  const list = values(raw).filter((d): d is Record<string, unknown> => !!d && typeof d === "object");
+  const d = list.find((x) => Number(x.primary) === 1 && x.st_uuid) ?? list.find((x) => x.st_uuid);
+  return d ? String(d.st_uuid) : "";
+}
 /** one act=vs entry (+ its live status) → VpsDetail; field names (verify). The act=vs listing is configuration
     only: it has no live power state (its entries carry no reliable `status`), so power comes from `live` alone and
     is "unknown" without it. Only the admin `suspended` flag is read from the listing. */
@@ -157,22 +163,27 @@ export class VirtualizorDriver implements VirtDriver {
     return hit.sgid;
   }
 
-  /* addvs: virt, a node (node_select=1 + server_group=<sgid>, i.e. the least-loaded server of the group), and
-     either a plan (plid) or explicit space/ram/cores/bandwidth. Posted resources override the plan's. */
+  /* addvs: virt, a node (node_select=1 + server_group=<sgid>, i.e. the least-loaded server of the group, or
+     slave_server=<serid> for one given server (verify)), and either a plan (plid) or explicit
+     space/ram/cores/bandwidth. Posted resources override the plan's. Several disks go as space[i][size] (+ st_uuid),
+     the same form Edit VPS accepts; explicit addresses as ips[] (verify). */
   async create(p: CreateVps) {
-    if (!p.plid && !(p.space && p.ram && p.cores)) throw new VirtualizorError("addvs", "بدون Plan ID باید فضای دیسک، رم و تعداد هسته مشخص باشد");
-    const sgid = await this.groupId(p.serverGroup);
+    if (!p.plid && !((p.space || p.disks?.length) && p.ram && p.cores)) throw new VirtualizorError("addvs", "بدون Plan ID باید فضای دیسک، رم و تعداد هسته مشخص باشد");
+    const placement: Dict = p.node ? { slave_server: p.node } : { node_select: 1, server_group: await this.groupId(p.serverGroup) };
     const virt = p.virt || process.env.VIRTUALIZOR_VIRT || "kvm";
-    type AddVs = { newvs?: { vpsid?: number | string; ips?: string[]; ipv6?: string[]; vnc?: string; vncport?: number | string; vncpass?: string }; vs_info?: { vpsid?: number | string } };
+    type AddVs = { newvs?: { vpsid?: number | string; ips?: unknown; ipv6?: unknown; vnc?: string; vncport?: number | string; vncpass?: string }; vs_info?: { vpsid?: number | string } };
+    const disks: Dict = {};
+    if (p.disks?.length) p.disks.forEach((gb, i) => { disks["space[" + i + "][size]"] = gb; if (p.stUuid) disks["space[" + i + "][st_uuid]"] = p.stUuid; });
+    else if (p.space) disks.space = p.space;
     // IPv6 only where the server has an IPv6 pool: VIRTUALIZOR_IPV6=0 turns it off; without it, a node that
     // rejects the order for lack of IPv6 is retried once with none
     const ipv6 = process.env.VIRTUALIZOR_IPV6 === "0" ? 0 : 1;
     const order = (num_ips6: number) => this.admin<AddVs>("addvs", {}, {
       addvps: 1, virt, uid: p.uid, osid: p.osid, hostname: p.hostname, rootpass: p.rootpass,
-      node_select: 1, server_group: sgid, num_ips: 1, num_ips6, vnc: 1,
+      ...placement, num_ips: p.ips?.length || 1, ...(p.ips?.length ? { ips: p.ips } : {}), num_ips6, vnc: 1,
       ...(p.plid ? { plid: p.plid } : {}),
-      // space GB, ram MB, bandwidth GB/month (0 = unlimited) (verify: 3.x also accepts space[0][size])
-      ...(p.space ? { space: p.space } : {}), ...(p.ram ? { ram: p.ram } : {}), ...(p.cores ? { cores: p.cores } : {}), ...(p.bandwidth !== undefined ? { bandwidth: p.bandwidth } : {}),
+      // space GB, ram MB, bandwidth GB/month (0 = unlimited)
+      ...disks, ...(p.ram ? { ram: p.ram } : {}), ...(p.cores ? { cores: p.cores } : {}), ...(p.bandwidth !== undefined ? { bandwidth: p.bandwidth } : {}),
       ...(p.sshKey ? { sshkey: p.sshKey } : {}), ...(p.cloudInit ? { cloud_init: p.cloudInit } : {}),
     });
     let j: AddVs;
@@ -185,7 +196,8 @@ export class VirtualizorDriver implements VirtDriver {
     const vpsid = Number(vs.vpsid);
     if (!vpsid) throw new VirtualizorError("addvs", "no vpsid in response");
     const n = j.newvs ?? {};
-    return { vpsid, ip: n.ips?.[0] ?? "", ipv6: n.ipv6?.[0] ?? "", vncHost: this.cfg.host, vncPort: Number(n.vncport ?? 0), vncPassword: n.vncpass ?? "" };
+    const ip4 = values(n.ips).map(String).filter((x) => !x.includes(":")), ip6 = [...values(n.ipv6), ...values(n.ips).filter((x) => String(x).includes(":"))].map(String);
+    return { vpsid, ip: ip4[0] ?? "", ipv6: ip6[0] ?? "", vncHost: this.cfg.host, vncPort: Number(n.vncport ?? 0), vncPassword: n.vncpass ?? "" };
   }
 
   async buildDone(vpsid: number) {
@@ -306,23 +318,26 @@ export class VirtualizorDriver implements VirtDriver {
         if (!list.length) out.set(vpsid, null);
         return;
       }
-      let disks = parseDisks(v.disks ?? v.disk);
+      let raw = v.disks ?? v.disk;
+      let disks = parseDisks(raw);
       if (!disks.length) {
         const m = await this.admin<{ vps?: Record<string, unknown>; disks?: unknown }>("managevps", { vpsid }).catch(() => ({} as { vps?: Record<string, unknown>; disks?: unknown }));
-        disks = parseDisks(m.vps?.disks ?? m.disks);
+        raw = m.vps?.disks ?? m.disks;
+        disks = parseDisks(raw);
       }
       // not in the vs_status answer: the enduser VPS info has the power state; still nothing = "unknown"
       const l = live.get(vpsid) ?? (await this.enduserLive(vpsid).catch(() => null)) ?? undefined;
-      out.set(vpsid, parseDetail(v, vpsid, disks, l));
+      const storage = primaryStorage(raw);
+      out.set(vpsid, { ...parseDetail(v, vpsid, disks, l), ...(storage ? { storage } : {}) });
     };
     // a few at a time; a VPS whose call fails is simply not answered this round
     for (let i = 0; i < vpsids.length; i += 4) await Promise.all(vpsids.slice(i, i + 4).map((id) => one(id).catch(() => undefined)));
     return out;
   }
   /** act=vs filtered by vpshostname (verify); exact match only */
-  async findVps(hostname: string, uid?: number) {
+  async findVps(hostname: string, uid?: number, exclude?: number) {
     const j = await this.admin<{ vs?: Record<string, Record<string, unknown>> }>("vs", { vpshostname: hostname });
-    const v = Object.values(j.vs ?? {}).find((x) => String(x.hostname ?? "").toLowerCase() === hostname.toLowerCase() && (uid === undefined || Number(x.uid) === uid));
+    const v = Object.entries(j.vs ?? {}).map(([k, x]): Record<string, unknown> => ({ ...x, vpsid: x.vpsid ?? k })).find((x) => String(x.hostname ?? "").toLowerCase() === hostname.toLowerCase() && (uid === undefined || Number(x.uid) === uid) && Number(x.vpsid) !== exclude);
     return v ? this.info(v, Number(v.vpsid)) : null;
   }
   async osTemplates() {
