@@ -13,7 +13,7 @@ import { AccountSwitcher, roleLabel } from "./team";
 import { AdminSearch } from "./admin-user";
 import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
-import { Menu, useDialog } from "../ui-client";
+import { AsyncButton, Menu, useDialog } from "../ui-client";
 
 type NavItem = { href: string; label: string; icon: string; group?: string; tag?: string };
 const USER_NAV: NavItem[] = [
@@ -193,13 +193,13 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         {kind === "user" && session?.role === "admin" && session.actorId && session.userId !== session.actorId && (
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="eye" size={16} />در حال مشاهده پنل <b>{user.name}</b> به‌عنوان مدیر؛ همه اقدامات در گزارش فعالیت ثبت می‌شود.</span>
-            <button type="button" onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }} className={BTN_G + BTN_SM}>پایان و بازگشت به مدیریت</button>
+            <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }}>پایان و بازگشت به مدیریت</AsyncButton>
           </div>
         )}
         {kind === "user" && session?.teamRole && (
           <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-sky-300/25 bg-sky-400/[0.07] px-4 py-3 text-sm text-sky-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="users-round" size={16} />در حساب <b>{user?.name}</b> با نقش «{roleLabel(session.teamRole)}» کار می‌کنید.</span>
-            <button type="button" onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }} className={BTN_G + BTN_SM}>بازگشت به حساب خودم</button>
+            <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }}>بازگشت به حساب خودم</AsyncButton>
           </div>
         )}
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>

@@ -7,7 +7,7 @@ import { api, refresh, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty } from "../ui";
-import { PageTitle, Tabs } from "../ui-client";
+import { AsyncButton, PageTitle, Tabs } from "../ui-client";
 
 /** staff inbox for site live chat; polls every 5s while open */
 export function AdminChats() {
@@ -69,7 +69,7 @@ export function AdminChats() {
                   <h2 className="font-extrabold">{sel.name} {sel.userId && <Badge tone="green">مشتری {sel.userId}</Badge>}</h2>
                   <p className="text-[11px] text-white/55 mt-1 flex flex-wrap gap-x-3">{sel.email && <span className="ltr">{sel.email}</span>}<span>شروع {sel.at}</span>{sel.page && <span className="ltr">{sel.page}</span>}</p>
                 </div>
-                {sel.status === "open" && <button type="button" onClick={async () => { await api.chat.close(sel.id); notify("گفتگو بسته شد"); }} className={BTN_G + BTN_SM}><Icon name="circle-check" size={14} />بستن گفتگو</button>}
+                {sel.status === "open" && <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.chat.close(sel.id); notify("گفتگو بسته شد"); }}><Icon name="circle-check" size={14} />بستن گفتگو</AsyncButton>}
               </header>
               <ol ref={list} aria-live="polite" className="flex-1 overflow-y-auto p-4 space-y-3">
                 {sel.messages.map((m) => m.from === "system" ? (

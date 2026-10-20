@@ -83,7 +83,7 @@ function UserRow({ d, u, all, onSecret }: { d: PaasDb; u: PaasDb["users"][number
         <span><b dir="ltr" className="font-mono text-sm">{u.username}</b>
           <span className="block text-[11px] text-white/50 mt-0.5">{u.grants.length ? u.grants.map((x) => x.db + (x.access === "ro" ? " (خواندنی)" : " (کامل)")).join("، ") : "بدون دسترسی"}</span></span>
         <span className="flex gap-1.5">
-          <button type="button" onClick={async () => { const r = await api.dbaas.userCredentials(d.id, u.id); onSecret({ title: "رمز " + u.username, ...r }); }} className={BTN_G + BTN_SM}><Icon name="eye" size={14} /></button>
+          <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.dbaas.userCredentials(d.id, u.id); onSecret({ title: "رمز " + u.username, ...r }); }}><Icon name="eye" size={14} /></AsyncButton>
           <button type="button" onClick={() => setEdit((x) => !x)} className={BTN_G + BTN_SM} aria-label="دسترسی‌ها"><Icon name="shield" size={14} /></button>
           <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز جدید ساخته شود؟ اتصال‌های فعلی این کاربر قطع می‌شود." onClick={async () => { const r = await api.dbaas.resetUserPassword(d.id, u.id); onSecret({ title: "رمز جدید " + u.username, ...r }); }}><Icon name="key-round" size={14} /></AsyncButton>
           <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"کاربر " + u.username + " حذف شود؟"} onClick={async () => { await api.dbaas.dropUser(d.id, u.id); notify("کاربر حذف شد", "trash-2"); }}><Icon name="trash-2" size={14} /></AsyncButton>
@@ -120,7 +120,7 @@ export function DbPanels({ d }: { d: PaasDb }) {
             <span><b>{tools.find((t) => t.id === p.tool)?.label ?? p.tool}</b> <a href={p.url} target="_blank" rel="noreferrer" dir="ltr" className="font-mono text-xs acc hover:underline">{p.url}</a>
               <span className="block text-[11px] text-white/50">تا {p.expiresAt} ({fa(Math.ceil(p.minutesLeft / 60))} ساعت دیگر)</span></span>
             <span className="flex gap-1.5">
-              <button type="button" className={BTN_G + BTN_SM} onClick={async () => setShown({ title: "مشخصات ورود", ...(await api.dbaas.panelCredentials(p.id)) })}><Icon name="key-round" size={14} /></button>
+              <AsyncButton className={BTN_G + " h-9 w-9"} label="مشخصات ورود" onClick={async () => setShown({ title: "مشخصات ورود", ...(await api.dbaas.panelCredentials(p.id)) })}><Icon name="key-round" size={14} /></AsyncButton>
               <AsyncButton danger className={BTN_G + BTN_SM} onClick={() => api.dbaas.closePanel(p.id)}>بستن</AsyncButton>
             </span>
           </li>
