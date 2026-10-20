@@ -251,6 +251,31 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     expect(v.appId).toBeNull(); // never reached the platform
   });
 
+  it("a dropped upstream stream («terminated») is retried and the build still completes", async () => {
+    await asUser();
+    const id = await call<string>("builder.create", { prompt: "صفحه معرفی کافه", stack: "static" });
+    const out = render({ plan: "- صفحه اصلی", files: { "index.html": "<!doctype html><html lang=fa><title>کافه</title><body>کافه</body></html>" }, summary: "ساخته شد." });
+    let calls = 0;
+    const broken = () => new Response(new ReadableStream({ start(c) {
+      c.enqueue(new TextEncoder().encode("data: " + JSON.stringify({ choices: [{ index: 0, delta: { content: "<plan>- نیمه" } }] }) + "\n\n"));
+      c.error(new TypeError("terminated"));
+    } }), { headers: { "content-type": "text/event-stream" } });
+    const ok = () => new Response("data: " + JSON.stringify({ choices: [{ index: 0, delta: { content: out } }] }) + "\n\ndata: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
+    setAiUpstream({ name: "http", chat: async () => (++calls === 1 ? broken() : ok()), models: async () => [] });
+    const ev = await run(id, "صفحه معرفی کافه");
+    expect(calls).toBe(2);
+    expect(ev.some((e) => e.type === "status" && e.text.includes("دوباره تلاش"))).toBe(true);
+    expect(ev.at(-1)?.type).toBe("done");
+    expect(await call<string>("builder.file", id, "index.html")).toContain("کافه");
+    // a connection that keeps dropping ends with a clear message, not a bare «terminated»
+    calls = 0;
+    setAiUpstream({ name: "http", chat: async () => { calls++; return broken(); }, models: async () => [] });
+    const ev2 = await run(id, "رنگ دکمه‌ها را سبز کن");
+    expect(calls).toBe(3);
+    const err = ev2.find((e) => e.type === "error") as { message: string } | undefined;
+    expect(err?.message).toContain("اتصال به سرویس مدل");
+  });
+
   it("the maintenance agent diagnoses a crash, notifies the owner and can apply its patch", async () => {
     await asUser();
     const id = await newProject("سایت نوبت‌دهی آرایشگاه", "node");

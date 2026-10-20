@@ -5,7 +5,7 @@ import "server-only";
 import { and, eq, lte, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
 import { schedules } from "../db/schema";
-import { claim, complete, enqueue, retry, type JobType } from "../jobs";
+import { claim, complete, enqueue, heartbeat, retry, type JobType } from "../jobs";
 import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
@@ -115,7 +115,7 @@ export async function tickSchedule(db: DB) {
     must not stop the queue behind it */
 const LONG_JOBS: Partial<Record<JobType, number>> = {
   "dbaas.import": 90, "paas.diskBackup": 60, "paas.backup": 60, "wp.import": 90, "paas.toolsDaily": 30, "paas.daily": 30,
-  "dbaas.init": 20, "builder.maintain": 20, "builder.fix": 10, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
+  "dbaas.init": 20, "builder.maintain": 30, "builder.fix": 15, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
   // recreating a VPS for a new disk layout: create, delete and the address move (the build wait re-queues itself)
   "virt.relayout": 30,
 };
@@ -127,22 +127,46 @@ function withLimit<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
     .finally(() => clearTimeout(t));
 }
 
-/** processes due jobs until none are left (or `max` were run); returns how many ran */
-export async function drain(db: DB, max = 100) {
+/* Lanes. One sequential loop let a slow job (an AI maintenance scan, a Virtualizor sync over every VPS, a
+   database import) hold everything queued behind it, so an app build, a VPS delivery or a disk relayout sat at
+   «در انتظار» for as long as that job ran. Each lane now claims one job at a time for itself:
+   - work: what a customer just asked for (builds, deliveries, power, notifications…), never waits on the others
+   - long: customer-started jobs that may run for many minutes (imports, backups, the VPS relayout, builder fixes)
+   - background: the periodic jobs in SCHEDULE
+   Sizes: WORKER_WORK (3), WORKER_LONG (2), WORKER_BACKGROUND (2). */
+const PERIODIC = [...new Set(SCHEDULE.map(([t]) => t))];
+const LONG_EVENT = (Object.keys(LONG_JOBS) as JobType[]).filter((t) => !PERIODIC.includes(t));
+const size = (env: string, d: number) => Math.max(1, Math.min(16, Math.round(Number(process.env[env])) || d));
+export const LANES: { name: string; size: number; filter: { only?: JobType[]; except?: JobType[] } }[] = [
+  { name: "work", size: size("WORKER_WORK", 3), filter: { except: [...PERIODIC, ...LONG_EVENT] } },
+  { name: "long", size: size("WORKER_LONG", 2), filter: { only: LONG_EVENT } },
+  { name: "background", size: size("WORKER_BACKGROUND", 2), filter: { only: PERIODIC } },
+];
+
+/** runs one claimed job within its time limit, renewing its lock every minute while it runs */
+async function runJob(db: DB, job: Awaited<ReturnType<typeof claim>>[number]) {
+  const beat = setInterval(() => { heartbeat(db, job.id).catch(() => {}); }, 60_000);
+  beat.unref?.();
+  try {
+    await withLimit(Promise.resolve(handlers[job.type as JobType](db, (job.payload as Record<string, unknown>) ?? {})), jobLimitMs(job.type), job.type + " #" + job.id);
+    await complete(db, job.id);
+  } catch (e) {
+    const dead = await retry(db, job.id, job.attempts, e instanceof Error ? e.stack || e.message : String(e));
+    console.error("[worker] " + job.type + " #" + job.id + (dead ? " failed permanently" : " will retry"), e);
+  } finally {
+    clearInterval(beat);
+  }
+}
+
+/** processes due jobs one at a time until none are left (or `max` were run); returns how many ran. A job is
+    claimed only when it is about to run, so nothing sits «running» behind another job. */
+export async function drain(db: DB, max = 100, filter: { only?: JobType[]; except?: JobType[] } = {}) {
   let ran = 0;
   while (ran < max) {
-    const batch = await claim(db, Math.min(10, max - ran));
-    if (!batch.length) break;
-    for (const job of batch) {
-      ran++;
-      try {
-        await withLimit(Promise.resolve(handlers[job.type as JobType](db, (job.payload as Record<string, unknown>) ?? {})), jobLimitMs(job.type), job.type + " #" + job.id);
-        await complete(db, job.id);
-      } catch (e) {
-        const dead = await retry(db, job.id, job.attempts, e instanceof Error ? e.stack || e.message : String(e));
-        console.error("[worker] " + job.type + " #" + job.id + (dead ? " failed permanently" : " will retry"), e);
-      }
-    }
+    const [job] = await claim(db, 1, filter);
+    if (!job) break;
+    ran++;
+    await runJob(db, job);
   }
   return ran;
 }
@@ -150,18 +174,29 @@ export async function drain(db: DB, max = 100) {
 let timer: ReturnType<typeof setInterval> | null = null;
 export function startWorker(getDb: () => Promise<DB>, everyMs = 5000) {
   if (timer) return;
-  let busy = false;
+  let ticking = false;
+  const active = new Map<string, number>();
+  const kick = (db: DB) => {
+    for (const lane of LANES) {
+      while ((active.get(lane.name) ?? 0) < lane.size) {
+        active.set(lane.name, (active.get(lane.name) ?? 0) + 1);
+        drain(db, 50, lane.filter)
+          .catch((e) => console.error("[worker] " + lane.name + " lane failed", e))
+          .finally(() => active.set(lane.name, (active.get(lane.name) ?? 1) - 1));
+      }
+    }
+  };
   timer = setInterval(async () => {
-    if (busy) return;
-    busy = true;
+    if (ticking) return;
+    ticking = true;
     try {
       const db = await getDb();
       await tickSchedule(db);
-      await drain(db);
+      kick(db);
     } catch (e) {
       console.error("[worker] tick failed", e);
     } finally {
-      busy = false;
+      ticking = false;
     }
   }, everyMs);
   timer.unref?.();

@@ -4,7 +4,7 @@
 import "server-only";
 
 /** the longest one model call of the builder may take */
-const AGENT_TIMEOUT_MS = Number(process.env.BUILDER_AGENT_TIMEOUT_MS || 6 * 60_000);
+const AGENT_TIMEOUT_MS = Number(process.env.BUILDER_AGENT_TIMEOUT_MS || 10 * 60_000);
 import { and, asc, desc, eq, gt, gte, sql } from "drizzle-orm";
 import { costOf, estimateTokens } from "@/lib/ai";
 import { BUILDER_DEFAULT_MODEL, filesError, pathError, type BuilderEvent, type BuilderStack } from "@/lib/builder";
@@ -66,6 +66,9 @@ export async function pickModel(db: DB, wanted: string): Promise<ResolvedModel |
 }
 
 class Stopped extends Error {}
+const NET_RETRIES = 2;
+/** a connection-level failure (worth retrying), not an answer from the model service */
+const isNetError = (e: unknown) => /terminated|fetch failed|other side closed|socket|ECONNRESET|ETIMEDOUT|EPIPE|UND_ERR/i.test(((e as Error)?.message ?? "") + " " + String((e as { cause?: { code?: string; message?: string } })?.cause?.code ?? (e as { cause?: { message?: string } })?.cause?.message ?? ""));
 const simDelay = () => Number(process.env.BUILDER_SIM_DELAY_MS ?? (process.env.NODE_ENV === "test" ? 0 : 70));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -158,13 +161,25 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   let text = "", usage: ChatUsage | null = null, plan = "";
   const seen = new Set<string>();
   try {
-    for await (const c of answer(model, p.stack, task, abort.signal)) {
-      if (c.usage) usage = c.usage;
-      if (!c.delta) continue;
-      text += c.delta;
-      const pl = streamedPlan(text);
-      if (pl && pl !== plan && (pl.length - plan.length > 24 || /<\/plan>/i.test(text))) { plan = pl; emit({ type: "plan", text: pl }); }
-      for (const path of streamedPaths(text)) if (!seen.has(path)) { seen.add(path); emit({ type: "file", path }); }
+    // a dropped upstream connection ("terminated", "fetch failed", a reset socket) restarts the answer, up to
+    // NET_RETRIES times: long international streams from the server are cut now and then
+    for (let attempt = 0; ; attempt++) {
+      try {
+        for await (const c of answer(model, p.stack, task, abort.signal)) {
+          if (c.usage) usage = c.usage;
+          if (!c.delta) continue;
+          text += c.delta;
+          const pl = streamedPlan(text);
+          if (pl && pl !== plan && (pl.length - plan.length > 24 || /<\/plan>/i.test(text))) { plan = pl; emit({ type: "plan", text: pl }); }
+          for (const path of streamedPaths(text)) if (!seen.has(path)) { seen.add(path); emit({ type: "file", path }); }
+        }
+        break;
+      } catch (e) {
+        if (e instanceof Stopped || abort.signal.aborted || attempt >= NET_RETRIES || !isNetError(e)) throw e;
+        console.warn("[builder] upstream dropped (" + (e as Error).message + "); retry " + (attempt + 1));
+        text = ""; plan = ""; usage = null;
+        emit({ type: "status", text: "اتصال به سرویس مدل قطع شد؛ دوباره تلاش می‌شود…" });
+      }
     }
     if (o.signal?.aborted) throw new Stopped();
     clearTimeout(stall);
@@ -176,7 +191,8 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
     if (stopped && text) await meter.close("cancelled", { inTokens: inEst, outTokens: outT, charged: costOf(inEst, outT, model), estimated: true, error: "stopped by the customer" });
     else await meter.close("error", { error: (e as Error).message });
     const cost = stopped && text ? costOf(inEst, outT, model) : 0;
-    const msg = stopped ? "ساخت متوقف شد؛ تغییری ذخیره نشد." : (e as Error).message || "سرویس مدل در دسترس نبود؛ مبلغی کسر نشد.";
+    const msg = stopped ? (o.signal?.aborted ? "ساخت متوقف شد؛ تغییری ذخیره نشد." : "پاسخ مدل بیش از حد طول کشید و متوقف شد؛ تغییری ذخیره نشد. درخواست را کوتاه‌تر یا در چند مرحله بدهید.")
+      : isNetError(e) ? "اتصال به سرویس مدل چند بار قطع شد؛ تغییری ذخیره نشد. چند لحظه دیگر دوباره تلاش کنید." : (e as Error).message || "سرویس مدل در دسترس نبود؛ مبلغی کسر نشد.";
     const run = await finish(stopped ? "cancelled" : "failed", { log: msg, cost, outTokens: outT, inTokens: inEst }, interactive ? msg : undefined);
     await db.update(builderProjects).set({ status: restore, spent: sql`${builderProjects.spent} + ${cost}` }).where(eq(builderProjects.id, p.id));
     if (!stopped) emit({ type: "error", message: msg });

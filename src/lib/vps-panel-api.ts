@@ -3,7 +3,7 @@
 import { refresh } from "./store";
 
 export type LayoutView = { allowanceGb: number; usedGb: number; maxDisks: number; disks: { slot: number; sizeGb: number; primary: boolean }[]; billed: { name: string; sizeGb: number }[];
-  relayout: { sizes: number[]; os: string; step: string; since: string } | null };
+  relayout: { sizes: number[]; os: string; step: string; since: string; lastError: string; errors: number; cancellable: boolean } | null };
 export type StatsRange = "1h" | "24h" | "7d" | "30d";
 export type StatsPoint = { t: number; cpu: number; ram: number; disk: number; netIn: number; netOut: number; ioRead: number; ioWrite: number };
 export type StatsView = { range: StatsRange; source: "site" | "virtualizor" | "none"; points: StatsPoint[] };
@@ -30,6 +30,7 @@ const write = <T = void>(name: string, ...args: unknown[]) => rpc<T>(name, args,
 
 export const panelApi = {
   layout: (sid: string) => read<LayoutView>("servers.layout", sid),
+  cancelRelayout: (sid: string) => write<void>("servers.cancelRelayout", sid),
   setLayout: (sid: string, req: { sizes: number[]; os?: string; confirm?: string }) => write<{ mode: "append" | "grow" | "rebuild" }>("servers.setLayout", sid, req),
   stats: (sid: string, range: StatsRange) => read<StatsView>("servers.stats", sid, range),
   logs: (sid: string, f: { page: number; source: LogSource; q: string }) => read<LogsView>("servers.logs", sid, f),

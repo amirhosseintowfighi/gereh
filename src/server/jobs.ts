@@ -23,17 +23,22 @@ export async function enqueue(db: DB | Tx, type: JobType, payload: Record<string
   await db.insert(jobs).values({ type, payload, runAt: opts.runAt ?? new Date(), dedupe: opts.dedupe ?? null }).onConflictDoNothing();
 }
 
-/** claims up to `n` due jobs (crashed workers' jobs are reclaimed after 10 minutes) */
-export async function claim(db: DB, n: number) {
+/** claims up to `n` due jobs, optionally only of (or never of) some types. A running job's lock is renewed by
+    heartbeat() while it runs, so only a crashed worker's job (no heartbeat for 10 minutes) is reclaimed. */
+export async function claim(db: DB, n: number, f: { only?: JobType[]; except?: JobType[] } = {}) {
+  const types = f.only?.length ? sql` and ${inArray(jobs.type, f.only)}` : f.except?.length ? sql` and ${jobs.type} not in (${sql.join(f.except.map((t) => sql`${t}`), sql`, `)})` : sql``;
   return db.transaction(async (tx) => {
     const due = await tx.select({ id: jobs.id }).from(jobs)
-      .where(sql`(${jobs.status} = 'pending' and ${jobs.runAt} <= now()) or (${jobs.status} = 'running' and ${jobs.lockedAt} < now() - interval '10 minutes')`)
+      .where(sql`((${jobs.status} = 'pending' and ${jobs.runAt} <= now()) or (${jobs.status} = 'running' and ${jobs.lockedAt} < now() - interval '10 minutes'))${types}`)
       .orderBy(asc(jobs.runAt)).limit(n).for("update", { skipLocked: true });
     if (!due.length) return [];
     return tx.update(jobs).set({ status: "running", lockedAt: new Date(), attempts: sql`${jobs.attempts} + 1` })
       .where(inArray(jobs.id, due.map((d) => d.id))).returning();
   });
 }
+
+/** renews a running job's lock so a long job is not taken for a crashed one */
+export const heartbeat = (db: DB, id: number) => db.update(jobs).set({ lockedAt: new Date() }).where(and(eq(jobs.id, id), eq(jobs.status, "running")));
 
 export const complete = (db: DB, id: number) => db.update(jobs).set({ status: "done", lockedAt: null, lastError: null }).where(eq(jobs.id, id));
 

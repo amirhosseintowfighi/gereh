@@ -95,6 +95,13 @@ export function LayoutCard({ s }: { s: Server }) {
             IP سرور تا جای ممکن حفظ می‌شود؛ اگر تغییر کند با اعلان و ایمیل خبر می‌دهیم. رمز root جدید پس از پایان کار ایمیل و یک بار در همین صفحه نمایش داده می‌شود.
           </p>
           {v.relayout && <p className="text-[11px] text-sky-100/60 mt-1">درخواست: <span className="tabular">{v.relayout.since}</span></p>}
+          {v.relayout?.lastError && <p className="text-xs leading-6 text-amber-200 mt-2">آخرین خطا{v.relayout.errors > 1 ? <> (<span className="tabular">{fa(v.relayout.errors)}</span> بار)</> : ""}: <span dir="auto">{v.relayout.lastError}</span> — دوباره تلاش می‌شود.</p>}
+          {v.relayout?.cancellable && (
+            <div className="mt-3">
+              <AsyncButton className={BTN_G + BTN_SM} confirmText="تغییر چیدمان لغو شود؟" onClick={async () => { await panelApi.cancelRelayout(s.id); notify("تغییر چیدمان لغو شد؛ سرور بدون تغییر ماند", "x"); x.reload(); }}>لغو و برگشت به حالت قبل</AsyncButton>
+              <span className="text-[11px] text-sky-100/60 ms-2">هنوز هیچ تغییری روی سرور انجام نشده است.</span>
+            </div>
+          )}
         </div>
       </div>
     </Card>

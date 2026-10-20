@@ -10,6 +10,7 @@
 #   gereh ai-domain [api.gereh.dev]            serve the AI API on its own host name (Nginx + SSL)
 #   gereh ai-key                               set the upstream AI provider key (asked hidden, never echoed)
 #   gereh doctor                               diagnose a site that does not load correctly
+#   gereh jobs                                 the background queue: what waits, what runs, recent failures
 #   gereh version
 #
 # Settings live in /etc/gereh.conf (written by the installer).
@@ -296,6 +297,18 @@ cmd_ai_key() {
 }
 
 # ---------- diagnostics ----------
+cmd_jobs() {
+  local url; url=$(db_url)
+  [[ -n $url ]] || die "DATABASE_URL در $SHARED/.env پیدا نشد."
+  command -v psql >/dev/null || die "psql نصب نیست (apt install postgresql-client)."
+  echo "== در صف و در حال اجرا (نوع، وضعیت، تعداد، قدیمی‌ترین) =="
+  psql "$url" -P pager=off -c "select type, status, count(*) as n, min(run_at) as oldest, max(attempts) as max_attempts from jobs where status in ('pending','running') group by 1,2 order by 2,4;"
+  echo "== در حال اجرا (از کی) =="
+  psql "$url" -P pager=off -c "select id, type, attempts, locked_at, now() - locked_at as for from jobs where status = 'running' order by locked_at;"
+  echo "== آخرین خطاها =="
+  psql "$url" -P pager=off -c "select id, type, status, attempts, run_at, left(split_part(coalesce(last_error,''), E'\\n', 1), 160) as error from jobs where last_error is not null and status in ('pending','failed') order by id desc limit 15;"
+}
+
 cmd_doctor() {
   local ok="${c_ok}✓${c_off}" bad="${c_err}✗${c_off}" mid="${c_warn}!${c_off}" host=${DOMAIN:-127.0.0.1}
   echo "گره — عیب‌یابی ($(date '+%F %T'))"
@@ -360,6 +373,7 @@ case ${1:-help} in
   env) cmd_env ;;
   status) cmd_status ;;
   doctor) cmd_doctor ;;
+  jobs) cmd_jobs ;;
   logs) shift; journalctl -u "$SERVICE" --no-pager -n 200 "$@" ;;
   restart|stop|start) need_root; systemctl "$1" "$SERVICE"; [[ $1 == stop ]] || { health 60 && say "انجام شد."; } ;;
   version) cat "$CURRENT/.release-commit" 2>/dev/null || echo unknown ;;

@@ -317,6 +317,21 @@ describe("disk layout", () => {
     expect(sim.gone.has(3300)).toBe(true);
   });
 
+  it("a relayout that has not touched Virtualizor yet can be cancelled; the server goes back as it was", async () => {
+    await asUser();
+    const s = await row();
+    await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname });
+    expect((await call<{ relayout: { cancellable: boolean } }>("servers.layout", SRV)).relayout.cancellable).toBe(true);
+    await call("servers.cancelRelayout", SRV);
+    expect((await row()).status).toBe(s.status);
+    expect((await call<{ relayout: unknown }>("servers.layout", SRV)).relayout).toBeNull();
+    const d = await db();
+    expect(await d.select().from(jobs).where(and(eq(jobs.type, "virt.relayout"), eq(jobs.status, "pending")))).toHaveLength(0);
+    await drain(d, 20);
+    expect(sim.vms.get(3300)!.disks.map((x) => x.sizeGb)).toEqual([160]);
+    expect(await fails("servers.cancelRelayout", SRV)).toContain("لغو");
+  });
+
   it("a paid extra disk must be detached before a destructive layout", async () => {
     await asUser();
     await call("servers.addDisk", SRV, { name: "data", sizeGb: 20 });

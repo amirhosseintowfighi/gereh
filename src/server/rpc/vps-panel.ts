@@ -12,7 +12,7 @@ import { osTemplates, serverTasks, servers, sshKeys, usageHourly, usageSamples, 
 import { rateLimit } from "../auth";
 import { virt, type UsagePoint } from "../virt/driver";
 import { layoutOf, planLayout, saveAllowance, writeLayoutDisks } from "../virt/layout";
-import { startRelayout } from "../virt/relayout";
+import { cancelRelayout, relayoutCancellable, startRelayout } from "../virt/relayout";
 import { requestSync } from "../virt/sync";
 import { notifyStaff } from "../worker/provision";
 import { addTask, fail, logActivity, logAudit, rid } from "../util";
@@ -62,8 +62,16 @@ export const vpsPanelRpc = {
       disks: [{ slot: 0, sizeGb: s.disk, primary: true }, ...l.free.map((d) => ({ slot: d.slot ?? 0, sizeGb: d.sizeGb, primary: false }))],
       billed: l.billed.map((d) => ({ name: d.name, sizeGb: d.sizeGb })),
       // a layout being applied by recreating the VPS: what it becomes and how far it got
-      relayout: r ? { sizes: r.sizes, os: r.os, step: r.step, since: faDateTime(r.requestedAt) } : null,
+      relayout: r ? { sizes: r.sizes, os: r.os, step: r.step, since: faDateTime(r.requestedAt), lastError: r.lastError, errors: r.errors, cancellable: relayoutCancellable(r) } : null,
     };
+  }),
+
+  /** drops a relayout that has not touched Virtualizor yet (e.g. stuck behind the queue or refused at once) */
+  "servers.cancelRelayout": method(z.tuple([id]), async (ctx, [sid]) => {
+    const s = await server(ctx, sid, { write: false });
+    if (s.userId !== ctx.auth?.uid && !isStaff(ctx, "services")) fail("دسترسی ندارید.", 403);
+    if (!(await cancelRelayout(ctx.db, s.id, isStaff(ctx, "services") && ctx.auth!.uid !== s.userId ? "پشتیبانی" : "مشتری"))) fail("بازسازی از مرحله‌ای گذشته که لغو آن امن نیست؛ تا پایان آن صبر کنید یا با پشتیبانی تماس بگیرید.", 409);
+    await log(ctx, s, "x", "لغو تغییر چیدمان دیسک " + s.name);
   }),
 
   /** sizes: GB per disk, primary first, summing to the allowance. Appending disks from unused allowance keeps every

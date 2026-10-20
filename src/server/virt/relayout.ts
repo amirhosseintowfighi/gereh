@@ -9,10 +9,10 @@
    Until it is done the server is "relayout": the usage poll and the sync leave it alone, and the customer can only
    watch. Billing is unchanged. */
 import "server-only";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
 import { dropCredential, stashCredential } from "../credentials";
-import { serverTasks, servers, users, vpsPower, vpsRelayout, vpsSyncLog } from "../db/schema";
+import { jobs, serverTasks, servers, users, vpsPower, vpsRelayout, vpsSyncLog } from "../db/schema";
 import { enqueue } from "../jobs";
 import { sendEmail } from "../messaging";
 import { open, seal } from "../secrets";
@@ -61,6 +61,22 @@ export async function retryRelayout(db: DB, serverId: string) {
   await db.update(servers).set({ status: "relayout", provisionError: null }).where(eq(servers.id, serverId));
   await addTask(db, serverId, RELAYOUT_TASK + " (تلاش دوباره) " + gb(r.before) + "→" + gb(r.sizes) + " گیگ", "running", 5);
   await enqueue(db, "virt.relayout", { serverId }, { dedupe: "virt.relayout:" + serverId + ":retry:" + Date.now() });
+  return true;
+}
+
+/** nothing has been touched yet (Plan A, no new VPS made): the request can still be dropped safely */
+export const relayoutCancellable = (r: Pick<Row, "plan" | "step" | "newVpsid">) => r.plan === "A" && (r.step === "read" || r.step === "create") && !r.newVpsid;
+
+/** drops a relayout that has not touched Virtualizor yet; the server goes back to how it was */
+export async function cancelRelayout(db: DB, serverId: string, by: string) {
+  const [r] = await db.select().from(vpsRelayout).where(eq(vpsRelayout.serverId, serverId));
+  if (!r || !relayoutCancellable(r)) return false;
+  await db.delete(vpsRelayout).where(eq(vpsRelayout.serverId, serverId));
+  await db.update(servers).set({ status: r.prevStatus }).where(eq(servers.id, serverId));
+  await db.update(jobs).set({ status: "done", lockedAt: null }).where(and(eq(jobs.type, "virt.relayout"), eq(jobs.status, "pending"), sql`${jobs.payload}->>'serverId' = ${serverId}`));
+  await closeTask(db, serverId, "failed");
+  await addTask(db, serverId, "تغییر چیدمان دیسک " + gb(r.before) + "→" + gb(r.sizes) + " لغو شد (" + by + ")", "done");
+  await requestSync(db, serverId);
   return true;
 }
 
