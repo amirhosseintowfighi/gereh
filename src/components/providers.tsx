@@ -256,7 +256,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
                 <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>
                   <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} dir="ltr" aria-label="کد تخفیف" placeholder="کد تخفیف" aria-invalid={!!codeErr}
                     className="flex-1 min-w-0 h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3 outline-none focus:border-white/40 mono text-left" />
-                  <button type="submit" disabled={!code.trim() || checking} className={BTN_G + BTN_MD}>{checking ? <Icon name="loader-circle" size={14} className="animate-spin" /> : "اعمال"}</button>
+                  <button type="submit" disabled={!code.trim() || checking} className={BTN_G + BTN_MD}>{checking ? <Icon name="loader-circle" size={16} className="animate-spin" /> : "اعمال"}</button>
                 </form>
               )}
               {codeErr && <div role="alert" className="text-xs text-rose-300">{codeErr}</div>}

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { DB_ENGINES, engineOf, PAAS_NAME_RE, PAAS_RESERVED } from "@/lib/paas";
 import { api, useDB, useMyId } from "@/lib/store";
@@ -123,7 +123,7 @@ export function DbDetail({ id }: { id: string }) {
         action={d.status === "suspended" ? <Badge tone="amber">معلق؛ کیف پول را شارژ کنید</Badge> : d.status === "stopped"
           ? <AsyncButton className={BTN_G + BTN_MD} onClick={() => api.paas.dbPower(d.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
           : d.status === "running" ? <AsyncButton danger className={BTN_G + BTN_MD} confirmText="پایگاه داده خاموش شود؟ اپ‌های متصل به آن خطا خواهند داد." onClick={() => api.paas.dbPower(d.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton> : null} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایگاه داده" options={TABS} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایگاه داده" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <DbConnect d={d} />}
         {tab === "backups" && <DbBackups d={d} />}
@@ -166,7 +166,7 @@ function DbConnect({ d }: { d: PaasDb }) {
             {creds.publicUrl && <Field label="آدرس اتصال عمومی"><CopyText text={creds.publicUrl} className="font-mono text-[11px] break-all" /></Field>}
           </div>}
           <p className="text-[11px] text-white/50 leading-6 mt-4">نمایش رمز در گزارش فعالیت حساب ثبت می‌شود. میزبان داخلی فقط از اپ‌های خود شما در گره در دسترس است.</p>
-          <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="رمز جدید ساخته و اپ‌های متصل با رمز جدید دوباره اجرا می‌شوند. ادامه؟" onClick={async () => { await api.paas.resetDbPassword(d.id); setCreds(null); notify("رمز عبور عوض شد", "key-round"); }}><Icon name="key-round" size={13} />ساخت رمز جدید</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="رمز جدید ساخته و اپ‌های متصل با رمز جدید دوباره اجرا می‌شوند. ادامه؟" onClick={async () => { await api.paas.resetDbPassword(d.id); setCreds(null); notify("رمز عبور عوض شد", "key-round"); }}><Icon name="key-round" size={14} />ساخت رمز جدید</AsyncButton>
         </Card>
         <Card title="اپ‌های متصل" icon="rocket">
           {d.links.length === 0 ? <p className="text-sm text-white/60 leading-7">به اپی متصل نیست. از تب «پایگاه داده» در صفحه اپ متصلش کنید تا آدرس اتصال خودکار به‌صورت متغیر محیطی به اپ برسد.</p> : (
@@ -222,8 +222,8 @@ function DbBackups({ d }: { d: PaasDb }) {
                     {b.verified === false && <span className="text-rose-300" title={b.verifyDetail}> · آزمون بازگردانی ناموفق</span>}</span></span>
                 <span className="flex gap-2">
                   {b.status === "done" && <BackupActions d={d} backupId={b.id} />}
-                  {b.status === "done" && <AsyncButton className={BTN_G + BTN_SM} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />بازگردانی</AsyncButton>}
-                  {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + BTN_SM} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={13} /></AsyncButton>}
+                  {b.status === "done" && <AsyncButton className={BTN_G + BTN_SM} confirmText="همه داده‌های فعلی با این پشتیبان جایگزین می‌شود و قابل برگشت نیست. ادامه؟" onClick={async () => { await api.paas.restoreDb(b.id); notify("بازگردانی شروع شد", "refresh-cw"); }}><Icon name="refresh-cw" size={14} />بازگردانی</AsyncButton>}
+                  {b.kind === "manual" && b.status !== "running" && b.status !== "restoring" && <AsyncButton className={BTN_G + BTN_SM} confirmText="این پشتیبان حذف شود؟" onClick={() => api.paas.deleteBackup(b.id)}><Icon name="trash-2" size={14} /></AsyncButton>}
                 </span>
               </li>
             );
@@ -273,7 +273,7 @@ function DbResources({ d }: { d: PaasDb }) {
       <Card title="خلاصه" icon="receipt">
         {cur && <p className="text-sm text-white/65">فعلی: {cur.name} · {cpuLabel(cur.cpu)} · {ramLabel(cur.ramMb)} · {fa(cur.diskGb)} گیگ</p>}
         {next && <div className="mt-4"><Cost monthly={next.price} /></div>}
-        <AsyncButton disabled={planId === d.planId} className="mt-4" confirmText="پایگاه داده برای اعمال پلن جدید چند ثانیه ری‌استارت می‌شود. ادامه؟" onClick={async () => { await api.paas.updateDb(d.id, { planId }); notify("پلن عوض شد", "gauge"); }}>اعمال</AsyncButton>
+        <AsyncButton disabled={planId === d.planId} className={BTN_P + BTN_MD + " mt-4"} confirmText="پایگاه داده برای اعمال پلن جدید چند ثانیه ری‌استارت می‌شود. ادامه؟" onClick={async () => { await api.paas.updateDb(d.id, { planId }); notify("پلن عوض شد", "gauge"); }}>اعمال</AsyncButton>
       </Card>
     </div>
   );
@@ -296,7 +296,7 @@ function DbSettings({ d }: { d: PaasDb }) {
           <p className="text-sm text-white/65 leading-7">پایگاه داده و همه پشتیبان‌هایش برای همیشه حذف می‌شوند.</p>
           <label className="block text-xs text-white/60 mt-3" htmlFor="del-db">برای تأیید، نام را بنویسید: <b dir="ltr">{d.name}</b></label>
           <input id="del-db" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5"} />
-          <AsyncButton danger disabled={confirmName !== d.name} className="mt-3" onClick={async () => { await api.paas.deleteDb(d.id, confirmName); notify("پایگاه داده حذف شد", "trash-2"); router.push("/panel/databases"); }}>حذف همیشگی</AsyncButton>
+          <AsyncButton danger disabled={confirmName !== d.name} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.paas.deleteDb(d.id, confirmName); notify("پایگاه داده حذف شد", "trash-2"); router.push("/panel/databases"); }}>حذف همیشگی</AsyncButton>
         </>}
       </Card>
     </div>

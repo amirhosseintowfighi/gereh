@@ -44,7 +44,7 @@ export function AdminUser360({ id }: { id: string }) {
     <div>
       <PageTitle back={["/admin/users", "کاربران"]} title={u?.name ?? "مشتری"} sub={u ? <span className="flex flex-wrap items-center gap-2"><span dir="ltr">{u.email}</span><StatusBadge s={u.status} /><StatusBadge s={u.kyc} /><Badge tone="violet">{sum.data!.level}</Badge></span> : id} />
       {sum.err && <Failed text={sum.err} />}
-      <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={tab} onChange={pick} label="بخش‌های مشتری" options={TABS} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={pick} label="بخش‌های مشتری" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "summary" && (sum.data ? <SummaryTab s={sum.data} reload={sum.load} /> : !sum.err && <Loading />)}
         {tab === "orders" && <OrdersTab id={id} />}
@@ -87,12 +87,12 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
         <Card title="اقدامات" icon="settings-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {u.status === "suspended"
-              ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={15} /> رفع تعلیق حساب</AsyncButton>
-              : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟"} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); await reload(); }}><Icon name="ban" size={15} /> تعلیق حساب</AsyncButton>}
-            {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); await reload(); }}><Icon name="fingerprint" size={15} /> تأیید احراز</AsyncButton>}
-            {u.twofa && <AsyncButton className={BTN_G + BTN_MD} confirmText={"ورود دومرحله‌ای " + u.name + " غیرفعال شود؟ پس از تأیید هویت مشتری این کار را انجام دهید."} onClick={async () => { await adminDetailApi.resetTwofa(u.id); notify("ورود دومرحله‌ای غیرفعال شد", "shield-check"); await reload(); }}><Icon name="shield-alert" size={15} /> بازنشانی ورود دومرحله‌ای</AsyncButton>}
-            {u.role === "user" && <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={15} /> ورود به‌جای کاربر</AsyncButton>}
-            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={15} /> ارسال بازیابی رمز</AsyncButton>
+              ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={16} /> رفع تعلیق حساب</AsyncButton>
+              : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟"} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); await reload(); }}><Icon name="ban" size={16} /> تعلیق حساب</AsyncButton>}
+            {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); await reload(); }}><Icon name="fingerprint" size={16} /> تأیید احراز</AsyncButton>}
+            {u.twofa && <AsyncButton className={BTN_G + BTN_MD} confirmText={"ورود دومرحله‌ای " + u.name + " غیرفعال شود؟ پس از تأیید هویت مشتری این کار را انجام دهید."} onClick={async () => { await adminDetailApi.resetTwofa(u.id); notify("ورود دومرحله‌ای غیرفعال شد", "shield-check"); await reload(); }}><Icon name="shield-alert" size={16} /> بازنشانی ورود دومرحله‌ای</AsyncButton>}
+            {u.role === "user" && <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={16} /> ورود به‌جای کاربر</AsyncButton>}
+            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={16} /> ارسال بازیابی رمز</AsyncButton>
           </div>
           <Field label="سطح حساب" className="mt-4"><Select value={s.levelId} label="سطح حساب"
             onChange={async (v) => { try { await billingApi.adminSetLevel(u.id, v); notify("سطح حساب تغییر کرد"); await reload(); } catch (e) { notify(errText(e), "circle-alert"); } }}
@@ -115,7 +115,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
         </Card>
         <Card title="ارسال اعلان" icon="megaphone">
           <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={3} maxLength={300} aria-label="متن اعلان" placeholder="متن اعلان برای مشتری" className={TEXTAREA} />
-          <div className="mt-3 flex justify-end"><AsyncButton onClick={async () => { await adminDetailApi.notifyUser(u.id, msg); setMsg(""); notify("اعلان ارسال شد", "megaphone"); }}><Icon name="send" size={15} /> ارسال</AsyncButton></div>
+          <div className="mt-3 flex justify-end"><AsyncButton onClick={async () => { await adminDetailApi.notifyUser(u.id, msg); setMsg(""); notify("اعلان ارسال شد", "megaphone"); }}><Icon name="send" size={16} /> ارسال</AsyncButton></div>
         </Card>
         <Card title="تیم" icon="users">
           {s.team.members.length === 0 && s.team.memberOf.length === 0 ? <p className="text-sm text-white/55">عضو تیمی ندارد.</p> : <ul className="text-sm space-y-2">
@@ -155,7 +155,7 @@ function OrdersTab({ id }: { id: string }) {
                   <span className="tabular text-xs">{toman(l.amount)}</span>
                   <Badge tone={LINE_TONE[l.state.state]} dot>{l.state.label}</Badge>
                   {l.state.state === "delivered" && l.state.href && <Link href={l.state.href as never} className="text-xs acc hover:underline">سرویس</Link>}
-                  {l.amount > 0 && l.state.state !== "renewal" && <button type="button" onClick={() => setDetail({ inv: inv.id, index: l.index })} className={BTN_G + BTN_SM}><Icon name="file-text" size={13} /> جزئیات</button>}
+                  {l.amount > 0 && l.state.state !== "renewal" && <button type="button" onClick={() => setDetail({ inv: inv.id, index: l.index })} className={BTN_G + BTN_SM}><Icon name="file-text" size={14} /> جزئیات</button>}
                 </div>
               </li>
             ))}
@@ -223,7 +223,7 @@ function ServicesTab({ id }: { id: string }) {
                 {r.actions.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">
                   {r.actions.map((a) => <AsyncButton key={a} className={BTN_G + BTN_SM + (a === "delete" || a === "suspend" ? " text-rose-200" : "")} danger={a === "delete"}
                     confirmText={a === "delete" ? "«" + r.name + "» برای همیشه حذف شود؟" : a === "suspend" ? "«" + r.name + "» معلق شود؟" : undefined}
-                    onClick={async () => { await runAction(r, a); notify(ACTION[a][0] + " انجام شد"); await t.load(); }}><Icon name={ACTION[a][1]} size={13} /> {ACTION[a][0]}</AsyncButton>)}
+                    onClick={async () => { await runAction(r, a); notify(ACTION[a][0] + " انجام شد"); await t.load(); }}><Icon name={ACTION[a][1]} size={14} /> {ACTION[a][0]}</AsyncButton>)}
                 </div>}
               </li>
             ))}

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, BTN_MD, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { SYNC_LABEL, SYNC_STATUS, ZONE_STATUS } from "@/lib/geo";
 import { inquiryDef } from "@/lib/inquiry";
@@ -30,7 +30,7 @@ export function AdminInquiry() {
         <StatCard icon="chart-column" label="درآمد ۳۰ روز" value={Math.round(q.stats.monthSpend / 1e5) / 10} suffix="میلیون" />
         <StatCard icon="file-check" label="درخواست دسترسی باز" value={pending.length} tone={pending.length ? "down" : ""} sub={fa(errors) + " خطای سرویس‌دهنده در آخرین درخواست‌ها"} />
       </div>
-      <div className="overflow-x-auto no-scrollbar mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[
         { id: "requests", label: "درخواست‌های دسترسی" + (pending.length ? " (" + fa(pending.length) + ")" : ""), icon: "file-check" }, { id: "services", label: "سرویس‌ها و قیمت", icon: "tag" },
         { id: "accounts", label: "حساب‌ها", icon: "users" }, { id: "calls", label: "آخرین درخواست‌ها", icon: "activity" },
       ]} /></div>
@@ -59,7 +59,7 @@ function Requests() {
                 <span className="text-[11px] text-white/50">{g.at}{g.note ? " · " + g.note : ""}</span>
               </div>
               {g.status === "pending" && <div className="flex gap-2 shrink-0">
-                <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.inquiry.decide(g.id, true, ""); notify("دسترسی فعال شد", "circle-check"); }}><Icon name="check" size={13} />تأیید</AsyncButton>
+                <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.inquiry.decide(g.id, true, ""); notify("دسترسی فعال شد", "circle-check"); }}><Icon name="check" size={14} />تأیید</AsyncButton>
                 <button type="button" onClick={() => { setReject(g.id); setNote(""); }} className={BTN_G + BTN_SM}>رد</button>
               </div>}
             </li>
@@ -68,7 +68,7 @@ function Requests() {
       )}
       <Modal open={reject !== null} onClose={() => setReject(null)} title="رد درخواست دسترسی" icon="circle-alert">
         <Field label="دلیل (برای مشتری نمایش داده می‌شود)"><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} className={TEXTAREA} /></Field>
-        <AsyncButton danger className="mt-3" disabled={note.trim().length < 5} onClick={async () => { await api.inquiry.decide(reject!, false, note.trim()); setReject(null); }}>رد درخواست</AsyncButton>
+        <AsyncButton danger className={BTN_D + BTN_MD + " mt-3"} disabled={note.trim().length < 5} onClick={async () => { await api.inquiry.decide(reject!, false, note.trim()); setReject(null); }}>رد درخواست</AsyncButton>
       </Modal>
     </Card>
   );
@@ -117,8 +117,8 @@ function Accounts() {
               <span className="min-w-0"><b className="text-sm"><UserLink id={a.userId} name={a.name} /></b><span dir="ltr" className="block text-[11px] text-white/50 text-right">{a.email} · #{a.accountNo}</span></span>
               <span className="text-xs text-white/60 tabular">{fa(a.calls30)} درخواست · {toman(a.spend30)} در ۳۰ روز</span>
               {a.status === "active"
-                ? <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={13} />تعلیق</AsyncButton>
-                : <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.inquiry.adminAccount(a.userId, "active")}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>}
+                ? <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={14} />تعلیق</AsyncButton>
+                : <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.inquiry.adminAccount(a.userId, "active")}><Icon name="play" size={14} />رفع تعلیق</AsyncButton>}
             </li>
           ))}
         </ul>
@@ -156,7 +156,7 @@ export function AdminGeo() {
   return (
     <div>
       <PageTitle title="Geo DNS" sub={"دامنه‌ها، همگام‌سازی مدیریت‌شده و پلن‌ها. درایور: " + (g.driver === "powerdns" ? "PowerDNS" : "شبیه‌ساز (GEO_PDNS تنظیم نشده)")}
-        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={15} />تست نام‌سرورها</AsyncButton>} />
+        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={16} />تست نام‌سرورها</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="globe" label="دامنه‌ها" value={g.zones.length} sub={fa(g.zones.filter((z) => z.status === "active").length) + " فعال"} />
@@ -179,8 +179,8 @@ export function AdminGeo() {
                     {plan?.sync !== "none" && <div className="w-48"><Select label={"وضعیت همگام‌سازی " + z.domain} value={z.syncStatus} onChange={async (v) => { await api.geo.adminZone(z.id, { syncStatus: v as "ok" }); notify("ذخیره شد", "check"); }} options={Object.entries(SYNC_STATUS).map(([k, [l]]) => ({ value: k, label: l }))} /></div>}
                     <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.geo.adminZone(z.id, { extendDays: 30 }); notify("۳۰ روز تمدید شد", "check"); }}>+۳۰ روز رایگان</AsyncButton>
                     {z.status === "suspended"
-                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.geo.adminZone(z.id, { status: "active" })}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
-                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"تفکیک جغرافیایی " + z.domain + " متوقف شود؟"} onClick={() => api.geo.adminZone(z.id, { status: "suspended" })}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
+                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.geo.adminZone(z.id, { status: "active" })}><Icon name="play" size={14} />فعال‌سازی</AsyncButton>
+                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"تفکیک جغرافیایی " + z.domain + " متوقف شود؟"} onClick={() => api.geo.adminZone(z.id, { status: "suspended" })}><Icon name="pause" size={14} />تعلیق</AsyncButton>}
                   </div>
                   {plan?.sync !== "none" && <div className="text-[11px] text-white/55 leading-6">توکن عامل همگام‌سازی (<span dir="ltr">POST /api/geo/sync/{z.id}</span>): <CopyText text={z.syncToken} className="font-mono" />{z.lastSync && <> · آخرین گزارش {z.lastSync}</>}</div>}
                 </li>

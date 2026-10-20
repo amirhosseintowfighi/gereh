@@ -35,7 +35,7 @@ export function AdminBlog() {
         action={<div className="flex gap-2">
           <button type="button" onClick={() => setD(null)} className={BTN_G + BTN_MD}>بازگشت به فهرست</button>
           <AsyncButton className={BTN_G + BTN_MD} onClick={() => save("draft")}>ذخیره پیش‌نویس</AsyncButton>
-          <AsyncButton className={BTN_P + BTN_MD} onClick={() => save("published")}><Icon name="send" size={15} />{d.status === "published" ? "به‌روزرسانی" : "انتشار"}</AsyncButton>
+          <AsyncButton className={BTN_P + BTN_MD} onClick={() => save("published")}><Icon name="send" size={16} />{d.status === "published" ? "به‌روزرسانی" : "انتشار"}</AsyncButton>
         </div>} />
       <div className="grid xl:grid-cols-[1fr_20rem] gap-4 items-start">
         <Card>

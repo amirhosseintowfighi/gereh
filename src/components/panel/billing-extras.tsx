@@ -70,7 +70,7 @@ export function BillingExtras() {
         </div>
       </Card>
 
-      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const n = window.prompt("نام پروژه"); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={15} /> کیف پول جدید</AsyncButton>}>
+      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const n = window.prompt("نام پروژه"); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={14} /> کیف پول جدید</AsyncButton>}>
         <p className="text-xs text-white/55 leading-6 px-2 mb-3">پول را برای هر پروژه جدا کنید و سرورهای پروژه را در تنظیمات سرور به آن وصل کنید؛ هزینه ساعتی آن‌ها اول از کیف پول پروژه کسر می‌شود.</p>
         {v.wallets.length === 0 ? <Empty icon="wallet" title="کیف پول پروژه‌ای ندارید" /> : v.wallets.map((w) => (
           <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
@@ -88,7 +88,7 @@ export function BillingExtras() {
         {v.transfers.length > 0 && <div className="mt-3 px-2 space-y-1 text-xs text-white/60">{v.transfers.slice(0, 8).map((t) => <div key={t.id}>{t.at}: {t.from} ← {t.to}، {toman(t.amount)}{t.note && " — " + t.note}</div>)}</div>}
       </Card>
 
-      <Card title="پروفایل‌های صورتحساب رسمی" icon="file-text" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setProf({ label: "", name: "", nationalId: "", economicCode: "", address: "", postalCode: "", isDefault: v.profiles.length === 0 })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> پروفایل جدید</button>}>
+      <Card title="پروفایل‌های صورتحساب رسمی" icon="file-text" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setProf({ label: "", name: "", nationalId: "", economicCode: "", address: "", postalCode: "", isDefault: v.profiles.length === 0 })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> پروفایل جدید</button>}>
         {v.profiles.length === 0 ? <Empty icon="file-text" title="پروفایلی ندارید" text="مشخصات شخص حقیقی یا حقوقی را یک بار ذخیره کنید و برای هر صورتحساب انتخاب کنید." /> : v.profiles.map((p) => (
           <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
             <div><div className="text-sm font-bold">{p.label} {p.isDefault && <Badge tone="green">پیش‌فرض</Badge>}</div><div className="text-[11px] text-white/55">{p.name}، شناسه {p.nationalId}{p.economicCode && "، کد اقتصادی " + p.economicCode}</div></div>
@@ -194,7 +194,7 @@ export function TeamExtras() {
   const roles = x.data;
   return (
     <div className="mt-4 space-y-4">
-      <Card title="نقش‌های سفارشی" icon="users-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setEdit({ name: "", perms: {} })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> نقش جدید</button>}>
+      <Card title="نقش‌های سفارشی" icon="users-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setEdit({ name: "", perms: {} })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> نقش جدید</button>}>
         <p className="text-xs text-white/55 leading-6 px-2 mb-3">برای هر سرویس سطح دسترسی تعیین کنید: مشاهده، استقرار، بهره‌برداری (روشن/خاموش، کنسول، بکاپ) یا مدیریت کامل. نقش سفارشی روی نقش پایه عضو اعمال و آن را محدودتر می‌کند.</p>
         {roles.length === 0 ? <Empty icon="users-round" title="نقش سفارشی ندارید" /> : roles.map((r) => (
           <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BTN_G, BTN_MD, BTN_SM, INPUT } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { DISK_PRICE_GB, engineOf, stackOf } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
@@ -118,8 +118,8 @@ export function AdminPaas() {
 function SuspendButton({ kind, id, suspended, name }: { kind: "app" | "db"; id: string; suspended: boolean; name: string }) {
   const { notify } = useApp();
   return suspended
-    ? <AsyncButton className={BTN_G + BTN_SM} confirmText={"«" + name + "» دوباره روشن شود؟"} onClick={async () => { await api.paas.adminSuspend(kind, id, false); notify("رفع تعلیق شد", "play"); }}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>
-    : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"«" + name + "» معلق و خاموش شود؟ مشتری تا رفع تعلیق نمی‌تواند روشنش کند."} onClick={async () => { await api.paas.adminSuspend(kind, id, true); notify("معلق شد", "pause"); }}><Icon name="pause" size={13} />تعلیق</AsyncButton>;
+    ? <AsyncButton className={BTN_G + BTN_SM} confirmText={"«" + name + "» دوباره روشن شود؟"} onClick={async () => { await api.paas.adminSuspend(kind, id, false); notify("رفع تعلیق شد", "play"); }}><Icon name="play" size={14} />رفع تعلیق</AsyncButton>
+    : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"«" + name + "» معلق و خاموش شود؟ مشتری تا رفع تعلیق نمی‌تواند روشنش کند."} onClick={async () => { await api.paas.adminSuspend(kind, id, true); notify("معلق شد", "pause"); }}><Icon name="pause" size={14} />تعلیق</AsyncButton>;
 }
 
 function PlanRow({ p }: { p: PaasPlanRow }) {
@@ -161,14 +161,14 @@ function Platform() {
         <AsyncButton className={BTN_G + BTN_SM + " mt-4"} onClick={async () => {
           try { const r = await api.paas.adminTest(); setTest({ ok: true, text: r.driver + " · " + r.version }); }
           catch (e) { setTest({ ok: false, text: (e as Error).message }); }
-        }}><Icon name="activity" size={13} />تست اتصال</AsyncButton>
+        }}><Icon name="activity" size={14} />تست اتصال</AsyncButton>
         {test && <p role="status" className={"text-sm mt-3 " + (test.ok ? "text-emerald-300" : "text-rose-300")}>{test.ok ? "اتصال برقرار است: " : "خطا: "}<span dir="ltr">{test.text}</span></p>}
       </Card>
       <Card title="دامنه اپ‌ها" icon="globe">
         <Field label="دامنه" hint="آدرس پیش‌فرض اپ‌ها <نام>.<این دامنه> می‌شود. باید دامنه‌ای جدا از سایت اصلی باشد (برای جدا ماندن کوکی‌ها) و رکورد wildcard آن به ingress کلاستر اشاره کند.">
           <input value={domain} onChange={(e) => setDomain(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="gereh.dev" className={INPUT + " text-left"} />
         </Field>
-        <AsyncButton disabled={!domain || domain === db.settings.paasDomain} className="mt-3" confirmText="آدرس پیش‌فرض همه اپ‌ها عوض می‌شود. ادامه؟" onClick={async () => { await api.admin.saveSettings({ paasDomain: domain }); notify("دامنه اپ‌ها ذخیره شد", "globe"); }}>ذخیره</AsyncButton>
+        <AsyncButton disabled={!domain || domain === db.settings.paasDomain} className={BTN_P + BTN_MD + " mt-3"} confirmText="آدرس پیش‌فرض همه اپ‌ها عوض می‌شود. ادامه؟" onClick={async () => { await api.admin.saveSettings({ paasDomain: domain }); notify("دامنه اپ‌ها ذخیره شد", "globe"); }}>ذخیره</AsyncButton>
         <div className="mt-4 text-[11px] text-white/55 leading-6" dir="ltr">*.{domain || "gereh.dev"} → A → INGRESS_IP</div>
       </Card>
     </div>

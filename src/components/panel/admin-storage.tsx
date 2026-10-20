@@ -26,7 +26,7 @@ export function AdminStorage() {
   return (
     <div>
       <PageTitle title="فضای ذخیره‌سازی ابری" sub={"باکت‌های مشتریان و پلن‌ها. درایور: " + (s.driver === "s3" ? "MinIO / S3" : "شبیه‌ساز (STORAGE_S3_* تنظیم نشده)")}
-        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={15} />تست اتصال</AsyncButton>} />
+        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={16} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="hard-drive" label="باکت‌ها" value={s.buckets.length} sub={fa(active.length) + " فعال"} />
@@ -46,8 +46,8 @@ export function AdminStorage() {
                   <span className="flex flex-wrap items-center gap-2 justify-end">
                     <Badge tone={BUCKET_STATUS[b.status]?.[1]} dot>{BUCKET_STATUS[b.status]?.[0]}{b.suspendReason === "billing" ? " (اعتبار)" : b.suspendReason === "staff" ? " (پشتیبانی)" : ""}</Badge>
                     {b.status === "suspended"
-                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.storage.adminSuspend(b.id, false)}><Icon name="play" size={13} />فعال‌سازی</AsyncButton>
-                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی به باکت " + b.name + " متوقف شود؟"} onClick={() => api.storage.adminSuspend(b.id, true)}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
+                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={() => api.storage.adminSuspend(b.id, false)}><Icon name="play" size={14} />فعال‌سازی</AsyncButton>
+                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی به باکت " + b.name + " متوقف شود؟"} onClick={() => api.storage.adminSuspend(b.id, true)}><Icon name="pause" size={14} />تعلیق</AsyncButton>}
                   </span>
                 </li>
               ); })}

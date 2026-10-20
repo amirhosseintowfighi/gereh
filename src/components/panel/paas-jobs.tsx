@@ -38,7 +38,7 @@ function ReleaseCommand({ app }: { app: PaasApp }) {
       <div className="flex flex-wrap gap-1.5 mt-2">
         {["npx prisma migrate deploy", "python manage.py migrate --noinput", "php artisan migrate --force", "bundle exec rails db:migrate"].map((x) => <button key={x} type="button" onClick={() => setCmd(x)} className="h-7 px-2.5 rounded-lg text-[11px] bg-white/[0.05] text-white/60 hover:text-white font-mono" dir="ltr">{x}</button>)}
       </div>
-      <AsyncButton disabled={cmd.trim() === app.releaseCommand} className="mt-4" onClick={async () => { await api.paas.updateApp(app.id, { releaseCommand: cmd.trim() }); notify(cmd.trim() ? "از استقرار بعدی اجرا می‌شود" : "دستور انتشار حذف شد", "circle-check"); }}>ذخیره</AsyncButton>
+      <AsyncButton disabled={cmd.trim() === app.releaseCommand} className={BTN_P + BTN_MD + " mt-4"} onClick={async () => { await api.paas.updateApp(app.id, { releaseCommand: cmd.trim() }); notify(cmd.trim() ? "از استقرار بعدی اجرا می‌شود" : "دستور انتشار حذف شد", "circle-check"); }}>ذخیره</AsyncButton>
     </Card>
   );
 }
@@ -91,8 +91,8 @@ function Crons({ app }: { app: PaasApp }) {
                 <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-right truncate">{c.command}</code>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setForm(c)} className={BTN_G + BTN_SM}><Icon name="pencil" size={13} />ویرایش</button>
-                <button type="button" onClick={async () => { if (await confirm("زمان‌بندی «" + c.name + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.paas.deleteCron(c.id); notify("حذف شد"); } }} className={BTN_G + BTN_SM}><Icon name="trash-2" size={13} /></button>
+                <button type="button" onClick={() => setForm(c)} className={BTN_G + BTN_SM}><Icon name="pencil" size={14} />ویرایش</button>
+                <button type="button" onClick={async () => { if (await confirm("زمان‌بندی «" + c.name + "» حذف شود؟", { danger: true, ok: "حذف" })) { await api.paas.deleteCron(c.id); notify("حذف شد"); } }} className={BTN_G + BTN_SM}><Icon name="trash-2" size={14} /></button>
               </div>
             </li>
           ))}
@@ -136,7 +136,7 @@ function RunConsole({ app }: { app: PaasApp }) {
         <p className="text-sm text-white/60 leading-7">یک دستور را یک بار در کانتینری جدا از نسخه فعال اجرا کنید (مثلاً ساخت کاربر ادمین یا اسکریپت یک‌باره). خروجی تا ۲۴ ساعت نگه داشته می‌شود.</p>
         <form className="flex gap-2 mt-3" onSubmit={(e) => e.preventDefault()}>
           <input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py createsuperuser --noinput" aria-label="دستور" className={INPUT + " font-mono text-left text-sm"} />
-          <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.runJob(app.id, cmd.trim()); setOpen(id); setLive(null); setCmd(""); notify("دستور اجرا شد", "terminal"); }}><Icon name="play" size={15} />اجرا</AsyncButton>
+          <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.runJob(app.id, cmd.trim()); setOpen(id); setLive(null); setCmd(""); notify("دستور اجرا شد", "terminal"); }}><Icon name="play" size={16} />اجرا</AsyncButton>
         </form>
       </>}
       {app.jobs.length > 0 && (

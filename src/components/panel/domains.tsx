@@ -126,7 +126,7 @@ export function DomainManage({ id }: { id: string }) {
   return (
     <div>
       <PageTitle back={["/panel/domains", "دامنه‌ها"]} title={<span className="ltr inline-block">{d.name}</span>} sub={<span className="flex gap-3 items-center"><StatusBadge s={d.status} />سررسید {d.expires}</span>} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های دامنه" options={TABS} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های دامنه" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "dns" && <DnsTab d={d} />}
         {tab === "cdn" && <CdnTab d={d} />}
@@ -166,12 +166,12 @@ function DnsTab({ d }: { d: Domain }) {
     <IconBtn icon="trash-2" label={"حذف رکورد " + r.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("رکورد " + r.type + " " + r.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.domains.removeRecord(d.id, r.id); notify("رکورد حذف شد"); } }} />
   </>;
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card title="رکوردها" icon="settings-2" pad="p-3 sm:p-4" action={<div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setQuick(true)} className={BTN_G + BTN_SM}><Icon name="zap" size={15} /> اتصال سریع</button>
-        <button type="button" onClick={() => setZone("import")} className={BTN_G + BTN_SM}><Icon name="upload" size={15} /> ورود فایل زون</button>
-        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => download(d.name + ".zone", await api.domains.exportZone(d.id))}><Icon name="download" size={15} /> خروجی BIND</AsyncButton>
-        <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> رکورد جدید</button>
+        <button type="button" onClick={() => setQuick(true)} className={BTN_G + BTN_SM}><Icon name="zap" size={14} /> اتصال سریع</button>
+        <button type="button" onClick={() => setZone("import")} className={BTN_G + BTN_SM}><Icon name="upload" size={14} /> ورود فایل زون</button>
+        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => download(d.name + ".zone", await api.domains.exportZone(d.id))}><Icon name="download" size={14} /> خروجی BIND</AsyncButton>
+        <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> رکورد جدید</button>
       </div>}>
         <div className="flex flex-wrap gap-2 mb-3">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام و مقدار" aria-label="جستجوی رکورد" className={INPUT + " max-w-xs"} />
@@ -204,7 +204,7 @@ function DnsTab({ d }: { d: Domain }) {
             ))}</tbody></table></div>
         )}
       </Card>
-      <div className="grid lg:grid-cols-2 gap-5"><Dnssec d={d} /><NsCheck d={d} /></div>
+      <div className="grid lg:grid-cols-2 gap-4"><Dnssec d={d} /><NsCheck d={d} /></div>
       <RecordModal d={d} rec={rec} setRec={setRec} />
       <ZoneImport d={d} open={zone === "import"} onClose={() => setZone(null)} />
       <QuickConnect d={d} open={quick} onClose={() => setQuick(false)} />
@@ -325,7 +325,7 @@ function NsTab({ d }: { d: Domain }) {
   const [ns, setNs] = useState<string[] | null>(null);
   const curNs = ns || d.ns;
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card title="نام‌سرورها" icon="server">
         <div className="space-y-3 max-w-lg">
           {curNs.map((n, i) => (
@@ -451,7 +451,7 @@ function CdnTab({ d }: { d: Domain }) {
     try { await api.domains.cdnUpdate(d.id, p); v.reload(); notify(msg); } catch (e) { notify((e as Error).message, "circle-alert"); }
   };
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card title="وضعیت CDN" icon="cloud" pad="p-2 sm:p-3">
         <Row title={c.enabled ? "CDN روشن است" : "CDN خاموش است"} hint={v.data.proxied ? fa(v.data.proxied) + " رکورد از CDN عبور می‌کند؛ پاسخ DNS آن‌ها " + v.data.edge.ipv4.join("، ") + " است." : "در تب DNS کنار رکوردهای A یا CNAME گزینه «پروکسی» را روشن کنید."}>
           <Switch on={c.enabled} label="CDN" onChange={(on) => save({ enabled: on }, on ? "CDN روشن شد" : "CDN خاموش شد")} />
@@ -460,7 +460,7 @@ function CdnTab({ d }: { d: Domain }) {
         <Row title="حالت توسعه" hint={c.devMode ? "کش تا " + new Date(c.devUntil).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) + " خاموش است." : "کش به مدت ۳ ساعت خاموش می‌شود تا تغییرات را فوری ببینید."}><Switch on={c.devMode} label="حالت توسعه" onChange={(on) => save({ devMode: on })} /></Row>
       </Card>
       <CdnStats d={d} />
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-4">
         <OriginCard d={d} c={c} origin={v.data.origin} save={save} />
         <Card title="امنیت و TLS" icon="lock" pad="p-2 sm:p-3">
           <Row title="اجبار HTTPS" hint="درخواست‌های http با ۳۰۸ به https می‌روند."><Switch on={c.forceHttps} label="اجبار HTTPS" onChange={(on) => save({ forceHttps: on, ...(on ? {} : { hstsMaxAge: 0, hstsPreload: false }) })} /></Row>
@@ -470,7 +470,7 @@ function CdnTab({ d }: { d: Domain }) {
           <Row title="حداقل نسخه TLS"><Select value={c.minTls} label="حداقل TLS" onChange={(x) => save({ minTls: x as CdnConfig["minTls"] })} options={["1.0", "1.1", "1.2", "1.3"].map((x) => ({ value: x, label: "TLS " + x }))} className="w-32" ltr /></Row>
         </Card>
       </div>
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-4">
         <Card title="کش" icon="database" pad="p-2 sm:p-3">
           <Row title="TTL مرورگر" hint="Cache-Control که به مرورگر بازدیدکننده فرستاده می‌شود."><Select value={String(c.browserTtl)} label="TTL مرورگر" onChange={(x) => save({ browserTtl: +x })} options={BROWSER_TTL} className="w-36" /></Row>
           <Purge d={d} enabled={c.enabled} />
@@ -522,7 +522,7 @@ function CdnStats({ d }: { d: Domain }) {
   return (
     <Card title="ترافیک و کش" icon="chart-column" action={<Select value={String(hours)} label="بازه" onChange={(x) => setHours(+x)} options={[{ value: "24", label: "۲۴ ساعت" }, { value: "168", label: "۷ روز" }, { value: "720", label: "۳۰ روز" }]} className="w-32" />}>
       {s.error ? <p className="text-sm text-rose-300">{s.error}</p> : !pts.length ? <p className="text-sm text-white/50">{s.data ? "هنوز داده‌ای ثبت نشده است." : "در حال بارگذاری…"}</p> : <>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
           <StatCard icon="activity" label="درخواست" value={fa(req)} />
           <StatCard icon="database" label="نرخ کش" value={fa(hit) + "٪"} />
           <StatCard icon="arrow-down-up" label="ترافیک" value={bytes(sum("bytes"))} />
@@ -588,7 +588,7 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
   const up = (p: Partial<RuleForm>) => f && setF({ ...f, ...p });
   const pathField = f && f.kind !== "header" && f.kind !== "access" && <Field label="مسیر" hint="مثل /static/* (با * یعنی همه زیرمسیرها)"><input value={f.path} onChange={(e) => up({ path: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>;
   return (
-    <Card title="قوانین" icon="list-checks" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setF({ ...EMPTY_RULE })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> قانون جدید</button>}>
+    <Card title="قوانین" icon="list-checks" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setF({ ...EMPTY_RULE })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> قانون جدید</button>}>
       {rules.length === 0 ? <Empty icon="list-checks" title="قانونی ندارید" text="کش بر اساس مسیر، ریدایرکت، هدر پاسخ، رمز روی مسیر، دسترسی IP/کشور و محدودیت نرخ." /> : (
         <ul className="divide-y divide-white/[0.06]">{rules.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-3 p-3 text-sm">

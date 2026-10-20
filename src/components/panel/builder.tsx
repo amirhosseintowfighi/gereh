@@ -57,7 +57,7 @@ export function BuildHome() {
                 {models.length > 1 && <div className="w-44 max-w-full"><Select label="مدل" value={modelId} onChange={setModel} options={models.map((m) => ({ value: m.id, label: m.name }))} /></div>}
               </div>
               <button type="button" onClick={() => void start()} disabled={busy} className={BTN_P + BTN_MD}>
-                <Icon name={busy ? "loader-circle" : "sparkles"} size={17} className={busy ? "animate-spin" : ""} />بساز
+                <Icon name={busy ? "loader-circle" : "sparkles"} size={16} className={busy ? "animate-spin" : ""} />بساز
               </button>
             </div>
           </div>
@@ -262,8 +262,8 @@ export function BuildStudio({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="hidden xl:inline-flex items-center gap-1 text-xs text-white/55 px-2"><Icon name="wallet" size={14} />هزینه AI: <b className="text-white/80 tabular">{toman(v.spent)}</b></span>
           {models.length > 1 && <div className="w-40 hidden sm:block"><Select label="مدل" value={modelId} onChange={async (m) => { await api.builder.update(v.id, { model: m }); await load(); }} options={models.map((m) => ({ value: m.id, label: m.name }))} /></div>}
-          <button type="button" onClick={() => setModal("versions")} className={BTN_G + BTN_MD} title="تاریخچه نسخه‌ها"><Icon name="history" size={15} />نسخه {fa(v.version)}</button>
-          {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_MD + " max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={15} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
+          <button type="button" onClick={() => setModal("versions")} className={BTN_G + BTN_MD} title="تاریخچه نسخه‌ها"><Icon name="history" size={16} />نسخه {fa(v.version)}</button>
+          {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_MD + " max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={16} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
           <Menu label="بیشتر" triggerClass={BTN_G + " h-10 w-10"} trigger={<Icon name="ellipsis-vertical" size={16} />} items={[
             { icon: "heart-pulse", label: "نگهداری و سلامت", run: () => setModal("maintain") },
             ...(v.version ? [{ icon: "download", label: "دانلود کد (نسخه فعلی)", run: () => { const a = document.createElement("a"); a.href = "/api/build/download/" + v.id; a.download = ""; a.click(); } }] : []),
@@ -447,8 +447,8 @@ function CodeView({ v, onSaved, locked }: { v: BuilderProjectView; onSaved: () =
           <div className="md:hidden flex-1 min-w-0"><Select label="فایل" ltr value={cur} onChange={setPath} options={v.tree.map((f) => f.path)} /></div>
           <span className="hidden md:block flex-1 min-w-0 text-xs font-mono text-white/55 truncate" dir="ltr">{cur}</span>
           {draft === null
-            ? <button type="button" disabled={locked || content === null} onClick={() => setDraft(content ?? "")} className={BTN_G + BTN_SM}><Icon name="pencil" size={13} />ویرایش</button>
-            : <><button type="button" onClick={() => setDraft(null)} className={BTN_G + BTN_SM}>انصراف</button><AsyncButton className={BTN_P + BTN_SM} onClick={save}><Icon name="check" size={13} />ذخیره</AsyncButton></>}
+            ? <button type="button" disabled={locked || content === null} onClick={() => setDraft(content ?? "")} className={BTN_G + BTN_SM}><Icon name="pencil" size={14} />ویرایش</button>
+            : <><button type="button" onClick={() => setDraft(null)} className={BTN_G + BTN_SM}>انصراف</button><AsyncButton className={BTN_P + BTN_SM} onClick={save}><Icon name="check" size={14} />ذخیره</AsyncButton></>}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           {draft !== null
@@ -502,10 +502,10 @@ function VersionsModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
               <span className="w-10 h-10 rounded-xl tile grid place-items-center text-sm font-black shrink-0">{fa(x.version)}</span>
               <span className="flex-1 min-w-0"><span className="block text-sm leading-6 [overflow-wrap:anywhere]">{x.message || "نسخه " + fa(x.version)}</span><span className="block text-[11px] text-white/50">{x.at} · {fa(x.files)} فایل{x.version === v.deployedVersion ? " · منتشرشده" : ""}</span></span>
               <span className="flex gap-1.5">
-                <a href={"/api/build/preview/" + token + ".v" + x.version + "/index.html"} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="eye" size={13} />دیدن</a>
-                <a href={"/api/build/download/" + v.id + "?v=" + x.version} download className={BTN_G + BTN_SM} aria-label={"دانلود نسخه " + fa(x.version)}><Icon name="download" size={13} />دانلود</a>
+                <a href={"/api/build/preview/" + token + ".v" + x.version + "/index.html"} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="eye" size={14} />دیدن</a>
+                <a href={"/api/build/download/" + v.id + "?v=" + x.version} download className={BTN_G + BTN_SM} aria-label={"دانلود نسخه " + fa(x.version)}><Icon name="download" size={14} />دانلود</a>
                 {x.version === v.version ? <Badge tone="violet">فعلی</Badge>
-                  : <AsyncButton className={BTN_G + BTN_SM} confirmText={"فایل‌های نسخه " + fa(x.version) + " به‌عنوان نسخه جدید بازگردانی شود؟"} onClick={async () => { await api.builder.restore(v.id, x.version); await onDone(); onClose(); }}><Icon name="rotate-ccw" size={13} />بازگردانی</AsyncButton>}
+                  : <AsyncButton className={BTN_G + BTN_SM} confirmText={"فایل‌های نسخه " + fa(x.version) + " به‌عنوان نسخه جدید بازگردانی شود؟"} onClick={async () => { await api.builder.restore(v.id, x.version); await onDone(); onClose(); }}><Icon name="rotate-ccw" size={14} />بازگردانی</AsyncButton>}
               </span>
             </li>
           ))}
@@ -576,7 +576,7 @@ function MaintainModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
         {v.simulator && v.appId && (
           <div className="rounded-2xl border border-dashed border-amber-300/30 bg-amber-400/[0.05] p-4">
             <p className="text-xs text-amber-100/80 leading-6">محیط نمایشی: یک توقف ناگهانی اپ (قطع اتصال پایگاه داده) شبیه‌سازی می‌شود تا واکنش عامل نگهداری را ببینید.</p>
-            <AsyncButton className={BTN_G + BTN_MD + " mt-3 w-full"} onClick={async () => { await api.builder.simulateIncident(v.id); await onDone(); onClose(); }}><Icon name="zap" size={14} />شبیه‌سازی خرابی</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_MD + " mt-3 w-full"} onClick={async () => { await api.builder.simulateIncident(v.id); await onDone(); onClose(); }}><Icon name="zap" size={16} />شبیه‌سازی خرابی</AsyncButton>
           </div>
         )}
       </div>

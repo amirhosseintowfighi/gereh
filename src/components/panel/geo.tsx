@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { answerFor, GEO_TYPES, SYNC_LABEL, SYNC_STATUS, ZONE_STATUS, type GeoRecordType } from "@/lib/geo";
 import { api, useDB, useMyId, type GeoRecordInput } from "@/lib/store";
@@ -98,7 +98,7 @@ export function GeoDetail({ id }: { id: string }) {
       <PageTitle back={["/panel/geo", "Geo DNS"]} title={<span dir="ltr" className="inline-block">{z.domain}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><Pill map={ZONE_STATUS} s={z.status} /><span className="text-xs">پلن {plan?.name}</span><span className="text-xs">اعتبار تا {z.paidUntil}</span></span>} />
       {z.status === "suspended" && <div role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-400/[0.07] px-4 py-3 text-sm leading-7">تمدید انجام نشده و تفکیک جغرافیایی متوقف است: همه بازدیدکنندگان به سرور ایران می‌روند. کیف پول را شارژ کنید؛ سرویس ظرف یک روز خودکار فعال می‌شود.</div>}
-      <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های دامنه" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های دامنه" options={[
         { id: "setup", label: "راه‌اندازی", icon: "list-checks" }, { id: "records", label: "رکوردها", icon: "network" }, { id: "test", label: "تست پاسخ", icon: "radar" }, { id: "settings", label: "پلن و تنظیمات", icon: "settings-2" },
       ]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
@@ -130,7 +130,7 @@ function Setup({ z }: { z: GeoZone }) {
             <div className="mt-2 space-y-1.5">{db.geo.nameservers.map((n) => <div key={n} className="rounded-lg bg-black/30 px-3 py-2"><CopyText text={n} className="font-mono text-sm" /></div>)}</div>
             <p className="text-[11px] text-white/50 mt-2">پیش از تغییر، همه رکوردهای فعلی دامنه (به‌خصوص MX ایمیل) را در تب «رکوردها» وارد کنید تا چیزی قطع نشود. اعمال تغییر بین چند دقیقه تا ۲۴ ساعت طول می‌کشد.</p>
             <div className="flex flex-wrap items-center gap-3 mt-3">
-              <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.geo.checkNs(z.id); notify(r.ok ? "NS درست است؛ Geo DNS فعال شد" : "هنوز NS دامنه تغییر نکرده است", r.ok ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی دوباره</AsyncButton>
+              <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.geo.checkNs(z.id); notify(r.ok ? "NS درست است؛ Geo DNS فعال شد" : "هنوز NS دامنه تغییر نکرده است", r.ok ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={14} />بررسی دوباره</AsyncButton>
               <span className="text-[11px] text-white/50">{z.nsChecked ? "آخرین بررسی: " + z.nsChecked : ""}{z.nsSeen.length ? " · NS فعلی: " : ""}<span dir="ltr">{z.nsSeen.join(", ")}</span></span>
             </div>
           </>)}
@@ -246,7 +246,7 @@ function Settings({ z }: { z: GeoZone }) {
       <Card title="پلن" icon="gauge">
         <Select label="پلن" value={planId} onChange={setPlanId} options={db.geo.plans.map((p) => ({ value: p.id, label: p.name + " — " + toman(p.price) + " / ماه" }))} />
         <p className="text-[11px] text-white/50 mt-2 leading-6">ارتقا: مابه‌تفاوت باقی‌مانده ماه از کیف پول کسر می‌شود. کاهش پلن بلافاصله اعمال می‌شود و مبلغی برگشت داده نمی‌شود.</p>
-        <AsyncButton disabled={planId === z.planId} className="mt-3" onClick={async () => { await api.geo.changePlan(z.id, planId); notify("پلن تغییر کرد", "gauge"); }}>تغییر پلن</AsyncButton>
+        <AsyncButton disabled={planId === z.planId} className={BTN_P + BTN_MD + " mt-3"} onClick={async () => { await api.geo.changePlan(z.id, planId); notify("پلن تغییر کرد", "gauge"); }}>تغییر پلن</AsyncButton>
       </Card>
       <Card title="تمدید و سلامت" icon="settings-2">
         <div className="flex items-center justify-between gap-3 text-sm"><span>تمدید خودکار ماهانه از کیف پول<span className="block text-[11px] text-white/50">اعتبار فعلی تا {z.paidUntil}</span></span><Switch on={z.autoRenew} onChange={async (v) => { await api.geo.settings(z.id, { autoRenew: v }); notify(v ? "تمدید خودکار روشن شد" : "تمدید خودکار خاموش شد", "refresh-cw"); }} label="تمدید خودکار" /></div>
@@ -259,7 +259,7 @@ function Settings({ z }: { z: GeoZone }) {
         <p className="text-sm text-white/65 leading-7">پیش از حذف، NS دامنه را به سرویس DNS دیگری برگردانید؛ وگرنه دامنه از کار می‌افتد. مبلغ باقی‌مانده برگشت داده نمی‌شود.</p>
         <label className="block text-xs text-white/60 mt-3" htmlFor="geo-del">برای تأیید، دامنه را بنویسید: <b dir="ltr">{z.domain}</b></label>
         <input id="geo-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5 max-w-sm"} />
-        <AsyncButton danger disabled={conf.trim().toLowerCase() !== z.domain} className="mt-3" onClick={async () => { await api.geo.remove(z.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/geo" as never); }}>حذف همیشگی</AsyncButton>
+        <AsyncButton danger disabled={conf.trim().toLowerCase() !== z.domain} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.geo.remove(z.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/geo" as never); }}>حذف همیشگی</AsyncButton>
       </Card>
     </div>
   );

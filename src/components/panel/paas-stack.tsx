@@ -43,7 +43,7 @@ export function StackTemplates() {
   return (
     <div>
       <PageTitle title="قالب ترکیبی" sub="چند اپ و پایگاه داده را با یک فایل YAML با هم بسازید و به هم وصل کنید." back={["/panel/apps/templates", "اپ‌های آماده"]}
-        action={<Link href={"/docs/paas/stack-templates" as never} className={BTN_G + BTN_MD}><Icon name="book-open" size={15} />راهنمای قالب</Link>} />
+        action={<Link href={"/docs/paas/stack-templates" as never} className={BTN_G + BTN_MD}><Icon name="book-open" size={16} />راهنمای قالب</Link>} />
       <h2 className="text-sm font-bold text-white/80 mb-3">گالری</h2>
       <ul className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
         {STACK_GALLERY.map((g) => (
@@ -58,8 +58,8 @@ export function StackTemplates() {
       </ul>
       <div className="grid xl:grid-cols-[1fr_22rem] gap-4 items-start">
         <Card title="ویرایشگر" icon="file-pen" action={<div className="flex gap-2">
-          <button type="button" onClick={() => setCompose("")} className={BTN_G + BTN_SM}><Icon name="upload" size={13} />از docker-compose</button>
-          <button type="button" onClick={() => { setYaml(BLANK); setNotes([]); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={13} />خالی</button>
+          <button type="button" onClick={() => setCompose("")} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />از docker-compose</button>
+          <button type="button" onClick={() => { setYaml(BLANK); setNotes([]); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />خالی</button>
         </div>}>
           <textarea value={yaml} onChange={(e) => setYaml(e.target.value)} dir="ltr" rows={24} spellCheck={false} aria-label="قالب YAML" className={TEXTAREA + " font-mono text-xs leading-6 text-left"} />
           <p className="text-[11px] text-white/50 mt-2 leading-6">

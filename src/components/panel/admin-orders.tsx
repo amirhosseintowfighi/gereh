@@ -37,8 +37,8 @@ export function AdminOrders() {
     <div>
       <PageTitle title="سفارش‌های تحویل‌نشده" sub="سفارش‌هایی که پرداخت شده‌اند اما سرویسشان هنوز تحویل نشده است."
         action={<div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setAssign(true)} className={BTN_G + BTN_MD}><Icon name="user-plus" size={15} /> تخصیص دستی سرور</button>
-          {list.length > 0 && <AsyncButton confirmText="برای همه سفارش‌ها دوباره تلاش شود؟" onClick={async () => { const n = await api.provisioning.retryAll(); notify(fa(n) + " سفارش دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={15} /> تلاش دوباره برای همه</AsyncButton>}
+          <button type="button" onClick={() => setAssign(true)} className={BTN_G + BTN_MD}><Icon name="user-plus" size={16} /> تخصیص دستی سرور</button>
+          {list.length > 0 && <AsyncButton confirmText="برای همه سفارش‌ها دوباره تلاش شود؟" onClick={async () => { const n = await api.provisioning.retryAll(); notify(fa(n) + " سفارش دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={16} /> تلاش دوباره برای همه</AsyncButton>}
         </div>} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="package-open" label="تحویل‌نشده" value={list.length} tone={list.length ? "down" : ""} />
@@ -116,7 +116,7 @@ export function UndeliveredCard() {
   const db = useDB();
   if (!db.undelivered) return null;
   return (
-    <Link href={"/admin/orders" as never} className="mb-4 flex items-center gap-3 p-4 rounded-[1.2rem] bg-amber-400/10 border border-amber-300/25 text-amber-100 hover:bg-amber-400/15">
+    <Link href={"/admin/orders" as never} className="mb-4 flex items-center gap-3 p-4 rounded-2xl bg-amber-400/10 border border-amber-300/25 text-amber-100 hover:bg-amber-400/15">
       <Icon name="triangle-alert" size={20} />
       <span className="flex-1 text-sm leading-6"><b>{fa(db.undelivered)} سفارش پرداخت‌شده</b> هنوز تحویل نشده است؛ مشتری پول داده و سرویسی نگرفته است.</span>
       <span className="text-xs font-bold">بررسی</span>

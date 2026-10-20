@@ -162,11 +162,11 @@ export function UserHosting({ id }: { id?: string }) {
         <Card title="رمز cPanel" icon="key-round">
           <p className="text-sm text-white/50 leading-7">رمز جدید فقط یک بار نمایش داده می‌شود.</p>
           {pass && <div className="mt-3 rounded-xl bg-black/30 border border-white/10 p-3 flex justify-between items-center"><CopyText text={pass} className="mono text-sm" /></div>}
-          <div className="mt-4"><AsyncButton className={BTN_G + BTN_MD} confirmText="رمز فعلی cPanel باطل و رمز جدید ساخته شود؟" onClick={async () => setPass(await api.hosting.resetPassword(h.id))}><Icon name="refresh-cw" size={15} /> ساخت رمز جدید</AsyncButton></div>
+          <div className="mt-4"><AsyncButton className={BTN_G + BTN_MD} confirmText="رمز فعلی cPanel باطل و رمز جدید ساخته شود؟" onClick={async () => setPass(await api.hosting.resetPassword(h.id))}><Icon name="refresh-cw" size={16} /> ساخت رمز جدید</AsyncButton></div>
         </Card>
         <Card title="تمدید و ارتقا" icon="trending-up" className="lg:col-span-2">
           <div className="flex flex-wrap gap-2">
-            <Link href="/hosting" className={BTN_G + BTN_MD}><Icon name="trending-up" size={15} /> ارتقای پلن</Link>
+            <Link href="/hosting" className={BTN_G + BTN_MD}><Icon name="trending-up" size={16} /> ارتقای پلن</Link>
             <AsyncButton onClick={async () => { const inv = await api.hosting.renew(h.id, 12); notify("صورتحساب " + inv.id + " صادر شد"); router.push("/panel/billing"); }}>تمدید یک‌ساله ({toman(Math.round((h.price * 0.85) / 1000) * 1000 * 12)})</AsyncButton>
           </div>
         </Card>
@@ -353,7 +353,7 @@ export function TicketThread({ t, as = "user" }: { t: Ticket; as?: "user" | "sta
         <form className="mt-6 rounded-2xl bg-white/[0.03] border border-white/[0.1] p-3" onSubmit={(e) => e.preventDefault()}>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="پاسخ خود را بنویسید…" aria-label="متن پاسخ" className="w-full bg-transparent outline-none text-sm p-2 resize-none placeholder:text-white/30" />
           <div className="flex items-center justify-end">
-            <AsyncButton onClick={async () => { if (text.trim().length < 2) throw new Error("متن پاسخ خالی است."); await api.tickets.reply(t.id, text.trim(), as); setText(""); notify("پاسخ ارسال شد", "send"); }}><Icon name="send" size={15} /> ارسال</AsyncButton>
+            <AsyncButton onClick={async () => { if (text.trim().length < 2) throw new Error("متن پاسخ خالی است."); await api.tickets.reply(t.id, text.trim(), as); setText(""); notify("پاسخ ارسال شد", "send"); }}><Icon name="send" size={16} /> ارسال</AsyncButton>
           </div>
         </form>
       ) : <div className="mt-6 text-center text-sm text-white/55">این تیکت بسته شده است.</div>}
@@ -398,7 +398,7 @@ export function UserTickets({ id }: { id?: string }) {
           if (f.message.trim().length < 10) throw new Error("توضیح باید حداقل ۱۰ کاراکتر باشد.");
           const nid = await api.tickets.create({ ...f, subject: f.subject.trim(), message: f.message.trim() });
           setOpen(false); setF(EMPTY_TICKET); notify("تیکت " + nid + " ثبت شد", "send"); router.push(("/panel/tickets/" + nid) as never);
-        }}><Icon name="send" size={15} /> ثبت تیکت</AsyncButton><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
+        }}><Icon name="send" size={16} /> ثبت تیکت</AsyncButton><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="واحد"><Select value={f.dept} label="واحد" onChange={(v) => setF((s) => ({ ...s, dept: v }))} options={["فنی", "مالی", "فروش", "دواپس"]} /></Field>
           <Field label="اولویت"><Select value={f.priority} label="اولویت" onChange={(v) => setF((s) => ({ ...s, priority: v }))} options={[{ value: "low", label: "کم" }, { value: "normal", label: "معمولی" }, { value: "high", label: "فوری" }]} /></Field>
@@ -424,7 +424,7 @@ export function UserKeys() {
     <div>
       <PageTitle title="SSH و API" sub="کلیدهای دسترسی به سرورها و توکن‌های API" />
       <div className="grid xl:grid-cols-2 gap-4">
-        <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> افزودن کلید</button>}>
+        <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> افزودن کلید</button>}>
           {db.sshKeys.length === 0 ? <Empty icon="key-round" title="کلیدی ندارید" text="با کلید SSH، بدون رمز و امن‌تر وارد سرورها شوید." /> : db.sshKeys.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/55 ltr text-right">{x.fingerprint}</div></div></div>
@@ -432,7 +432,7 @@ export function UserKeys() {
             </div>
           ))}
         </Card>
-        <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> توکن جدید</button>}>
+        <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> توکن جدید</button>}>
           {db.apiTokens.length === 0 ? <Empty icon="code-xml" title="توکنی ندارید" /> : db.apiTokens.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
               <div><div className="text-sm font-bold ltr text-right">{x.name}</div><div className="text-[11px] text-white/55 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
@@ -531,7 +531,7 @@ function AccountView() {
   return (
     <div>
       <PageTitle title="تنظیمات حساب" />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های حساب" options={[{ id: "profile", label: "پروفایل", icon: "user-round" }, { id: "security", label: "امنیت", icon: "shield-check" }, { id: "notif", label: "اعلان‌ها", icon: "bell" }, { id: "kyc", label: "احراز هویت", icon: "fingerprint" }, { id: "team", label: "تیم", icon: "users-round" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های حساب" options={[{ id: "profile", label: "پروفایل", icon: "user-round" }, { id: "security", label: "امنیت", icon: "shield-check" }, { id: "notif", label: "اعلان‌ها", icon: "bell" }, { id: "kyc", label: "احراز هویت", icon: "fingerprint" }, { id: "team", label: "تیم", icon: "users-round" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "profile" && (
           <Card title="اطلاعات شخصی" icon="user-round">

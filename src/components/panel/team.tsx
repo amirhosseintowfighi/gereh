@@ -30,7 +30,7 @@ export function TeamTab() {
         <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
           <Field label="ایمیل"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" className={INPUT + " text-left"} placeholder="colleague@example.com" /></Field>
           <Field label="نقش" hint={TEAM_ROLES.find((r) => r.value === role)?.hint}><Select label="نقش" value={role} onChange={(v) => setRole(v as TeamRole)} options={TEAM_ROLES.map(({ value, label }) => ({ value, label }))} /></Field>
-          <AsyncButton onClick={async () => { await api.team.invite(email, role); setEmail(""); notify("دعوت‌نامه ارسال شد", "send"); }}><Icon name="send" size={15} /> ارسال دعوت</AsyncButton>
+          <AsyncButton onClick={async () => { await api.team.invite(email, role); setEmail(""); notify("دعوت‌نامه ارسال شد", "send"); }}><Icon name="send" size={16} /> ارسال دعوت</AsyncButton>
         </form>
       </Card>
       <Card title="اعضای تیم" icon="users" pad="p-3 sm:p-4">
@@ -66,7 +66,7 @@ export function AccountSwitcher() {
   const go = async (ownerId: string | null) => { await api.team.switchTo(ownerId); router.push("/panel"); };
   return (
     <Menu label="انتخاب حساب" triggerClass={BTN_G + BTN_MD + " max-sm:hidden"}
-      trigger={<><Icon name="users-round" size={15} />{current ? current.ownerName : "حساب من"}<Icon name="chevron-down" size={13} /></>}
+      trigger={<><Icon name="users-round" size={16} />{current ? current.ownerName : "حساب من"}<Icon name="chevron-down" size={13} /></>}
       items={[
         { icon: "user-round", label: "حساب خودم", run: () => go(null) },
         ...ships.map((s) => ({ icon: "users-round", label: s.ownerName + " (" + roleLabel(s.role) + ")", run: () => go(s.ownerId) })),

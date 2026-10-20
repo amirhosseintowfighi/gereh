@@ -91,11 +91,11 @@ export function AdminUsers() {
             <div className="text-xs text-white/55 mb-2">اقدامات</div>
             <div className="grid grid-cols-2 gap-2">
               {u.status === "suspended"
-                ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); }}><Icon name="circle-check" size={15} /> فعال‌سازی</AsyncButton>
-                : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟ همه سرویس‌ها متوقف می‌شوند."} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); }}><Icon name="ban" size={15} /> تعلیق حساب</AsyncButton>}
-              {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); }}><Icon name="fingerprint" size={15} /> تأیید احراز</AsyncButton>}
-              <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={15} /> ورود به‌جای کاربر</AsyncButton>
-              <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={15} /> ارسال بازیابی رمز</AsyncButton>
+                ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); }}><Icon name="circle-check" size={16} /> فعال‌سازی</AsyncButton>
+                : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟ همه سرویس‌ها متوقف می‌شوند."} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); }}><Icon name="ban" size={16} /> تعلیق حساب</AsyncButton>}
+              {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); }}><Icon name="fingerprint" size={16} /> تأیید احراز</AsyncButton>}
+              <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={16} /> ورود به‌جای کاربر</AsyncButton>
+              <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={16} /> ارسال بازیابی رمز</AsyncButton>
             </div>
           </div>
           <form className="mt-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4" onSubmit={(e) => e.preventDefault()}>
@@ -299,7 +299,7 @@ export function AdminProducts() {
   return (
     <div>
       <PageTitle title="محصولات و قیمت‌گذاری" sub="قیمت‌ها پس از ذخیره در سایت اعمال می‌شوند." />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="دسته محصول" options={[{ id: "cloud", label: "سرور ابری", icon: "cloud" }, { id: "metal", label: "سرور اختصاصی", icon: "server-cog" }, { id: "hosting", label: "هاست", icon: "layers" }, { id: "tld", label: "پسوند دامنه", icon: "globe" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="دسته محصول" options={[{ id: "cloud", label: "سرور ابری", icon: "cloud" }, { id: "metal", label: "سرور اختصاصی", icon: "server-cog" }, { id: "hosting", label: "هاست", icon: "layers" }, { id: "tld", label: "پسوند دامنه", icon: "globe" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab !== "tld" ? (
           <DataTable rows={db.plans[tab as "cloud" | "metal" | "hosting"]}
@@ -466,7 +466,7 @@ export function AdminVirtualizor() {
         <StatCard icon="tag" label="پلن‌های نگاشت‌شده" value={db.planMap.filter((p) => p.plid).length} />
         <StatCard icon="clock" label="آخرین همگام‌سازی" value={String(db.virt.lastSync)} />
       </div>
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش Virtualizor" options={[{ id: "connection", label: "اتصال", icon: "network" }, { id: "plans", label: "نگاشت پلن‌ها", icon: "tag" }, { id: "templates", label: "قالب‌های سیستم‌عامل", icon: "terminal" }, { id: "policy", label: "سیاست‌ها", icon: "shield-check" }, { id: "log", label: "گزارش همگام‌سازی", icon: "scroll-text" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش Virtualizor" options={[{ id: "connection", label: "اتصال", icon: "network" }, { id: "plans", label: "نگاشت پلن‌ها", icon: "tag" }, { id: "templates", label: "قالب‌های سیستم‌عامل", icon: "terminal" }, { id: "policy", label: "سیاست‌ها", icon: "shield-check" }, { id: "log", label: "گزارش همگام‌سازی", icon: "scroll-text" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "connection" && (
           <div className="grid xl:grid-cols-[1.2fr_1fr] gap-4">
@@ -483,7 +483,7 @@ export function AdminVirtualizor() {
                 <Switch on={cfg.insecure} label="پذیرش گواهی خودامضا" onChange={(v) => setCfg((c) => ({ ...c, insecure: v }))} />
               </div>
               <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), pass: cfg.pass, insecure: cfg.insecure }); setCfg((c) => ({ ...c, pass: "" })); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={15} /> تست اتصال</AsyncButton>
+                <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.virtTest({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim(), pass: cfg.pass, insecure: cfg.insecure }); setCfg((c) => ({ ...c, pass: "" })); notify("اتصال به Virtualizor برقرار است", "circle-check"); }}><Icon name="activity" size={16} /> تست اتصال</AsyncButton>
                 <AsyncButton onClick={async () => { if (!cfg.host.trim() || !(cfg.port > 0 && cfg.port < 65536)) throw new Error("آدرس و پورت معتبر لازم است."); await api.admin.saveVirt({ host: cfg.host.trim(), port: cfg.port, key: cfg.key.trim() }); notify("تنظیمات ذخیره شد"); }}>ذخیره</AsyncButton>
               </div>
               <p className="text-[11px] text-white/55 mt-5 leading-6">کلید و رمز Admin API در Virtualizor: Configuration › Server Info (روی Master). IP سرور گره را در «Allowed IP list to restrict API operations» اضافه کنید.</p>
@@ -605,7 +605,7 @@ export function AdminAnnouncements() {
             <Field label="متن"><textarea value={f.body} maxLength={1000} onChange={(e) => setF((s) => ({ ...s, body: e.target.value }))} rows={5} className={TEXTAREA} /></Field>
             <Field label="سطح"><Select value={f.level} label="سطح" onChange={(v) => setF((s) => ({ ...s, level: v as "info" }))} options={[{ value: "info", label: "اطلاع‌رسانی" }, { value: "warning", label: "هشدار" }, { value: "critical", label: "بحرانی" }]} /></Field>
           </div>
-          <div className="mt-5 flex justify-end"><AsyncButton onClick={async () => { if (f.title.trim().length < 3 || f.body.trim().length < 10) throw new Error("عنوان و متن کامل لازم است."); await api.admin.saveAnnouncement({ ...f, title: f.title.trim(), body: f.body.trim() }); setF({ title: "", body: "", level: "info" }); notify("اطلاعیه منتشر شد", "megaphone"); }}><Icon name="send" size={15} /> انتشار</AsyncButton></div>
+          <div className="mt-5 flex justify-end"><AsyncButton onClick={async () => { if (f.title.trim().length < 3 || f.body.trim().length < 10) throw new Error("عنوان و متن کامل لازم است."); await api.admin.saveAnnouncement({ ...f, title: f.title.trim(), body: f.body.trim() }); setF({ title: "", body: "", level: "info" }); notify("اطلاعیه منتشر شد", "megaphone"); }}><Icon name="send" size={16} /> انتشار</AsyncButton></div>
         </Card>
         <Card title="منتشرشده" icon="scroll-text" pad="p-3 sm:p-4">
           {db.announcements.length === 0 ? <Empty icon="megaphone" title="اطلاعیه‌ای منتشر نشده" /> : db.announcements.map((a) => (
@@ -646,7 +646,7 @@ export function AdminSettings() {
   return (
     <div>
       <PageTitle title="تنظیمات سیستم" />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش تنظیمات" options={[{ id: "general", label: "عمومی", icon: "settings-2" }, { id: "finance", label: "مالی و درگاه", icon: "wallet" }, { id: "notify", label: "پیامک و ایمیل", icon: "mail" }, { id: "staff", label: "مدیران و دسترسی", icon: "users" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش تنظیمات" options={[{ id: "general", label: "عمومی", icon: "settings-2" }, { id: "finance", label: "مالی و درگاه", icon: "wallet" }, { id: "notify", label: "پیامک و ایمیل", icon: "mail" }, { id: "staff", label: "مدیران و دسترسی", icon: "users" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "general" && (
           <Card title="تنظیمات عمومی" icon="settings-2">
@@ -704,11 +704,11 @@ export function AdminSettings() {
         {tab === "notify" && (
           <Card title="ربات‌های تلگرام و بله" icon="send" className="mt-4">
             <p className="text-sm text-white/60 leading-7 max-w-3xl">با ربات‌ها مشتریان اعلان‌های حساب را در پیام‌رسان می‌گیرند. در سرور (<code dir="ltr">sudo gereh env</code>) مقادیر <code dir="ltr">BALE_BOT_TOKEN</code>، <code dir="ltr">BALE_BOT_USERNAME</code> و برای تلگرام <code dir="ltr">TELEGRAM_BOT_TOKEN</code>، <code dir="ltr">TELEGRAM_BOT_USERNAME</code> را تنظیم کنید (برای تلگرام از سرور ایران، <code dir="ltr">TELEGRAM_API_BASE</code> را روی یک relay خارج بگذارید)، سپس این دکمه را بزنید.</p>
-            <AsyncButton className={BTN_G + BTN_MD + " mt-4"} onClick={async () => { const r = await api.notify.adminBots(); notify(r.map((x) => (x.kind === "telegram" ? "تلگرام" : "بله") + ": " + (x.ok ? "متصل شد" : x.detail)).join(" — "), "send"); }}><Icon name="send" size={15} />اتصال وب‌هوک ربات‌ها</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_MD + " mt-4"} onClick={async () => { const r = await api.notify.adminBots(); notify(r.map((x) => (x.kind === "telegram" ? "تلگرام" : "بله") + ": " + (x.ok ? "متصل شد" : x.detail)).join(" — "), "send"); }}><Icon name="send" size={16} />اتصال وب‌هوک ربات‌ها</AsyncButton>
           </Card>
         )}
         {tab === "staff" && <>
-          <Card title="مدیران" icon="users" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setSt({ name: "", email: "", role: "پشتیبانی فنی" })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> افزودن مدیر</button>}>
+          <Card title="مدیران" icon="users" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setSt({ name: "", email: "", role: "پشتیبانی فنی" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> افزودن مدیر</button>}>
             {db.staff.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
                 <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{m.name[0]}</span><div><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-right">{m.email}</div></div></div>

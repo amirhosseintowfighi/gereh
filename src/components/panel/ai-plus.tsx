@@ -116,13 +116,13 @@ export function WebChat() {
 
   return (
     <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
-      <Card pad="p-3" title="گفتگوها" icon="bot" action={<button type="button" onClick={() => void create()} className={BTN_P + BTN_SM}><Icon name="plus" size={13} />جدید</button>}>
+      <Card pad="p-3" title="گفتگوها" icon="bot" action={<button type="button" onClick={() => void create()} className={BTN_P + BTN_SM}><Icon name="plus" size={14} />جدید</button>}>
         {list.length === 0 ? <p className="text-xs text-white/55 leading-6">هنوز گفتگویی ندارید.</p> : (
           <ul className="space-y-1 max-h-[60vh] overflow-y-auto">
             {list.map((c) => (
               <li key={c.id} className={"group flex items-center gap-1 rounded-lg " + (cur?.id === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
                 <button type="button" onClick={() => void open(c.id)} className="flex-1 min-w-0 text-right px-2.5 py-2"><span className="block text-xs font-bold truncate">{c.title}</span><span className="block text-[10px] text-white/50 truncate" dir="ltr" style={{ textAlign: "right" }}>{c.model}</span></button>
-                <AsyncButton danger className="h-7 w-7 p-0 text-xs opacity-60 group-hover:opacity-100" title="حذف گفتگو" confirmText={"گفتگوی «" + c.title + "» حذف شود؟"} onClick={async () => { await api.ai.chatDelete(c.id); if (cur?.id === c.id) { setCur(null); setMsgs([]); } await load(); }}><Icon name="trash-2" size={12} /></AsyncButton>
+                <AsyncButton danger className="w-8 h-8 shrink-0 grid place-items-center rounded-lg text-white/65 hover:bg-rose-400/10 hover:text-rose-300 opacity-60 group-hover:opacity-100 focus-visible:opacity-100 transition" title="حذف گفتگو" confirmText={"گفتگوی «" + c.title + "» حذف شود؟"} onClick={async () => { await api.ai.chatDelete(c.id); if (cur?.id === c.id) { setCur(null); setMsgs([]); } await load(); }}><Icon name="trash-2" size={14} /></AsyncButton>
               </li>
             ))}
           </ul>
@@ -169,9 +169,9 @@ export function WebChat() {
             {atts.length > 0 && <div className="flex flex-wrap gap-1.5 mb-2">{atts.map((x, i) => <button key={i} type="button" onClick={() => setAtts(atts.filter((_, j) => j !== i))} className="text-[11px] rounded-lg bg-white/[0.06] px-2 py-1 inline-flex items-center gap-1"><Icon name="x" size={11} />{x.name}</button>)}</div>}
             <textarea rows={3} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void send(); }} placeholder="پیام شما… (Ctrl+Enter برای ارسال)" aria-label="پیام" className={TEXTAREA} />
             <div className="flex flex-wrap items-center gap-2 mt-3">
-              {busy ? <button type="button" onClick={() => abort.current?.abort()} className={BTN_G + BTN_MD}><Icon name="x" size={15} />توقف</button>
-                : <button type="button" disabled={!input.trim()} onClick={() => void send()} className={BTN_P + BTN_MD}><Icon name="send" size={15} />ارسال</button>}
-              <label className={BTN_G + BTN_MD + " cursor-pointer"}><Icon name="paperclip" size={14} />پیوست<input type="file" multiple className="sr-only" accept={(model?.vision ? "image/png,image/jpeg,image/webp,image/gif," : "") + ".txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.sql,.yaml,.yml"} onChange={(e) => { void attach(e.target.files); e.target.value = ""; }} /></label>
+              {busy ? <button type="button" onClick={() => abort.current?.abort()} className={BTN_G + BTN_MD}><Icon name="x" size={16} />توقف</button>
+                : <button type="button" disabled={!input.trim()} onClick={() => void send()} className={BTN_P + BTN_MD}><Icon name="send" size={16} />ارسال</button>}
+              <label className={BTN_G + BTN_MD + " cursor-pointer"}><Icon name="paperclip" size={16} />پیوست<input type="file" multiple className="sr-only" accept={(model?.vision ? "image/png,image/jpeg,image/webp,image/gif," : "") + ".txt,.md,.csv,.json,.js,.ts,.py,.html,.css,.sql,.yaml,.yml"} onChange={(e) => { void attach(e.target.files); e.target.value = ""; }} /></label>
               <span className="text-[11px] text-white/50">{model?.vision ? "تصویر و فایل متنی" : "فایل متنی (این مدل تصویر نمی‌پذیرد)"}</span>
             </div>
           </Card>
@@ -198,7 +198,7 @@ export function EmbedPlayground() {
           <Field label="مدل"><Select label="مدل" value={model} onChange={setModel} options={models.map((m) => ({ value: m.id, label: m.name }))} /></Field>
           <Field label="متن‌ها" hint="هر خط یک متن (حداکثر ۵۰)"><textarea rows={7} value={texts} onChange={(e) => setTexts(e.target.value)} className={TEXTAREA} placeholder={"قیمت سرور ابری ماهانه\nطرز تهیه نان\nثبت دامنه ir"} /></Field>
           <Field label="پرسش"><input value={query} onChange={(e) => setQuery(e.target.value)} className={INPUT} placeholder="سرور ارزان" /></Field>
-          <AsyncButton disabled={!list.length || list.length > 50 || !query.trim()} onClick={async () => setRes(await api.ai.embedCompare(model, list, query.trim()))}><Icon name="search" size={15} />رتبه‌بندی</AsyncButton>
+          <AsyncButton disabled={!list.length || list.length > 50 || !query.trim()} onClick={async () => setRes(await api.ai.embedCompare(model, list, query.trim()))}><Icon name="search" size={16} />رتبه‌بندی</AsyncButton>
         </div>
       </Card>
       <Card title="نتیجه (شباهت کسینوسی)" icon="list-checks">
@@ -245,13 +245,13 @@ export function KnowledgeBases() {
           <div className="flex flex-wrap items-end gap-3">
             <Field label="نام"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={INPUT + " w-56"} /></Field>
             <Field label="مدل Embedding"><Select label="مدل" value={model} onChange={setModel} options={models.map((m) => ({ value: m.id, label: m.name }))} className="w-56" /></Field>
-            <AsyncButton disabled={name.trim().length < 2} className={BTN_P + BTN_MD} onClick={async () => { await api.ai.kbCreate(name.trim(), model); setName(""); }}><Icon name="plus" size={14} />ساخت</AsyncButton>
+            <AsyncButton disabled={name.trim().length < 2} className={BTN_P + BTN_MD} onClick={async () => { await api.ai.kbCreate(name.trim(), model); setName(""); }}><Icon name="plus" size={16} />ساخت</AsyncButton>
           </div>
         )}
       </Card>
       {a.kbs.length === 0 ? <Empty icon="book-open" title="هنوز پایگاه دانشی نساخته‌اید" /> : a.kbs.map((kb) => (
         <Card key={kb.id} pad="p-3 sm:p-4" title={<span className="flex flex-wrap items-center gap-2">{kb.name}<Badge>{fa(kb.docs.length)} سند · {fa(kb.chunks)} قطعه</Badge><CopyText text={kb.id} className="text-[11px] font-mono text-white/50" /></span>}
-          action={<AsyncButton danger size="sm" confirmText={"پایگاه «" + kb.name + "» و همه اسنادش حذف شود؟"} onClick={() => api.ai.kbDelete(kb.id)}><Icon name="trash-2" size={13} />حذف</AsyncButton>}>
+          action={<AsyncButton danger size="sm" confirmText={"پایگاه «" + kb.name + "» و همه اسنادش حذف شود؟"} onClick={() => api.ai.kbDelete(kb.id)}><Icon name="trash-2" size={14} />حذف</AsyncButton>}>
           <ul className="divide-y divide-white/[0.06] mb-3">
             {kb.docs.map((d) => (
               <li key={d.id} className="py-2 flex items-center justify-between gap-3 text-xs">
@@ -261,9 +261,9 @@ export function KnowledgeBases() {
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <label className={BTN_G + BTN_SM + " cursor-pointer" + (uploading === kb.id ? " opacity-60 pointer-events-none" : "")}><Icon name="upload" size={13} />{uploading === kb.id ? "در حال پردازش…" : "بارگذاری فایل"}<input type="file" multiple className="sr-only" accept=".txt,.md,.csv,.json,.html,.htm,.pdf" onChange={(e) => { void upload(kb.id, e.target.files); e.target.value = ""; }} /></label>
+            <label className={BTN_G + BTN_SM + " cursor-pointer" + (uploading === kb.id ? " opacity-60 pointer-events-none" : "")}><Icon name="upload" size={14} />{uploading === kb.id ? "در حال پردازش…" : "بارگذاری فایل"}<input type="file" multiple className="sr-only" accept=".txt,.md,.csv,.json,.html,.htm,.pdf" onChange={(e) => { void upload(kb.id, e.target.files); e.target.value = ""; }} /></label>
             <input value={search[kb.id] ?? ""} onChange={(e) => setSearch({ ...search, [kb.id]: e.target.value })} placeholder="جست‌وجوی آزمایشی…" aria-label="جست‌وجو در پایگاه دانش" className={INPUT_BASE + " h-9 flex-1 min-w-40"} />
-            <AsyncButton disabled={!search[kb.id]?.trim() || !kb.chunks} className={BTN_G + BTN_SM} onClick={async () => { const r = await api.ai.kbSearch(kb.id, search[kb.id].trim()); setHits({ ...hits, [kb.id]: r.hits }); }}><Icon name="search" size={13} />جست‌وجو</AsyncButton>
+            <AsyncButton disabled={!search[kb.id]?.trim() || !kb.chunks} className={BTN_G + BTN_SM} onClick={async () => { const r = await api.ai.kbSearch(kb.id, search[kb.id].trim()); setHits({ ...hits, [kb.id]: r.hits }); }}><Icon name="search" size={14} />جست‌وجو</AsyncButton>
           </div>
           {hits[kb.id] && <ol className="mt-3 space-y-2">{hits[kb.id].map((h, i) => <li key={i} className="rounded-xl bg-white/[0.03] p-3 text-xs leading-6"><span className="flex justify-between text-white/55 mb-1"><span>{h.document}</span><span dir="ltr">{h.score.toFixed(3)}</span></span><span className="whitespace-pre-wrap line-clamp-4">{h.text}</span></li>)}</ol>}
         </Card>
@@ -334,7 +334,7 @@ export function UsageReport() {
   const head = ["requests", "cost_toman", "tokens_in", "tokens_out", "errors"];
   const nums = (x: { count: number; spend: number; inTokens: number; outTokens: number; errors: number }) => [x.count, x.spend, x.inTokens, x.outTokens, x.errors];
   const table = (title: string, icon: string, rows: { label: string; count: number; spend: number; inTokens: number; outTokens: number; errors: number }[], csv: () => void) => (
-    <Card pad="p-3 sm:p-4" title={title} icon={icon} action={rows.length ? <button type="button" onClick={csv} className={BTN_G + BTN_SM}><Icon name="download" size={13} />CSV</button> : undefined}>
+    <Card pad="p-3 sm:p-4" title={title} icon={icon} action={rows.length ? <button type="button" onClick={csv} className={BTN_G + BTN_SM}><Icon name="download" size={14} />CSV</button> : undefined}>
       {rows.length === 0 ? <p className="text-sm text-white/55">مصرفی ثبت نشده است.</p> : <ul className="space-y-2.5">{rows.map((b) => { const max = Math.max(...rows.map((x) => x.spend)) || 1; return (
         <li key={b.label}><div className="flex justify-between gap-3 text-xs mb-1"><span dir="auto" className="truncate">{b.label}</span><span className="tabular text-white/70 whitespace-nowrap">{toman(b.spend)} · {fa(b.count)} درخواست{b.errors ? " · " + fa(b.errors) + " خطا" : ""}</span></div>
           <div className="h-1.5 rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-violet-400/80" style={{ width: Math.max(2, (b.spend / max) * 100) + "%" }} /></div></li>
@@ -345,7 +345,7 @@ export function UsageReport() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="w-40"><Select label="بازه" value={String(days)} onChange={(v) => setDays(Number(v) as 7 | 30 | 60)} options={[{ value: "7", label: "۷ روز اخیر" }, { value: "30", label: "۳۰ روز اخیر" }, { value: "60", label: "۶۰ روز اخیر" }]} /></div>
-        {r && r.daily.length > 0 && <button type="button" className={BTN_G + BTN_SM} onClick={() => downloadCsv("gereh-ai-daily.csv", [["day", ...head], ...r.daily.map((d) => [d.day, ...nums(d)])])}><Icon name="download" size={13} />CSV روزانه</button>}
+        {r && r.daily.length > 0 && <button type="button" className={BTN_G + BTN_SM} onClick={() => downloadCsv("gereh-ai-daily.csv", [["day", ...head], ...r.daily.map((d) => [d.day, ...nums(d)])])}><Icon name="download" size={14} />CSV روزانه</button>}
       </div>
       {!r ? <p className="text-sm text-white/55">در حال بارگذاری…</p> : (
         <>
@@ -376,7 +376,7 @@ export function Projects() {
           <li key={p.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
             <span className="min-w-0"><b className="text-sm">{p.name}</b><span className="block text-[11px] text-white/55 mt-1">{fa(p.keys)} کلید · این ماه {toman(p.spentMonth)}{p.monthlyLimit ? " از سقف " + toman(p.monthlyLimit) : " (بدون سقف)"}</span>
               {p.monthlyLimit > 0 && <span className="block h-1.5 w-48 rounded-full bg-white/[0.06] mt-1.5"><span className={"block h-full rounded-full " + (p.spentMonth >= p.monthlyLimit ? "bg-rose-400" : "bg-violet-400/80")} style={{ width: Math.min(100, (p.spentMonth / p.monthlyLimit) * 100) + "%" }} /></span>}</span>
-            <span className="flex gap-2"><button type="button" onClick={() => setEdit({ id: p.id, name: p.name, limit: p.monthlyLimit ? String(p.monthlyLimit) : "" })} className={BTN_G + BTN_SM}><Icon name="pencil" size={12} />ویرایش</button>
+            <span className="flex gap-2"><button type="button" onClick={() => setEdit({ id: p.id, name: p.name, limit: p.monthlyLimit ? String(p.monthlyLimit) : "" })} className={BTN_G + BTN_SM}><Icon name="pencil" size={14} />ویرایش</button>
               <AsyncButton danger size="sm" confirmText={"پروژه «" + p.name + "» حذف شود؟ کلیدهایش بدون پروژه می‌مانند."} onClick={() => api.ai.projectDelete(p.id)}>حذف</AsyncButton></span>
           </li>
         ))}</ul>

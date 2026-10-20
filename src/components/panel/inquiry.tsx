@@ -29,7 +29,7 @@ export function UserInquiry() {
   const acct = q.account;
   return (
     <div>
-      <div className="relative overflow-hidden rounded-[1.75rem] p-6 sm:p-8 mb-5 text-white" style={{ background: "linear-gradient(120deg, #1e2a78 0%, #2347c9 55%, #0ea5e9 100%)" }}>
+      <div className="relative overflow-hidden rounded-[1.4rem] p-5 sm:p-8 mb-4 text-white" style={{ background: "linear-gradient(120deg, #1e2a78 0%, #2347c9 55%, #0ea5e9 100%)" }}>
         <div aria-hidden="true" className="absolute -left-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div>
@@ -50,7 +50,7 @@ export function UserInquiry() {
         <Topup />
       </div>
 
-      <div className="overflow-x-auto no-scrollbar mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های API" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های API" options={[
         { id: "services", label: "سرویس‌ها", icon: "layers" }, { id: "logs", label: "گزارش درخواست‌ها", icon: "activity" },
         { id: "test", label: "تست سرویس", icon: "terminal" }, { id: "security", label: "امنیت", icon: "shield-check" },
       ]} /></div>
@@ -85,7 +85,7 @@ function Activate({ kyc }: { kyc: string }) {
               <p className="text-sm text-white/70 leading-7">به دلیل حساسیت اطلاعات، سرویس‌های استعلام فقط به حساب‌های <b>احرازشده</b> ارائه می‌شوند.</p>
               <Link href="/panel/account" className={BTN_P + BTN_LG + " w-full mt-4"}><Icon name="fingerprint" size={16} />تکمیل احراز هویت</Link>
             </>}
-            <Link href={"/docs/inquiry" as never} className={BTN_G + BTN_MD + " w-full mt-2"}><Icon name="book-open" size={15} />مستندات API</Link>
+            <Link href={"/docs/inquiry" as never} className={BTN_G + BTN_MD + " w-full mt-2"}><Icon name="book-open" size={16} />مستندات API</Link>
           </div>
         </div>
       </Card>
@@ -111,7 +111,7 @@ function Credentials() {
         : <button type="button" onClick={async () => setSecret(await api.inquiry.reveal())} className="text-sm acc inline-flex items-center gap-1.5"><Icon name="eye" size={14} />نمایش رمز</button>)}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
         <span className="text-[11px] text-white/50">فعال از {a.since}</span>
-        <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز فعلی بلافاصله از کار می‌افتد و باید رمز جدید را در برنامه‌تان جایگزین کنید. ادامه؟" onClick={async () => { await api.inquiry.rotate(); setSecret(null); notify("رمز جدید ساخته شد؛ آن را در برنامه‌تان جایگزین کنید", "key-round"); }}><Icon name="refresh-cw" size={13} />ساخت رمز جدید</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز فعلی بلافاصله از کار می‌افتد و باید رمز جدید را در برنامه‌تان جایگزین کنید. ادامه؟" onClick={async () => { await api.inquiry.rotate(); setSecret(null); notify("رمز جدید ساخته شد؛ آن را در برنامه‌تان جایگزین کنید", "key-round"); }}><Icon name="refresh-cw" size={14} />ساخت رمز جدید</AsyncButton>
       </div>
     </Card>
   );
@@ -194,7 +194,7 @@ function RequestAccess({ serviceId, onClose }: { serviceId: string | null; onClo
       <p className="text-sm text-white/70 leading-7">این سرویس با اطلاعات شخصی سروکار دارد و طبق مقررات فقط برای کاربرد مشخص و قانونی فعال می‌شود. کاربرد خود را دقیق بنویسید؛ معمولاً ظرف یک روز کاری بررسی می‌شود.</p>
       <Field label="کاربرد شما" className="mt-4"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="مثلاً: احراز هویت فروشندگان مارکت‌پلیس پیش از تسویه حساب" className={TEXTAREA} /></Field>
       <p className="text-[11px] text-white/50 mt-1">{fa(text.trim().length)} از حداقل ۲۰ نویسه</p>
-      <AsyncButton disabled={text.trim().length < 20} className="mt-4" onClick={async () => { await api.inquiry.requestAccess(serviceId!, text.trim()); notify("درخواست ثبت شد", "file-check"); setText(""); onClose(); }}>ثبت درخواست</AsyncButton>
+      <AsyncButton disabled={text.trim().length < 20} className={BTN_P + BTN_MD + " mt-4"} onClick={async () => { await api.inquiry.requestAccess(serviceId!, text.trim()); notify("درخواست ثبت شد", "file-check"); setText(""); onClose(); }}>ثبت درخواست</AsyncButton>
     </Modal>
   );
 }
@@ -260,7 +260,7 @@ function Playground() {
             <Switch on={sandbox} onChange={setSandbox} label="حالت آزمایشی" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <AsyncButton confirmText={sandbox ? undefined : "این درخواست واقعی است و " + (svc ? toman(svc.price) : "") + " از کیف پول کم می‌شود (در صورت پاسخ قطعی). ادامه؟"} onClick={async () => setOut(await api.inquiry.test(sid, vals, sandbox))}><Icon name="send" size={15} />ارسال</AsyncButton>
+            <AsyncButton confirmText={sandbox ? undefined : "این درخواست واقعی است و " + (svc ? toman(svc.price) : "") + " از کیف پول کم می‌شود (در صورت پاسخ قطعی). ادامه؟"} onClick={async () => setOut(await api.inquiry.test(sid, vals, sandbox))}><Icon name="send" size={16} />ارسال</AsyncButton>
             {def && <button type="button" className={BTN_G + BTN_MD} onClick={() => setVals(Object.fromEntries(def.fields.filter((f) => f.kind !== "image").map((f) => [f.key, f.example])))}>پر کردن با نمونه</button>}
           </div>
         </div>}
@@ -282,7 +282,7 @@ function Security({ ips, onSaved }: { ips: string[]; onSaved: () => void }) {
       <Card title="محدودیت IP" icon="shield-check">
         <p className="text-sm text-white/65 leading-7">فقط درخواست‌هایی که از این IPها یا بازه‌ها بیایند پذیرفته می‌شوند. هر مورد در یک خط؛ خالی یعنی بدون محدودیت.</p>
         <textarea rows={5} dir="ltr" value={text} onChange={(e) => setText(e.target.value)} placeholder={"185.10.20.30\n5.160.0.0/16"} aria-label="IPهای مجاز" className={TEXTAREA + " font-mono text-left mt-3"} />
-        <AsyncButton className="mt-3" onClick={async () => { await api.inquiry.setIps(text.split(/[\s,]+/).filter(Boolean)); onSaved(); }}>ذخیره</AsyncButton>
+        <AsyncButton className={BTN_P + BTN_MD + " mt-3"} onClick={async () => { await api.inquiry.setIps(text.split(/[\s,]+/).filter(Boolean)); onSaved(); }}>ذخیره</AsyncButton>
       </Card>
       <Card title="توصیه‌های امنیتی" icon="lock">
         <ul className="space-y-3 text-sm text-white/70 leading-7">

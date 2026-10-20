@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { PAAS_NAME_RE } from "@/lib/paas";
 import { api, useDB } from "@/lib/store";
@@ -131,7 +131,7 @@ function ImportModal({ site, onClose }: { site: PaasApp; onClose: () => void }) 
       <p className="text-sm text-amber-200/90 leading-7 mb-3">فایل‌ها و پایگاه داده فعلی این سایت با محتوای پشتیبان جایگزین می‌شوند. سایت در طول انتقال (معمولاً چند دقیقه) در دسترس نیست.</p>
       <BackupPicker onUploaded={setUpload} />
       <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm mt-3"><span>آدرس سایت را تغییر نده</span><Switch on={keepUrl} onChange={setKeepUrl} label="حفظ آدرس" /></div>
-      <AsyncButton danger disabled={!upload} className="w-full h-11 mt-4" onClick={async () => { await api.wp.import(site.id, upload!, keepUrl); notify("انتقال شروع شد", "upload"); onClose(); }}>شروع انتقال</AsyncButton>
+      <AsyncButton danger disabled={!upload} className={BTN_D + BTN_LG + " w-full mt-4"} onClick={async () => { await api.wp.import(site.id, upload!, keepUrl); notify("انتقال شروع شد", "upload"); onClose(); }}>شروع انتقال</AsyncButton>
     </Modal>
   );
 }

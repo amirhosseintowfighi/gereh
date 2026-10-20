@@ -260,7 +260,9 @@ export function SideDrawer({ open, onClose, title, children, width = "w-[520px]"
   );
 }
 
-/** Shows a spinner while the promise runs, surfaces errors as a toast, optional in-app confirm. */
+/** Shows a spinner while the promise runs, surfaces errors as a toast, optional in-app confirm.
+    Styled as a primary (or danger) button of `size`; a `className` replaces that style entirely, so it must
+    carry its own (`BTN_G + BTN_SM`), never just a margin. */
 export function AsyncButton({ onClick, className, children, confirmText, danger = false, disabled = false, title, size = "md" }: {
   onClick: () => Promise<unknown> | unknown; className?: string; children: React.ReactNode; confirmText?: string; danger?: boolean; disabled?: boolean; title?: string; size?: "sm" | "md" | "lg";
 }) {

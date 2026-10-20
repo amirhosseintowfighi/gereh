@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BUILDER } from "@/lib/builder";
-import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { appMonthly, DB_ENGINES, DISK_PRICE_GB, defaultEnvKeyFor, PAAS_NAME_RE, PAAS_RESERVED, RUNTIMES, STACKS, stackOf, stackVersions } from "@/lib/paas";
 import { api, useDB, useMyId, useSession } from "@/lib/store";
@@ -240,7 +240,7 @@ export function AppDetail({ id }: { id: string }) {
             : <><AsyncButton className={BTN_G + BTN_MD} confirmText="همه نمونه‌ها به‌ترتیب ری‌استارت شوند؟" onClick={() => api.paas.power(app.id, "restart")}><Icon name="refresh-cw" size={16} />ری‌استارت</AsyncButton>
               <AsyncButton danger className={BTN_G + BTN_MD} confirmText="اپ خاموش شود؟ تا روشن کردن دوباره، فقط هزینه دیسک محاسبه می‌شود." onClick={() => api.paas.power(app.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton></>)}
         </>} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های اپ" options={TABS} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های اپ" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <AppOverview app={app} onLog={setLogDep} />}
         {tab === "deploys" && <><AppDeploys app={app} onLog={setLogDep} /><AppReleases app={app} /></>}
@@ -383,7 +383,7 @@ function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
           <span className="min-w-0"><span className="flex items-center gap-2"><Badge tone="green" dot>فعال</Badge><a href={app.previewUrl} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-sm acc truncate">{app.previewUrl.replace("https://", "")}</a></span>
             <span className="block text-[11px] text-white/50 mt-1">{live.branch ? <>شاخه <b dir="ltr">{live.branch}</b> · </> : null}<span dir="ltr" className="font-mono">{live.ref}</span> · {live.at}</span></span>
           <span className="flex flex-wrap gap-2">
-            <AsyncButton className={BTN_P + BTN_SM} confirmText="این نسخه جایگزین نسخه اصلی شود؟ (دستور انتشار، اگر تعریف شده، اول اجرا می‌شود)" onClick={async () => { await api.paas.promote(app.id, live.id); notify("انتقال به نسخه اصلی شروع شد", "rocket"); }}><Icon name="rocket" size={13} />انتقال به نسخه اصلی</AsyncButton>
+            <AsyncButton className={BTN_P + BTN_SM} confirmText="این نسخه جایگزین نسخه اصلی شود؟ (دستور انتشار، اگر تعریف شده، اول اجرا می‌شود)" onClick={async () => { await api.paas.promote(app.id, live.id); notify("انتقال به نسخه اصلی شروع شد", "rocket"); }}><Icon name="rocket" size={14} />انتقال به نسخه اصلی</AsyncButton>
             <button type="button" onClick={() => onLog(live.id)} className={BTN_G + BTN_SM}>لاگ</button>
             <AsyncButton className={BTN_G + BTN_SM} confirmText="پیش‌نمایش حذف شود؟" onClick={async () => { await api.paas.removePreview(app.id); notify("پیش‌نمایش حذف شد"); }}>حذف</AsyncButton>
           </span>
@@ -393,7 +393,7 @@ function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
         : app.source === "git" ? (
           <div className="flex flex-wrap gap-2 mt-4">
             <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " max-w-xs font-mono text-left text-sm"} />
-            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={15} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
+            <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={16} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
           </div>
         ) : <p className="text-xs text-white/50 mt-4">برای اپ‌های ZIP: <code dir="ltr">gereh deploy --preview</code></p>}
     </Card>
@@ -417,7 +417,7 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
               </span>
               <span className="flex gap-2">
                 <button type="button" onClick={() => onLog(d.id)} className={BTN_G + BTN_SM}>لاگ</button>
-                {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + BTN_SM} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={13} />بازگشت</AsyncButton>}
+                {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + BTN_SM} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={14} />بازگشت</AsyncButton>}
               </span>
             </li>
           ))}
@@ -488,7 +488,7 @@ function AppDomains({ app }: { app: PaasApp }) {
           <p className="text-sm text-white/65 leading-7 max-w-2xl">پاسخ‌هایی که اپ با <code dir="ltr">Cache-Control</code> قابل کش اعلام کند (تصاویر، CSS، JS، صفحه‌های عمومی) در لبه شبکه نگه داشته می‌شوند و بدون رسیدن به اپ سرو می‌شوند؛ سریع‌تر و با مصرف کمتر. پاسخ‌هایی که کوکی تنظیم می‌کنند یا <code dir="ltr">private</code> هستند هرگز کش نمی‌شوند. فشرده‌سازی Gzip و Brotli همیشه روشن است. وضعیت هر پاسخ در سربرگ <code dir="ltr">X-Cache-Status</code> دیده می‌شود.</p>
           <Switch on={app.cdn} onChange={async (v) => { await api.paas.updateApp(app.id, { cdn: v }); notify(v ? "CDN روشن شد" : "CDN خاموش شد", "zap"); }} label="CDN" />
         </div>
-        {app.cdn && <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={13} />پاک کردن کش</AsyncButton>}
+        {app.cdn && <AsyncButton className={BTN_G + BTN_SM + " mt-3"} confirmText="همه پاسخ‌های کش‌شده این اپ پاک شود؟ چند دقیقه بار اپ کمی بیشتر می‌شود." onClick={async () => { await api.paas.purgeCache(app.id); notify("کش پاک شد", "refresh-cw"); }}><Icon name="refresh-cw" size={14} />پاک کردن کش</AsyncButton>}
       </Card>
       <DomainOptions app={app} />
     </div>
@@ -598,7 +598,7 @@ function AppSettings({ app }: { app: PaasApp }) {
           <p className="text-sm text-white/65 leading-7">اپ، نسخه‌ها، دامنه‌ها و دیسک دائمی آن برای همیشه حذف می‌شوند. پایگاه‌های داده متصل حذف نمی‌شوند.</p>
           <label className="block text-xs text-white/60 mt-3" htmlFor="del-name">برای تأیید، نام اپ را بنویسید: <b dir="ltr">{app.name}</b></label>
           <input id="del-name" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5"} />
-          <AsyncButton danger disabled={confirmName !== app.name} className="mt-3" onClick={async () => { await api.paas.deleteApp(app.id, confirmName); notify("اپ حذف شد", "trash-2"); router.push("/panel/apps"); }}>حذف همیشگی</AsyncButton>
+          <AsyncButton danger disabled={confirmName !== app.name} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.paas.deleteApp(app.id, confirmName); notify("اپ حذف شد", "trash-2"); router.push("/panel/apps"); }}>حذف همیشگی</AsyncButton>
         </Card>
       </div>
     </div>

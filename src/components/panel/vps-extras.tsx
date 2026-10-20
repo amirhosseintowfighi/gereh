@@ -44,7 +44,7 @@ export function NetworkExtras({ s }: { s: Server }) {
   return <Wrap x={x}>{(v) => (
     <Card title="آدرس‌های IPv4 و Reverse DNS" icon="hash" className="lg:col-span-2" action={
       <AsyncButton className={BTN_P + BTN_SM} disabled={v.ips.length - 1 >= v.prices.maxIps} confirmText={"یک IPv4 اضافه با هزینه " + toman(v.prices.ip) + " در ماه (ساعتی از کیف پول) اضافه شود؟"}
-        onClick={async () => { const ip = await vpsApi.addIp(s.id); notify("IPv4 " + ip + " اضافه شد", "hash"); x.reload(); }}><Icon name="plus" size={15} /> IPv4 اضافه</AsyncButton>} pad="p-3 sm:p-4">
+        onClick={async () => { const ip = await vpsApi.addIp(s.id); notify("IPv4 " + ip + " اضافه شد", "hash"); x.reload(); }}><Icon name="plus" size={14} /> IPv4 اضافه</AsyncButton>} pad="p-3 sm:p-4">
       <div className="space-y-2">{v.ips.map((ip) => <PtrRow key={ip.id} sid={s.id} ip={ip} onDone={x.reload} />)}</div>
       <div className="flex flex-wrap items-center justify-between gap-3 mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
         <p className="text-xs text-white/55 leading-6">بازنشانی شبکه، پیکربندی کارت شبکه را از روی آدرس‌های بالا بازسازی می‌کند (برای وقتی که دسترسی شبکه با تغییر تنظیمات از دست رفته است).</p>
@@ -76,7 +76,7 @@ export function DisksPanel({ s }: { s: Server }) {
   const [add, setAdd] = useState<{ name: string; size: string } | null>(null);
   const [grow, setGrow] = useState<{ id: string; name: string; size: string; min: number } | null>(null);
   return <Wrap x={x}>{(v) => <>
-    <Card title="دیسک‌های اضافه" icon="hard-drive" action={<button type="button" disabled={v.disks.length >= v.prices.maxDisks} onClick={() => setAdd({ name: "data", size: "50" })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> دیسک جدید</button>} pad="p-3 sm:p-4">
+    <Card title="دیسک‌های اضافه" icon="hard-drive" action={<button type="button" disabled={v.disks.length >= v.prices.maxDisks} onClick={() => setAdd({ name: "data", size: "50" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> دیسک جدید</button>} pad="p-3 sm:p-4">
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">هر گیگابایت {toman(v.prices.diskGb)} در ماه، ساعتی از کیف پول. اندازه دیسک فقط افزایش می‌یابد؛ پس از افزایش، پارتیشن را در سیستم‌عامل بزرگ کنید. دیسک جداشده داده‌هایش را نگه می‌دارد و به سرورهای همین موقعیت وصل می‌شود.</p>
       {v.disks.length === 0 ? <Empty icon="hard-drive" title="دیسک اضافه‌ای ندارید" text="برای داده، لاگ یا بکاپ، یک دیسک جدا بسازید." /> : v.disks.map((d) => (
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
@@ -269,7 +269,7 @@ export function FirewallGroups({ s }: { s: Server }) {
   const [edit, setEdit] = useState<{ id?: string; name: string; rules: FwRuleIn[] } | null>(null);
   const blank: FwRuleIn = { proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" };
   return <Wrap x={x}>{(v) => <>
-    <Card className="mt-4" title="گروه‌های فایروال ابری" icon="shield-plus" action={<button type="button" onClick={() => setEdit({ name: "", rules: [{ ...blank, port: "22", note: "SSH" }] })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> گروه جدید</button>} pad="p-3 sm:p-4">
+    <Card className="mt-4" title="گروه‌های فایروال ابری" icon="shield-plus" action={<button type="button" onClick={() => setEdit({ name: "", rules: [{ ...blank, port: "22", note: "SSH" }] })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> گروه جدید</button>} pad="p-3 sm:p-4">
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">یک مجموعه قانون بسازید و روی چند سرور اعمال کنید؛ تغییر گروه روی همه سرورهای متصل اعمال می‌شود. قوانین گروه در کنار قوانین اختصاصی همین سرور اجرا می‌شوند.</p>
       {v.groups.length === 0 ? <Empty icon="shield" title="گروهی ندارید" /> : v.groups.map((g) => (
         <div key={g.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">

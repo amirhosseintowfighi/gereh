@@ -78,7 +78,7 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
         <label className="text-[11px] text-white/55 flex items-center gap-1">تا<input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className={INPUT_BASE + " h-8 w-auto text-[11px]"} /></label>
         <span className="flex items-center gap-1.5 text-[11px] text-white/70 mr-auto"><Switch on={live} onChange={setLive} label="دنبال کردن زنده" />زنده</span>
         <span className="flex items-center gap-1.5 text-[11px] text-white/70"><Switch on={wrap} onChange={setWrap} label="شکستن خطوط" />شکستن خط</span>
-        <a href={exportUrl()} className={BTN_G + BTN_SM + " text-[11px]"}><Icon name="download" size={13} />‎.txt</a>
+        <a href={exportUrl()} className={BTN_G + BTN_SM + " text-[11px]"}><Icon name="download" size={14} />‎.txt</a>
       </div>
       {error && <p role="alert" className="text-sm text-rose-300 mb-2">{error}</p>}
       <div ref={box} dir="ltr" tabIndex={0} role="log" aria-label="لاگ اپ" className={"text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[60vh] overflow-auto " + (wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
@@ -199,9 +199,9 @@ export function AppReleases({ app }: { app: PaasApp }) {
                 <span className="block text-[11px] text-white/50 mt-1">{r.at}{r.branch ? " · شاخه " : ""}<span dir="ltr">{r.branch}</span>{r.ref ? " · " : ""}<span dir="ltr" className="font-mono">{r.ref.slice(0, 12)}</span>{r.seconds !== null ? " · " + fa(r.seconds) + " ثانیه" : ""}</span>
               </span>
               <span className="flex gap-2">
-                {r.commitUrl && <a href={r.commitUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="external-link" size={13} />کامیت</a>}
-                {r.source ? <a href={r.source} className={BTN_G + BTN_SM}><Icon name="download" size={13} />سورس</a>
-                  : r.archiveUrl ? <a href={r.archiveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="download" size={13} />سورس</a> : null}
+                {r.commitUrl && <a href={r.commitUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="external-link" size={14} />کامیت</a>}
+                {r.source ? <a href={r.source} className={BTN_G + BTN_SM}><Icon name="download" size={14} />سورس</a>
+                  : r.archiveUrl ? <a href={r.archiveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_SM}><Icon name="download" size={14} />سورس</a> : null}
               </span>
             </li>
           ))}

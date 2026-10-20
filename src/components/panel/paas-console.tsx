@@ -123,7 +123,7 @@ function RunCommand({ app, instance, onDone }: { app: PaasApp; instance: string;
       <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
         <label className="sr-only" htmlFor="run-cmd">دستور</label>
         <input id="run-cmd" value={cmd} onChange={(e) => setCmd(e.target.value)} dir="ltr" placeholder="php artisan cache:clear" className={INPUT + " font-mono text-left text-xs"} />
-        <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const r = await api.paas.consoleRun(app.id, cmd, instance || undefined); setOut({ ...r, command: cmd }); onDone(); }}><Icon name="play" size={14} />اجرا</AsyncButton>
+        <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const r = await api.paas.consoleRun(app.id, cmd, instance || undefined); setOut({ ...r, command: cmd }); onDone(); }}><Icon name="play" size={16} />اجرا</AsyncButton>
       </form>
       <p className="text-[11px] text-white/50 mt-2 leading-6">روی نمونه در حال اجرا با همان متغیرها و دیسک‌ها اجرا می‌شود؛ حداکثر ۶۰ ثانیه. برای کارهای طولانی (مایگریشن، اسکریپت) از «اجرای دستور» در بخش پردازش و زمان‌بندی استفاده کنید که در کانتینر جدا اجرا می‌شود.</p>
       {out && (
@@ -195,7 +195,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
   return (
     <Card title={<span className="flex items-center gap-2"><span dir="ltr" className="font-mono">{d.name}</span><span dir="ltr" className="text-xs text-white/55 font-mono">{d.mount}</span></span>} icon="hard-drive"
       action={<button type="button" onClick={onBrowse} disabled={!view.running} className={BTN_G + BTN_SM}><Icon name="folder-open" size={14} />مدیریت فایل‌ها</button>}>
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid lg:grid-cols-3 gap-4">
         <div className="space-y-3">
           <div>
             <div className="flex justify-between text-xs text-white/60 mb-1.5"><span>مصرف</span><span className="tabular">{d.usedBytes === null ? "—" : size(d.usedBytes)} از {fa(d.sizeGb)} گیگ</span></div>

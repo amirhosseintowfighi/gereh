@@ -29,7 +29,7 @@ export function UserStorage({ create = false }: { create?: boolean }) {
     <div>
       <PageTitle title="فضای ذخیره‌سازی ابری" sub="ذخیره‌سازی سازگار با S3 برای فایل‌ها، تصاویر، بکاپ و استاتیک سایت؛ پرداخت ساعتی از کیف پول."
         action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />باکت جدید</button>} />
-      <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های فضای ذخیره‌سازی" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های فضای ذخیره‌سازی" options={[
         { id: "buckets", label: "باکت‌ها", icon: "hard-drive", badge: buckets.length ? fa(buckets.length) : undefined }, { id: "keys", label: "کلیدهای دسترسی", icon: "key-round" }, { id: "connect", label: "اتصال", icon: "plug" },
       ]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
@@ -112,7 +112,7 @@ function SecretModal({ secret, onClose }: { secret: { accessKey: string; secretK
         {[["Access Key", secret.accessKey], ["Secret Key", secret.secretKey], ["Endpoint", db.storage.endpoint], ["Region", db.storage.region]].map(([l, v]) => (
           <Field key={l} label={l}><div className="rounded-xl bg-black/30 px-3 py-2.5 break-all"><CopyText text={v} className="font-mono text-sm" /></div></Field>
         ))}
-        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + BTN_MD} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={15} />کپی به‌صورت ‎.env</button><button type="button" className={BTN_P + BTN_MD} onClick={onClose}>ذخیره کردم</button></div>
+        <div className="flex justify-end gap-2"><button type="button" className={BTN_G + BTN_MD} onClick={() => copy("AWS_ACCESS_KEY_ID=" + secret.accessKey + "\nAWS_SECRET_ACCESS_KEY=" + secret.secretKey + "\nAWS_ENDPOINT_URL=" + db.storage.endpoint + "\nAWS_REGION=" + db.storage.region, "متغیرها کپی شد")}><Icon name="copy" size={16} />کپی به‌صورت ‎.env</button><button type="button" className={BTN_P + BTN_MD} onClick={onClose}>ذخیره کردم</button></div>
       </div>}
     </Modal>
   );
@@ -222,7 +222,7 @@ export function StorageDetail({ id }: { id: string }) {
       <PageTitle back={["/panel/storage", "فضای ذخیره‌سازی"]} title={<span dir="ltr" className="inline-block">{b.name}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><Pill map={BUCKET_STATUS} s={b.status} />{b.access === "public" ? <Badge tone="blue">عمومی</Badge> : <Badge>خصوصی</Badge>}<span className="text-xs">پلن {plan?.name} · {bytes(b.usedBytes)} استفاده‌شده</span><span className="text-xs">{toman(b.hourly)} در ساعت</span></span>} />
       {b.status === "suspended" && <div role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-400/[0.07] px-4 py-3 text-sm leading-7">{b.suspendReason === "billing" ? "موجودی کیف پول تمام شده و دسترسی به این باکت متوقف است؛ فایل‌ها حفظ شده‌اند. با شارژ کیف پول باکت خودکار فعال می‌شود." : "این باکت توسط پشتیبانی معلق شده است؛ برای جزئیات تیکت بزنید."}</div>}
-      <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های باکت" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های باکت" options={[
         { id: "files", label: "فایل‌ها", icon: "folder-open" }, { id: "usage", label: "مصرف", icon: "chart-column" }, { id: "connect", label: "اتصال", icon: "plug" }, { id: "domains", label: "دامنه", icon: "globe" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
       ]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
@@ -365,7 +365,7 @@ function FileModal({ b, modal, onClose, onDone }: { b: StorageBucket; modal: { k
         <p className="text-sm text-white/70 leading-7">هر کس این لینک را داشته باشد تا پایان مهلت می‌تواند <b dir="ltr">{baseName(modal.key)}</b> را دانلود کند؛ پس از آن لینک کار نمی‌کند.</p>
         <Field label="مدت اعتبار"><Select label="مدت اعتبار" value={ttl} onChange={setTtl} options={SHARE_TTLS.map((t) => ({ value: String(t.value), label: t.label }))} /></Field>
         {link && <div className="rounded-xl bg-black/30 px-3 py-2.5 break-all text-xs"><CopyText text={abs(link.url)} className="font-mono" /><span className="block text-[11px] text-white/50 mt-1">معتبر تا {when(link.expiresAt)}</span></div>}
-        <div className="flex justify-end"><AsyncButton onClick={async () => setLink(await api.storage.share(b.id, modal.key, Number(ttl)))}><Icon name="share-2" size={15} />ساخت لینک</AsyncButton></div>
+        <div className="flex justify-end"><AsyncButton onClick={async () => setLink(await api.storage.share(b.id, modal.key, Number(ttl)))}><Icon name="share-2" size={16} />ساخت لینک</AsyncButton></div>
       </div>}
     </Modal>
   );
@@ -411,8 +411,8 @@ function Domains({ b }: { b: StorageBucket }) {
               <li key={d.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
                 <span className="min-w-0"><b dir="ltr" className="text-sm break-all">{d.host}</b><span className="flex flex-wrap gap-1.5 mt-1.5"><Pill map={DOMAIN_STATUS} s={d.status} />{d.status === "active" && <span className="inline-flex items-center gap-1 text-[11px]">SSL: <Pill map={SSL_STATUS} s={d.ssl} /></span>}</span>{d.checked && <span className="block text-[11px] text-white/50 mt-1">بررسی: {d.checked}</span>}</span>
                 <span className="flex gap-2">
-                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.storage.verifyDomain(b.id, d.id); notify(r.status === "active" ? "CNAME درست است" : "CNAME هنوز به باکت اشاره نمی‌کند", r.status === "active" ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={13} />بررسی</AsyncButton>
-                  <AsyncButton className={BTN_D + BTN_SM} onClick={async () => { if (await confirm("دامنه " + d.host + " جدا شود؟", { danger: true, ok: "حذف" })) await api.storage.removeDomain(b.id, d.id); }}><Icon name="trash-2" size={13} /></AsyncButton>
+                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.storage.verifyDomain(b.id, d.id); notify(r.status === "active" ? "CNAME درست است" : "CNAME هنوز به باکت اشاره نمی‌کند", r.status === "active" ? "circle-check" : "clock"); }}><Icon name="refresh-cw" size={14} />بررسی</AsyncButton>
+                  <AsyncButton className={BTN_D + BTN_SM} onClick={async () => { if (await confirm("دامنه " + d.host + " جدا شود؟", { danger: true, ok: "حذف" })) await api.storage.removeDomain(b.id, d.id); }}><Icon name="trash-2" size={14} /></AsyncButton>
                 </span>
               </li>
             ))}
@@ -478,7 +478,7 @@ function Settings({ b }: { b: StorageBucket }) {
         </Card>
       </div>
       <div className="space-y-4">
-        <Card title="قوانین CORS" icon="network" action={<button type="button" disabled={rules.length >= 10} onClick={() => setRules([...rules, { ...EMPTY_RULE }])} className={BTN_G + BTN_SM}><Icon name="plus" size={13} />قانون</button>}>
+        <Card title="قوانین CORS" icon="network" action={<button type="button" disabled={rules.length >= 10} onClick={() => setRules([...rules, { ...EMPTY_RULE }])} className={BTN_G + BTN_SM}><Icon name="plus" size={14} />قانون</button>}>
           <p className="text-[11px] text-white/55 leading-6 mb-3">برای خواندن یا بارگذاری مستقیم از مرورگر (JavaScript سایت شما) لازم است.</p>
           {rules.length === 0 && <p className="text-sm text-white/55">قانونی تعریف نشده است.</p>}
           <ul className="space-y-3">

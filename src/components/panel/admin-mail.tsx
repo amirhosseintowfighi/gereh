@@ -31,7 +31,7 @@ export function AdminMail() {
   return (
     <div>
       <PageTitle title="سرویس ایمیل" sub={"دامنه‌ها، تعلیق و پلن‌ها. درایور: " + (data.driver === "stalwart" ? "Stalwart" : "شبیه‌ساز (STALWART_URL تنظیم نشده)")}
-        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.mail.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={15} />تست اتصال</AsyncButton>} />
+        action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.mail.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={16} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         <StatCard icon="mail" label="دامنه‌ها" value={data.domains.length} sub={fa(data.domains.filter((d) => d.mode === "live").length) + " در حالت LIVE"} />
@@ -54,8 +54,8 @@ export function AdminMail() {
                     {d.mode === "live" ? <Badge tone="green">LIVE</Badge> : <Badge tone="amber">DEV</Badge>}
                     <Badge tone={tone} dot>{label}{d.suspendReason === "credit" ? " (موجودی)" : d.suspendReason === "staff" ? " (پشتیبانی)" : ""}</Badge>
                     {d.suspendReason === "staff"
-                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.mail.adminDomain(d.id, { suspend: false }); reload(); }}><Icon name="play" size={13} />رفع تعلیق</AsyncButton>
-                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"ارسال ایمیل " + d.domain + " معلق شود؟"} onClick={async () => { await api.mail.adminDomain(d.id, { suspend: true }); reload(); }}><Icon name="pause" size={13} />تعلیق</AsyncButton>}
+                      ? <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.mail.adminDomain(d.id, { suspend: false }); reload(); }}><Icon name="play" size={14} />رفع تعلیق</AsyncButton>
+                      : <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"ارسال ایمیل " + d.domain + " معلق شود؟"} onClick={async () => { await api.mail.adminDomain(d.id, { suspend: true }); reload(); }}><Icon name="pause" size={14} />تعلیق</AsyncButton>}
                   </span>
                 </li>
               ); })}

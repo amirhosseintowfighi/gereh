@@ -175,7 +175,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           <div className="flex items-center gap-1.5">
             {kind === "user" && <AccountSwitcher />}
             {kind === "admin" && <AdminSearch />}
-            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + BTN_MD + " max-sm:hidden"}><Icon name="arrow-left-right" size={15} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
+            {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + BTN_MD + " max-sm:hidden"}><Icon name="arrow-left-right" size={16} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
               trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
               items={[...db.notifications.map((n) => ({ icon: n.icon, label: n.text + (n.read ? "" : "  •"), run: () => api.account.readOne(n.id) })), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />

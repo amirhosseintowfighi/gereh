@@ -44,7 +44,7 @@ export function ServerDetail({ id }: { id: string }) {
           {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
         </>} />
       <DelayBanner s={s} />
-      <div className="overflow-x-auto no-scrollbar mb-6"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
+      <div className="mb-5"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
         {cur === "overview" && <Overview s={s} />}
         {cur === "traffic" && <TrafficPanel s={s} />}
@@ -250,7 +250,7 @@ function ServerFirewall({ s }: { s: Server }) {
   const { notify, confirm } = useApp();
   const [form, setForm] = useState<Omit<FwRule, "id"> | null>(null);
   return <>
-    <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + BTN_SM}><Icon name="plus" size={15} /> قانون جدید</button>} pad="p-3 sm:p-4">
+    <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> قانون جدید</button>} pad="p-3 sm:p-4">
       {s.firewall.length === 0 ? <Empty icon="shield" title="قانونی تعریف نشده" text="همه ترافیک ورودی مجاز است. برای امنیت بیشتر، فقط پورت‌های لازم را باز کنید." /> : (
         <div className="overflow-x-auto"><table className="w-full text-sm min-w-[560px]">
           <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">پروتکل</th><th scope="col" className="text-right font-medium p-3">پورت</th><th scope="col" className="text-right font-medium p-3">مبدأ</th><th scope="col" className="text-right font-medium p-3">عملکرد</th><th scope="col" className="text-right font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
@@ -298,7 +298,7 @@ function ServerBackups({ s }: { s: Server }) {
             </div>
           ))}
       </Card>
-      <Card title="اسنپ‌شات‌ها" icon="camera" action={<AsyncButton className={BTN_P + BTN_SM} disabled={s.snapshots.length >= SNAP_LIMIT} title={s.snapshots.length >= SNAP_LIMIT ? "به سقف " + fa(SNAP_LIMIT) + " اسنپ‌شات رسیده‌اید" : undefined} onClick={async () => { await api.servers.snapshot(s.id); notify("اسنپ‌شات ساخته شد", "camera"); }}><Icon name="plus" size={15} /> ساخت اسنپ‌شات</AsyncButton>} pad="p-3 sm:p-4">
+      <Card title="اسنپ‌شات‌ها" icon="camera" action={<AsyncButton className={BTN_P + BTN_SM} disabled={s.snapshots.length >= SNAP_LIMIT} title={s.snapshots.length >= SNAP_LIMIT ? "به سقف " + fa(SNAP_LIMIT) + " اسنپ‌شات رسیده‌اید" : undefined} onClick={async () => { await api.servers.snapshot(s.id); notify("اسنپ‌شات ساخته شد", "camera"); }}><Icon name="plus" size={14} /> ساخت اسنپ‌شات</AsyncButton>} pad="p-3 sm:p-4">
         {s.snapshots.length === 0 ? <Empty icon="camera" title="اسنپ‌شاتی ندارید" text="پیش از تغییرات بزرگ، یک نسخه لحظه‌ای بگیرید." />
           : s.snapshots.map((sn) => (
             <div key={sn.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">

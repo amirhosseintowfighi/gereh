@@ -30,7 +30,7 @@ export function UserAi() {
   const [tab, setTab] = useState("start");
   return (
     <div>
-      <div className="relative overflow-hidden rounded-[1.75rem] p-6 sm:p-8 mb-5 text-white" style={{ background: "linear-gradient(120deg, #3b1a78 0%, #6d28d9 50%, #0ea5e9 100%)" }}>
+      <div className="relative overflow-hidden rounded-[1.4rem] p-5 sm:p-8 mb-4 text-white" style={{ background: "linear-gradient(120deg, #3b1a78 0%, #6d28d9 50%, #0ea5e9 100%)" }}>
         <div aria-hidden="true" className="absolute -left-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="min-w-0">
@@ -47,14 +47,14 @@ export function UserAi() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="activity" label="درخواست امروز" value={a.stats.todayCount} />
         <StatCard icon="wallet" label="هزینه امروز" value={a.stats.todaySpend} suffix="تومان" />
         <StatCard icon="chart-column" label="درخواست این ماه" value={a.stats.monthCount} />
         <StatCard icon="receipt" label="هزینه این ماه" value={a.stats.monthSpend} suffix="تومان" />
       </div>
 
-      <div className="overflow-x-auto no-scrollbar mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های API هوش مصنوعی" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های API هوش مصنوعی" options={[
         { id: "start", label: "شروع سریع", icon: "rocket" }, { id: "chat", label: "چت", icon: "bot" }, { id: "keys", label: "کلیدها", icon: "key-round" }, { id: "projects", label: "پروژه‌ها", icon: "folder-open" },
         { id: "models", label: "مدل‌ها و قیمت", icon: "tag" }, { id: "usage", label: "مصرف", icon: "chart-column" }, { id: "logs", label: "گزارش درخواست‌ها", icon: "scroll-text" },
         { id: "embed", label: "Embedding", icon: "sparkles" }, { id: "kb", label: "پایگاه دانش", icon: "book-open" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
@@ -89,7 +89,7 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
           <li className="flex gap-3"><span className="w-7 h-7 rounded-full bg-white/10 grid place-items-center shrink-0 text-xs font-bold">۲</span><span>یک کلید بسازید و برای امنیت، سقف هزینه روزانه بگذارید.<button type="button" onClick={onKeys} className="block acc text-xs mt-1">{active.length ? fa(active.length) + " کلید فعال دارید ←" : "ساخت اولین کلید ←"}</button></span></li>
           <li className="flex gap-3"><span className="w-7 h-7 rounded-full bg-white/10 grid place-items-center shrink-0 text-xs font-bold">۳</span><span>آدرس <code dir="ltr" className="text-xs">{a.endpoint}</code> را به‌جای آدرس OpenAI، Anthropic یا Gemini در برنامه‌تان بگذارید.</span></li>
         </ol>
-        <Link href={"/docs/ai-api" as never} className={BTN_G + BTN_MD + " w-full mt-5"}><Icon name="book-open" size={15} />مستندات کامل</Link>
+        <Link href={"/docs/ai-api" as never} className={BTN_G + BTN_MD + " w-full mt-5"}><Icon name="book-open" size={16} />مستندات کامل</Link>
       </Card>
       <Card pad="p-3 sm:p-4" title="اتصال ابزارها" icon="plug">
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -125,7 +125,7 @@ function Keys() {
               </div>
               {k.status !== "revoked" && <div className="flex items-center gap-2 sm:self-center">
                 <Switch on={k.status === "active"} onChange={async (v) => { await api.ai.setKeyEnabled(k.id, v); notify(v ? "کلید فعال شد" : "کلید غیرفعال شد", "key-round"); }} label={"فعال بودن کلید " + k.name} />
-                <button type="button" onClick={() => setForm({ edit: k })} className={BTN_G + BTN_SM}><Icon name="settings-2" size={13} />محدودیت‌ها</button>
+                <button type="button" onClick={() => setForm({ edit: k })} className={BTN_G + BTN_SM}><Icon name="settings-2" size={14} />محدودیت‌ها</button>
                 <AsyncButton danger size="sm" confirmText={"کلید «" + k.name + "» بلافاصله از کار می‌افتد. ادامه؟"} onClick={async () => { await api.ai.revokeKey(k.id); notify("کلید باطل شد", "key-round"); }}>ابطال</AsyncButton>
               </div>}
             </li>
@@ -251,7 +251,7 @@ export function AdminAi() {
         <StatCard icon="chart-column" label="درآمد این ماه" value={Math.round(a.stats.monthSpend / 1e5) / 10} suffix="میلیون" />
         <StatCard icon="triangle-alert" label="خطا در آخرین درخواست‌ها" value={errors} tone={errors ? "down" : ""} sub={"از " + fa(a.usage.length) + " درخواست اخیر"} />
       </div>
-      <div className="overflow-x-auto no-scrollbar mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[
         { id: "models", label: "مدل‌ها و قیمت", icon: "tag" }, { id: "usage", label: "آخرین درخواست‌ها", icon: "activity" },
       ]} /></div>
       {tab === "models" && <AdminModels />}
@@ -276,8 +276,8 @@ function AdminModels() {
         <div className="flex flex-wrap items-end gap-3 mt-3">
           <Field label="درصد زیر قیمت مرجع"><input inputMode="numeric" value={discount} onChange={(e) => setDiscount(e.target.value.replace(/[^\d.]/g, ""))} className={INPUT + " w-32 tabular"} /></Field>
           <AsyncButton className={BTN_G + BTN_MD} confirmText="قیمت همه مدل‌های دارای مرجع بازنویسی می‌شود. ادامه؟" onClick={async () => { const n = await api.ai.adminApplyRule(Math.min(50, Number(discount) || 0) / 100); notify(fa(n) + " مدل بازقیمت‌گذاری شد", "tag"); }}>اعمال</AsyncButton>
-          <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.ai.adminSync(); notify(fa(r.total) + " مدل در سرویس‌دهنده، " + fa(r.added) + " مدل جدید (غیرفعال) اضافه شد", "refresh-cw"); }}><Icon name="refresh-cw" size={14} />همگام‌سازی فهرست مدل‌ها</AsyncButton>
-          <button type="button" onClick={() => setAdd(true)} className={BTN_G + BTN_MD}><Icon name="plus" size={14} />افزودن مدل</button>
+          <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.ai.adminSync(); notify(fa(r.total) + " مدل در سرویس‌دهنده، " + fa(r.added) + " مدل جدید (غیرفعال) اضافه شد", "refresh-cw"); }}><Icon name="refresh-cw" size={16} />همگام‌سازی فهرست مدل‌ها</AsyncButton>
+          <button type="button" onClick={() => setAdd(true)} className={BTN_G + BTN_MD}><Icon name="plus" size={16} />افزودن مدل</button>
         </div>
       </Card>
       <Card pad="p-3 sm:p-4" title={<span className="flex items-center gap-2">مدل‌ها <Badge>{fa(a.models.filter((m) => m.active).length)} فعال از {fa(a.models.length)}</Badge></span>}
@@ -317,7 +317,7 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <AsyncButton disabled={!dirty} className={BTN_P + BTN_SM} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
-          <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={13} />تست اتصال</AsyncButton>
+          <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={14} />تست اتصال</AsyncButton>
         </div>
         {test && <p className={"text-xs leading-6 " + (test.ok ? "text-emerald-300" : "text-rose-300")} dir="auto">{test.ok ? "موفق" : "ناموفق"} · {fa(test.ms)}ms · {test.detail}</p>}
       </div>
@@ -342,7 +342,7 @@ function AddModel({ open, onClose }: { open: boolean; onClose: () => void }) {
         {unit.unit && <Field label={"قیمت " + unit.unit}><input inputMode="numeric" value={f.unitPrice} onChange={(e) => setF({ ...f, unitPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}
         <Field label="کانتکست (توکن)"><input inputMode="numeric" value={f.context} onChange={(e) => setF({ ...f, context: e.target.value })} className={INPUT + " tabular"} /></Field>
       </div>
-      <AsyncButton className="mt-4" disabled={!f.id || f.name.trim().length < 2 || (!!unit.in && !num(f.inPrice)) || (!!unit.out && !num(f.outPrice)) || (!!unit.unit && !num(f.unitPrice))} onClick={async () => {
+      <AsyncButton className={BTN_P + BTN_MD + " mt-4"} disabled={!f.id || f.name.trim().length < 2 || (!!unit.in && !num(f.inPrice)) || (!!unit.out && !num(f.outPrice)) || (!!unit.unit && !num(f.unitPrice))} onClick={async () => {
         await api.ai.adminAddModel({ id: f.id, name: f.name.trim(), vendor: f.vendor, upstream: f.upstream, inPrice: unit.in ? num(f.inPrice) : 0, outPrice: unit.out ? num(f.outPrice) : 0, unitPrice: unit.unit ? num(f.unitPrice) : 0, kind: f.kind, context: num(f.context) || 128000 });
         notify("مدل اضافه شد (غیرفعال؛ پس از تست فعال کنید)", "circle-check"); onClose();
       }}>افزودن</AsyncButton>

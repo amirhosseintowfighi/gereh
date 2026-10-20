@@ -87,7 +87,7 @@ export function AdminChats() {
                 <textarea id="chat-reply" rows={2} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void reply(); } }}
                   placeholder="پاسخ خود را بنویسید… (Enter ارسال، Shift+Enter خط جدید)" className={INPUT + " h-auto py-2.5 resize-none leading-6"} />
-                <button type="submit" disabled={busy || !text.trim()} className={BTN_P + BTN_MD + " shrink-0"}><Icon name="send" size={15} />ارسال</button>
+                <button type="submit" disabled={busy || !text.trim()} className={BTN_P + BTN_MD + " shrink-0"}><Icon name="send" size={16} />ارسال</button>
               </form>
             </div>
           )}

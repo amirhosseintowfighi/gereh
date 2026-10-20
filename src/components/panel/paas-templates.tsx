@@ -25,7 +25,7 @@ export function AppTemplates() {
   return (
     <div>
       <PageTitle title="اپ‌های آماده" sub={fa(PAAS_TEMPLATES.length) + " نرم‌افزار متن‌باز محبوب با یک کلیک؛ دیسک، پایگاه داده و رمزها خودکار ساخته می‌شوند."} back={["/panel/apps", "اپ‌ها"]}
-        action={<Link href={"/panel/apps/stack" as never} className={BTN_G + BTN_MD}><Icon name="layers" size={15} />قالب ترکیبی</Link>} />
+        action={<Link href={"/panel/apps/stack" as never} className={BTN_G + BTN_MD}><Icon name="layers" size={16} />قالب ترکیبی</Link>} />
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو: n8n، Nextcloud، Keycloak…" aria-label="جست‌وجوی اپ" className={INPUT + " sm:max-w-xs"} />
         <div className="flex flex-wrap gap-1.5">

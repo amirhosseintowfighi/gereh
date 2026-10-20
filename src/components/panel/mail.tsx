@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { DMARC_DEFAULT, MAIL_DOMAIN_STATUS, MAIL_EVENT_LABEL, MAIL_MSG_STATUS, MAIL_RECORD_LABEL, MAX_ATTACHMENTS_BYTES, type Dmarc, type MailDomainDetail, type MailMessageView, type MailMsgRow, type MailOverview, type MailStats, type Tone } from "@/lib/mail";
 import { api } from "@/lib/store";
@@ -136,7 +136,7 @@ export function MailDetail({ id }: { id: string }) {
         sub={<span className="flex flex-wrap items-center gap-x-3 gap-y-1"><ModeBadge mode={d.mode} /><Pill map={MAIL_DOMAIN_STATUS} s={d.status} /><span className="text-xs">پلن {d.plan?.name}</span></span>} />
       {d.status === "suspended" && <div role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-400/[0.07] px-4 py-3 text-sm leading-7">{d.suspendReason === "credit" ? "موجودی کیف پول تمام شده و ارسال متوقف است. با شارژ کیف پول، ارسال ظرف یک ساعت خودکار از سر گرفته می‌شود." : "ارسال این دامنه توسط پشتیبانی معلق شده است؛ از طریق تیکت پیگیری کنید."}</div>}
       {d.status === "pending" && <div role="status" className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-400/[0.06] px-4 py-3 text-sm leading-7">رکوردهای DKIM، SPF و Return-Path هنوز تأیید نشده‌اند. تا آن زمان در حالت DEV آزمایش کنید؛ پیام‌ها ثبت می‌شوند ولی ارسال نمی‌شوند.</div>}
-      <div className="overflow-x-auto no-scrollbar mb-5"><Tabs size="sm" value={current} onChange={setTab} label="بخش‌های دامنه ایمیل" options={[
+      <div className="mb-5"><Tabs size="sm" value={current} onChange={setTab} label="بخش‌های دامنه ایمیل" options={[
         { id: "overview", label: "نمای کلی", icon: "gauge" }, { id: "dns", label: "رکوردهای DNS", icon: "globe" }, { id: "send", label: "ارسال", icon: "send" }, { id: "logs", label: "گزارش ارسال", icon: "scroll-text" },
         { id: "smtp", label: "SMTP و API", icon: "key-round" }, { id: "mailboxes", label: "صندوق‌ها", icon: "users" }, { id: "inbox", label: "صندوق ورودی", icon: "mail", badge: unread ? fa(unread) : undefined },
         { id: "inbound", label: "قوانین ورودی", icon: "shield" }, { id: "settings", label: "پلن و تنظیمات", icon: "settings-2" },
@@ -179,7 +179,7 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
             <p className="text-[11px] text-white/50">هر گیرنده (to، cc و bcc) یک ارسال حساب می‌شود؛ روز به وقت تهران.</p>
           </div>}
         </Card>
-        <Card title="کلید API ارسال" icon="key-round" action={<AsyncButton className={BTN_G + BTN_SM} confirmText="کلید فعلی بی‌درنگ از کار می‌افتد. ادامه می‌دهید؟" onClick={async () => { setKey(await api.mail.rotateKey(d.id)); reload(); }}><Icon name="refresh-cw" size={13} />کلید تازه</AsyncButton>}>
+        <Card title="کلید API ارسال" icon="key-round" action={<AsyncButton className={BTN_G + BTN_SM} confirmText="کلید فعلی بی‌درنگ از کار می‌افتد. ادامه می‌دهید؟" onClick={async () => { setKey(await api.mail.rotateKey(d.id)); reload(); }}><Icon name="refresh-cw" size={14} />کلید تازه</AsyncButton>}>
           {key ? <SecretBox label="کلید تازه (فقط همین یک بار)" value={key} /> : <p className="text-sm">کلید فعلی: <code dir="ltr" className="font-mono">{d.apiKeyPrefix}…</code></p>}
           <CodeBlock className="mt-4" label="نمونه ارسال با curl" title="curl" code={`curl -X POST ${d.apiUrl} \\
   -H "Authorization: Bearer ${key || d.apiKeyPrefix + "…"}" \\
@@ -194,7 +194,7 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
       </div>
       <Card title="آمار ارسال" icon="chart-column" action={<Tabs size="sm" value={range} onChange={setRange} label="بازه" options={[{ id: "7", label: "۷ روز" }, { id: "30", label: "۳۰ روز" }, { id: "90", label: "۹۰ روز" }]} />}>
         {!s.data ? <Loading /> : <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
             <StatCard icon="send" label="ارسال‌شده" value={sent} />
             <StatCard icon="circle-check" label="تحویل‌شده" value={delivered} sub={sent ? fa(Math.round((delivered / sent) * 1000) / 10) + "٪" : ""} />
             <StatCard icon="circle-alert" label="برگشتی" value={bounced} sub={sent ? fa(Math.round((bounced / sent) * 1000) / 10) + "٪" : ""} tone={sent && bounced / sent > 0.05 ? "down" : ""} />
@@ -223,8 +223,8 @@ function Dns({ d, reload }: { d: D; reload: () => void }) {
   return (
     <div className="space-y-4">
       <Card title="رکوردهای DNS" icon="globe" pad="p-3 sm:p-5" action={<div className="flex flex-wrap gap-2">
-        {d.gerehZone && <AsyncButton className={BTN_P + BTN_SM} confirmText={"رکوردها در DNS دامنه " + d.gerehZone + " نوشته می‌شوند؛ SPF و DMARC و MX موجود در همین نام‌ها جایگزین می‌شوند. ادامه می‌دهید؟"} onClick={async () => { const r = await api.mail.autoDns(d.id); notify(r.added ? fa(r.added) + " رکورد در DNS گره ثبت شد" : "رکوردها از قبل ثبت بودند", "globe"); reload(); }}><Icon name="zap" size={13} />ثبت خودکار در DNS گره</AsyncButton>}
-        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.mail.checkDns(d.id); notify(r.verified ? "رکوردهای اصلی تأیید شد" : "هنوز همه رکوردها دیده نمی‌شوند", r.verified ? "circle-check" : "clock"); reload(); }}><Icon name="refresh-cw" size={13} />بررسی دوباره</AsyncButton>
+        {d.gerehZone && <AsyncButton className={BTN_P + BTN_SM} confirmText={"رکوردها در DNS دامنه " + d.gerehZone + " نوشته می‌شوند؛ SPF و DMARC و MX موجود در همین نام‌ها جایگزین می‌شوند. ادامه می‌دهید؟"} onClick={async () => { const r = await api.mail.autoDns(d.id); notify(r.added ? fa(r.added) + " رکورد در DNS گره ثبت شد" : "رکوردها از قبل ثبت بودند", "globe"); reload(); }}><Icon name="zap" size={14} />ثبت خودکار در DNS گره</AsyncButton>}
+        <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.mail.checkDns(d.id); notify(r.verified ? "رکوردهای اصلی تأیید شد" : "هنوز همه رکوردها دیده نمی‌شوند", r.verified ? "circle-check" : "clock"); reload(); }}><Icon name="refresh-cw" size={14} />بررسی دوباره</AsyncButton>
       </div>}>
         <p className="text-sm text-white/65 leading-7 mb-4">این رکوردها را در سرویس DNS دامنه وارد کنید. DKIM، SPF و Return-Path برای ارسال لازم‌اند؛ MX فقط اگر می‌خواهید ایمیل‌ها را در صندوق‌های گره دریافت کنید. {d.gerehZone ? <>دامنه <b dir="ltr">{d.gerehZone}</b> در DNS گره است؛ با یک کلیک ثبت کنید.</> : ""}{d.dnsChecked && <span className="text-white/50"> آخرین بررسی: {d.dnsChecked}</span>}</p>
         <ul className="space-y-2">
@@ -247,7 +247,7 @@ function Dns({ d, reload }: { d: D; reload: () => void }) {
         <DmarcEditor d={d} reload={reload} />
         <Card title="کلید DKIM" icon="key-round">
           <p className="text-sm text-white/65 leading-7">کلید RSA ۲۰۴۸ بیتی با انتخابگر <code dir="ltr" className="font-mono">{d.dkimSelector}</code>. کلید خصوصی رمزنگاری‌شده نگه‌داری می‌شود و هرگز نمایش داده نمی‌شود.</p>
-          <AsyncButton danger className={BTN_G + BTN_SM + " mt-3"} confirmText="کلید تازه با انتخابگر جدید ساخته می‌شود و تا ثبت رکورد جدید، دامنه به حالت DEV برمی‌گردد. ادامه می‌دهید؟" onClick={async () => { await api.mail.rotateDkim(d.id); notify("کلید DKIM تازه ساخته شد؛ رکورد جدید را ثبت کنید", "key-round"); reload(); }}><Icon name="refresh-cw" size={13} />چرخش کلید DKIM</AsyncButton>
+          <AsyncButton danger className={BTN_G + BTN_SM + " mt-3"} confirmText="کلید تازه با انتخابگر جدید ساخته می‌شود و تا ثبت رکورد جدید، دامنه به حالت DEV برمی‌گردد. ادامه می‌دهید؟" onClick={async () => { await api.mail.rotateDkim(d.id); notify("کلید DKIM تازه ساخته شد؛ رکورد جدید را ثبت کنید", "key-round"); reload(); }}><Icon name="refresh-cw" size={14} />چرخش کلید DKIM</AsyncButton>
         </Card>
       </div>
     </div>
@@ -267,7 +267,7 @@ function DmarcEditor({ d, reload }: { d: D; reload: () => void }) {
         <Field label="تطابق DKIM (adkim)"><Select label="adkim" value={m.adkim} onChange={(v) => setM({ ...m, adkim: v as "r" | "s" })} options={[{ value: "r", label: "آزاد (r)" }, { value: "s", label: "سخت (s)" }]} /></Field>
         <Field label="تطابق SPF (aspf)"><Select label="aspf" value={m.aspf} onChange={(v) => setM({ ...m, aspf: v as "r" | "s" })} options={[{ value: "r", label: "آزاد (r)" }, { value: "s", label: "سخت (s)" }]} /></Field>
       </div>
-      <AsyncButton disabled={!dirty} className="mt-4" onClick={async () => { await api.mail.setDmarc(d.id, m); notify("رکورد DMARC به‌روز شد؛ مقدار جدید را در DNS ثبت کنید", "shield-check"); reload(); }}>ذخیره</AsyncButton>
+      <AsyncButton disabled={!dirty} className={BTN_P + BTN_MD + " mt-4"} onClick={async () => { await api.mail.setDmarc(d.id, m); notify("رکورد DMARC به‌روز شد؛ مقدار جدید را در DNS ثبت کنید", "shield-check"); reload(); }}>ذخیره</AsyncButton>
     </Card>
   );
 }
@@ -304,7 +304,7 @@ function SendConsole({ d }: { d: D; reload: () => void }) {
             const attachments = await Promise.all(files.map(async (x) => ({ filename: x.name, content: await toBase64(x), contentType: x.type || undefined })));
             const r = await api.mail.send(d.id, { from: f.from, to: f.to, cc: f.cc || undefined, bcc: f.bcc || undefined, subject: f.subject, ...(f.html ? { html: f.body } : { text: f.body }), tag: f.tag || undefined, listUnsubscribe: f.unsub || undefined, attachments });
             setLast(r); notify(r.status === "dev" ? "در حالت DEV ثبت شد (ارسال نشد)" : "در صف ارسال قرار گرفت", "send");
-          }}><Icon name="send" size={15} />ارسال</AsyncButton>
+          }}><Icon name="send" size={16} />ارسال</AsyncButton>
           {last && <p role="status" className="text-xs text-white/65">شناسه پیام: <code dir="ltr" className="font-mono">{last.id}</code> · <Pill map={MAIL_MSG_STATUS} s={last.status} /></p>}
         </div>
       </Card>
@@ -336,7 +336,7 @@ function Logs({ d, direction, mailboxId }: { d: D; direction: "out" | "in"; mail
         </form>
         <div className="w-44"><Select label="وضعیت" value={f.status} onChange={(v) => setF({ ...f, status: v, offset: 0 })} options={[{ value: "", label: "همه وضعیت‌ها" }, ...statuses.map((s) => ({ value: s, label: MAIL_MSG_STATUS[s][0] }))]} /></div>
         {direction === "out" && <input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim(), offset: 0 })} aria-label="برچسب" placeholder="برچسب" dir="ltr" className={INPUT + " w-32 text-left"} />}
-        <button type="button" onClick={r.reload} className={BTN_G + BTN_MD} aria-label="بارگذاری دوباره"><Icon name="refresh-cw" size={14} /></button>
+        <button type="button" onClick={r.reload} className={BTN_G + BTN_MD} aria-label="بارگذاری دوباره"><Icon name="refresh-cw" size={16} /></button>
       </div>
       {!r.data ? <Loading /> : r.data.rows.length === 0 ? <Empty icon="scroll-text" title="پیامی پیدا نشد" text="گزارش‌ها ۹۰ روز نگه‌داری می‌شوند." /> : (
         <>
@@ -415,7 +415,7 @@ function Smtp({ d, reload }: { d: D; reload: () => void }) {
   const [shown, setShown] = useState<{ username: string; password: string } | null>(null);
   return (
     <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 items-start">
-      <Card title="کاربران SMTP" icon="key-round" pad="p-3 sm:p-5" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { setShown(await api.mail.smtpCreate(d.id)); reload(); }}><Icon name="plus" size={13} />کاربر جدید</AsyncButton>}>
+      <Card title="کاربران SMTP" icon="key-round" pad="p-3 sm:p-5" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { setShown(await api.mail.smtpCreate(d.id)); reload(); }}><Icon name="plus" size={14} />کاربر جدید</AsyncButton>}>
         {shown && <div className="mb-4"><SecretBox label={"رمز " + shown.username} value={shown.password} note="رمز رمزنگاری‌شده نگه‌داری می‌شود و بعداً هم از همین‌جا قابل مشاهده است." /></div>}
         {d.smtp.length === 0 ? <Empty icon="key-round" title="کاربر SMTP ندارید" text="برای ارسال از وردپرس، لاراول یا هر برنامه‌ای که SMTP پشتیبانی می‌کند، یک کاربر بسازید." /> : (
           <ul className="divide-y divide-white/[0.06]">
@@ -423,9 +423,9 @@ function Smtp({ d, reload }: { d: D; reload: () => void }) {
               <li key={s.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
                 <span className="min-w-0"><CopyText text={s.username} className="font-mono text-sm" /><span className="block text-[11px] text-white/50 mt-0.5">ساخته‌شده {s.created}</span></span>
                 <span className="flex flex-wrap gap-1.5">
-                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setShown({ username: s.username, password: await api.mail.smtpReveal(d.id, s.id) })}><Icon name="eye" size={13} />نمایش رمز</AsyncButton>
-                  <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز فعلی بی‌درنگ از کار می‌افتد. ادامه می‌دهید؟" onClick={async () => { setShown({ username: s.username, password: await api.mail.smtpRegenerate(d.id, s.id) }); notify("رمز تازه ساخته شد", "key-round"); }}><Icon name="refresh-cw" size={13} />رمز تازه</AsyncButton>
-                  <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"کاربر " + s.username + " حذف شود؟"} onClick={async () => { await api.mail.smtpRemove(d.id, s.id); setShown(null); reload(); }}><Icon name="trash-2" size={13} /></AsyncButton>
+                  <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setShown({ username: s.username, password: await api.mail.smtpReveal(d.id, s.id) })}><Icon name="eye" size={14} />نمایش رمز</AsyncButton>
+                  <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز فعلی بی‌درنگ از کار می‌افتد. ادامه می‌دهید؟" onClick={async () => { setShown({ username: s.username, password: await api.mail.smtpRegenerate(d.id, s.id) }); notify("رمز تازه ساخته شد", "key-round"); }}><Icon name="refresh-cw" size={14} />رمز تازه</AsyncButton>
+                  <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"کاربر " + s.username + " حذف شود؟"} onClick={async () => { await api.mail.smtpRemove(d.id, s.id); setShown(null); reload(); }}><Icon name="trash-2" size={14} /></AsyncButton>
                 </span>
               </li>
             ))}
@@ -454,7 +454,7 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
   return (
     <div className="space-y-4">
       <Card title={<span className="flex items-center gap-2">صندوق‌های ایمیل <Badge>{fa(d.mailboxes.length)} از {fa(d.plan?.mailboxes ?? 0)}</Badge></span>} icon="users" pad="p-3 sm:p-5"
-        action={<button type="button" onClick={() => setBox({ local: "", name: "", password: "", quotaMb: Math.min(1024, quota), active: true })} className={BTN_P + BTN_SM}><Icon name="plus" size={13} />صندوق جدید</button>}>
+        action={<button type="button" onClick={() => setBox({ local: "", name: "", password: "", quotaMb: Math.min(1024, quota), active: true })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} />صندوق جدید</button>}>
         {d.mailboxes.length === 0 ? <Empty icon="mail" title="صندوقی ندارید" text={"مثلاً info@" + d.domain + " بسازید و با هر برنامه ایمیلی (Outlook، Thunderbird، موبایل) استفاده کنید."} /> : (
           <ul className="grid sm:grid-cols-2 gap-3">
             {d.mailboxes.map((b) => (
@@ -464,7 +464,7 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
                   <span className="flex gap-1 shrink-0">
                     {!b.active && <Badge tone="gray">غیرفعال</Badge>}
                     <button type="button" aria-label={"ویرایش " + b.address} onClick={() => setBox({ id: b.id, local: b.local, name: b.name, password: "", quotaMb: b.quotaMb, active: b.active })} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="pencil" size={14} /></button>
-                    <AsyncButton danger className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10 hover:text-rose-300" confirmText={"صندوق " + b.address + " و همه ایمیل‌هایش حذف شود؟"} onClick={async () => { await api.mail.mailboxRemove(d.id, b.id); reload(); }}><Icon name="trash-2" size={14} /></AsyncButton>
+                    <AsyncButton danger className="w-9 h-9 grid place-items-center rounded-xl text-white/65 hover:bg-rose-400/10 hover:text-rose-300 transition" confirmText={"صندوق " + b.address + " و همه ایمیل‌هایش حذف شود؟"} onClick={async () => { await api.mail.mailboxRemove(d.id, b.id); reload(); }}><Icon name="trash-2" size={16} /></AsyncButton>
                   </span>
                 </div>
                 <div className="mt-3"><Meter value={b.usedMb} max={b.quotaMb} label="فضا" right={mb(b.usedMb) + " از " + mb(b.quotaMb)} /></div>
@@ -479,7 +479,7 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
           {d.aliases.length > 0 && <ul className="divide-y divide-white/[0.06] mb-3">{d.aliases.map((a) => (
             <li key={a.id} className="py-2 flex items-start justify-between gap-2 text-sm">
               <span className="min-w-0"><b dir="ltr" className="block text-right">{a.address}</b><span dir="ltr" className="block text-[11px] text-white/55 text-right break-all">→ {a.destinations.join(", ")}</span></span>
-              <AsyncButton danger className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10 hover:text-rose-300 shrink-0" confirmText={a.address + " حذف شود؟"} onClick={async () => { await api.mail.aliasRemove(d.id, a.id); reload(); }}><Icon name="trash-2" size={14} /></AsyncButton>
+              <AsyncButton danger className="w-9 h-9 grid place-items-center rounded-xl text-white/65 hover:bg-rose-400/10 hover:text-rose-300 transition shrink-0" confirmText={a.address + " حذف شود؟"} onClick={async () => { await api.mail.aliasRemove(d.id, a.id); reload(); }}><Icon name="trash-2" size={16} /></AsyncButton>
             </li>
           ))}</ul>}
           <div className="grid sm:grid-cols-[9rem_1fr] gap-2">
@@ -530,7 +530,7 @@ function Inbox({ d, reload }: { d: D; reload: () => void }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-64 max-w-full"><Select label="صندوق" value={box} onChange={setBox} options={[{ value: "", label: "همه پیام‌های ورودی" }, ...d.mailboxes.map((b) => ({ value: b.id, label: b.address + (b.unread ? " (" + fa(b.unread) + ")" : "") }))]} /></div>
-        {(d.simulator || d.mode === "dev") && <button type="button" onClick={() => setTest(true)} className={BTN_G + BTN_MD}><Icon name="mail" size={14} />پیام آزمایشی ورودی</button>}
+        {(d.simulator || d.mode === "dev") && <button type="button" onClick={() => setTest(true)} className={BTN_G + BTN_MD}><Icon name="mail" size={16} />پیام آزمایشی ورودی</button>}
       </div>
       <Logs key={box + n} d={d} direction="in" mailboxId={box || undefined} />
       <Modal open={test} onClose={() => setTest(false)} title="پیام آزمایشی ورودی" icon="mail">
@@ -561,7 +561,7 @@ function InboundRules({ d, reload }: { d: D; reload: () => void }) {
         {d.rules.length > 0 && <ul className="divide-y divide-white/[0.06] mb-4">{d.rules.map((x, i) => (
           <li key={x.id} className="py-2 flex items-center justify-between gap-2 text-sm">
             <span className="min-w-0"><span className="text-white/50 tabular">{fa(i + 1)}. </span>اگر {FIELD_LABEL[x.field]} {OP_LABEL[x.op]} «<span dir="ltr">{x.value}</span>» ← {x.action === "drop" ? <Badge tone="red">دور ریختن</Badge> : <>هدایت به <b dir="ltr">{x.target}</b></>}</span>
-            <AsyncButton danger className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10 hover:text-rose-300 shrink-0" onClick={async () => { await api.mail.ruleRemove(d.id, x.id); reload(); }}><Icon name="trash-2" size={14} /></AsyncButton>
+            <AsyncButton danger className="w-9 h-9 grid place-items-center rounded-xl text-white/65 hover:bg-rose-400/10 hover:text-rose-300 transition shrink-0" onClick={async () => { await api.mail.ruleRemove(d.id, x.id); reload(); }}><Icon name="trash-2" size={16} /></AsyncButton>
           </li>
         ))}</ul>}
         <div className="grid sm:grid-cols-2 lg:grid-cols-[8rem_8rem_1fr_9rem_1fr_auto] gap-2 items-end">
@@ -607,14 +607,14 @@ function Settings({ d, reload }: { d: D; reload: () => void }) {
         {!o.data ? <Loading /> : <>
           <Select label="پلن" value={planId} onChange={setPlanId} options={o.data.plans.map((p) => ({ value: p.id, label: p.name + " — " + toman(p.price) + " / ماه · " + fa(p.dailyLimit) + " در روز" }))} />
           <p className="text-[11px] text-white/50 mt-2 leading-6">هزینه ساعتی از کیف پول کسر می‌شود؛ تغییر پلن از ساعت بعد اعمال می‌شود. اگر موجودی تمام شود، ارسال متوقف می‌شود ولی صندوق‌ها و تنظیمات حفظ می‌شوند.</p>
-          <AsyncButton disabled={planId === d.planId} className="mt-3" onClick={async () => { await api.mail.setPlan(d.id, planId); notify("پلن تغییر کرد", "gauge"); reload(); }}>تغییر پلن</AsyncButton>
+          <AsyncButton disabled={planId === d.planId} className={BTN_P + BTN_MD + " mt-3"} onClick={async () => { await api.mail.setPlan(d.id, planId); notify("پلن تغییر کرد", "gauge"); reload(); }}>تغییر پلن</AsyncButton>
         </>}
       </Card>
       <Card title="حذف دامنه ایمیل" icon="trash-2">
         <p className="text-sm text-white/65 leading-7">همه صندوق‌ها، ایمیل‌ها، کاربران SMTP و گزارش‌ها برای همیشه حذف می‌شوند و کلید API از کار می‌افتد.</p>
         <label className="block text-xs text-white/60 mt-3" htmlFor="mail-del">برای تأیید، دامنه را بنویسید: <b dir="ltr">{d.domain}</b></label>
         <input id="mail-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5 max-w-sm"} />
-        <AsyncButton danger disabled={conf.trim().toLowerCase() !== d.domain} className="mt-3" onClick={async () => { await api.mail.remove(d.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/mail" as never); }}>حذف همیشگی</AsyncButton>
+        <AsyncButton danger disabled={conf.trim().toLowerCase() !== d.domain} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.mail.remove(d.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/mail" as never); }}>حذف همیشگی</AsyncButton>
       </Card>
     </div>
   );

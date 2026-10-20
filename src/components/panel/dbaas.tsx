@@ -45,12 +45,12 @@ export function DbUsers({ d }: { d: PaasDb }) {
           <li className="py-2.5 flex justify-between"><span dir="ltr" className="font-mono">{d.dbName}</span><Badge tone="blue">اصلی</Badge></li>
           {d.databases.map((x) => (
             <li key={x.id} className="py-2.5 flex justify-between items-center gap-2"><span dir="ltr" className="font-mono">{x.name}</span>
-              <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"«" + x.name + "» و همه داده‌هایش برای همیشه حذف شود؟"} onClick={async () => { await api.dbaas.dropDatabase(d.id, x.name, x.name); notify("حذف شد", "trash-2"); }}><Icon name="trash-2" size={13} /></AsyncButton></li>
+              <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"«" + x.name + "» و همه داده‌هایش برای همیشه حذف شود؟"} onClick={async () => { await api.dbaas.dropDatabase(d.id, x.name, x.name); notify("حذف شد", "trash-2"); }}><Icon name="trash-2" size={14} /></AsyncButton></li>
           ))}
         </ul>
         <div className="flex gap-2 mt-3">
           <input value={newDb} onChange={(e) => setNewDb(e.target.value.toLowerCase().trim())} dir="ltr" placeholder="analytics" aria-label={"نام " + noun + " جدید"} className={INPUT + " text-left font-mono"} />
-          <AsyncButton disabled={!newDb} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { await api.dbaas.createDatabase(d.id, newDb); setNewDb(""); notify("ساخته شد", "database"); }}><Icon name="plus" size={15} />ساخت</AsyncButton>
+          <AsyncButton disabled={!newDb} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { await api.dbaas.createDatabase(d.id, newDb); setNewDb(""); notify("ساخته شد", "database"); }}><Icon name="plus" size={16} />ساخت</AsyncButton>
         </div>
       </Card>
       <Card title="کاربران" icon="users">
@@ -65,7 +65,7 @@ export function DbUsers({ d }: { d: PaasDb }) {
             <div key={db} className="flex items-center justify-between gap-3 text-sm"><span dir="ltr" className="font-mono text-xs">{db}</span>
               <Select label={"دسترسی به " + db} value={grants[db] ?? ""} onChange={(v) => setGrants((g) => ({ ...g, [db]: v as DbAccess | "" }))} options={ACCESS} className="w-44" /></div>
           ))}
-          <AsyncButton disabled={!user} onClick={async () => { const r = await api.dbaas.createUser(d.id, { username: user, grants: list(grants) }); setShown({ title: "کاربر " + user + " ساخته شد؛ رمز را الان ذخیره کنید.", url: r.url, password: r.password }); setUser(""); }}><Icon name="user-plus" size={15} />ساخت کاربر</AsyncButton>
+          <AsyncButton disabled={!user} onClick={async () => { const r = await api.dbaas.createUser(d.id, { username: user, grants: list(grants) }); setShown({ title: "کاربر " + user + " ساخته شد؛ رمز را الان ذخیره کنید.", url: r.url, password: r.password }); setUser(""); }}><Icon name="user-plus" size={16} />ساخت کاربر</AsyncButton>
         </div>
         {shown && <Secret {...shown} />}
       </Card>
@@ -83,10 +83,10 @@ function UserRow({ d, u, all, onSecret }: { d: PaasDb; u: PaasDb["users"][number
         <span><b dir="ltr" className="font-mono text-sm">{u.username}</b>
           <span className="block text-[11px] text-white/50 mt-0.5">{u.grants.length ? u.grants.map((x) => x.db + (x.access === "ro" ? " (خواندنی)" : " (کامل)")).join("، ") : "بدون دسترسی"}</span></span>
         <span className="flex gap-1.5">
-          <button type="button" onClick={async () => { const r = await api.dbaas.userCredentials(d.id, u.id); onSecret({ title: "رمز " + u.username, ...r }); }} className={BTN_G + BTN_SM}><Icon name="eye" size={13} /></button>
-          <button type="button" onClick={() => setEdit((x) => !x)} className={BTN_G + BTN_SM} aria-label="دسترسی‌ها"><Icon name="shield" size={13} /></button>
-          <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز جدید ساخته شود؟ اتصال‌های فعلی این کاربر قطع می‌شود." onClick={async () => { const r = await api.dbaas.resetUserPassword(d.id, u.id); onSecret({ title: "رمز جدید " + u.username, ...r }); }}><Icon name="key-round" size={13} /></AsyncButton>
-          <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"کاربر " + u.username + " حذف شود؟"} onClick={async () => { await api.dbaas.dropUser(d.id, u.id); notify("کاربر حذف شد", "trash-2"); }}><Icon name="trash-2" size={13} /></AsyncButton>
+          <button type="button" onClick={async () => { const r = await api.dbaas.userCredentials(d.id, u.id); onSecret({ title: "رمز " + u.username, ...r }); }} className={BTN_G + BTN_SM}><Icon name="eye" size={14} /></button>
+          <button type="button" onClick={() => setEdit((x) => !x)} className={BTN_G + BTN_SM} aria-label="دسترسی‌ها"><Icon name="shield" size={14} /></button>
+          <AsyncButton className={BTN_G + BTN_SM} confirmText="رمز جدید ساخته شود؟ اتصال‌های فعلی این کاربر قطع می‌شود." onClick={async () => { const r = await api.dbaas.resetUserPassword(d.id, u.id); onSecret({ title: "رمز جدید " + u.username, ...r }); }}><Icon name="key-round" size={14} /></AsyncButton>
+          <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"کاربر " + u.username + " حذف شود؟"} onClick={async () => { await api.dbaas.dropUser(d.id, u.id); notify("کاربر حذف شد", "trash-2"); }}><Icon name="trash-2" size={14} /></AsyncButton>
         </span>
       </div>
       {edit && <div className="mt-3 space-y-2">
@@ -110,17 +110,17 @@ export function DbPanels({ d }: { d: PaasDb }) {
         <Field label="مدت (ساعت)"><input type="number" min={1} max={PANEL_HOURS_MAX} value={hours} onChange={(e) => setHours(Math.max(1, Math.min(PANEL_HOURS_MAX, Number(e.target.value) || 1)))} className={INPUT + " w-28 text-center"} /></Field>
         {tools.map((t) => (
           <AsyncButton key={t.id} disabled={d.status !== "running"} className={BTN_P + BTN_MD} onClick={async () => { const r = await api.dbaas.openPanel(d.id, t.id, hours); setShown({ title: t.label + " آماده است (ورود با این مشخصات):", ...r }); }}>
-            <Icon name="external-link" size={15} />{t.label}</AsyncButton>
+            <Icon name="external-link" size={16} />{t.label}</AsyncButton>
         ))}
       </div>
-      {shown && <><Secret {...shown} /><a href={shown.url} target="_blank" rel="noreferrer" className={BTN_G + BTN_SM + " mt-2"}><Icon name="external-link" size={13} />باز کردن</a></>}
+      {shown && <><Secret {...shown} /><a href={shown.url} target="_blank" rel="noreferrer" className={BTN_G + BTN_SM + " mt-2"}><Icon name="external-link" size={14} />باز کردن</a></>}
       {d.panels.length > 0 && <ul className="divide-y divide-white/[0.06] mt-5">
         {d.panels.map((p) => (
           <li key={p.id} className="py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <span><b>{tools.find((t) => t.id === p.tool)?.label ?? p.tool}</b> <a href={p.url} target="_blank" rel="noreferrer" dir="ltr" className="font-mono text-xs acc hover:underline">{p.url}</a>
               <span className="block text-[11px] text-white/50">تا {p.expiresAt} ({fa(Math.ceil(p.minutesLeft / 60))} ساعت دیگر)</span></span>
             <span className="flex gap-1.5">
-              <button type="button" className={BTN_G + BTN_SM} onClick={async () => setShown({ title: "مشخصات ورود", ...(await api.dbaas.panelCredentials(p.id)) })}><Icon name="key-round" size={13} /></button>
+              <button type="button" className={BTN_G + BTN_SM} onClick={async () => setShown({ title: "مشخصات ورود", ...(await api.dbaas.panelCredentials(p.id)) })}><Icon name="key-round" size={14} /></button>
               <AsyncButton danger className={BTN_G + BTN_SM} onClick={() => api.dbaas.closePanel(p.id)}>بستن</AsyncButton>
             </span>
           </li>
@@ -150,7 +150,7 @@ export function DbTuning({ d }: { d: PaasDb }) {
               </Field>
             ))}
           </div>
-          <AsyncButton className="mt-4" confirmText="برای اعمال پارامترها پایگاه داده چند ثانیه ری‌استارت می‌شود. ادامه؟" onClick={async () => { await api.dbaas.setParams(d.id, vals); notify("پارامترها اعمال شد", "sliders-horizontal"); }}>اعمال و ری‌استارت</AsyncButton>
+          <AsyncButton className={BTN_P + BTN_MD + " mt-4"} confirmText="برای اعمال پارامترها پایگاه داده چند ثانیه ری‌استارت می‌شود. ادامه؟" onClick={async () => { await api.dbaas.setParams(d.id, vals); notify("پارامترها اعمال شد", "sliders-horizontal"); }}>اعمال و ری‌استارت</AsyncButton>
         </>}
       </Card>
       {d.engine === "postgres" && <Card title="افزونه‌های PostgreSQL" icon="layers">
@@ -166,7 +166,7 @@ export function DbTuning({ d }: { d: PaasDb }) {
             );
           })}
         </ul>
-        <AsyncButton className="mt-4" disabled={d.status !== "running"} onClick={async () => { await api.dbaas.setExtensions(d.id, ext); notify("افزونه‌ها ذخیره شد", "layers"); }}>ذخیره افزونه‌ها</AsyncButton>
+        <AsyncButton className={BTN_P + BTN_MD + " mt-4"} disabled={d.status !== "running"} onClick={async () => { await api.dbaas.setExtensions(d.id, ext); notify("افزونه‌ها ذخیره شد", "layers"); }}>ذخیره افزونه‌ها</AsyncButton>
       </Card>}
       {d.engine === "mongodb" && <Card title="Replica Set" icon="database" action={<Switch on={d.config.replicaSet} disabled={d.status !== "running"} onChange={async (v) => { await api.dbaas.setReplicaSet(d.id, v); notify(v ? "Replica Set روشن شد" : "Replica Set خاموش شد", "database"); }} label="Replica Set" />}>
         <p className="text-sm text-white/60 leading-7">یک Replica Set تک‌عضوی؛ برای تراکنش‌های چندسندی و change stream لازم است. پس از روشن کردن، <span dir="ltr" className="font-mono">replicaSet=rs0</span> را به آدرس اتصال اضافه کنید. تغییر آن پایگاه داده را ری‌استارت می‌کند.</p>
@@ -218,7 +218,7 @@ export function DbInspector({ d }: { d: PaasDb }) {
         {QUERY_ENGINES.includes(d.engine) && <Card title="کوئری فقط‌خواندنی" icon="terminal">
           <textarea value={sql} onChange={(e) => setSql(e.target.value)} dir="ltr" rows={3} aria-label="کوئری" className={TEXTAREA + " font-mono text-xs"} />
           <div className="flex items-center justify-between gap-3 mt-2"><span className="text-[11px] text-white/50">در تراکنش فقط‌خواندنی، حداکثر ۵ ثانیه و ۵۰۰ ردیف.</span>
-            <AsyncButton className={BTN_P + BTN_SM} onClick={() => run(async () => { setTable(""); setGrid((await api.dbaas.inspect(d.id, { op: "query", db, sql })).grid ?? null); })}><Icon name="play" size={13} />اجرا</AsyncButton></div>
+            <AsyncButton className={BTN_P + BTN_SM} onClick={() => run(async () => { setTable(""); setGrid((await api.dbaas.inspect(d.id, { op: "query", db, sql })).grid ?? null); })}><Icon name="play" size={14} />اجرا</AsyncButton></div>
         </Card>}
         {mongo && table && <Card pad="p-3">
           <div className="flex gap-2"><input value={filter} onChange={(e) => setFilter(e.target.value)} dir="ltr" aria-label="فیلتر JSON" className={INPUT + " text-left font-mono text-xs"} />
@@ -262,7 +262,7 @@ export function DbFirewall({ d }: { d: PaasDb }) {
       <p className="text-sm text-white/60 leading-7">فقط این نشانی‌ها (هر خط یک IPv4 یا CIDR) به پورت عمومی دسترسی دارند. خالی یعنی همه. اپ‌های خودتان در گره همیشه دسترسی دارند.</p>
       <textarea value={text} onChange={(e) => setText(e.target.value)} dir="ltr" rows={4} placeholder={"5.160.10.20\n185.120.0.0/16"} aria-label="نشانی‌های مجاز" className={TEXTAREA + " font-mono text-xs mt-3"} />
       {!d.publicAccess && <p className="text-[11px] text-white/50 mt-2">دسترسی عمومی خاموش است؛ فهرست وقتی روشنش کنید اعمال می‌شود.</p>}
-      <AsyncButton className="mt-3" onClick={async () => { const r = await api.dbaas.setAllowlist(d.id, text.split(/[\s,]+/).filter(Boolean)); setText(r.join("\n")); notify("فایروال ذخیره شد", "shield"); }}>ذخیره</AsyncButton>
+      <AsyncButton className={BTN_P + BTN_MD + " mt-3"} onClick={async () => { const r = await api.dbaas.setAllowlist(d.id, text.split(/[\s,]+/).filter(Boolean)); setText(r.join("\n")); notify("فایروال ذخیره شد", "shield"); }}>ذخیره</AsyncButton>
     </Card>
   );
 }
@@ -273,7 +273,7 @@ export function BackupActions({ d, backupId }: { d: PaasDb; backupId: string }) 
   const { notify } = useApp();
   if (!engineOf(d.engine)?.backups) return null;
   return <>
-    <AsyncButton className={BTN_G + BTN_SM} title="دانلود" onClick={async () => { window.open(await api.dbaas.backupLink(backupId), "_blank", "noopener"); }}><Icon name="download" size={13} /></AsyncButton>
+    <AsyncButton className={BTN_G + BTN_SM} title="دانلود" onClick={async () => { window.open(await api.dbaas.backupLink(backupId), "_blank", "noopener"); }}><Icon name="download" size={14} /></AsyncButton>
     <AsyncButton className={BTN_G + BTN_SM} title="بازگردانی در پایگاه داده جدید" onClick={async () => {
       const name = window.prompt("نام پایگاه داده جدید", (d.name + "-copy").slice(0, 30))?.trim().toLowerCase();
       if (!name) return;
@@ -281,7 +281,7 @@ export function BackupActions({ d, backupId }: { d: PaasDb; backupId: string }) 
       const id = await api.dbaas.restoreToNew(backupId, name);
       notify("پایگاه داده جدید در حال ساخت است", "database-backup");
       router.push(("/panel/databases/" + id) as never);
-    }}><Icon name="copy" size={13} />جدید</AsyncButton>
+    }}><Icon name="copy" size={14} />جدید</AsyncButton>
   </>;
 }
 
@@ -295,7 +295,7 @@ export function DbImport({ d }: { d: PaasDb }) {
     <Card title="ورود داده از فایل" icon="upload" className="mt-4">
       <p className="text-sm text-white/60 leading-7">قالب‌های پذیرفته: {formats.map((f) => IMPORT_LABEL[f]).join("، ")} (تا ۲ گیگابایت). داده‌ها به پایگاه داده اصلی <span dir="ltr" className="font-mono">{d.dbName}</span> اضافه می‌شوند{d.engine === "mssql" ? " و جایگزین آن می‌شوند" : ""}.</p>
       <label className={BTN_G + BTN_MD + " mt-3 cursor-pointer" + (pct !== null || d.status !== "running" ? " opacity-60 pointer-events-none" : "")}>
-        <Icon name="upload" size={15} />{pct !== null ? "بارگذاری " + fa(pct) + "٪" : "انتخاب فایل"}
+        <Icon name="upload" size={16} />{pct !== null ? "بارگذاری " + fa(pct) + "٪" : "انتخاب فایل"}
         <input type="file" className="sr-only" onChange={async (e) => {
           const f = e.target.files?.[0];
           e.target.value = "";

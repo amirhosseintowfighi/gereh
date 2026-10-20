@@ -232,7 +232,7 @@ export function FailureHint({ kind }: { kind?: string }) {
 export function DeployNoCache({ app, onLog }: { app: PaasApp; onLog: (id: string) => void }) {
   const { notify } = useApp();
   if (app.source !== "git" && app.source !== "image") return null;
-  return <AsyncButton className={BTN_G + BTN_SM} confirmText="بیلد کامل بدون کش؟ (کندتر؛ برای رفع مشکلات کش)" onClick={async () => { const dep = await api.paas.deploy(app.id, { noCache: true, message: "استقرار بدون کش" }); onLog(dep); notify("بیلد بدون کش شروع شد", "rocket"); }}><Icon name="rotate-ccw" size={13} />استقرار بدون کش</AsyncButton>;
+  return <AsyncButton className={BTN_G + BTN_SM} confirmText="بیلد کامل بدون کش؟ (کندتر؛ برای رفع مشکلات کش)" onClick={async () => { const dep = await api.paas.deploy(app.id, { noCache: true, message: "استقرار بدون کش" }); onLog(dep); notify("بیلد بدون کش شروع شد", "rocket"); }}><Icon name="rotate-ccw" size={14} />استقرار بدون کش</AsyncButton>;
 }
 
 /* ================= domain options ================= */

@@ -137,8 +137,8 @@ function EditSpec({ d, onSaved }: { d: OrderDetail; onSaved: (retry: boolean) =>
         <Field label="Plan ID در Virtualizor" hint="خالی یا ۰ = نگاشت پلن"><input value={f.plid} onChange={(e) => setF((c) => ({ ...c, plid: e.target.value }))} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
       </div>
       <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <AsyncButton className={BTN_G + BTN_MD} onClick={() => save(false)}><Icon name="check" size={15} /> ذخیره</AsyncButton>
-        <AsyncButton onClick={() => save(true)}><Icon name="refresh-cw" size={15} /> ذخیره و تلاش دوباره</AsyncButton>
+        <AsyncButton className={BTN_G + BTN_MD} onClick={() => save(false)}><Icon name="check" size={16} /> ذخیره</AsyncButton>
+        <AsyncButton onClick={() => save(true)}><Icon name="refresh-cw" size={16} /> ذخیره و تلاش دوباره</AsyncButton>
       </div>
     </Section>
   );
@@ -165,9 +165,9 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
   return (
     <Modal open onClose={onClose} title={"جزئیات سفارش " + invoiceId + " · ردیف " + fa(index + 1)} icon="file-search" size="max-w-4xl"
       footer={open && target ? <>
-        <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.provisioning.retry(d!.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await changed(); }}><Icon name="refresh-cw" size={15} /> تلاش دوباره</AsyncButton>
-        {kind !== "ip" && <button type="button" onClick={() => setFix("deliver")} className={BTN_G + BTN_MD}><Icon name="circle-check" size={15} /> تحویل دستی</button>}
-        {!d!.server?.vpsid && <button type="button" onClick={() => setFix("refund")} className={BTN_G + BTN_MD + " text-rose-200"}><Icon name="wallet" size={15} /> بازگشت وجه</button>}
+        <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.provisioning.retry(d!.key); notify("دوباره در صف قرار گرفت", "refresh-cw"); await changed(); }}><Icon name="refresh-cw" size={16} /> تلاش دوباره</AsyncButton>
+        {kind !== "ip" && <button type="button" onClick={() => setFix("deliver")} className={BTN_G + BTN_MD}><Icon name="circle-check" size={16} /> تحویل دستی</button>}
+        {!d!.server?.vpsid && <button type="button" onClick={() => setFix("refund")} className={BTN_G + BTN_MD + " text-rose-200"}><Icon name="wallet" size={16} /> بازگشت وجه</button>}
       </> : undefined}>
       {err && <p role="alert" className="p-3 rounded-[12px] bg-rose-400/10 text-rose-200 text-sm">{err}</p>}
       {!d && !err && <div className="py-10 grid place-items-center"><Icon name="loader-circle" size={22} className="animate-spin text-white/50" /></div>}
@@ -197,7 +197,7 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
           <Pairs rows={d.item.spec} />
           <details className="mt-3"><summary className="cursor-pointer text-xs text-white/55 hover:text-white">JSON خام سفارش</summary><CodeBlock className="mt-2" code={JSON.stringify(d.item.raw, null, 2)} label="JSON سفارش" title="sku.json" wrap /></details>
         </Section>
-        <Section title="بررسی پیش از تحویل" icon="list-checks" action={<AsyncButton className={BTN_G + BTN_SM} onClick={pre}><Icon name="activity" size={13} /> اجرای دوباره</AsyncButton>}>
+        <Section title="بررسی پیش از تحویل" icon="list-checks" action={<AsyncButton className={BTN_G + BTN_SM} onClick={pre}><Icon name="activity" size={14} /> اجرای دوباره</AsyncButton>}>
           {checks === null ? <Icon name="loader-circle" size={18} className="animate-spin text-white/50" /> : checks.length ? <PreflightList checks={checks} /> : <p className="text-sm text-white/55">برای این ردیف بررسی‌ای نیست.</p>}
         </Section>
         {d.item.editable && <EditSpec d={d} onSaved={changed} />}
