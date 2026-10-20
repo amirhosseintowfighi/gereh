@@ -31,7 +31,7 @@ export function ManualFields({ v, set }: { v: ServerInput; set: (k: keyof Server
       <Field label="شناسه VPS در Virtualizor" hint="با وارد کردن آن، IP و hostname از Virtualizor خوانده می‌شود."><input value={v.vpsid} onChange={(e) => set("vpsid", e.target.value)} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
       <Field label="آدرس IPv4"><input value={v.ip} onChange={(e) => set("ip", e.target.value)} dir="ltr" placeholder="185.143.233.20" className={INPUT + " text-left mono"} /></Field>
       <Field label="Hostname"><input value={v.hostname} onChange={(e) => set("hostname", e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-      <Field label="رمز root" hint="اگر وارد شود، یک بار برای مشتری ایمیل می‌شود."><input value={v.rootpass} onChange={(e) => set("rootpass", e.target.value)} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
+      <Field label="رمز root" hint="اگر وارد شود، یک بار برای مشتری ایمیل و یک بار در پنل او نمایش داده می‌شود."><input value={v.rootpass} onChange={(e) => set("rootpass", e.target.value)} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
     </div>
   );
 }

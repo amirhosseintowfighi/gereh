@@ -1,7 +1,7 @@
 /* Shared types and pure helpers for the cloud-server extras and the account billing tools. */
 
 export type VpsExtrasView = {
-  prices: { ip: number; diskGb: number; snapshotGb: number; packGb: number; packPrice: number; maxIps: number; maxDisks: number; maxDiskGb: number };
+  prices: { ip: number; diskGb: number; snapshotGb: number; packGb: number; packPrice: number; pack500Price: number; maxIps: number; maxDisks: number; maxDiskGb: number };
   ips: { id: string; ip: string; rdns: string; price: number; primary: boolean }[];
   /** billed false: added by hand in Virtualizor (synced), shown but not charged */
   disks: { id: string; name: string; sizeGb: number; slot: number | null; serverId: string | null; at: string; billed: boolean }[];

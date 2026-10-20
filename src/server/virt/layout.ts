@@ -3,12 +3,14 @@
    charged: the plan price covers the allowance). Disks bought separately (billed=true) are not part of it. */
 import "server-only";
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { DISK_MIN_GB, layoutSizeError } from "@/lib/catalog";
 import type { DB } from "../db/client";
 import { servers, vpsDisks, vpsLayouts, vpsRelayout } from "../db/schema";
 import { fail, rid } from "../util";
 
 type Server = typeof servers.$inferSelect;
-export const MIN_PRIMARY_GB = 10, MIN_DISK_GB = 5;
+/** both multiples of the 10 GB step (DISK_STEP_GB); the step rule itself is layoutSizeError in @/lib/catalog */
+export const MIN_PRIMARY_GB = 10, MIN_DISK_GB = DISK_MIN_GB;
 
 /** the allowance and the current split; without a saved allowance it is what the server has now */
 export async function layoutOf(db: DB, s: Server) {
@@ -29,8 +31,8 @@ export function planLayout(current: number[], sizes: number[], allowance: number
   if (!sizes.length) fail("دست‌کم یک دیسک لازم است.");
   if (sizes.length > maxDisks) fail("حداکثر " + maxDisks.toLocaleString("fa-IR") + " دیسک.");
   if (sizes.some((x) => !Number.isInteger(x))) fail("اندازه دیسک‌ها باید عدد صحیح (گیگابایت) باشد.");
-  if (sizes[0] < MIN_PRIMARY_GB) fail("دیسک اصلی دست‌کم " + MIN_PRIMARY_GB.toLocaleString("fa-IR") + " گیگابایت است.");
-  if (sizes.slice(1).some((x) => x < MIN_DISK_GB)) fail("هر دیسک دست‌کم " + MIN_DISK_GB.toLocaleString("fa-IR") + " گیگابایت است.");
+  const bad = layoutSizeError(current, sizes, allowance);
+  if (bad) fail(bad);
   const sum = sizes.reduce((a, b) => a + b, 0);
   if (sum !== allowance) fail("جمع دیسک‌ها (" + sum.toLocaleString("fa-IR") + ") باید برابر سهم دیسک سرور (" + allowance.toLocaleString("fa-IR") + " گیگابایت) باشد.");
   if (sizes.length === current.length && sizes.every((x, i) => x === current[i])) fail("چیدمان دیسک تغییری نکرده است.");

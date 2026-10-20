@@ -7,6 +7,7 @@ import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from "dri
 import type { DB } from "../db/client";
 import { activity, chats, devopsLeads, notifications, servers, ticketMessages, tickets, usageHourly, usageSamples, users, virtLog, vpsTraffic } from "../db/schema";
 import { monthKey } from "../billing-extras";
+import { purgeCredentials } from "../credentials";
 import { sendEmail, sendSms } from "../messaging";
 import { virt } from "../virt/driver";
 import { relayoutBusy } from "../virt/layout";
@@ -135,6 +136,7 @@ export async function notifySend(db: DB, p: NotifyPayload) {
 }
 
 export const purgeOld = async (db: DB) => {
+  await purgeCredentials(db);
   await db.delete(activity).where(lt(activity.createdAt, new Date(Date.now() - 365 * 86400_000)));
   await db.delete(notifications).where(and(eq(notifications.read, true), lt(notifications.createdAt, new Date(Date.now() - 90 * 86400_000))));
   await db.delete(chats).where(and(eq(chats.status, "closed"), lt(chats.lastAt, new Date(Date.now() - 180 * 86400_000))));

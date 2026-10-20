@@ -16,6 +16,7 @@ import { DomainManage, IrnicHandle, TransferInButton, TransferList } from "./dom
 import { NotifyChannels } from "./channels";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
+import { PendingCredentials } from "./server-credentials";
 import { ServerStateBadge } from "./server-pending";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
@@ -120,6 +121,7 @@ export function UserServers() {
   return (
     <div>
       <PageTitle title="سرورهای ابری" sub={fa(rows.length) + " سرور در حساب شما"} action={newBtn("/vps", "ساخت سرور")} />
+      {rows.length > 0 && <PendingCredentials />}
       {rows.length === 0 ? <Card><Empty icon="server" title="هنوز سروری ندارید" text="اولین سرور ابری را در کمتر از یک دقیقه بسازید." action={<Link href="/vps" className={BTN_P + BTN_MD}>ساخت سرور</Link>} /></Card> : (
         <DataTable rows={rows} searchKeys={["name", "ip"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }]} onRowClick={(r) => router.push(("/panel/servers/" + r.id) as never)}
           columns={[

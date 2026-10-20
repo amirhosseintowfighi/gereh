@@ -3,7 +3,7 @@
    forecast, monthly budget caps and low-credit alerts. */
 import "server-only";
 import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { UNIT } from "@/lib/catalog";
+import { DISK_MIN_GB, DISK_STEP_GB, TRAFFIC_STEP_GB, UNIT } from "@/lib/catalog";
 import type { DB, Tx } from "./db/client";
 import { accountMeta, budgets, kv, subWallets, transactions, users, walletLinks } from "./db/schema";
 import { enqueue } from "./jobs";
@@ -14,14 +14,16 @@ export const VPS_PRICE_DEFAULTS = {
   ip: UNIT.ip,
   diskGb: Math.round(UNIT.disk10 / 10),
   snapshotGb: 3_000,
-  /** one traffic pack: size in GB and its price */
+  /** one traffic pack (the automatic purchase and the panel's default): size in GB, a multiple of TRAFFIC_STEP_GB,
+      and its price. A manual purchase may be any multiple of 500 GB at the same per-GB price (pack500Price). */
   packGb: 1000,
   packPrice: UNIT.tb,
   maxIps: 8,
   maxDisks: 4,
+  /** the admin's cap per extra disk, read as a multiple of DISK_STEP_GB */
   maxDiskGb: 2000,
 };
-export type VpsPrices = typeof VPS_PRICE_DEFAULTS;
+export type VpsPrices = typeof VPS_PRICE_DEFAULTS & { /** Toman per 500 GB of traffic, from packPrice/packGb */ pack500Price: number };
 export const POLICY_DEFAULTS = {
   /** how far (Toman) the main wallet may go below zero before hourly services are suspended */
   negativeGrace: 0,
@@ -32,7 +34,14 @@ async function doc<T extends object>(db: DB | Tx, key: string, defaults: T): Pro
   const [row] = await db.select().from(kv).where(eq(kv.key, key));
   return { ...defaults, ...((row?.value as Partial<T>) || {}) };
 }
-export const vpsPrices = (db: DB | Tx) => doc(db, "vps_prices", VPS_PRICE_DEFAULTS);
+export async function vpsPrices(db: DB | Tx): Promise<VpsPrices> {
+  const p = await doc(db, "vps_prices", VPS_PRICE_DEFAULTS);
+  // settings saved before the step rules: the per-GB traffic price is kept and the pack moves to a 500 GB multiple
+  const perGb = p.packPrice / (p.packGb || TRAFFIC_STEP_GB);
+  const packGb = Math.max(TRAFFIC_STEP_GB, Math.round((p.packGb || 0) / TRAFFIC_STEP_GB) * TRAFFIC_STEP_GB);
+  return { ...p, packGb, packPrice: packGb === p.packGb ? p.packPrice : Math.round(perGb * packGb), pack500Price: Math.round(perGb * TRAFFIC_STEP_GB),
+    maxDiskGb: Math.max(DISK_MIN_GB, Math.floor((p.maxDiskGb || VPS_PRICE_DEFAULTS.maxDiskGb) / DISK_STEP_GB) * DISK_STEP_GB) };
+}
 export const billingPolicy = (db: DB | Tx) => doc(db, "billing_policy", POLICY_DEFAULTS);
 export async function saveDoc(db: DB | Tx, key: "vps_prices" | "billing_policy", value: object) {
   await db.insert(kv).values({ key, value }).onConflictDoUpdate({ target: kv.key, set: { value } });

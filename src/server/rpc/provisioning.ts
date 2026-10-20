@@ -95,7 +95,7 @@ async function deliverServer(ctx: Ctx, o: Awaited<ReturnType<typeof order>>, d: 
   await addTask(ctx.db, sid!, "تحویل دستی توسط پشتیبانی");
   await logActivity(ctx.db, o.userId, "server", "سرور " + info.hostname + " تحویل شد");
   await notify(ctx.db, o.userId, "server", "سرور " + info.hostname + " آماده است");
-  if (d.rootpass) await sendCredentials(ctx.db, { userId: o.userId, name: info.hostname, ip: info.ip, hostname: info.hostname }, d.rootpass);
+  if (d.rootpass) await sendCredentials(ctx.db, { id: sid!, userId: o.userId, name: info.hostname, ip: info.ip, hostname: info.hostname }, d.rootpass);
   return sid!;
 }
 

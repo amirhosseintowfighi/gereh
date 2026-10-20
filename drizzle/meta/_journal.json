@@ -204,6 +204,13 @@
       "when": 1791600030000,
       "tag": "0030_vps_relayout",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791600031000,
+      "tag": "0031_server_credentials",
+      "breakpoints": true
     }
   ]
 }

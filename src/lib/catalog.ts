@@ -127,8 +127,52 @@ export const HOSTING: { linux: Plan[]; wordpress: Plan[] } = {
 };
 export const CPU_STEPS = [1, 2, 4, 6, 8, 12, 16, 24, 32];
 export const RAM_STEPS = [1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128];
-export const DISK_STEPS = [20, 40, 80, 120, 160, 240, 320, 480, 640, 960, 1280, 1920];
-export const TB_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50];
+/** every cloud-server disk size a customer picks (order builder and split, extra disks, resize, layout) is a
+    multiple of 10 GB, at least 10. The maximum is the existing one: the builder's last step, the admin's cap for
+    extra disks (vps_prices.maxDiskGb), the plan allowance for a layout. Servers sold before keep their sizes. */
+export const DISK_MIN_GB = 10, DISK_STEP_GB = 10, DISK_BUILDER_MAX_GB = 1920;
+export const DISK_STEPS = Array.from({ length: DISK_BUILDER_MAX_GB / DISK_STEP_GB }, (_, i) => (i + 1) * DISK_STEP_GB);
+/** why a newly chosen disk size is not allowed, or "" (max: an optional cap, rounded down to the step) */
+export function diskSizeError(gb: number, max?: number) {
+  if (!Number.isInteger(gb) || gb % DISK_STEP_GB !== 0) return "اندازه دیسک باید مضربی از " + fa(DISK_STEP_GB) + " گیگابایت باشد (" + fa(DISK_MIN_GB) + "، " + fa(DISK_MIN_GB + DISK_STEP_GB) + "، " + fa(DISK_MIN_GB + 2 * DISK_STEP_GB) + " …).";
+  if (gb < DISK_MIN_GB) return "اندازه دیسک دست‌کم " + fa(DISK_MIN_GB) + " گیگابایت است.";
+  const cap = max === undefined ? Infinity : Math.floor(max / DISK_STEP_GB) * DISK_STEP_GB;
+  if (gb > cap) return "حداکثر اندازه هر دیسک " + fa(cap) + " گیگابایت است.";
+  return "";
+}
+/** monthly traffic a customer picks (order builder; packs bought in the panel): multiples of 500 GB, at least 500 */
+export const TRAFFIC_STEP_GB = 500, TRAFFIC_MAX_GB = 50_000;
+export const TRAFFIC_STEPS_GB = Array.from({ length: TRAFFIC_MAX_GB / TRAFFIC_STEP_GB }, (_, i) => (i + 1) * TRAFFIC_STEP_GB);
+export function trafficError(gb: number, max = TRAFFIC_MAX_GB) {
+  if (!Number.isInteger(gb) || gb % TRAFFIC_STEP_GB !== 0 || gb < TRAFFIC_STEP_GB) return "ترافیک باید مضربی از " + fa(TRAFFIC_STEP_GB) + " گیگابایت باشد (" + fa(500) + "، " + fa(1000) + "، " + fa(1500) + " …).";
+  if (gb > max) return "حداکثر ترافیک " + fa(max) + " گیگابایت است.";
+  return "";
+}
+/** a custom server's traffic is stored in TB (sku.tb); 0.5 TB = 500 GB */
+export const tbToGb = (tb: number) => Math.round(tb * 1000);
+/** The step rule on a disk layout (servers.setLayout and its editor). New sizes follow diskSizeError. A server sold
+    before the rule may have sizes or an allowance that are not multiples of 10, and it keeps working:
+      - a disk left exactly as it is (same position, same size) is not checked;
+      - when the allowance is not a multiple of 10, the primary carries the remainder (allowance 165 → 85 + 80): a
+        changed primary must be ≡ allowance (mod 10); every other changed or new disk is a multiple of 10;
+      - the size limit is the allowance itself (the sum must match it). */
+export function layoutSizeError(current: number[], sizes: number[], allowance: number) {
+  const rem = ((allowance % DISK_STEP_GB) + DISK_STEP_GB) % DISK_STEP_GB;
+  for (let i = 0; i < sizes.length; i++) {
+    const x = sizes[i];
+    if (i < current.length && x === current[i]) continue;
+    const off = i === 0 ? rem : 0;
+    if (!Number.isInteger(x) || (x - off) % DISK_STEP_GB !== 0)
+      return off ? "اندازه دیسک اصلی این سرور باید " + fa(off) + " گیگابایت بیش از مضربی از " + fa(DISK_STEP_GB) + " باشد (باقی‌مانده سهم دیسک) و بقیه دیسک‌ها مضربی از " + fa(DISK_STEP_GB) + " گیگابایت." : "اندازه هر دیسک باید مضربی از " + fa(DISK_STEP_GB) + " گیگابایت باشد.";
+    if (x < DISK_MIN_GB) return (i === 0 ? "دیسک اصلی" : "هر دیسک") + " دست‌کم " + fa(DISK_MIN_GB) + " گیگابایت است.";
+  }
+  return "";
+}
+/** the nearest allowed size (for inputs on blur) */
+export const clampDisk = (gb: number, max = Infinity, min: number = DISK_MIN_GB) =>
+  Math.min(Math.floor(max / DISK_STEP_GB) * DISK_STEP_GB, Math.max(min, Math.round((gb || 0) / DISK_STEP_GB) * DISK_STEP_GB));
+/** the builder's traffic choices in TB (0.5, 1, 1.5 … 50) */
+export const TB_STEPS = TRAFFIC_STEPS_GB.map((gb) => gb / 1000);
 export const WIN_LICENSE = 150000;
 
 /** ips = extra IPv4s on top of the one every server has; tb defaults to 1 for carts saved before traffic was a choice */
@@ -192,9 +236,9 @@ export const APPS = [
 ];
 
 const locOf = (id: string) => LOCS.find((l) => l.id === id);
-/** an order-time disk split: 1–4 whole-GB disks (primary ≥ 10, others ≥ 5) that add up to the ordered disk */
+/** an order-time disk split: 1–4 disks, each an allowed size (10–500 in steps of 10), that add up to the ordered disk */
 export const diskSplitOk = (total: number, sizes: number[]) =>
-  sizes.length >= 1 && sizes.length <= 4 && sizes.every((x) => Number.isInteger(x)) && sizes[0] >= 10 && sizes.slice(1).every((x) => x >= 5) && sizes.reduce((a, b) => a + b, 0) === total;
+  sizes.length >= 1 && sizes.length <= 4 && sizes.every((x) => !diskSizeError(x)) && sizes.reduce((a, b) => a + b, 0) === total;
 /** price for one SKU, or an error message when the SKU is not orderable */
 export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: string } {
   switch (sku.t) {
@@ -211,11 +255,14 @@ export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: stri
     }
     case "custom": {
       const l = locOf(sku.loc);
-      if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk) || (sku.tb !== undefined && !TB_STEPS.includes(sku.tb))) return { error: "منابع انتخابی نامعتبر است." };
+      if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || typeof sku.disk !== "number") return { error: "منابع انتخابی نامعتبر است." };
+      const diskBad = diskSizeError(sku.disk, DISK_BUILDER_MAX_GB);
+      if (diskBad) return { error: diskBad };
+      if (sku.tb !== undefined && (typeof sku.tb !== "number" || sku.tb * 1000 !== tbToGb(sku.tb) || trafficError(tbToGb(sku.tb)))) return { error: trafficError(tbToGb(+sku.tb || 0)) || "ترافیک انتخابی نامعتبر است." };
       if (!l || l.active === false || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
       if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
       const split = sku.disks && sku.disks.length > 1 ? sku.disks : null;
-      if (sku.disks && !diskSplitOk(sku.disk, sku.disks)) return { error: "تقسیم دیسک نامعتبر است: جمع دیسک‌ها باید برابر فضای انتخابی باشد (دیسک اصلی دست‌کم ۱۰ و بقیه دست‌کم ۵ گیگابایت، حداکثر ۴ دیسک)." };
+      if (sku.disks && !diskSplitOk(sku.disk, sku.disks)) return { error: "تقسیم دیسک نامعتبر است: جمع دیسک‌ها باید برابر فضای انتخابی باشد (هر دیسک دست‌کم ۱۰ گیگابایت و مضربی از ۱۰، حداکثر ۴ دیسک)." };
       return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + (split ? split.join("+") + " گیگ NVMe (" + split.length + " دیسک)" : sku.disk + " گیگ NVMe") + "، " + (sku.tb ?? 1) + " ترابایت ترافیک، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
     }
     case "hosting": {

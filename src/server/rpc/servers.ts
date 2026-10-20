@@ -4,8 +4,10 @@ import { z } from "zod";
 import { PLAN_NUMS, type Plan } from "@/lib/catalog";
 import { strength } from "@/lib/format";
 import { actor, isStaff, method, needStaff, needUser, type Ctx } from "../ctx";
-import { backups, firewallRules, osTemplates, plans, servers, snapshots, users } from "../db/schema";
+import { CRED_TTL_DAYS, dropCredential, pendingCredentials, pendingRow, stashCredential, type CredKind } from "../credentials";
+import { backups, firewallRules, osTemplates, plans, serverCredentials, servers, snapshots, users } from "../db/schema";
 import { sendEmail } from "../messaging";
+import { open } from "../secrets";
 import { createInvoice } from "./billing";
 import { rateLimit } from "../auth";
 import { virt } from "../virt/driver";
@@ -32,6 +34,15 @@ export async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = 
   if (opts.write && s!.status === "provisioning" && !staff) fail("سرور هنوز تحویل نشده است؛ پس از آماده شدن قابل مدیریت است.");
   if (opts.write && s!.status === "missing" && !staff) fail("این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است. برای پیگیری تیکت ثبت کنید.", 409);
   if (opts.write && s!.status === "relayout" && !staff) fail("دیسک‌های این سرور در حال بازسازی است؛ چند دقیقه دیگر دوباره امتحان کنید.", 409);
+  return s!;
+}
+/** who may see a server's one-time password: the account owner, or a team member whose role manages servers
+    (admin/tech; the billing role cannot call servers.* at all). Never staff, impersonating or not. */
+const credentialViewer = (ctx: Ctx) => { const a = ctx.auth; return !!a && (a.uid === a.user.id || a.teamRole === "admin" || a.teamRole === "tech"); };
+async function credentialServer(ctx: Ctx, sid: string) {
+  const a = needUser(ctx);
+  const [s] = credentialViewer(ctx) ? await ctx.db.select().from(servers).where(and(eq(servers.id, sid), eq(servers.userId, a.uid))) : [];
+  if (!s) fail("سرور پیدا نشد.", 404);
   return s!;
 }
 export const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حال ساخت است."); return s.vpsid!; };
@@ -103,6 +114,8 @@ export const serversRpc = {
     await addTask(ctx.db, s.id, "نصب مجدد " + tpl!.name);
     await log(ctx, s, "terminal", "نصب مجدد " + tpl!.name + " روی " + s.name);
     await requestSync(ctx.db, s.id);
+    await stashCredential(ctx.db, { serverId: s.id, userId: s.userId, password: pass });
+    await dropCredential(ctx.db, s.id, "rescue");
     const [owner] = await ctx.db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
     if (owner) await sendEmail(owner.email, "نصب مجدد " + s.name, "سیستم‌عامل " + tpl!.name + " روی " + s.name + " (" + s.ip + ") نصب شد.\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
   }),
@@ -205,6 +218,7 @@ export const serversRpc = {
     const s = await server(ctx, sid);
     if (pass.length < 8 || strength(pass) < 2) fail("رمز ضعیف است؛ حداقل ۸ کاراکتر با عدد و حروف بزرگ.");
     await (await virt()).rootPassword(vps(s), pass);
+    await stashCredential(ctx.db, { serverId: s.id, userId: s.userId, password: pass });
     await addTask(ctx.db, s.id, "تغییر رمز root");
     await log(ctx, s, "key-round", "تغییر رمز root سرور " + s.name);
   }),
@@ -241,7 +255,36 @@ export const serversRpc = {
     if (on && (!pass || pass.length < 6)) fail("برای حالت ریسکیو یک رمز حداقل ۶ کاراکتری لازم است.");
     await (await virt()).rescue(vps(s), on, pass);
     await ctx.db.update(servers).set({ rescue: on }).where(eq(servers.id, s.id));
+    if (on) await stashCredential(ctx.db, { serverId: s.id, userId: s.userId, kind: "rescue", password: pass! });
+    else await dropCredential(ctx.db, s.id, "rescue");
     await addTask(ctx.db, s.id, on ? "فعال‌سازی حالت ریسکیو" : "غیرفعال‌سازی حالت ریسکیو");
+  }),
+
+  /* ---------- one-time password display (../credentials.ts) ---------- */
+  /** the caller's pending root/rescue passwords (servers list and page), never the password itself */
+  "servers.pendingCredentials": method(z.tuple([id.optional()]), async (ctx, [sid]) => {
+    const a = needUser(ctx);
+    if (!credentialViewer(ctx)) return [];
+    return (await pendingCredentials(ctx.db, a.uid, sid)).map((r) => ({ serverId: r.serverId, kind: r.kind as CredKind, username: r.username, name: r.name, ip: r.ip,
+      createdAt: r.createdAt.toISOString(), expiresAt: r.expiresAt.toISOString(), revealed: !!r.revealed }));
+  }),
+
+  /** the password, on an explicit «نمایش» by the owner; rate limited and logged (without the password) */
+  "servers.revealCredential": method(z.tuple([id, z.enum(["root", "rescue"])]), async (ctx, [sid, kind]) => {
+    const s = await credentialServer(ctx, sid);
+    await rateLimit(ctx.db, "cred:reveal:" + ctx.auth!.user.id, 10, 600);
+    const r = await pendingRow(ctx.db, s.id, kind);
+    const pass = open(r?.passEnc);
+    if (!r || !pass) fail("رمزی برای نمایش نیست؛ رمز فقط یک بار و تا " + CRED_TTL_DAYS.toLocaleString("fa-IR") + " روز در پنل نمایش داده می‌شود و به ایمیل شما هم ارسال شده است.", 404);
+    await ctx.db.update(serverCredentials).set({ revealedAt: new Date() }).where(eq(serverCredentials.id, r!.id));
+    await log(ctx, s, "eye", (kind === "root" ? "رمز root نمایش داده شد" : "رمز حالت ریسکیو نمایش داده شد") + " (" + s.name + ")");
+    return pass!;
+  }),
+
+  /** «ذخیره کردم»: the ciphertext is deleted and the card goes away */
+  "servers.ackCredential": method(z.tuple([id, z.enum(["root", "rescue"])]), async (ctx, [sid, kind]) => {
+    const s = await credentialServer(ctx, sid);
+    await ctx.db.update(serverCredentials).set({ passEnc: null, acknowledgedAt: new Date() }).where(and(eq(serverCredentials.serverId, s.id), eq(serverCredentials.kind, kind)));
   }),
 
   /** CPU % (sustained 15 min) and monthly-bandwidth % thresholds; 0 disables */

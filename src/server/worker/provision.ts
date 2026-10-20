@@ -13,6 +13,7 @@ import { enqueue } from "../jobs";
 import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
 import { cloudInitFor } from "../apps";
+import { stashCredential } from "../credentials";
 import { virt } from "../virt/driver";
 import { addTask, genPassword, logActivity, nextId, notify, randomSecret, rid } from "../util";
 
@@ -71,7 +72,7 @@ export async function serverSpec(db: DB | Tx, sku: Extract<Sku, { t: "plan" } | 
     const { configPrice } = await import("@/lib/catalog");
     price = configPrice(sku);
     name = "سفارشی";
-    res = { cpu: sku.cpu, ram: sku.ram, disk: sku.disk, traffic: (sku.tb ?? 1) * 1000 };
+    res = { cpu: sku.cpu, ram: sku.ram, disk: sku.disk, traffic: Math.round((sku.tb ?? 1) * 1000) };
     mapId = "custom";
   }
   const [m] = await db.select().from(planMap).where(eq(planMap.id, mapId));
@@ -219,7 +220,9 @@ export async function waitForBuild(db: DB, p: { serverId: string; rootpass: stri
   await sendCredentials(db, s, p.rootpass);
 }
 
-export async function sendCredentials(db: DB | Tx, s: { userId: string; name: string; ip: string; hostname: string }, rootpass: string) {
+/** emails the delivery details and keeps the root password for its one-time display in the panel (../credentials.ts) */
+export async function sendCredentials(db: DB | Tx, s: { id: string; userId: string; name: string; ip: string; hostname: string }, rootpass: string) {
+  await stashCredential(db, { serverId: s.id, userId: s.userId, password: rootpass });
   await enqueue(db, "notify.send", { userId: s.userId, kind: "service", subject: "سرور " + s.name + " آماده است",
     text: "سرور شما آماده است.\n\nآدرس IP: " + s.ip + "\nنام میزبان: " + s.hostname + "\nکاربر: root\n" +
       (rootpass ? "رمز: " + rootpass + "\n\nلطفا پس از ورود رمز را تغییر دهید. این رمز فقط یک بار ارسال می‌شود." : "\nرمز root را از پنل گره، بخش «دسترسی و اپلیکیشن» تنظیم کنید."), secret: true });

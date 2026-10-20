@@ -11,6 +11,7 @@
 import "server-only";
 import { and, eq, like } from "drizzle-orm";
 import type { DB } from "../db/client";
+import { dropCredential, stashCredential } from "../credentials";
 import { serverTasks, servers, users, vpsPower, vpsRelayout, vpsSyncLog } from "../db/schema";
 import { enqueue } from "../jobs";
 import { sendEmail } from "../messaging";
@@ -218,6 +219,9 @@ async function finish(db: DB, s: Server, r: Row) {
     await notifyStaff(db, "بازسازی دیسک‌های " + s.name + ": IP قبلی " + s.ip + " به VPS جدید " + r.newVpsid + " منتقل نشد و IP " + ip + " ماند" + (r.lastError ? ": " + r.lastError : ""));
   }
   await notify(db, s.userId, "hard-drive", "دیسک‌های سرور " + s.name + " به " + gb(r.sizes) + " گیگ تغییر کرد و " + r.os + " نصب شد");
+  await stashCredential(db, { serverId: s.id, userId: s.userId, password: pass });
+  // the rescue password belonged to the old VPS
+  await dropCredential(db, s.id, "rescue");
   const [owner] = await db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
   if (owner) await sendEmail(owner.email, "تغییر چیدمان دیسک " + s.name, "دیسک‌های " + s.name + " (" + ip + ") به " + after + " گیگابایت تغییر کرد و " + r.os + " دوباره نصب شد." + ipNote + "\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
   await requestSync(db, s.id);

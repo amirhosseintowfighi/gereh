@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
 import { useLocs } from "@/lib/use-locs";
-import { CPU_STEPS, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, WIN_LICENSE, configLines, configPrice, diskSplitOk, parseDomain } from "@/lib/catalog";
+import { CPU_STEPS, DISK_STEP_GB, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, TRAFFIC_STEPS_GB, WIN_LICENSE, configLines, configPrice, diskSplitOk, parseDomain } from "@/lib/catalog";
 import { EMAIL_RE, fa, hashStr, toman } from "@/lib/format";
 import { useApp } from "../app-context";
 import { DiskLayoutEditor } from "../disk-split";
@@ -317,7 +317,8 @@ function Slider({ icon, label, steps, idx, setIdx, fmt }: { icon: string; label:
 
 export function Builder({ id = "builder" }: { id?: string }) {
   const { addToCart } = useApp();
-  const [ci, setCi] = useState(2), [ri, setRi] = useState(3), [di, setDi] = useState(4), [ti, setTi] = useState(1);
+  // 160 GB disk and 2 TB traffic to start
+  const [ci, setCi] = useState(2), [ri, setRi] = useState(3), [di, setDi] = useState(DISK_STEPS.indexOf(160)), [ti, setTi] = useState(TRAFFIC_STEPS_GB.indexOf(2000));
   const [locSel, setLoc] = useState("thr"), [os, setOs] = useState("ubuntu");
   const [backup, setBackup] = useState(true), [ips, setIps] = useState(0);
   const locs = useLocs().filter((l) => l.active !== false);
@@ -326,8 +327,9 @@ export function Builder({ id = "builder" }: { id?: string }) {
   const cfg = { cpu: CPU_STEPS[ci], ram: RAM_STEPS[ri], disk: DISK_STEPS[di], tb: TB_STEPS[ti], loc, os, ips, backup };
   // optional split of the disk into several disks (same price); a new disk size starts a fresh half/half split
   const [split, setSplit] = useState<number[] | null>(null);
-  const halves = (gb: number) => [Math.ceil(gb / 2), gb - Math.ceil(gb / 2)];
-  const pickDisk = (i: number) => { setDi(i); setSplit((s) => (s ? halves(DISK_STEPS[i]) : s)); };
+  // both halves stay multiples of 10 GB (50 → 30 + 20)
+  const halves = (gb: number) => { const a = Math.ceil(gb / (2 * DISK_STEP_GB)) * DISK_STEP_GB; return [a, gb - a]; };
+  const pickDisk = (i: number) => { setDi(i); setSplit((s) => (s && DISK_STEPS[i] >= 2 * DISK_STEP_GB ? halves(DISK_STEPS[i]) : null)); };
   const splitOk = !split || diskSplitOk(cfg.disk, split);
   const final = configPrice(cfg);
   const priceLines = configLines(cfg);
@@ -346,13 +348,13 @@ export function Builder({ id = "builder" }: { id?: string }) {
             <Slider icon="hard-drive" label="فضای NVMe" steps={DISK_STEPS} idx={di} setIdx={pickDisk} fmt="گیگابایت" />
             <div className="mt-3 flex items-center justify-between gap-3">
               <span className="text-[12px] text-white/65">تقسیم فضا به چند دیسک (مثلاً سیستم‌عامل و داده جدا)</span>
-              <Switch on={!!split} onChange={(on) => setSplit(on ? halves(cfg.disk) : null)} label="تقسیم دیسک" />
+              <Switch on={!!split} disabled={cfg.disk < 2 * DISK_STEP_GB} onChange={(on) => setSplit(on ? halves(cfg.disk) : null)} label="تقسیم دیسک" />
             </div>
             {split && <div className="mt-3"><DiskLayoutEditor allowance={cfg.disk} sizes={split} onChange={setSplit} /></div>}
           </div>
           <div>
-            <Slider icon="arrow-down-up" label="ترافیک ماهانه" steps={TB_STEPS} idx={ti} setIdx={setTi} fmt="ترابایت" />
-            <p className="text-[11px] text-white/55 mt-2 leading-5">هر چه ترافیک بیشتر، هر ترابایت ارزان‌تر: از ۸۴۰ هزار تومان برای ۱ ترابایت تا ۸۰۰ هزار تومان از ۱۰ ترابایت به بالا.</p>
+            <Slider icon="arrow-down-up" label="ترافیک ماهانه" steps={TRAFFIC_STEPS_GB} idx={ti} setIdx={setTi} fmt="گیگابایت" />
+            <p className="text-[11px] text-white/55 mt-2 leading-5">در گام‌های ۵۰۰ گیگابایتی. هر چه ترافیک بیشتر، هر ترابایت ارزان‌تر: از ۸۴۰ هزار تومان برای ۱ ترابایت تا ۸۰۰ هزار تومان از ۱۰ ترابایت به بالا. پس از خرید هم می‌توانید از پنل بسته‌های ۵۰۰ گیگابایتی اضافه کنید.</p>
           </div>
           <fieldset>
             <legend className="text-sm text-white/75 mb-3 flex items-center gap-2"><Icon name="map-pin" size={17} className="acc" /> موقعیت دیتاسنتر</legend>

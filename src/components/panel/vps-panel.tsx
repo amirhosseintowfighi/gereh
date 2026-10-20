@@ -92,7 +92,7 @@ export function LayoutCard({ s }: { s: Server }) {
           <div className="font-bold mb-1">در حال بازسازی دیسک‌ها…</div>
           <p className="text-xs leading-6 text-sky-100/80">
             سرور {v.relayout ? <>با دیسک‌های <span className="tabular">{v.relayout.sizes.map((g) => fa(g)).join(" + ")}</span> گیگابایت و {v.relayout.os} </> : ""}از نو ساخته می‌شود. این کار چند دقیقه طول می‌کشد و این صفحه خودکار به‌روز می‌شود.
-            IP سرور تا جای ممکن حفظ می‌شود؛ اگر تغییر کند با اعلان و ایمیل خبر می‌دهیم. رمز root جدید پس از پایان کار ایمیل می‌شود.
+            IP سرور تا جای ممکن حفظ می‌شود؛ اگر تغییر کند با اعلان و ایمیل خبر می‌دهیم. رمز root جدید پس از پایان کار ایمیل و یک بار در همین صفحه نمایش داده می‌شود.
           </p>
           {v.relayout && <p className="text-[11px] text-sky-100/60 mt-1">درخواست: <span className="tabular">{v.relayout.since}</span></p>}
         </div>
@@ -111,7 +111,7 @@ export function LayoutCard({ s }: { s: Server }) {
   return (
     <Card title="چیدمان دیسک" icon="layers" className="mb-4">
       <p className="text-xs text-white/55 leading-6 mb-4">{fa(v.allowanceGb)} گیگابایت دیسک پلن را می‌توانید به چند دیسک تقسیم کنید، مثلاً {fa(Math.round(v.allowanceGb * 0.4))} + {fa(v.allowanceGb - Math.round(v.allowanceGb * 0.4))}. هزینه ماهانه تغییر نمی‌کند. افزودن دیسک از فضای تقسیم‌نشده و بزرگ کردن دیسک‌ها داده‌ای را پاک نمی‌کند. کوچک کردن یا حذف یک دیسک فقط با ساخت دوباره سرور ممکن است: همه داده‌ها پاک و سیستم‌عامل از نو نصب می‌شود، IP تا جای ممکن حفظ می‌شود و چند دقیقه طول می‌کشد.</p>
-      <DiskLayoutEditor allowance={v.allowanceGb} sizes={val} onChange={setSizes} max={v.maxDisks} />
+      <DiskLayoutEditor allowance={v.allowanceGb} sizes={val} onChange={setSizes} max={v.maxDisks} current={cur} />
       {v.billed.length > 0 && <p className="text-[11px] text-white/50 mt-3">دیسک‌های خریداری‌شده جدا ({v.billed.map((d) => d.name + " " + fa(d.sizeGb) + " گیگ").join("، ")}) جزو این سهم نیستند.</p>}
       {grow && <p role="note" className="mt-5 rounded-xl bg-white/[0.04] border border-white/10 p-4 text-xs leading-6 text-white/70">دیسک‌ها بدون پاک شدن داده بزرگ می‌شوند. پس از آن پارتیشن و فایل‌سیستم را داخل سیستم‌عامل گسترش دهید (مثلاً با <span className="mono ltr inline-block">growpart</span> و <span className="mono ltr inline-block">resize2fs</span>).</p>}
       {rebuild && <div className="mt-5 space-y-4">

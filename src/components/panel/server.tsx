@@ -10,6 +10,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AsyncButton, CopyText, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
+import { PendingCredentials } from "./server-credentials";
 import { DelayBanner, ServerPending } from "./server-pending";
 import { Ipv6Card, LayoutCard, LogsTimeline, PowerControls, ProcessManager, ServiceManager, SshKeysCard, UsageCharts, VzBackupsCard } from "./vps-panel";
 import { DisksPanel, FirewallGroups, NetworkExtras, PlanChange, SnapSchedule, TrafficPanel, VncScreen, WalletLink } from "./vps-extras";
@@ -50,6 +51,7 @@ export function ServerDetail({ id }: { id: string }) {
         action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge>
           : relayout ? <span role="status" className="inline-flex items-center gap-2 text-sm text-white/75"><Icon name="loader-circle" size={16} className="animate-spin" />در حال بازسازی دیسک‌ها…</span> : <PowerControls s={s} />} />
       <DelayBanner s={s} />
+      <PendingCredentials serverId={s.id} />
       <div className="mb-5"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
         {cur === "overview" && <Overview s={s} />}

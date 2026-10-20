@@ -4,7 +4,8 @@
 import "server-only";
 import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { toEnDigits } from "@/lib/format";
+import { DISK_MIN_GB, DISK_STEP_GB, diskSizeError, TRAFFIC_STEP_GB, trafficError } from "@/lib/catalog";
+import { fa, toEnDigits } from "@/lib/format";
 import { faDate, faDateTime } from "@/lib/jalali";
 import { PERM_LEVELS, TEAM_SERVICES, type AccountExtrasView, type BillingExtrasView, type TeamRoleView } from "@/lib/vps-billing";
 import { baseRole, newRecoveryCodes, pushEndpointOk, vapidPublic } from "../account-extras";
@@ -182,8 +183,10 @@ export const walletRpc = {
     needStaff(ctx, "products");
     return { prices: await vpsPrices(ctx.db), policy: await billingPolicy(ctx.db) };
   }),
-  "billing.adminSavePrices": method(z.tuple([z.object({ ip: money, diskGb: money, snapshotGb: money, packGb: z.number().int().min(10).max(100_000), packPrice: money, maxIps: z.number().int().min(0).max(64), maxDisks: z.number().int().min(0).max(16), maxDiskGb: z.number().int().min(10).max(100_000) })]), async (ctx, [p]) => {
+  "billing.adminSavePrices": method(z.tuple([z.object({ ip: money, diskGb: money, snapshotGb: money, packGb: z.number().int().min(1).max(100_000), packPrice: money, maxIps: z.number().int().min(0).max(64), maxDisks: z.number().int().min(0).max(16), maxDiskGb: z.number().int().min(1).max(100_000) })]), async (ctx, [p]) => {
     needStaff(ctx, "products");
+    if (diskSizeError(p.maxDiskGb)) fail("حداکثر اندازه دیسک باید دست‌کم " + fa(DISK_MIN_GB) + " گیگابایت و مضربی از " + fa(DISK_STEP_GB) + " باشد.");
+    if (trafficError(p.packGb, Infinity)) fail("حجم بسته ترافیک باید مضربی از " + fa(TRAFFIC_STEP_GB) + " گیگابایت باشد.");
     await saveDoc(ctx.db, "vps_prices", { ...VPS_PRICE_DEFAULTS, ...p });
     await logAudit(ctx.db, actor(ctx), "تغییر قیمت افزونه‌های سرور", JSON.stringify(p), ctx.ip);
   }),

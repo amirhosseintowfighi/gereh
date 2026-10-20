@@ -3,7 +3,7 @@
    traffic metering, noVNC console, plan change while stopped, firewall groups, project wallet. */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { PLAN_NUMS, VPS } from "@/lib/catalog";
+import { clampDisk, diskSizeError, PLAN_NUMS, TRAFFIC_MAX_GB, TRAFFIC_STEP_GB, trafficError, VPS } from "@/lib/catalog";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE } from "@/lib/cls";
 import { fa, toEnDigits, toman } from "@/lib/format";
 import { useDB, type Server } from "@/lib/store";
@@ -82,7 +82,7 @@ export function DisksPanel({ s }: { s: Server }) {
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
           <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-right">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}{!d.billed && " · افزوده‌شده توسط پشتیبانی، بدون هزینه"}</div></div></div>
           <div className="flex gap-1">
-            <button type="button" onClick={() => setGrow({ id: d.id, name: d.name, size: String(d.sizeGb + 10), min: d.sizeGb + 1 })} className={BTN_G + BTN_SM}>افزایش اندازه</button>
+            <button type="button" onClick={() => { const min = Math.floor(d.sizeGb / 10) * 10 + 10; setGrow({ id: d.id, name: d.name, size: String(min), min }); }} className={BTN_G + BTN_SM}>افزایش اندازه</button>
             <AsyncButton className={BTN_G + BTN_SM} confirmText={"دیسک " + d.name + " از سرور جدا شود؟ پیش از آن، آن را در سیستم‌عامل unmount کنید."} onClick={async () => { await vpsApi.detachDisk(d.id); notify("دیسک جدا شد"); x.reload(); }}>جدا کردن</AsyncButton>
           </div>
         </div>
@@ -102,12 +102,12 @@ export function DisksPanel({ s }: { s: Server }) {
     <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!add) return; await vpsApi.addDisk(s.id, { name: add.name.trim().toLowerCase(), sizeGb: num(add.size) }); setAdd(null); notify("دیسک ساخته و وصل شد", "hard-drive"); x.reload(); }}>ساخت</AsyncButton><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {add && <div className="grid grid-cols-2 gap-4">
         <Field label="نام" hint="حروف کوچک انگلیسی، عدد و خط تیره"><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-        <Field label="اندازه (گیگابایت)" hint={"حداکثر " + fa(v.prices.maxDiskGb)}><input value={add.size} onChange={(e) => setAdd({ ...add, size: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="اندازه (گیگابایت)" error={add.size && diskSizeError(num(add.size), v.prices.maxDiskGb) || undefined} hint={"مضرب ۱۰، از ۱۰ تا " + fa(v.prices.maxDiskGb)}><input value={add.size} onChange={(e) => setAdd({ ...add, size: e.target.value })} onBlur={() => setAdd({ ...add, size: String(clampDisk(num(add.size), v.prices.maxDiskGb)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
         <p className="col-span-2 text-xs text-white/55">هزینه ماهانه: {toman(num(add.size) * v.prices.diskGb)}</p>
       </div>}
     </Modal>
     <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!grow) return; await vpsApi.resizeDisk(grow.id, num(grow.size)); setGrow(null); notify("اندازه دیسک افزایش یافت"); x.reload(); }}>اعمال</AsyncButton><button type="button" onClick={() => setGrow(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
-      {grow && <Field label="اندازه جدید (گیگابایت)" hint={"دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>}
+      {grow && <Field label="اندازه جدید (گیگابایت)" hint={"مضرب ۱۰، دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} onBlur={() => setGrow({ ...grow, size: String(clampDisk(num(grow.size), v.prices.maxDiskGb, grow.min)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>}
     </Modal>
   </>}</Wrap>;
 }
@@ -170,11 +170,33 @@ export function TrafficPanel({ s }: { s: Server }) {
         </Card>
         <Card title="بسته ترافیک" icon="package-plus" action={<Switch on={t.autoBuy} label="خرید خودکار بسته" onChange={async (on) => { await vpsApi.setTrafficAutoBuy(s.id, on); notify(on ? "خرید خودکار روشن شد" : "خرید خودکار خاموش شد"); x.reload(); }} />}>
           <p className="text-sm text-white/55 leading-7">در ۸۰٪ و ۱۰۰٪ سهمیه اعلان می‌گیرید. با خرید خودکار، هنگام اتمام سهمیه یک بسته {fa(v.prices.packGb)} گیگابایتی به قیمت {toman(v.prices.packPrice)} از کیف پول خریده می‌شود. این ماه {fa(t.packs)} بسته خریده‌اید.</p>
-          <div className="mt-4 flex justify-end"><AsyncButton confirmText={"یک بسته " + fa(v.prices.packGb) + " گیگابایتی به قیمت " + toman(v.prices.packPrice) + " از کیف پول خریده شود؟"} onClick={async () => { await vpsApi.buyTraffic(s.id); notify("بسته ترافیک اضافه شد", "package-plus"); x.reload(); }}>خرید بسته</AsyncButton></div>
+          <TrafficBuy sid={s.id} prices={v.prices} onDone={x.reload} />
         </Card>
       </div>
     );
   }}</Wrap>;
+}
+
+/** buys any multiple of 500 GB, as often as needed; each purchase adds to this month's quota */
+function TrafficBuy({ sid, prices, onDone }: { sid: string; prices: VpsExtrasView["prices"]; onDone: () => void }) {
+  const { notify } = useApp();
+  const [gb, setGb] = useState(String(prices.packGb));
+  const snap = (v: number) => Math.min(TRAFFIC_MAX_GB, Math.max(TRAFFIC_STEP_GB, Math.round(v / TRAFFIC_STEP_GB) * TRAFFIC_STEP_GB));
+  const n = num(gb), ok = !trafficError(n);
+  const price = ok ? (n / TRAFFIC_STEP_GB) * prices.pack500Price : 0;
+  return (
+    <div className="mt-4 flex flex-wrap items-end justify-end gap-2">
+      <Field label="حجم (گیگابایت)" hint={"در گام‌های " + fa(TRAFFIC_STEP_GB) + " گیگابایتی؛ هر " + fa(TRAFFIC_STEP_GB) + " گیگ " + toman(prices.pack500Price)}>
+        <div className="flex items-center gap-1">
+          <IconBtn icon="minus" label="کم کردن حجم" onClick={() => setGb(String(snap(n - TRAFFIC_STEP_GB)))} />
+          <input value={gb} onChange={(e) => setGb(e.target.value)} onBlur={() => setGb(String(snap(n)))} inputMode="numeric" dir="ltr" aria-label="حجم ترافیک (گیگابایت)" className={INPUT + " w-28 text-left tabular"} />
+          <IconBtn icon="plus" label="افزایش حجم" onClick={() => setGb(String(snap(n + TRAFFIC_STEP_GB)))} />
+        </div>
+      </Field>
+      <AsyncButton disabled={!ok} confirmText={fa(n) + " گیگابایت ترافیک به قیمت " + toman(price) + " از کیف پول خریده شود؟"}
+        onClick={async () => { await vpsApi.buyTraffic(sid, n); notify(fa(n) + " گیگابایت ترافیک اضافه شد", "package-plus"); onDone(); }}>خرید {ok ? "(" + toman(price) + ")" : ""}</AsyncButton>
+    </div>
+  );
 }
 
 /* ---------- console (noVNC) ---------- */

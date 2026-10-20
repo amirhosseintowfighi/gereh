@@ -1835,3 +1835,21 @@ export const vpsRelayout = pgTable("vps_relayout", {
   requestedAt: ts("requested_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/* ---------- one-time root/rescue password display (0031_server_credentials) ---------- */
+/** a password the site generated or set on a cloud server, shown once in the panel besides the email. Sealed
+    (../secrets.ts); the ciphertext is cleared when the owner presses «ذخیره کردم» or after expiresAt. One row per
+    server and kind: a newer password replaces the pending one. */
+export const serverCredentials = pgTable("server_credentials", {
+  id: serial("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** root | rescue */
+  kind: text("kind").notNull(),
+  username: text("username").notNull().default("root"),
+  passEnc: text("pass_enc"),
+  createdAt: created(),
+  expiresAt: ts("expires_at").notNull(),
+  revealedAt: ts("revealed_at"),
+  acknowledgedAt: ts("acknowledged_at"),
+}, (t) => [uniqueIndex("server_credentials_uq").on(t.serverId, t.kind), index("server_credentials_user_idx").on(t.userId)]);

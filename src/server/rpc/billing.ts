@@ -80,7 +80,7 @@ async function payCommission(tx: Tx, userId: string, invoiceId: string, net: num
 const amount = z.number().int().safe();
 const skuSchema: z.ZodType<Sku> = z.discriminatedUnion("t", [
   z.object({ t: z.literal("plan"), kind: z.enum(["cloud", "metal"]), plan: z.string().max(20), loc: z.string().max(10), cycle: z.enum(["m", "q", "y"]), os: z.string().max(20).optional(), app: z.string().max(30).optional(), hourly: z.boolean().optional() }),
-  z.object({ t: z.literal("custom"), cpu: z.number().int(), ram: z.number().int(), disk: z.number().int(), loc: z.string().max(10), os: z.string().max(20), ips: z.number().int(), backup: z.boolean(), app: z.string().max(30).optional(), hourly: z.boolean().optional(), disks: z.array(z.number().int().min(1).max(100_000)).min(1).max(4).optional() }),
+  z.object({ t: z.literal("custom"), cpu: z.number().int(), ram: z.number().int(), disk: z.number().int(), tb: z.number().positive().max(1000).optional(), loc: z.string().max(10), os: z.string().max(20), ips: z.number().int(), backup: z.boolean(), app: z.string().max(30).optional(), hourly: z.boolean().optional(), disks: z.array(z.number().int().min(1).max(100_000)).min(1).max(4).optional() }),
   z.object({ t: z.literal("hosting"), plan: z.string().max(20), yearly: z.boolean(), domain: z.string().max(253).optional() }),
   z.object({ t: z.literal("domain"), name: z.string().max(253), years: z.number().int() }),
   z.object({ t: z.literal("ip"), serverId: z.string().max(40), serverName: z.string().max(60) }),

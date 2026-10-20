@@ -3,7 +3,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
 import { z } from "zod";
-import { PLAN_NUMS, type Plan } from "@/lib/catalog";
+import { diskSizeError, PLAN_NUMS, TRAFFIC_STEP_GB, trafficError, type Plan } from "@/lib/catalog";
 import { faDate, faDateTime } from "@/lib/jalali";
 import { nextRun, type VpsExtrasView } from "@/lib/vps-billing";
 import { debit, monthKey, needBudget, perHour, vpsPrices } from "../billing-extras";
@@ -20,6 +20,8 @@ const FQDN_RE = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const PORT_RE = /^(\d{1,5}(-\d{1,5})?)(,\d{1,5}(-\d{1,5})?)*$/;
 const CIDR_RE = /^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)(\/(3[0-2]|[12]?\d))?$|^[0-9a-f:]+(\/\d{1,3})?$/i;
 const DISK_NAME_RE = /^[a-z][a-z0-9-]{1,29}$/;
+/** GB; the 10–500 / step-10 rule is checked with diskSizeError so the customer reads why */
+const diskGb = z.number().int().min(1).max(100_000);
 
 const ruleSchema = z.object({ proto: z.enum(["TCP", "UDP", "ICMP"]), port: z.string().max(100), source: z.string().max(60), action: z.enum(["allow", "deny"]), note: z.string().max(60) });
 /** normalises and validates one firewall rule (same rules as the per-server firewall) */
@@ -150,11 +152,12 @@ export const vpsRpc = {
   }),
 
   /* ---------- extra disks (GB-month, billed hourly) ---------- */
-  "servers.addDisk": method(z.tuple([id, z.object({ name: z.string().trim().toLowerCase().max(30), sizeGb: z.number().int().min(10).max(10_000) })]), async (ctx, [sid, d]) => {
+  "servers.addDisk": method(z.tuple([id, z.object({ name: z.string().trim().toLowerCase().max(30), sizeGb: diskGb })]), async (ctx, [sid, d]) => {
     const s = await server(ctx, sid);
     const p = await vpsPrices(ctx.db);
     if (!DISK_NAME_RE.test(d.name)) fail("نام دیسک: حروف کوچک انگلیسی، عدد و خط تیره؛ ۲ تا ۳۰ نویسه.");
-    if (d.sizeGb > p.maxDiskGb) fail("حداکثر اندازه هر دیسک " + p.maxDiskGb.toLocaleString("fa-IR") + " گیگابایت است.");
+    const bad = diskSizeError(d.sizeGb, p.maxDiskGb);
+    if (bad) fail(bad);
     const [{ n }] = await ctx.db.select({ n: count() }).from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), isNull(vpsDisks.goneAt)));
     if (n >= p.maxDisks) fail("حداکثر " + p.maxDisks.toLocaleString("fa-IR") + " دیسک اضافه برای هر سرور.");
     await needCredit(ctx, s.userId, d.sizeGb * p.diskGb);
@@ -169,11 +172,13 @@ export const vpsRpc = {
   }),
 
   /** grows a disk; shrinking is refused (the filesystem would be cut) */
-  "servers.resizeDisk": method(z.tuple([id, z.number().int().min(10).max(10_000)]), async (ctx, [diskId, sizeGb]) => {
+  "servers.resizeDisk": method(z.tuple([id, diskGb]), async (ctx, [diskId, sizeGb]) => {
     const d = await ownDisk(ctx, diskId);
     const p = await vpsPrices(ctx.db);
+    // the new size is a new choice: a disk bought at 25 GB grows to 30, 40 …
+    const bad = diskSizeError(sizeGb, p.maxDiskGb);
+    if (bad) fail(bad);
     if (sizeGb <= d.sizeGb) fail("اندازه دیسک فقط افزایش می‌یابد.");
-    if (sizeGb > p.maxDiskGb) fail("حداکثر اندازه هر دیسک " + p.maxDiskGb.toLocaleString("fa-IR") + " گیگابایت است.");
     await needCredit(ctx, d.userId, (sizeGb - d.sizeGb) * p.diskGb);
     if (d.serverId) {
       const s = await server(ctx, d.serverId);
@@ -247,9 +252,11 @@ export const vpsRpc = {
     await ctx.db.update(vpsTraffic).set({ autoBuy: on, updatedAt: new Date() }).where(eq(vpsTraffic.serverId, s.id));
   }),
 
-  "servers.buyTraffic": method(z.tuple([id]), async (ctx, [sid]) => {
+  /** gb: any multiple of 500 GB (default: the admin's pack); bought as often as wanted, each adds to this month */
+  "servers.buyTraffic": method(z.tuple([id, z.number().int().min(1).max(1_000_000).optional()]), async (ctx, [sid, gb]) => {
     const s = await server(ctx, sid);
-    await buyPack(ctx.db, s, "خرید دستی");
+    if (gb !== undefined) { const bad = trafficError(gb); if (bad) fail(bad); }
+    await buyPack(ctx.db, s, "خرید دستی", gb);
   }),
 
   /* ---------- plan change (up or down) while stopped ---------- */
@@ -329,15 +336,18 @@ export const vpsRpc = {
   }),
 };
 
-/** buys one traffic pack from the wallet and raises the hypervisor limit */
-export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why: string) {
+/** buys traffic from the wallet (the admin's pack, or `gb` in 500 GB units at the same per-GB price) and raises the
+    hypervisor limit; the quota stays plan base + this month's packs (../virt/sync.ts) */
+export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why: string, gb?: number) {
   if (s.bwLimit <= 0) fail("ترافیک این سرور نامحدود است و به بسته نیاز ندارد.");
   const p = await vpsPrices(db);
+  const size = gb ?? p.packGb;
+  const price = gb === undefined ? p.packPrice : (gb / TRAFFIC_STEP_GB) * p.pack500Price;
   const t = await trafficRow(db, s.id);
-  await needBudget(db, s.userId, "vps", p.packPrice);
-  const ok = await db.transaction((tx) => debit(tx, s.userId, p.packPrice, "بسته ترافیک " + p.packGb.toLocaleString("fa-IR") + " گیگابایتی سرور " + s.name + " (" + why + ")", { serverId: s.id }));
-  if (!ok) fail("موجودی کیف پول برای بسته ترافیک (" + p.packPrice.toLocaleString("fa-IR") + " تومان) کافی نیست.", 402);
-  const extraGb = t.extraGb + p.packGb;
+  await needBudget(db, s.userId, "vps", price);
+  const ok = await db.transaction((tx) => debit(tx, s.userId, price, "بسته ترافیک " + size.toLocaleString("fa-IR") + " گیگابایتی سرور " + s.name + " (" + why + ")", { serverId: s.id }));
+  if (!ok) fail("موجودی کیف پول برای بسته ترافیک (" + price.toLocaleString("fa-IR") + " تومان) کافی نیست.", 402);
+  const extraGb = t.extraGb + size;
   await db.update(vpsTraffic).set({ extraGb, packs: t.packs + 1, alerted: Math.min(t.alerted, 80), updatedAt: new Date() }).where(eq(vpsTraffic.serverId, s.id));
   if (s.vpsid) {
     await (await virt()).manage(s.vpsid, { bandwidth: quotaOf(s.bwLimit, extraGb) });
@@ -345,7 +355,7 @@ export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why
     await markPushed(db, s.id, quotaOf(s.bwLimit, extraGb));
     await requestSync(db, s.id);
   }
-  await addTask(db, s.id, "افزودن " + p.packGb.toLocaleString("fa-IR") + " گیگابایت ترافیک");
+  await addTask(db, s.id, "افزودن " + size.toLocaleString("fa-IR") + " گیگابایت ترافیک");
 }
 
 /** servers that a list of ids covers and the caller may touch (team transfer, wallet links) */
