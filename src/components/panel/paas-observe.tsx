@@ -2,7 +2,7 @@
 /* Gereh Apps operator tools, part 2: log search and live tail, metric history charts, .env
    import/export and raw editing, and the release history. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
+import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { fa } from "@/lib/format";
 import { ENV_KEY_RE, ENV_RESERVED } from "@/lib/paas";
 import { LOG_DAYS, LOG_LEVELS, logLevel, METRIC_RANGES, parseDotenv, toDotenv, type LogLevel, type MetricRange } from "@/lib/paas-tools";
