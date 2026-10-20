@@ -4,7 +4,7 @@
    auth parameter style is configurable for that reason (VIRTUALIZOR_AUTH=adminapikey|apikey). */
 import "server-only";
 import { Agent, fetch } from "undici";
-import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsDetail, VpsInfo, VpsLive } from "./driver";
+import type { CreateVps, PowerAction, UsagePoint, VirtBackup, VirtDriver, VirtLogEntry, VncInfo, VpsDetail, VpsInfo, VpsLive } from "./driver";
 
 type Dict = Record<string, string | number | boolean | (string | number)[] | undefined>;
 export type VirtConfig = { host: string; key: string; pass: string; adminPort?: number; enduserPort?: number; tlsStrict?: boolean; auth?: "adminapikey" | "apikey" };
@@ -52,21 +52,22 @@ export function parseDisks(raw: unknown): VpsDetail["disks"] {
   }).filter((d) => d.sizeGb > 0);
   return list.sort((a, b) => Number(b.primary) - Number(a.primary) || a.slot - b.slot);
 }
-/** one act=vs entry (+ its vs_status) → VpsDetail; field names (verify) */
+/** one act=vs entry (+ its live status) → VpsDetail; field names (verify). The act=vs listing is configuration
+    only: it has no live power state (its entries carry no reliable `status`), so power comes from `live` alone and
+    is "unknown" without it. Only the admin `suspended` flag is read from the listing. */
 export function parseDetail(v: Record<string, unknown>, vpsid: number, disks: VpsDetail["disks"], live?: VpsLive): VpsDetail {
   const str = (k: string) => (v[k] === undefined || v[k] === null ? "" : String(v[k]));
   const num = (k: string) => Number(v[k] ?? 0) || 0;
   const ips = [...values(v.ips), ...values(v.ips6), ...values(v.ipv6)].map(String).map((x) => x.trim()).filter(Boolean);
   const suspended = num("suspended") === 1 || live?.status === "suspended";
-  const st = Number(v.status ?? 1);
   return {
     vpsid, uid: num("uid"), hostname: str("hostname"),
     cores: num("cores") || num("cpu_cores"), ramMb: num("ram"),
     disks: disks.length ? disks : num("space") ? [{ slot: 0, sizeGb: Math.round(num("space")), primary: true }] : [],
     ipv4: [...new Set(ips.filter((x) => !x.includes(":")))], ipv6: [...new Set(ips.filter((x) => x.includes(":")))],
-    bwLimit: Math.round(v.bandwidth !== undefined ? num("bandwidth") : live?.bwLimit ?? 0), bwUsed: live ? live.bwUsed : v.used_bandwidth !== undefined ? num("used_bandwidth") : -1,
+    bwLimit: Math.round(v.bandwidth !== undefined ? num("bandwidth") : live?.bwLimit ?? 0), bwUsed: live && live.bwUsed >= 0 ? live.bwUsed : v.used_bandwidth !== undefined ? num("used_bandwidth") : -1,
     osid: num("osid"), osName: str("os_name"), plid: num("plid"), serverId: num("serid"), serverName: str("server_name"),
-    status: suspended ? "suspended" : live ? live.status : st === 0 ? "stopped" : "running", suspendReason: suspended ? str("suspend_reason") : "",
+    status: suspended ? "suspended" : live ? live.status : "unknown", suspendReason: suspended ? str("suspend_reason") : "",
     netSpeed: num("network_speed"),
     vnc: num("vncport") ? { port: num("vncport"), password: str("vnc_passwd") } : null,
   };
@@ -112,7 +113,8 @@ export class VirtualizorDriver implements VirtDriver {
   }
 
   private async call<T = Record<string, unknown>>(port: number, act: string, query: Dict = {}, body?: Dict): Promise<T> {
-    const form = body ? new URLSearchParams(Object.entries(body).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])) : undefined;
+    // arrays are posted as name[] (one entry per value), like the query string
+    const form = body ? new URLSearchParams(Object.entries(body).flatMap(([k, v]) => v === undefined ? [] : Array.isArray(v) ? v.map((x) => [k + "[]", String(x)]) : [[k, String(v)]])) : undefined;
     let res;
     try {
       res = await fetch(this.url(port, act, query), {
@@ -187,25 +189,55 @@ export class VirtualizorDriver implements VirtDriver {
   }
 
   async buildDone(vpsid: number) {
-    const [s] = await this.status([vpsid]);
-    return !!s && s.status === "running";
+    return (await this.powerState(vpsid)) === "running";
   }
 
+  /* Live power state + usage: admin act=vs&vs_status[]=… (status 1 = running, 0 = off, 2 = suspended).
+     The answer is keyed by vpsid (verify: some versions return a list of {vpsid, …}). A VPS that is missing from
+     it, or whose status is not 0/1/2, is left out: an absent answer means "unknown", never "off". (An install
+     that ignores the vs_status filter answers with a plain act=vs listing, which has no status at all; before this
+     fix every VPS then read as "off".) ram/disk become % when the totals are present (used_ram/ram MB,
+     used_disk/disk GB; verify). */
   async status(vpsids: number[]): Promise<VpsLive[]> {
     if (!vpsids.length) return [];
-    const j = await this.admin<{ status?: Record<string, Record<string, unknown>> }>("vs", { vs_status: vpsids });
-    return vpsids.map((vpsid) => {
-      const s = j.status?.[vpsid] ?? {};
-      const st = Number(s.status);
+    const j = await this.admin<{ status?: unknown }>("vs", { vs_status: vpsids });
+    const table = j.status && typeof j.status === "object" ? (j.status as Record<string, unknown>) : {};
+    const list = Object.values(table).filter((x): x is Record<string, unknown> => !!x && typeof x === "object");
+    const out: VpsLive[] = [];
+    for (const vpsid of vpsids) {
+      const raw = Array.isArray(j.status) ? undefined : table[vpsid];
+      const keyed = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : undefined;
+      const s = keyed && (keyed.vpsid === undefined || Number(keyed.vpsid) === vpsid) ? keyed : list.find((x) => Number(x.vpsid) === vpsid);
+      const code = s && s.status !== undefined && s.status !== null && s.status !== "" ? Number(s.status) : NaN;
+      if (!s || ![0, 1, 2].includes(code)) continue;
       const n = (k: string) => Number(s[k] ?? 0) || 0;
-      return { vpsid, status: st === 1 ? "running" : st === 2 ? "suspended" : "stopped", cpu: n("used_cpu"), ram: n("used_ram"), disk: n("used_disk"), netIn: n("net_in"), netOut: n("net_out"), bwUsed: n("used_bandwidth"), bwLimit: n("bandwidth") };
-    });
+      const pct = (used: string, total: string) => (n(total) > 0 ? Math.min(100, Math.round((n(used) / n(total)) * 1000) / 10) : n(used));
+      out.push({ vpsid, status: code === 1 ? "running" : code === 2 ? "suspended" : "stopped", cpu: n("used_cpu"), ram: pct("used_ram", "ram"), disk: pct("used_disk", "disk"),
+        netIn: n("net_in"), netOut: n("net_out"), ioRead: n("io_read"), ioWrite: n("io_write"), bwUsed: n("used_bandwidth"), bwLimit: n("bandwidth"), usage: true });
+    }
+    return out;
+  }
+
+  /** enduser act=vpsmanage → info.status (1 running, 0 off; verify 2 = suspended) and info.bandwidth.used_gb */
+  private async enduserLive(vpsid: number): Promise<VpsLive | null> {
+    const j = await this.enduser<{ info?: { status?: unknown; bandwidth?: { used_gb?: unknown; limit_gb?: unknown } } }>(vpsid, "vpsmanage");
+    const code = j.info?.status === undefined || j.info?.status === null || j.info?.status === "" ? NaN : Number(j.info.status);
+    if (![0, 1, 2].includes(code)) return null;
+    const used = Number(j.info?.bandwidth?.used_gb);
+    return { vpsid, status: code === 1 ? "running" : code === 2 ? "suspended" : "stopped", cpu: 0, ram: 0, disk: 0, netIn: 0, netOut: 0, bwUsed: Number.isFinite(used) ? used : -1, bwLimit: Number(j.info?.bandwidth?.limit_gb) || 0, usage: false };
+  }
+
+  async powerState(vpsid: number) {
+    const [s] = await this.status([vpsid]).catch(() => [] as VpsLive[]);
+    if (s) return s.status;
+    return (await this.enduserLive(vpsid).catch(() => null))?.status ?? null;
   }
 
   async power(vpsid: number, action: PowerAction) { await this.enduser(vpsid, action, { do: 1 }); }
   async hostname(vpsid: number, newhost: string) { await this.enduser(vpsid, "hostname", {}, { newhost, changehost: 1 }); }
   async rootPassword(vpsid: number, pass: string) { await this.enduser(vpsid, "changepassword", {}, { newpass: pass, conf: pass, changepass: 1 }); }
-  async vncPassword(vpsid: number, pass: string) { await this.enduser(vpsid, "vncpass", {}, { newpass: pass, conf: pass, vncpass: 1 }); }
+  // Enduser API docs: the new password is posted as vncpass, repeated in conf
+  async vncPassword(vpsid: number, pass: string) { await this.enduser(vpsid, "vncpass", {}, { vncpass: pass, conf: pass }); }
   async rescue(vpsid: number, on: boolean, pass?: string) {
     await this.enduser(vpsid, "rescue", { do: 1 }, on ? { enablerescue: 1, password: pass, conf_password: pass } : { disablerescue: 1 });
   }
@@ -258,7 +290,7 @@ export class VirtualizorDriver implements VirtDriver {
   }
   /* The authoritative per-VPS read for the sync (./sync.ts): act=vs filtered by vpsid (verify) for the
      configuration, IPs and plan/node; one vs_status call per batch for the power state and this month's used
-     bandwidth; disks from the listing or, when it has none, act=managevps read without editvps (verify).
+     bandwidth (never the listing's own fields); disks from the listing or, when it has none, act=managevps read without editvps (verify).
      3.x responses vary, so every field is read defensively. */
   async details(vpsids: number[]) {
     const out = new Map<number, VpsDetail | null>();
@@ -279,7 +311,9 @@ export class VirtualizorDriver implements VirtDriver {
         const m = await this.admin<{ vps?: Record<string, unknown>; disks?: unknown }>("managevps", { vpsid }).catch(() => ({} as { vps?: Record<string, unknown>; disks?: unknown }));
         disks = parseDisks(m.vps?.disks ?? m.disks);
       }
-      out.set(vpsid, parseDetail(v, vpsid, disks, live.get(vpsid)));
+      // not in the vs_status answer: the enduser VPS info has the power state; still nothing = "unknown"
+      const l = live.get(vpsid) ?? (await this.enduserLive(vpsid).catch(() => null)) ?? undefined;
+      out.set(vpsid, parseDetail(v, vpsid, disks, l));
     };
     // a few at a time; a VPS whose call fails is simply not answered this round
     for (let i = 0; i < vpsids.length; i += 4) await Promise.all(vpsids.slice(i, i + 4).map((id) => one(id).catch(() => undefined)));
@@ -305,7 +339,17 @@ export class VirtualizorDriver implements VirtDriver {
     const list = Array.isArray(ips) ? ips : Object.values(ips ?? {});
     return list.length ? list.map(String) : keep;
   }
-  async setPtr(vpsid: number, ip: string, host: string) { await this.enduser(vpsid, "rdns", {}, { ip, rdns: host, editrdns: 1 }); } // (verify)
+  /** enduser act=rdns: add with rdns=1, rdns_ip, rdns_domain (Enduser API docs); clearing deletes the record found
+      in the act=rdns listing for this address (delete=<record id>; listing field names verify) */
+  async setPtr(vpsid: number, ip: string, host: string) {
+    if (host) { await this.enduser(vpsid, "rdns", {}, { rdns: 1, rdns_ip: ip, rdns_domain: host }); return; }
+    const j = await this.enduser<{ rdns?: unknown; records?: unknown }>(vpsid, "rdns");
+    const arpa = ip.includes(":") ? "" : ip.split(".").reverse().join(".") + ".in-addr.arpa";
+    for (const r of values(j.rdns ?? j.records).filter((x): x is Record<string, unknown> => !!x && typeof x === "object")) {
+      const name = String(r.name ?? r.ip ?? r.rdns_ip ?? "");
+      if (name === ip || (arpa && name === arpa)) await this.enduser(vpsid, "rdns", {}, { delete: String(r.id ?? r.rid ?? "") });
+    }
+  }
   async networkReset(vpsid: number) { await this.admin("managevps", {}, { vpsid, editvps: 1, reset_network: 1 }); } // (verify)
   async addDisk(vpsid: number, sizeGb: number) {
     const j = await this.admin<{ disk?: { disk_num?: number | string } }>("managevps", {}, { vpsid, editvps: 1, add_disk: 1, disk_size: sizeGb }); // (verify)
@@ -321,4 +365,125 @@ export class VirtualizorDriver implements VirtDriver {
     const tpl = process.env.VIRTUALIZOR_NOVNC_URL || "wss://{host}:{port}/";
     return { host, port, password: i.password ?? "", ws: port ? tpl.replace("{host}", host).replace("{port}", String(port)) : "" };
   }
+
+  /* ---- disk layout: admin Edit VPS (act=managevps + editvps=1) with one space[i][…] group per disk. Existing disks
+     keep their storage (st_uuid) and identity (disk_uuid) from the managevps read; a disk left out is removed and a
+     group without disk_uuid is a new disk (verify: field names follow the 3.x addvs/managevps space[] form). ---- */
+  async setDiskLayout(vpsid: number, sizes: number[]) {
+    const cur = await this.admin<{ vps?: Record<string, unknown>; disks?: unknown }>("managevps", { vpsid }).catch(() => ({} as { vps?: Record<string, unknown>; disks?: unknown }));
+    const disks = values(cur.vps?.disks ?? cur.disks).filter((d): d is Record<string, unknown> => !!d && typeof d === "object")
+      .sort((a, b) => Number(b.primary ?? 0) - Number(a.primary ?? 0) || Number(a.disk_num ?? a.num ?? 0) - Number(b.disk_num ?? b.num ?? 0));
+    const st = String(disks[0]?.st_uuid ?? "");
+    const body: Dict = { vpsid, editvps: 1 };
+    sizes.forEach((gb, i) => {
+      body["space[" + i + "][size]"] = gb;
+      const stUuid = String(disks[i]?.st_uuid ?? st);
+      if (stUuid) body["space[" + i + "][st_uuid]"] = stUuid;
+      if (disks[i]?.disk_uuid) body["space[" + i + "][disk_uuid]"] = String(disks[i].disk_uuid);
+    });
+    await this.admin("managevps", {}, body);
+    return sizes.map((_, i) => i);
+  }
+
+  /** enduser act=statuslogs: records as objects {time, status, disk, inode, ram, cpu, actual_cpu, net_in, net_out}
+      or arrays in that order after the vpsid (verify), keyed or listed; ram/disk/cpu as % */
+  async history(vpsid: number, since: number) {
+    const j = await this.enduser<{ statuslogs?: unknown; logs?: unknown }>(vpsid, "statuslogs", {}, { vid: vpsid });
+    const rows = values(j.statuslogs ?? j.logs);
+    const out: UsagePoint[] = [];
+    for (const r of rows) {
+      const rec: Record<string, unknown> = Array.isArray(r)
+        ? { time: r[1], status: r[2], disk: r[3], ram: r[5], cpu: r[6], net_in: r[8], net_out: r[9] }
+        : r && typeof r === "object" ? (r as Record<string, unknown>) : {};
+      const t = toMs(rec.time ?? rec.timestamp);
+      if (!t || t < since) continue;
+      const n = (k: string) => Number(rec[k] ?? 0) || 0;
+      out.push({ t, cpu: n("cpu"), ram: n("ram"), disk: n("disk"), netIn: n("net_in"), netOut: n("net_out"), ioRead: n("io_read"), ioWrite: n("io_write") });
+    }
+    return out.sort((a, b) => a.t - b.t);
+  }
+
+  /** enduser act=logs (actions done on the VPS) and act=ctasks (its task queue with progress); field names (verify) */
+  async logs(vpsid: number) {
+    const [l, t] = await Promise.all([
+      this.enduser<{ logs?: unknown }>(vpsid, "logs").catch(() => ({ logs: undefined })),
+      this.enduser<{ tasks?: unknown }>(vpsid, "ctasks").catch(() => ({ tasks: undefined })),
+    ]);
+    const rec = (x: unknown) => (x && typeof x === "object" ? (x as Record<string, unknown>) : null);
+    const out: VirtLogEntry[] = [];
+    for (const [k, x] of Object.entries((l.logs && typeof l.logs === "object" ? l.logs : {}) as Record<string, unknown>)) {
+      const r = rec(x);
+      if (!r || (r.vpsid !== undefined && Number(r.vpsid) !== vpsid)) continue;
+      out.push({ id: "log-" + (r.actid ?? r.id ?? k), at: new Date(toMs(r.time) || 0), action: String(r.action ?? ""), text: String(r.data ?? r.action_txt ?? ""), status: r.status === undefined || Number(r.status) === 1 ? "done" : "failed", progress: 100 });
+    }
+    for (const [k, x] of Object.entries((t.tasks && typeof t.tasks === "object" ? t.tasks : {}) as Record<string, unknown>)) {
+      const r = rec(x);
+      if (!r || (r.vpsid !== undefined && Number(r.vpsid) !== vpsid)) continue;
+      const progress = Math.max(0, Math.min(100, Number(r.progress ?? 100) || 0));
+      const st = String(r.status ?? "");
+      out.push({ id: "task-" + (r.actid ?? k), at: new Date(toMs(r.started ?? r.time) || 0), action: String(r.action ?? ""), text: String(r.status_txt ?? r.data ?? ""),
+        status: st === "-1" || /error|fail/i.test(st + String(r.status_txt ?? "")) ? "failed" : progress >= 100 || st === "1" || st === "done" ? "done" : "running", progress });
+    }
+    return out.filter((e) => e.at.getTime() > 0).sort((a, b) => b.at.getTime() - a.at.getTime());
+  }
+
+  /* ---- backups: enduser act=backup2 (list; cbackup=1 creates) and act=backups (restore=1 with date + file) ---- */
+  async backups(vpsid: number) {
+    const j = await this.enduser<{ backup_list?: unknown; backups?: unknown }>(vpsid, "backup2");
+    const out: VirtBackup[] = [];
+    for (const [date, files] of Object.entries((j.backup_list ?? j.backups ?? {}) as Record<string, unknown>)) {
+      for (const f of values(files)) {
+        const r = f && typeof f === "object" ? (f as Record<string, unknown>) : { file: f };
+        const file = String(r.file ?? r.name ?? r.abs_path ?? "");
+        if (!file) continue;
+        out.push({ id: date + "/" + file, date, file, sizeMb: Math.round(Number(r.size ?? 0) / (Number(r.size ?? 0) > 1e6 ? 1048576 : 1)) || 0 });
+      }
+    }
+    return out.sort((a, b) => b.date.localeCompare(a.date));
+  }
+  async createBackup(vpsid: number) { await this.enduser(vpsid, "backup2", {}, { cbackup: 1 }); }
+  async restoreBackup(vpsid: number, b: { date: string; file: string }) { await this.enduser(vpsid, "backups", {}, { restore: 1, vid: vpsid, date: b.date, file: b.file }); }
+
+  /* ---- process and service managers (enduser act=processes / act=services; response fields verify) ---- */
+  async processes(vpsid: number) {
+    const j = await this.enduser<{ processes?: unknown }>(vpsid, "processes", {}, { vid: vpsid });
+    return values(j.processes).filter((x): x is Record<string, unknown> => !!x && typeof x === "object").map((p) => ({
+      pid: Number(p.pid ?? p.PID ?? 0), user: String(p.user ?? p.USER ?? ""), cpu: Number(p.cpu ?? p["%CPU"] ?? 0) || 0, mem: Number(p.mem ?? p["%MEM"] ?? 0) || 0, command: String(p.command ?? p.COMMAND ?? p.cmd ?? ""),
+    })).filter((p) => p.pid > 0);
+  }
+  async killProcesses(vpsid: number, pids: number[]) { await this.enduser(vpsid, "processes", {}, { vid: vpsid, sel_proc: pids }); }
+  async services(vpsid: number) {
+    const j = await this.enduser<{ services?: unknown; running?: unknown; active?: unknown }>(vpsid, "services", {}, { vid: vpsid });
+    const running = new Set(values(j.running ?? j.active).map(String));
+    const raw = j.services;
+    const names = Array.isArray(raw) ? raw.map(String) : raw && typeof raw === "object" ? Object.keys(raw) : [];
+    return names.map((name) => {
+      const v = !Array.isArray(raw) && raw && typeof raw === "object" ? (raw as Record<string, unknown>)[name] : undefined;
+      return { name, running: running.has(name) || v === 1 || v === "1" || v === true || v === "running" };
+    });
+  }
+  async serviceAction(vpsid: number, names: string[], action: "start" | "stop" | "restart") {
+    await this.enduser(vpsid, "services", {}, { vid: vpsid, [action + "_x"]: 1, sel_serv: names });
+  }
+
+  /** enduser act=addsshkey (name, value) per key, then act=sshkeys&svs= with ssh_keys[] = the key ids from the
+      act=sshkeys listing (verify: listing field names) */
+  async applySshKeys(vpsid: number, keys: { name: string; publicKey: string }[]) {
+    for (const k of keys) await this.enduser(vpsid, "addsshkey", {}, { name: k.name, value: k.publicKey }).catch(() => undefined); // already there
+    const j = await this.enduser<{ ssh_keys?: unknown; sshkeys?: unknown }>(vpsid, "sshkeys");
+    const want = new Set(keys.map((k) => k.publicKey.trim()));
+    const ids = values(j.ssh_keys ?? j.sshkeys).filter((x): x is Record<string, unknown> => !!x && typeof x === "object")
+      .filter((x) => want.has(String(x.value ?? x.key ?? "").trim())).map((x) => String(x.keyid ?? x.id ?? "")).filter(Boolean);
+    if (!ids.length) throw new VirtualizorError("sshkeys", "کلید در فهرست کلیدهای Virtualizor پیدا نشد");
+    await this.enduser(vpsid, "sshkeys", {}, { ssh_keys: ids });
+  }
+}
+
+/** unix seconds, milliseconds or a date string → ms (0 = unreadable) */
+function toMs(x: unknown): number {
+  if (x === undefined || x === null || x === "") return 0;
+  const n = Number(x);
+  if (Number.isFinite(n)) return n > 1e12 ? n : n * 1000;
+  const d = Date.parse(String(x));
+  return Number.isFinite(d) ? d : 0;
 }

@@ -17,7 +17,20 @@ export type CreateVps = {
 export type VpsInfo = { vpsid: number; hostname: string; ip: string; ipv6: string; uid: number; status: "running" | "stopped" | "suspended" };
 /** ws: websocket URL for noVNC ("" = no web console, e.g. the simulator) */
 export type VncInfo = { host: string; port: number; password: string; ws: string };
-export type VpsLive = { vpsid: number; status: "running" | "stopped" | "suspended"; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number; bwLimit: number };
+export type PowerState = "running" | "stopped" | "suspended";
+/** one VPS in a status answer. Only VPSs the hypervisor actually reported are returned: a VPS missing from the
+    answer is unknown, never "stopped". cpu/ram/disk are %, net and I/O as Virtualizor reports them (verify units);
+    usage false = the power state came from a fallback read that has no usage figures. */
+export type VpsLive = { vpsid: number; status: PowerState; cpu: number; ram: number; disk: number; netIn: number; netOut: number; ioRead?: number; ioWrite?: number; bwUsed: number; bwLimit: number; usage?: boolean;
+  /** usage only: `status` is a placeholder and must not be written anywhere */
+  noPower?: boolean };
+/** one point of a usage time series (ms since epoch) */
+export type UsagePoint = { t: number; cpu: number; ram: number; disk: number; netIn: number; netOut: number; ioRead: number; ioWrite: number };
+/** one entry of Virtualizor's own log or task list for a VPS */
+export type VirtLogEntry = { id: string; at: Date; action: string; text: string; status: "done" | "running" | "failed"; progress: number };
+export type VirtBackup = { id: string; date: string; file: string; sizeMb: number };
+export type VirtProcess = { pid: number; user: string; cpu: number; mem: number; command: string };
+export type VirtService = { name: string; running: boolean };
 /** everything the hypervisor says about one VPS: what the site syncs into its own rows (./sync.ts) */
 export type VpsDetail = {
   vpsid: number; uid: number; hostname: string;
@@ -30,7 +43,8 @@ export type VpsDetail = {
   osid: number; osName: string; plid: number;
   /** the Virtualizor server (node) it runs on */
   serverId: number; serverName: string;
-  status: "running" | "stopped" | "suspended"; suspendReason: string;
+  /** "unknown": no live power reading this round; the sync then leaves the site's state alone */
+  status: PowerState | "unknown"; suspendReason: string;
   /** KB/s, 0 = unlimited */
   netSpeed: number;
   vnc: { port: number; password: string } | null;
@@ -75,8 +89,28 @@ export interface VirtDriver {
   resizeDisk(vpsid: number, slot: number, sizeGb: number): Promise<void>;
   detachDisk(vpsid: number, slot: number): Promise<void>;
   vnc(vpsid: number): Promise<VncInfo>;
+  /** the live power state of one VPS (vs_status, else the enduser VPS info); null = no answer */
+  powerState(vpsid: number): Promise<PowerState | null>;
+  /** replaces the whole disk layout (GB per disk, primary first); returns each disk's slot. Every disk whose
+      size changes loses its data: the caller reinstalls the OS afterwards */
+  setDiskLayout(vpsid: number, sizes: number[]): Promise<number[]>;
+  /** usage history since `since` (ms), oldest first */
+  history(vpsid: number, since: number): Promise<UsagePoint[]>;
+  /** Virtualizor's log and task entries for this VPS, newest first */
+  logs(vpsid: number): Promise<VirtLogEntry[]>;
+  backups(vpsid: number): Promise<VirtBackup[]>;
+  createBackup(vpsid: number): Promise<void>;
+  restoreBackup(vpsid: number, b: { date: string; file: string }): Promise<void>;
+  processes(vpsid: number): Promise<VirtProcess[]>;
+  killProcesses(vpsid: number, pids: number[]): Promise<void>;
+  services(vpsid: number): Promise<VirtService[]>;
+  serviceAction(vpsid: number, names: string[], action: "start" | "stop" | "restart"): Promise<void>;
+  /** adds these public keys to the owner's Virtualizor key list and installs them on the VPS */
+  applySshKeys(vpsid: number, keys: { name: string; publicKey: string }[]): Promise<void>;
 }
 
+/** the simulator's power state for a VPS it knows (a test may leave a VM "unknown"; it then runs) */
+const live = (s: VpsDetail["status"] | undefined): PowerState => (!s || s === "unknown" ? "running" : s);
 const SIM_OS: [number, string, string][] = [[347, "Ubuntu 24.04", "ubuntu"], [342, "Ubuntu 22.04", "ubuntu"], [351, "Debian 12", "debian"], [338, "Debian 11", "debian"], [360, "AlmaLinux 9", "almalinux"], [362, "Rocky Linux 9", "rocky"],
   [370, "CentOS Stream 9", "centos"], [381, "Windows Server 2022", "windows"], [377, "Windows Server 2019", "windows"], [390, "FreeBSD 14", "freebsd"]];
 
@@ -120,7 +154,7 @@ export class SimulatorDriver implements VirtDriver {
   async getVps(vpsid: number): Promise<VpsInfo | null> {
     if (this.gone.has(vpsid)) return null;
     const vm = this.vms.get(vpsid);
-    if (vm) return { vpsid, hostname: vm.hostname, ip: vm.ipv4[0] ?? "", ipv6: vm.ipv6[0] ?? "", uid: vm.uid, status: vm.status };
+    if (vm) return { vpsid, hostname: vm.hostname, ip: vm.ipv4[0] ?? "", ipv6: vm.ipv6[0] ?? "", uid: vm.uid, status: live(vm.status) };
     return vpsid > 0 ? { vpsid, hostname: "vps" + vpsid + ".gereh.net", ip: "185.143.235." + ((vpsid % 200) + 20), ipv6: "", uid: 0, status: "running" } : null;
   }
   async details(vpsids: number[]) {
@@ -138,17 +172,49 @@ export class SimulatorDriver implements VirtDriver {
     return info;
   }
   async buildDone() { return true; }
-  async status(vpsids: number[]) {
-    // smooth, deterministic-per-VPS waves so charts look like real load in demos
-    const t = Date.now() / 600_000;
-    const w = (vpsid: number, base: number, amp: number, k: number) => Math.max(0, Math.round((base + amp * Math.sin(t + vpsid * k)) * 10) / 10);
-    return vpsids.map((vpsid) => {
+  /** smooth, deterministic-per-VPS waves so charts look like real load in demos (at time ms) */
+  private sample(vpsid: number, ms: number): UsagePoint {
+    const t = ms / 600_000;
+    const w = (base: number, amp: number, k: number) => Math.max(0, Math.round((base + amp * Math.sin(t + vpsid * k) + (amp / 3) * Math.sin(t / 9 + k)) * 10) / 10);
+    return { t: ms, cpu: Math.min(100, w(10 + (vpsid % 40), 8, 0.7)), ram: Math.min(100, w(30 + (vpsid % 50), 5, 1.3)), disk: 20 + (vpsid % 30), netIn: w(5 + (vpsid % 50), 4, 2.1), netOut: w(20 + (vpsid % 90), 15, 0.4),
+      ioRead: w(200 + (vpsid % 300), 150, 1.7), ioWrite: w(120 + (vpsid % 200), 90, 0.9) };
+  }
+  /** tests: power actions take effect only after this many status reads (a booting VPS still reads "off") */
+  powerLag = 0;
+  /** tests: VPSs the status call leaves out of its answer */
+  readonly silent = new Set<number>();
+  private lagging = new Map<number, { target: PowerState; left: number }>();
+  private settle(vpsid: number) {
+    const p = this.lagging.get(vpsid), vm = this.vms.get(vpsid);
+    if (!p || !vm) return;
+    if (--p.left <= 0) { if (vm.status !== "suspended") vm.status = p.target; this.lagging.delete(vpsid); }
+  }
+  /** the last action on a VPS the simulator does not model (the demo seed's): it confirms that action only */
+  private loose = new Map<number, PowerState>();
+  async status(vpsids: number[]): Promise<VpsLive[]> {
+    const now = Date.now();
+    return vpsids.filter((id) => !this.silent.has(id) && !this.gone.has(id)).map((vpsid) => {
+      this.settle(vpsid);
       const vm = this.vms.get(vpsid);
-      return { vpsid, status: vm?.status ?? ("running" as const), cpu: w(vpsid, 10 + (vpsid % 40), 8, 0.7), ram: w(vpsid, 30 + (vpsid % 50), 5, 1.3), disk: 20 + (vpsid % 30), netIn: w(vpsid, 5 + (vpsid % 50), 4, 2.1), netOut: w(vpsid, 20 + (vpsid % 90), 15, 0.4),
-        bwUsed: vm ? vm.bwUsed : 400 + (vpsid % 900), bwLimit: vm ? vm.bwLimit : 2000 };
+      const { t: _t, ...u } = this.sample(vpsid, now);
+      // a VPS it does not model gets usage (demo charts) but no power reading, so the seed's state stays
+      return { vpsid, status: live(vm?.status), ...(vm ? {} : { noPower: true }), ...u, bwUsed: vm ? vm.bwUsed : 400 + (vpsid % 900), bwLimit: vm ? vm.bwLimit : 2000, usage: true };
     });
   }
-  async power(vpsid: number, action: PowerAction) { const vm = this.vms.get(vpsid); if (vm && vm.status !== "suspended") vm.status = action === "stop" || action === "poweroff" ? "stopped" : "running"; }
+  async powerState(vpsid: number) {
+    if (this.silent.has(vpsid) || this.gone.has(vpsid)) return null;
+    this.settle(vpsid);
+    const vm = this.vms.get(vpsid);
+    return vm ? live(vm.status) : this.loose.get(vpsid) ?? null;
+  }
+  async power(vpsid: number, action: PowerAction) {
+    const vm = this.vms.get(vpsid);
+    const target: PowerState = action === "stop" || action === "poweroff" ? "stopped" : "running";
+    if (!vm) { this.loose.set(vpsid, target); return; }
+    if (vm.status === "suspended") return;
+    if (this.powerLag > 0) this.lagging.set(vpsid, { target, left: this.powerLag });
+    else vm.status = target;
+  }
   async hostname(vpsid: number, hostname: string) { const vm = this.vms.get(vpsid); if (vm) vm.hostname = hostname; }
   async rootPassword() {}
   async vncPassword(vpsid: number, pass: string) { const vm = this.vms.get(vpsid); if (vm?.vnc) vm.vnc.password = pass; }
@@ -198,6 +264,78 @@ export class SimulatorDriver implements VirtDriver {
   async resizeDisk(vpsid: number, slot: number, sizeGb: number) { const d = this.vms.get(vpsid)?.disks.find((x) => x.slot === slot); if (d) d.sizeGb = sizeGb; }
   async detachDisk(vpsid: number, slot: number) { const vm = this.vms.get(vpsid); if (vm) vm.disks = vm.disks.filter((x) => x.slot !== slot); }
   async vnc(vpsid: number) { return { host: "vnc-sim.gereh.net", port: 5900 + (vpsid % 1000), password: "sim" + (vpsid % 10000), ws: "" }; }
+
+  async setDiskLayout(vpsid: number, sizes: number[]) {
+    const vm = this.vms.get(vpsid);
+    const slots = sizes.map((_, i) => i);
+    if (vm) vm.disks = sizes.map((sizeGb, i) => ({ slot: i, sizeGb, primary: i === 0 }));
+    this.slots.set(vpsid, sizes.length - 1);
+    return slots;
+  }
+  async history(vpsid: number, since: number) {
+    const now = Date.now(), span = now - since;
+    const step = span > 2 * 86400_000 ? 3600_000 : 300_000;
+    const out: UsagePoint[] = [];
+    for (let t = Math.ceil(since / step) * step; t <= now; t += step) out.push(this.sample(vpsid, t));
+    return out;
+  }
+  /** what the Virtualizor log would hold: tests and the demo read it back */
+  readonly vlog = new Map<number, VirtLogEntry[]>();
+  async logs(vpsid: number) {
+    const own = this.vlog.get(vpsid) ?? [];
+    const base = Date.now() - 3 * 86400_000;
+    const seed: VirtLogEntry[] = [
+      { id: "sim-" + vpsid + "-1", at: new Date(base), action: "addvs", text: "", status: "done", progress: 100 },
+      { id: "sim-" + vpsid + "-2", at: new Date(base + 3600_000), action: "vps_start", text: "", status: "done", progress: 100 },
+    ];
+    return [...own, ...seed].sort((a, b) => b.at.getTime() - a.at.getTime());
+  }
+  private log(vpsid: number, action: string) {
+    const list = this.vlog.get(vpsid) ?? [];
+    list.unshift({ id: "sim-" + vpsid + "-" + Date.now() + "-" + list.length, at: new Date(), action, text: "", status: "done", progress: 100 });
+    this.vlog.set(vpsid, list);
+  }
+  private bk = new Map<number, VirtBackup[]>();
+  async backups(vpsid: number) { return [...(this.bk.get(vpsid) ?? [])]; }
+  async createBackup(vpsid: number) {
+    const list = this.bk.get(vpsid) ?? [];
+    const d = new Date(), date = d.toISOString().slice(0, 10).replace(/-/g, "");
+    const file = "backup-" + vpsid + "-" + d.getTime() + ".tar.gz";
+    list.unshift({ id: date + "/" + file, date, file, sizeMb: 900 + (vpsid % 700) });
+    this.bk.set(vpsid, list);
+    this.log(vpsid, "backup");
+  }
+  async restoreBackup(vpsid: number, b: { date: string; file: string }) {
+    if (!(this.bk.get(vpsid) ?? []).some((x) => x.date === b.date && x.file === b.file)) throw new Error("Virtualizor backups: backup not found");
+    this.log(vpsid, "restore");
+  }
+  private killed = new Map<number, Set<number>>();
+  async processes(vpsid: number) {
+    const all: VirtProcess[] = [[1, "root", 0, 0.4, "/sbin/init"], [412, "root", 0.1, 0.9, "/usr/sbin/sshd -D"], [733, "www-data", 2.4, 3.1, "nginx: worker process"], [801, "mysql", 4.8, 12.6, "/usr/sbin/mysqld"], [1290, "root", 0.3, 1.2, "/usr/bin/dockerd"]]
+      .map(([pid, user, cpu, mem, command]) => ({ pid: pid as number, user: user as string, cpu: cpu as number, mem: mem as number, command: command as string }));
+    const k = this.killed.get(vpsid);
+    return all.filter((p) => !k?.has(p.pid));
+  }
+  async killProcesses(vpsid: number, pids: number[]) {
+    const k = this.killed.get(vpsid) ?? new Set<number>();
+    pids.forEach((p) => k.add(p));
+    this.killed.set(vpsid, k);
+  }
+  private svc = new Map<number, Map<string, boolean>>();
+  async services(vpsid: number) {
+    const m = this.svc.get(vpsid) ?? new Map([["sshd", true], ["nginx", true], ["mysqld", true], ["cron", true], ["postfix", false]]);
+    this.svc.set(vpsid, m);
+    return [...m].map(([name, running]) => ({ name, running }));
+  }
+  async serviceAction(vpsid: number, names: string[], action: "start" | "stop" | "restart") {
+    await this.services(vpsid);
+    const m = this.svc.get(vpsid)!;
+    for (const n of names) { if (!m.has(n)) throw new Error("Virtualizor services: unknown service " + n); m.set(n, action !== "stop"); }
+  }
+  readonly keys = new Map<number, string[]>();
+  async applySshKeys(vpsid: number, keys: { name: string; publicKey: string }[]) {
+    this.keys.set(vpsid, [...new Set([...(this.keys.get(vpsid) ?? []), ...keys.map((k) => k.publicKey)])]);
+  }
 }
 
 const g = globalThis as typeof globalThis & { __gerehVirt?: VirtDriver; __gerehVirtPinned?: boolean };

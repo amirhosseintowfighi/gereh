@@ -5,14 +5,15 @@
    difference found is logged once in vps_sync_log (staff) and as one server task line (customer).
    Billing is untouched: the price never changes here; staff see a hint when resources differ from the plan. */
 import "server-only";
-import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Plan } from "@/lib/catalog";
 import { monthKey } from "../billing-extras";
 import type { DB } from "../db/client";
-import { osTemplates, plans, servers, vpsDisks, vpsIps, vpsSync, vpsSyncLog, vpsTraffic } from "../db/schema";
+import { osTemplates, plans, servers, vpsDisks, vpsIps, vpsLayouts, vpsSync, vpsSyncLog, vpsTraffic } from "../db/schema";
 import { enqueue } from "../jobs";
 import { addTask, rid } from "../util";
 import { virt, type VirtDriver, type VpsDetail } from "./driver";
+import { confirmFromPoll, pendingPower } from "./power";
 
 type Server = typeof servers.$inferSelect;
 /** site statuses the hypervisor may overwrite; provisioning/building belong to the delivery flow */
@@ -123,12 +124,20 @@ export async function applyDetail(db: DB, v: VirtDriver, s: Server, d: VpsDetail
   if (prev?.syncedAt && prev.state === "ok" && prev.netSpeed !== d.netSpeed) add("speed", prev.netSpeed, d.netSpeed, "سرعت شبکه " + speed(prev.netSpeed) + "→" + speed(d.netSpeed));
   if (d.vnc?.port && d.vnc.port !== s.vncPort) patch.vncPort = d.vnc.port;
 
-  /* ---- status: power changes are quiet (the customer made them); suspension and reappearing are logged ---- */
-  if (SYNCABLE.includes(s.status) && d.status !== s.status) {
-    patch.status = d.status;
-    if (s.status === "missing") add("status", "missing", d.status, "VPS دوباره در Virtualizor پیدا شد");
-    else if (d.status === "suspended") add("status", s.status, "suspended", "تعلیق در Virtualizor" + (d.suspendReason ? " (" + d.suspendReason + ")" : ""));
-    else if (s.status === "suspended") { patch.suspendedAt = null; add("status", "suspended", d.status, "رفع تعلیق در Virtualizor"); }
+  /* ---- status: power changes are quiet (the customer made them); suspension and reappearing are logged.
+     No live reading ("unknown") never changes the power state, and neither does a reading taken while a power
+     action is still being confirmed (./power.ts), unless it is the state that action was waiting for. ---- */
+  const pending = (await pendingPower(db, [s.id])).get(s.id);
+  const live = d.status === "unknown" ? (s.status === "missing" ? "running" : s.status) : d.status;
+  const powerOnly = (live === "running" || live === "stopped") && (s.status === "running" || s.status === "stopped");
+  if (pending && powerOnly) {
+    if (live === pending.target) await confirmFromPoll(db, s, live, pending);
+  } else if (SYNCABLE.includes(s.status) && live !== s.status) {
+    const st = live;
+    patch.status = st;
+    if (s.status === "missing") add("status", "missing", st, "VPS دوباره در Virtualizor پیدا شد");
+    else if (st === "suspended") add("status", s.status, "suspended", "تعلیق در Virtualizor" + (d.suspendReason ? " (" + d.suspendReason + ")" : ""));
+    else if (s.status === "suspended") { patch.suspendedAt = null; add("status", "suspended", st, "رفع تعلیق در Virtualizor"); }
   }
 
   /* ---- traffic quota. The site pushes plan traffic + this month's packs and remembers what it pushed
@@ -243,7 +252,13 @@ export async function planHints(db: DB, list: Server[]): Promise<Map<string, str
   if (!list.length) return out;
   const { planResources } = await import("../worker/provision");
   const rows = await db.select().from(plans).where(sql`${plans.kind} <> 'hosting'`);
-  for (const s of list) {
+  // a split disk (./layout.ts) counts as one: the primary plus the plan's other, unbilled disks
+  const split = await db.select({ serverId: vpsLayouts.serverId }).from(vpsLayouts).where(inArray(vpsLayouts.serverId, list.map((s) => s.id)));
+  const extra = new Map<string, number>();
+  if (split.length) for (const d of await db.select().from(vpsDisks).where(and(inArray(vpsDisks.serverId, split.map((x) => x.serverId)), eq(vpsDisks.billed, false), isNull(vpsDisks.goneAt))))
+    extra.set(d.serverId!, (extra.get(d.serverId!) ?? 0) + d.sizeGb);
+  for (const s0 of list) {
+    const s = { ...s0, disk: s0.disk + (extra.get(s0.id) ?? 0) };
     const p = rows.find((r) => (r.data as Plan).name === s.plan);
     const res = p ? planResources(p.id, p.data as Plan) : null;
     if (!res) continue;

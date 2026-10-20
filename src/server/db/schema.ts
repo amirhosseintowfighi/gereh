@@ -352,6 +352,8 @@ export const usageSamples = pgTable("usage_samples", {
   serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
   cpu: real("cpu").notNull(), ram: real("ram").notNull(), disk: real("disk").notNull(),
   netIn: real("net_in").notNull(), netOut: real("net_out").notNull(), bwUsed: real("bw_used").notNull(),
+  /** disk I/O as Virtualizor reports it (0029_vps_panel) */
+  ioRead: real("io_read").notNull().default(0), ioWrite: real("io_write").notNull().default(0),
   createdAt: created(),
 }, (t) => [index("usage_server_time_ix").on(t.serverId, t.createdAt)]);
 
@@ -1769,3 +1771,32 @@ export const vpsSyncLog = pgTable("vps_sync_log", {
   text: text("text").notNull(),
   createdAt: created(),
 }, (t) => [index("vps_sync_log_server_ix").on(t.serverId, t.createdAt), index("vps_sync_log_user_ix").on(t.userId, t.createdAt)]);
+
+/* ---------- VPS panel: confirmed power actions, disk layouts, usage history (0029_vps_panel) ---------- */
+/** a power action sent to Virtualizor and not yet confirmed by a live status read; while it exists the panel shows
+    the transition and no poll may overwrite the server's power state */
+export const vpsPower = pgTable("vps_power", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  /** start | stop | restart | poweroff */
+  action: text("action").notNull(),
+  /** the state that confirms it: running | stopped */
+  target: text("target").notNull(),
+  checks: integer("checks").notNull().default(0),
+  requestedAt: ts("requested_at").notNull().defaultNow(),
+});
+/** the disk GB a server's plan covers, split by the customer into disks (primary + unbilled vps_disks rows) */
+export const vpsLayouts = pgTable("vps_layouts", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  allowanceGb: integer("allowance_gb").notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+/** hourly averages of usage_samples for the 7- and 30-day charts (kept 400 days) */
+export const usageHourly = pgTable("usage_hourly", {
+  id: serial("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  hour: ts("hour").notNull(),
+  cpu: real("cpu").notNull().default(0), ram: real("ram").notNull().default(0), disk: real("disk").notNull().default(0),
+  netIn: real("net_in").notNull().default(0), netOut: real("net_out").notNull().default(0),
+  ioRead: real("io_read").notNull().default(0), ioWrite: real("io_write").notNull().default(0),
+  n: integer("n").notNull().default(0),
+}, (t) => [uniqueIndex("usage_hourly_uq").on(t.serverId, t.hour)]);

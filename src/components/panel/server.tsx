@@ -9,15 +9,17 @@ import { api, genPassword, useDB, useMyId, type FwRule, type Server } from "@/li
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
+import { AsyncButton, CopyText, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
 import { DelayBanner, ServerPending } from "./server-pending";
+import { Ipv6Card, LayoutCard, LogsTimeline, PowerControls, ProcessManager, ServiceManager, SshKeysCard, UsageCharts, VzBackupsCard } from "./vps-panel";
 import { DisksPanel, FirewallGroups, NetworkExtras, PlanChange, SnapSchedule, TrafficPanel, VncScreen, WalletLink } from "./vps-extras";
 
 const TABS = [
   { id: "overview", label: "نمای کلی", icon: "gauge" }, { id: "traffic", label: "ترافیک", icon: "activity" }, { id: "console", label: "کنسول VNC", icon: "monitor-smartphone" },
   { id: "access", label: "دسترسی و اپلیکیشن", icon: "key-round" }, { id: "network", label: "شبکه", icon: "network" }, { id: "disks", label: "دیسک‌ها", icon: "hard-drive" }, { id: "firewall", label: "فایروال", icon: "shield-check" },
   { id: "backups", label: "بکاپ و اسنپ‌شات", icon: "database-backup" }, { id: "boot", label: "بوت، ISO و ریسکیو", icon: "hard-drive" }, { id: "rebuild", label: "نصب مجدد", icon: "refresh-cw" },
-  { id: "resize", label: "ارتقا", icon: "trending-up" }, { id: "tasks", label: "لاگ عملیات", icon: "scroll-text" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
+  { id: "procs", label: "سرویس‌ها و پردازه‌ها", icon: "square-terminal" },
+  { id: "resize", label: "ارتقا", icon: "trending-up" }, { id: "tasks", label: "لاگ‌ها", icon: "scroll-text" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
 const SNAP_LIMIT = 5;
 /** a suspended server can only be inspected until the account is settled */
@@ -25,7 +27,6 @@ const READONLY_TABS = new Set(["overview", "traffic", "tasks"]);
 
 export function ServerDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
-  const { notify } = useApp();
   const s = db.servers.find((x) => x.id === id && x.userId === myId);
   const [tab, setTab] = useState("overview");
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
@@ -35,16 +36,11 @@ export function ServerDetail({ id }: { id: string }) {
   const missing = s.status === "missing";
   const tabs = suspended || missing ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
   const cur = tabs.some((t) => t.id === tab) ? tab : "overview";
-  const power = async (a: "start" | "stop" | "reboot", m: string) => { await api.servers.power(s.id, a); notify(m, "circle-check"); };
   return (
     <div>
       <PageTitle back={["/panel/servers", "سرورهای ابری"]} title={<span className="ltr inline-block">{s.name}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusBadge s={s.status} /><CopyText text={s.ip} className="mono text-xs text-white/60" /><span>{locLabel(s.loc)}</span><span>{s.os}</span></span>}
-        action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <>
-          {s.status !== "running" && <AsyncButton onClick={() => power("start", "سرور روشن شد")}><Icon name="play" size={16} /> روشن کردن</AsyncButton>}
-          {s.status === "running" && <AsyncButton className={BTN_G + BTN_MD} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
-          {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
-        </>} />
+        action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <PowerControls s={s} />} />
       <DelayBanner s={s} />
       <div className="mb-5"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">
@@ -53,27 +49,17 @@ export function ServerDetail({ id }: { id: string }) {
         {cur === "console" && <VncPanel s={s} />}
         {cur === "access" && <ServerAccess s={s} />}
         {cur === "network" && <ServerNetwork s={s} />}
-        {cur === "disks" && <DisksPanel s={s} />}
+        {cur === "disks" && <><LayoutCard s={s} /><DisksPanel s={s} /></>}
         {cur === "firewall" && <ServerFirewall s={s} />}
         {cur === "backups" && <ServerBackups s={s} />}
         {cur === "boot" && <ServerBoot s={s} />}
         {cur === "rebuild" && <ServerRebuild s={s} />}
+        {cur === "procs" && <div className="grid xl:grid-cols-2 gap-4 items-start"><ServiceManager s={s} /><ProcessManager s={s} /></div>}
         {cur === "resize" && <ServerResize s={s} />}
-        {cur === "tasks" && <ServerTasks s={s} />}
+        {cur === "tasks" && <LogsTimeline s={s} />}
         {cur === "settings" && <ServerSettings s={s} />}
       </div>
     </div>
-  );
-}
-
-/** real hypervisor samples (5-minute resolution, last 4 hours) collected by the worker */
-function Metric({ label, icon, values, unit }: { label: string; icon: string; values: number[]; unit: string }) {
-  const cur = values.at(-1);
-  return (
-    <Card pad="p-5">
-      <div className="flex items-center justify-between mb-3"><span className="text-xs text-white/50 flex items-center gap-2"><Icon name={icon} size={15} className="acc" />{label}</span><span className="font-black tabular">{cur === undefined ? "—" : fa(Math.round(cur))} <span className="text-[11px] font-normal text-white/55">{unit}</span></span></div>
-      {values.length > 1 ? <AreaChart data={values} height={90} unit={unit} /> : <div className="h-[90px] grid place-items-center text-[11px] text-white/50 text-center leading-6">نمونه‌برداری هر ۵ دقیقه انجام می‌شود؛<br />نمودار به‌زودی پر می‌شود.</div>}
-    </Card>
   );
 }
 
@@ -118,12 +104,8 @@ function Overview({ s }: { s: Server }) {
   const u = s.usage;
   const last = u.at(-1);
   return <>
-    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <Metric label="پردازنده" icon="cpu" values={u.map((x) => x.cpu)} unit="٪" />
-      <Metric label="حافظه" icon="memory-stick" values={u.map((x) => x.ram)} unit="٪" />
-      <Metric label="ورودی شبکه" icon="arrow-down-up" values={u.map((x) => x.netIn)} unit="Mb/s" />
-      <Metric label="خروجی شبکه" icon="arrow-down-up" values={u.map((x) => x.netOut)} unit="Mb/s" />
-    </div>
+    {/* CPU, RAM, network and disk I/O for 1h / 24h / 7d / 30d (collected every 5 minutes, see vps-panel.tsx) */}
+    <UsageCharts s={s} />
     <div className="grid lg:grid-cols-2 gap-4 mt-4">
       <Card title="مشخصات" icon="cpu">
         <dl className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
@@ -241,6 +223,7 @@ function ServerAccess({ s }: { s: Server }) {
         </div>
         <div className="mt-4 flex justify-end"><AsyncButton disabled={!panel || s.status !== "running"} confirmText={"نصب " + panel + " روی " + s.name + " شروع شود؟"} onClick={async () => { await api.servers.installPanel(s.id, panel); setPanel(""); notify("نصب " + panel + " شروع شد", "layout-dashboard"); }}>نصب</AsyncButton></div>
       </Card>
+      <SshKeysCard s={s} />
     </div>
   );
 }
@@ -265,6 +248,7 @@ function ServerNetwork({ s }: { s: Server }) {
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const v = rdns.trim().toLowerCase(); if (v && !/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v)) throw new Error("نام دامنه معتبر نیست."); await api.servers.setRdns(s.id, v); setRdns(v); notify("Reverse DNS ذخیره شد"); }}>ذخیره</AsyncButton></div>
       </Card>
       <NetworkExtras s={s} />
+      <Ipv6Card s={s} />
     </div>
   );
 }
@@ -336,6 +320,7 @@ function ServerBackups({ s }: { s: Server }) {
           ))}
       </Card>
       <SnapSchedule s={s} />
+      <VzBackupsCard s={s} />
     </div>
   );
 }
@@ -435,18 +420,6 @@ function ServerResize({ s }: { s: Server }) {
     </Card>
     <PlanChange s={s} />
     </>
-  );
-}
-
-function ServerTasks({ s }: { s: Server }) {
-  return (
-    <DataTable rows={s.tasks} pageSize={10} empty="عملیاتی ثبت نشده است."
-      columns={[
-        { key: "action", label: "عملیات", render: (r) => <span className="font-medium">{r.action}</span> },
-        { key: "at", label: "زمان" },
-        { key: "progress", label: "پیشرفت", render: (r) => <div className="w-28"><Meter value={r.progress} label="پیشرفت" /></div> },
-        { key: "status", label: "وضعیت", render: (r) => <Badge tone={r.status === "done" ? "green" : r.status === "failed" ? "red" : "blue"} dot>{r.status === "done" ? "انجام شد" : r.status === "failed" ? "ناموفق" : "در حال اجرا"}</Badge> },
-      ]} />
   );
 }
 

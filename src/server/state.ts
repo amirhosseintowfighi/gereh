@@ -13,6 +13,7 @@ import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
 import { virtFromEnv } from "./virt/driver";
 import { planHints, quotaOf, syncInfo } from "./virt/sync";
+import { pendingPower } from "./virt/power";
 import { getLocations, publicLocations } from "./locations";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
@@ -106,11 +107,13 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.backups).where(inArray(t.backups.serverId, sids)).orderBy(desc(t.backups.createdAt)),
     db.select().from(t.serverTasks).where(inArray(t.serverTasks.serverId, sids)).orderBy(desc(t.serverTasks.createdAt)),
   ]) : [[], [], [], []];
-  const [{ sync: syncBy, traffic: trafficBy }, syncLogs, hints] = await Promise.all([
+  const [{ sync: syncBy, traffic: trafficBy }, syncLogs, hints, powerBy] = await Promise.all([
     syncInfo(db, sids),
     // the latest change per server
     sids.length ? db.selectDistinctOn([t.vpsSyncLog.serverId]).from(t.vpsSyncLog).where(inArray(t.vpsSyncLog.serverId, sids)).orderBy(t.vpsSyncLog.serverId, desc(t.vpsSyncLog.createdAt), desc(t.vpsSyncLog.id)) : [],
     admin ? planHints(db, servers) : new Map<string, string>(),
+    // power actions still being confirmed (./virt/power.ts)
+    pendingPower(db, sids),
   ]);
   const lastLog = new Map(syncLogs.map((l) => [l.serverId, l]));
   const samples = !admin && sids.length ? await db.select().from(t.usageSamples).where(and(inArray(t.usageSamples.serverId, sids), gte(t.usageSamples.createdAt, new Date(Date.now() - 4 * 3600_000)))).orderBy(asc(t.usageSamples.createdAt)) : [];
@@ -147,6 +150,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
         ...(admin ? { node: sy?.node ?? "", error: sy?.lastError ?? "", hint: hints.get(s.id) ?? "" } : {}),
       } } : {}))(syncBy.get(s.id), lastLog.get(s.id)),
       vnc: { host: s.vncHost, port: s.vncPort, password: s.vncPassword },
+      ...((p) => (p ? { power: { action: p.action as "start" | "stop" | "restart" | "poweroff", since: faDateTime(p.requestedAt) } } : {}))(powerBy.get(s.id)),
       usage: (usageBy.get(s.id) || []).map((u) => ({ at: faDateTime(u.createdAt), cpu: u.cpu, ram: u.ram, disk: u.disk, netIn: u.netIn, netOut: u.netOut, bwUsed: u.bwUsed })),
       tasks: (taskBy.get(s.id) || []).map((x) => ({ id: x.id, action: x.action, status: x.status, progress: x.progress, at: faDateTime(x.createdAt) })),
     })),

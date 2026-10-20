@@ -190,6 +190,13 @@
       "when": 1791600028000,
       "tag": "0028_virt_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791600029000,
+      "tag": "0029_vps_panel",
+      "breakpoints": true
     }
   ]
 }

@@ -25,6 +25,7 @@ import { domainAlertsJob } from "../domains/service";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 import { vpsBilling, vpsSnapshots } from "./vps";
 import { virtSync } from "../virt/sync";
+import { confirmPower } from "../virt/power";
 import { builderFix, builderWatch } from "../builder/deploy";
 import { builderMaintain } from "../builder/maintain";
 
@@ -42,6 +43,7 @@ const handlers: Record<JobType, Handler> = {
   "usage.alerts": (db) => usageAlerts(db),
   "virt.reconcile": async (db) => { await reconcile(db); await purgeOld(db); await sweepRateLimits(db); },
   "virt.sync": (db, p) => virtSync(db, p as never),
+  "virt.power": (db, p) => confirmPower(db, p as never),
   "tickets.sla": (db, p) => ticketSla(db, p),
   "notify.send": (db, p) => notifySend(db, p as never),
   "devops.billing": (db) => devopsBilling(db),

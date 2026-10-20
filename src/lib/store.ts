@@ -141,7 +141,8 @@ export const api = {
     logout: () => rpc("auth.logout"),
   },
   servers: {
-    power: (id: string, action: "start" | "stop" | "reboot") => rpc("servers.power", id, action),
+    /** "pending": sent, the panel shows the transition until a live status read confirms it */
+    power: (id: string, action: "start" | "stop" | "reboot" | "poweroff") => rpc<"done" | "pending">("servers.power", id, action),
     rename: (id: string, name: string) => rpc("servers.rename", id, name),
     setRdns: (id: string, rdns: string) => rpc("servers.setRdns", id, rdns),
     resize: (id: string, planId: string) => rpc("servers.resize", id, planId),

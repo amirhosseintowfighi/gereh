@@ -175,7 +175,8 @@ export const HOSTING_FAQ: [string, string][] = [
    same SKU from the database catalog at checkout. A client-supplied amount is never trusted. */
 export type Sku =
   | { t: "plan"; kind: "cloud" | "metal"; plan: string; loc: string; cycle: "m" | "q" | "y"; os?: string; app?: string; hourly?: boolean }
-  | { t: "custom"; cpu: number; ram: number; disk: number; tb?: number; loc: string; os: string; ips: number; backup: boolean; app?: string; hourly?: boolean }
+  /** disks: the disk split into several disks (GB each, primary first, summing to `disk`); absent = one disk */
+  | { t: "custom"; cpu: number; ram: number; disk: number; tb?: number; loc: string; os: string; ips: number; backup: boolean; app?: string; hourly?: boolean; disks?: number[] }
   | { t: "hosting"; plan: string; yearly: boolean; domain?: string }
   | { t: "domain"; name: string; years: number }
   | { t: "ip"; serverId: string; serverName: string };
@@ -191,6 +192,9 @@ export const APPS = [
 ];
 
 const locOf = (id: string) => LOCS.find((l) => l.id === id);
+/** an order-time disk split: 1–4 whole-GB disks (primary ≥ 10, others ≥ 5) that add up to the ordered disk */
+export const diskSplitOk = (total: number, sizes: number[]) =>
+  sizes.length >= 1 && sizes.length <= 4 && sizes.every((x) => Number.isInteger(x)) && sizes[0] >= 10 && sizes.slice(1).every((x) => x >= 5) && sizes.reduce((a, b) => a + b, 0) === total;
 /** price for one SKU, or an error message when the SKU is not orderable */
 export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: string } {
   switch (sku.t) {
@@ -210,7 +214,9 @@ export function priceSku(sku: Sku, cat: CatalogView): PricedItem | { error: stri
       if (!CPU_STEPS.includes(sku.cpu) || !RAM_STEPS.includes(sku.ram) || !DISK_STEPS.includes(sku.disk) || (sku.tb !== undefined && !TB_STEPS.includes(sku.tb))) return { error: "منابع انتخابی نامعتبر است." };
       if (!l || l.active === false || !OSES.some((o) => o.id === sku.os) || !Number.isInteger(sku.ips) || sku.ips < 0 || sku.ips > 8) return { error: "پیکربندی نامعتبر است." };
       if (sku.app && !APPS.some((a) => a.id === sku.app)) return { error: "اپلیکیشن نامعتبر است." };
-      return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + sku.disk + " گیگ NVMe، " + (sku.tb ?? 1) + " ترابایت ترافیک، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
+      const split = sku.disks && sku.disks.length > 1 ? sku.disks : null;
+      if (sku.disks && !diskSplitOk(sku.disk, sku.disks)) return { error: "تقسیم دیسک نامعتبر است: جمع دیسک‌ها باید برابر فضای انتخابی باشد (دیسک اصلی دست‌کم ۱۰ و بقیه دست‌کم ۵ گیگابایت، حداکثر ۴ دیسک)." };
+      return { title: "سرور ابری سفارشی", meta: sku.cpu + " هسته، " + sku.ram + " گیگ رم، " + (split ? split.join("+") + " گیگ NVMe (" + split.length + " دیسک)" : sku.disk + " گیگ NVMe") + "، " + (sku.tb ?? 1) + " ترابایت ترافیک، " + l.label + (sku.ips ? "، " + sku.ips + " آی‌پی اضافه" : "") + (sku.backup ? "، بکاپ روزانه" : "") + (sku.hourly ? "، پرداخت ساعتی" : ""), base: configPrice(sku), icon: "server" };
     }
     case "hosting": {
       const p = cat.plans.hosting.find((x) => x.id === sku.plan);

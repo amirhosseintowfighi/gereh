@@ -9,6 +9,8 @@ import { sendEmail } from "../messaging";
 import { createInvoice } from "./billing";
 import { rateLimit } from "../auth";
 import { virt } from "../virt/driver";
+import { primaryFor, saveAllowance } from "../virt/layout";
+import { confirmPower, pendingPower, POWER_LABEL, requestPower } from "../virt/power";
 import { requestSync, SYNCABLE, syncNow } from "../virt/sync";
 import { addTask, fail, genPassword, logActivity, logAudit, rid } from "../util";
 
@@ -35,12 +37,18 @@ export const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حا
 const log = (ctx: Ctx, s: Row, icon: string, text: string) => logActivity(ctx.db, s.userId, icon, text, ctx.ip);
 
 export const serversRpc = {
-  "servers.power": method(z.tuple([id, z.enum(["start", "stop", "reboot"])]), async (ctx, [sid, action]) => {
+  /** sends the action and confirms it with live status reads (../virt/power.ts); the state is never written
+      optimistically. Returns "done" when the first read already shows the result, else "pending". */
+  "servers.power": method(z.tuple([id, z.enum(["start", "stop", "reboot", "restart", "poweroff"])]), async (ctx, [sid, raw]) => {
     const s = await server(ctx, sid);
-    await (await virt()).power(vps(s), action === "reboot" ? "restart" : action);
-    await ctx.db.update(servers).set({ status: action === "stop" ? "stopped" : "running" }).where(eq(servers.id, s.id));
-    await addTask(ctx.db, s.id, { start: "روشن کردن", stop: "خاموش کردن", reboot: "ری‌استارت" }[action]);
-    await log(ctx, s, action === "stop" ? "pause" : action === "reboot" ? "refresh-cw" : "play", { start: "روشن کردن", stop: "خاموش کردن", reboot: "ری‌استارت" }[action] + " سرور " + s.name);
+    const action = raw === "reboot" ? "restart" : raw;
+    vps(s);
+    if ((await pendingPower(ctx.db, [s.id])).has(s.id)) fail("عملیات قبلی روی این سرور هنوز در حال انجام است؛ چند لحظه صبر کنید.", 409);
+    await rateLimit(ctx.db, "vps:power:" + s.id, 10, 300);
+    await requestPower(ctx.db, s, action);
+    await log(ctx, s, action === "stop" || action === "poweroff" ? "pause" : action === "restart" ? "refresh-cw" : "play", POWER_LABEL[action] + " سرور " + s.name);
+    if (isStaff(ctx, "services") && ctx.auth!.uid !== s.userId) await logAudit(ctx.db, actor(ctx), POWER_LABEL[action] + " سرور", s.id, ctx.ip);
+    return (await confirmPower(ctx.db, { serverId: s.id, quick: true })) === "confirmed" ? "done" : "pending";
   }),
 
   "servers.rename": method(z.tuple([id, z.string().max(60)]), async (ctx, [sid, name]) => {
@@ -54,6 +62,8 @@ export const serversRpc = {
     const s = await server(ctx, sid);
     const v = raw.trim().toLowerCase();
     if (v && !FQDN_RE.test(v)) fail("نام دامنه معتبر نیست.");
+    // the PTR lives in Virtualizor's rDNS (it used to be saved on the site only)
+    if (s.vpsid && s.ip) await (await virt()).setPtr(s.vpsid, s.ip, v);
     await ctx.db.update(servers).set({ rdns: v }).where(eq(servers.id, s.id));
     await addTask(ctx.db, s.id, "تنظیم Reverse DNS");
   }),
@@ -67,10 +77,13 @@ export const serversRpc = {
     const plan = p!.data as Plan;
     if (plan.active === false) fail("این پلن فعلا ارائه نمی‌شود.");
     const [cpu, ram, disk] = nums;
-    if (disk < s.disk) fail("کاهش فضای دیسک ممکن نیست.");
+    // a split disk (../virt/layout.ts): the plan's GB is the allowance and the primary takes the difference
+    const lay = await primaryFor(ctx.db, s, disk);
+    if (disk < lay.allowance) fail("کاهش فضای دیسک ممکن نیست.");
     if (plan.name === s.plan) fail("سرور همین حالا روی این پلن است.");
-    await (await virt()).manage(vps(s), { cores: cpu, ram: ram * 1024, space: disk });
-    await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk, price: plan.price }).where(eq(servers.id, s.id));
+    await (await virt()).manage(vps(s), { cores: cpu, ram: ram * 1024, space: lay.primary });
+    await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk: lay.primary, price: plan.price }).where(eq(servers.id, s.id));
+    if (lay.split) await saveAllowance(ctx.db, s.id, disk);
     const days = s.paidUntil ? Math.max(0, Math.ceil((s.paidUntil.getTime() - Date.now()) / 86400_000)) : 0;
     const diff = Math.round(((plan.price - s.price) * days) / 30 / 1000) * 1000;
     if (diff > 0 && s.billing === "monthly") await createInvoice(ctx.db, s.userId, [{ desc: "مابه‌التفاوت ارتقای " + s.name + " به " + plan.name + " (" + days.toLocaleString("fa-IR") + " روز)", amount: diff }], { dueDays: 3 });

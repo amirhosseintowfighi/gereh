@@ -8,7 +8,7 @@ import { BILLING, CLOUD_SPECS, HOSTING, LOCS, OSES, VPS, type Plan, type Sku } f
 import { toEnDigits } from "@/lib/format";
 import { addMonths } from "@/lib/jalali";
 import type { DB, Tx } from "../db/client";
-import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users, vpsSync } from "../db/schema";
+import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users, vpsDisks, vpsLayouts, vpsSync } from "../db/schema";
 import { enqueue } from "../jobs";
 import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
@@ -156,25 +156,35 @@ export async function provisionServer(db: DB, p: Payload) {
     // an earlier attempt may have created the VPS and failed afterwards: adopt it instead of creating a second one
     const existing = await v.findVps(row.hostname, virtUid).catch(() => null);
     let created;
+    // a disk split chosen at order time: the VPS is created with the first disk, the others are added right after
+    const split = sku.t === "custom" && sku.disks && sku.disks.length > 1 ? sku.disks : null;
+    const extraDisks: { slot: number; sizeGb: number }[] = [];
     if (existing) {
       created = { vpsid: existing.vpsid, ip: existing.ip, ipv6: existing.ipv6, vncHost: "", vncPort: 0, vncPassword: "" };
       try { await v.rootPassword(existing.vpsid, rootpass); } catch { rootpass = ""; }
     } else {
       const [key] = await db.select().from(sshKeys).where(eq(sshKeys.userId, u.id)).limit(1);
-      const sized = spec.cpu > 0 ? { space: spec.disk, ram: spec.ram * 1024, cores: spec.cpu, bandwidth: spec.traffic } : {};
+      const sized = spec.cpu > 0 ? { space: split ? split[0] : spec.disk, ram: spec.ram * 1024, cores: spec.cpu, bandwidth: spec.traffic } : {};
       created = await v.create({ uid: virtUid, plid: spec.plid, osid: spec.tpl!.osid, hostname: row.hostname, rootpass, serverGroup: spec.group, virt: spec.virt, ...sized,
         sshKey: key?.publicKey, cloudInit: cloudInitFor((sku as { app?: string }).app) });
+      for (const sizeGb of split?.slice(1) ?? []) extraDisks.push({ slot: await v.addDisk(created.vpsid, sizeGb), sizeGb });
     }
     const sid = row.id, name = row.name;
     await db.transaction(async (tx) => {
       await tx.update(servers).set({
         vpsid: created.vpsid, ip: created.ip, ipv6: created.ipv6, vncHost: created.vncHost, vncPort: created.vncPort, vncPassword: created.vncPassword,
-        status: "building", provisionError: null, cpu: spec.cpu || row.cpu, ram: spec.ram || row.ram, disk: spec.disk || row.disk, os: spec.tpl!.name,
+        status: "building", provisionError: null, cpu: spec.cpu || row.cpu, ram: spec.ram || row.ram, disk: split && !existing ? split[0] : spec.disk || row.disk, os: spec.tpl!.name,
         paidUntil: spec.hourly ? null : addMonths(new Date(), spec.months),
         ...(spec.cpu > 0 ? { bwLimit: spec.traffic } : {}),
       }).where(eq(servers.id, sid));
       // the limit sent with addvs is the site's own (an adopted VPS keeps whatever Virtualizor has)
       if (spec.cpu > 0 && !existing) await tx.insert(vpsSync).values({ serverId: sid, bwPushed: spec.traffic }).onConflictDoUpdate({ target: vpsSync.serverId, set: { bwPushed: spec.traffic } });
+      // the split's other disks belong to the plan's allowance: shown, never charged
+      if (split && !existing) {
+        for (const d of extraDisks) await tx.insert(vpsDisks).values({ id: rid("vd"), userId: u.id, serverId: sid, name: "disk-" + d.slot, loc: sku.loc, sizeGb: d.sizeGb, slot: d.slot, billed: false });
+        await tx.insert(vpsLayouts).values({ serverId: sid, allowanceGb: spec.disk }).onConflictDoNothing();
+        await addTask(tx, sid, "چیدمان دیسک " + split.join("+") + " گیگ");
+      }
       await addTask(tx, sid, "ساخت VPS", "running", 10);
       if (spec.hourly) {
         // the prepaid month becomes wallet credit; usage is then charged hourly (billing.hourly)

@@ -76,7 +76,7 @@ The **E** prefix means the Enduser API on port 4083, called with admin credentia
 | Gereh UI (panel/servers/:id) | Call | Notes |
 |---|---|---|
 | List servers / header info | A `act=vs` (filter by `uid`) or E `act=listvs` | `listvs` returns hostname, `os_name`, ram, space, `vnc`, `rescue`, `boot`, `iso` per VPS |
-| Status + live usage (overview cards) | A `act=vs&vs_status[]=…` | Returns `status` (0 off, 1 on, 2 suspended), `used_cpu`, `used_ram`, `used_disk`, `net_in`/`net_out`, `io_read`/`io_write`, `used_bandwidth`, `bandwidth` |
+| Status + live usage (overview cards) | A `act=vs&vs_status[]=…` | Returns `status` (0 off, 1 on, 2 suspended), `used_cpu`, `used_ram`, `used_disk`, `net_in`/`net_out`, `io_read`/`io_write`, `used_bandwidth`, `bandwidth`. **Power state comes only from here (or E `act=vpsmanage` → `info.status`), never from the `act=vs` listing, which has no live state. A VPS missing from the answer is "unknown", not "off".** Power actions are confirmed by these reads (`vps_power`, `virt.power` job) |
 | Start / Stop / Restart / Power-off | E `act=start` / `stop` / `restart` / `poweroff` (`do=1`) | Admin-side equivalents also exist |
 | CPU / RAM / disk monitor | E `act=monitor&svs=…` (`show=YYYYMM` for monthly) | Returns cpu/ram/disk limit, used and percent |
 | Traffic tab (daily in/out, monthly quota) | E `act=bandwidth&svs=…&show=YYYYMM`, or A `act=vps_stats` (`vpsid`) | Daily usage for days 1–31, split into in/out, in MB |

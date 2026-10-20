@@ -5,29 +5,50 @@ import { fanout } from "../channels";
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { activity, chats, devopsLeads, notifications, servers, ticketMessages, tickets, usageSamples, users, virtLog, vpsTraffic } from "../db/schema";
+import { activity, chats, devopsLeads, notifications, servers, ticketMessages, tickets, usageHourly, usageSamples, users, virtLog, vpsTraffic } from "../db/schema";
 import { monthKey } from "../billing-extras";
 import { sendEmail, sendSms } from "../messaging";
 import { virt } from "../virt/driver";
+import { confirmFromPoll, pendingPower, purgePower } from "../virt/power";
 import { quotaOf } from "../virt/sync";
 import { rid } from "../util";
 
-/** every 5 minutes: one batched status call per 50 VPSs; status drift is corrected from the hypervisor */
+/** every 5 minutes: one batched status call per 50 VPSs. Samples are stored (and rolled up per hour for the
+    long charts) only for VPSs the hypervisor reported usage for; the power state is corrected only from an
+    explicit reading and never while a power action is still being confirmed (../virt/power.ts). A batch that
+    fails is skipped, not the whole run. */
 export async function collectUsage(db: DB) {
-  const list = await db.select({ id: servers.id, vpsid: servers.vpsid, status: servers.status }).from(servers).where(and(isNotNull(servers.vpsid), inArray(servers.status, ["running", "stopped"])));
+  const list = await db.select().from(servers).where(and(isNotNull(servers.vpsid), inArray(servers.status, ["running", "stopped"])));
   const v = await virt();
+  const pending = await pendingPower(db, list.map((s) => s.id));
+  const now = new Date();
+  const hour = new Date(Math.floor(now.getTime() / 3600_000) * 3600_000);
   for (let i = 0; i < list.length; i += 50) {
     const chunk = list.slice(i, i + 50);
-    const live = await v.status(chunk.map((s) => s.vpsid!));
+    let live: Awaited<ReturnType<typeof v.status>>;
+    try { live = await v.status(chunk.map((s) => s.vpsid!)); } catch (e) { console.error("[usage.collect] status call failed", e); continue; }
     const byVps = new Map(live.map((l) => [l.vpsid, l]));
-    const rows = chunk.flatMap((s) => { const l = byVps.get(s.vpsid!); return l ? [{ serverId: s.id, cpu: l.cpu, ram: l.ram, disk: l.disk, netIn: l.netIn, netOut: l.netOut, bwUsed: l.bwUsed }] : []; });
-    if (rows.length) await db.insert(usageSamples).values(rows);
+    const rows = chunk.flatMap((s) => {
+      const l = byVps.get(s.vpsid!);
+      return l && l.usage !== false ? [{ serverId: s.id, cpu: l.cpu, ram: l.ram, disk: l.disk, netIn: l.netIn, netOut: l.netOut, ioRead: l.ioRead ?? 0, ioWrite: l.ioWrite ?? 0, bwUsed: l.bwUsed, createdAt: now }] : [];
+    });
+    if (rows.length) {
+      await db.insert(usageSamples).values(rows);
+      // running hourly average: avg' = (avg * n + x) / (n + 1)
+      const avg = (col: string) => sql.raw(`("usage_hourly"."${col}" * "usage_hourly"."n" + excluded."${col}") / ("usage_hourly"."n" + 1)`);
+      await db.insert(usageHourly).values(rows.map((r) => ({ serverId: r.serverId, hour, cpu: r.cpu, ram: r.ram, disk: r.disk, netIn: r.netIn, netOut: r.netOut, ioRead: r.ioRead, ioWrite: r.ioWrite, n: 1 })))
+        .onConflictDoUpdate({ target: [usageHourly.serverId, usageHourly.hour], set: { cpu: avg("cpu"), ram: avg("ram"), disk: avg("disk"), netIn: avg("net_in"), netOut: avg("net_out"), ioRead: avg("io_read"), ioWrite: avg("io_write"), n: sql`${usageHourly.n} + 1` } });
+    }
     for (const s of chunk) {
       const l = byVps.get(s.vpsid!);
-      if (l && l.status !== s.status && l.status !== "suspended") await db.update(servers).set({ status: l.status }).where(eq(servers.id, s.id));
+      if (!l || l.noPower || l.status === "suspended") continue;
+      const p = pending.get(s.id);
+      if (p) { await confirmFromPoll(db, s, l.status, p); continue; }
+      if (l.status !== s.status) await db.update(servers).set({ status: l.status }).where(eq(servers.id, s.id));
     }
   }
   await db.delete(usageSamples).where(lt(usageSamples.createdAt, new Date(Date.now() - 8 * 86400_000)));
+  await db.delete(usageHourly).where(lt(usageHourly.hour, new Date(Date.now() - 400 * 86400_000)));
 }
 
 /** after each collection: CPU above the customer's threshold for 15 min, or bandwidth past the threshold % */
@@ -56,8 +77,12 @@ export async function usageAlerts(db: DB) {
 /** nightly: VPSs that exist on one side only */
 export async function reconcile(db: DB) {
   const ours = await db.select({ vpsid: servers.vpsid }).from(servers).where(isNotNull(servers.vpsid));
-  const live = await (await virt()).status(ours.map((s) => s.vpsid!));
-  const missing = live.filter((l) => l.status === "stopped" && l.cpu === 0 && l.ram === 0).length;
+  const v = await virt();
+  let answered = 0;
+  for (let i = 0; i < ours.length; i += 50) answered += (await v.status(ours.slice(i, i + 50).map((s) => s.vpsid!)).catch(() => [])).length;
+  // a VPS left out of the status answer is unanswered (it used to be counted as a stopped VPS)
+  const missing = ours.length - answered;
+  await purgePower(db);
   await db.insert(virtLog).values({ id: rid("vl"), kind: "تطبیق شبانه", result: missing ? "warn" : "ok", detail: ours.length.toLocaleString("fa-IR") + " VPS بررسی شد" + (missing ? "، " + missing.toLocaleString("fa-IR") + " مورد بدون پاسخ" : "") });
 }
 

@@ -37,8 +37,8 @@ describe("Virtualizor client", () => {
     const s = await v().status([3301, 3302]);
     expect(calls[0].url.searchParams.getAll("vs_status[]")).toEqual(["3301", "3302"]);
     expect(s).toEqual([
-      { vpsid: 3301, status: "running", cpu: 12.5, ram: 40, disk: 0, netIn: 0, netOut: 0, bwUsed: 900, bwLimit: 2000 },
-      { vpsid: 3302, status: "suspended", cpu: 0, ram: 0, disk: 0, netIn: 0, netOut: 0, bwUsed: 0, bwLimit: 0 },
+      { vpsid: 3301, status: "running", cpu: 12.5, ram: 40, disk: 0, netIn: 0, netOut: 0, ioRead: 0, ioWrite: 0, bwUsed: 900, bwLimit: 2000, usage: true },
+      { vpsid: 3302, status: "suspended", cpu: 0, ram: 0, disk: 0, netIn: 0, netOut: 0, ioRead: 0, ioWrite: 0, bwUsed: 0, bwLimit: 0, usage: true },
     ]);
     await v().rescue(3301, true, "secret1");
     expect(calls[1].method).toBe("POST");

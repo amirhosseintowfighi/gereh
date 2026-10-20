@@ -3,9 +3,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
 import { useLocs } from "@/lib/use-locs";
-import { CPU_STEPS, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, WIN_LICENSE, configLines, configPrice, parseDomain } from "@/lib/catalog";
+import { CPU_STEPS, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, WIN_LICENSE, configLines, configPrice, diskSplitOk, parseDomain } from "@/lib/catalog";
 import { EMAIL_RE, fa, hashStr, toman } from "@/lib/format";
 import { useApp } from "../app-context";
+import { DiskLayoutEditor } from "../disk-split";
 import { Icon } from "../icon";
 import { IconTile, SectionHead } from "../ui";
 import { Num, Switch, Tabs, prefersReducedMotion, useInView, useTween } from "../ui-client";
@@ -323,6 +324,11 @@ export function Builder({ id = "builder" }: { id?: string }) {
   const locObj = locs.find((l) => l.id === locSel) || locs[0] || LOCS[0];
   const loc = locObj.id;
   const cfg = { cpu: CPU_STEPS[ci], ram: RAM_STEPS[ri], disk: DISK_STEPS[di], tb: TB_STEPS[ti], loc, os, ips, backup };
+  // optional split of the disk into several disks (same price); a new disk size starts a fresh half/half split
+  const [split, setSplit] = useState<number[] | null>(null);
+  const halves = (gb: number) => [Math.ceil(gb / 2), gb - Math.ceil(gb / 2)];
+  const pickDisk = (i: number) => { setDi(i); setSplit((s) => (s ? halves(DISK_STEPS[i]) : s)); };
+  const splitOk = !split || diskSplitOk(cfg.disk, split);
   const final = configPrice(cfg);
   const priceLines = configLines(cfg);
   const tier = cfg.cpu >= 16 ? "سنگین" : cfg.cpu >= 6 ? "حرفه‌ای" : cfg.cpu >= 2 ? "متعادل" : "سبک";
@@ -336,7 +342,14 @@ export function Builder({ id = "builder" }: { id?: string }) {
         <div className={GLASS + " rounded-[1.75rem] p-5 sm:p-8 space-y-8"}>
           <Slider icon="cpu" label="پردازنده" steps={CPU_STEPS} idx={ci} setIdx={setCi} fmt="هسته" />
           <Slider icon="memory-stick" label="حافظه رم" steps={RAM_STEPS} idx={ri} setIdx={setRi} fmt="گیگابایت" />
-          <Slider icon="hard-drive" label="فضای NVMe" steps={DISK_STEPS} idx={di} setIdx={setDi} fmt="گیگابایت" />
+          <div>
+            <Slider icon="hard-drive" label="فضای NVMe" steps={DISK_STEPS} idx={di} setIdx={pickDisk} fmt="گیگابایت" />
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-[12px] text-white/65">تقسیم فضا به چند دیسک (مثلاً سیستم‌عامل و داده جدا)</span>
+              <Switch on={!!split} onChange={(on) => setSplit(on ? halves(cfg.disk) : null)} label="تقسیم دیسک" />
+            </div>
+            {split && <div className="mt-3"><DiskLayoutEditor allowance={cfg.disk} sizes={split} onChange={setSplit} /></div>}
+          </div>
           <div>
             <Slider icon="arrow-down-up" label="ترافیک ماهانه" steps={TB_STEPS} idx={ti} setIdx={setTi} fmt="ترابایت" />
             <p className="text-[11px] text-white/55 mt-2 leading-5">هر چه ترافیک بیشتر، هر ترابایت ارزان‌تر: از ۸۴۰ هزار تومان برای ۱ ترابایت تا ۸۰۰ هزار تومان از ۱۰ ترابایت به بالا.</p>
@@ -405,8 +418,9 @@ export function Builder({ id = "builder" }: { id?: string }) {
             <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
             <div className="text-[11px] text-white/55 mt-2">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
           </div>
-          <button type="button" onClick={() => addToCart({ t: "custom", ...cfg })}
-            className={BTN_P + " w-full mt-5 py-3.5"}><Icon name="rocket" size={18} /> ساخت این سرور</button>
+          {split && <div className="mt-4 text-xs text-white/60">دیسک‌ها: <span className="tabular ltr inline-block">{split.join(" + ")}</span> گیگابایت</div>}
+          <button type="button" disabled={!splitOk} onClick={() => addToCart({ t: "custom", ...cfg, ...(split && split.length > 1 ? { disks: split } : {}) })}
+            className={BTN_P + " w-full mt-5 py-3.5 disabled:opacity-50"}><Icon name="rocket" size={18} /> ساخت این سرور</button>
         </aside>
       </div>
     </section>

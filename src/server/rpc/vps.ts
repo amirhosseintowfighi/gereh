@@ -10,6 +10,7 @@ import { debit, monthKey, needBudget, perHour, vpsPrices } from "../billing-extr
 import { method, needUser, type Ctx } from "../ctx";
 import { fwGroups, fwGroupServers, plans, servers, snapshots, subWallets, users, vpsDisks, vpsIps, vpsSnapSchedules, vpsTraffic, vpsTrafficDaily, walletLinks } from "../db/schema";
 import { virt } from "../virt/driver";
+import { primaryFor, saveAllowance } from "../virt/layout";
 import { markPushed, quotaOf, requestSync } from "../virt/sync";
 import { addTask, fail, logActivity, rid } from "../util";
 import { server, vps } from "./servers";
@@ -262,12 +263,16 @@ export const vpsRpc = {
     if (plan.active === false) fail("این پلن فعلا ارائه نمی‌شود.");
     if (plan.name === s.plan) fail("سرور همین حالا روی این پلن است.");
     const [cpu, ram, planDisk] = nums;
-    // the disk never shrinks: a smaller plan keeps the current disk and pays for the difference
-    const disk = Math.max(planDisk, s.disk);
+    // the disk never shrinks: a smaller plan keeps the current disk and pays for the difference; a split disk
+    // (../virt/layout.ts) keeps its other disks and the primary takes the change
+    const cur = await primaryFor(ctx.db, s, 0);
+    const disk = Math.max(planDisk, cur.allowance);
+    const lay = await primaryFor(ctx.db, s, disk);
     const prices = await vpsPrices(ctx.db);
     const price = plan.price + (disk - planDisk) * prices.diskGb;
-    await (await virt()).manage(vps(s), { cores: cpu, ram: ram * 1024, space: disk });
-    await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk, price }).where(eq(servers.id, s.id));
+    await (await virt()).manage(vps(s), { cores: cpu, ram: ram * 1024, space: lay.primary });
+    await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk: lay.primary, price }).where(eq(servers.id, s.id));
+    if (lay.split) await saveAllowance(ctx.db, s.id, disk);
     if (s.billing === "monthly" && s.paidUntil) {
       const days = Math.max(0, Math.ceil((s.paidUntil.getTime() - Date.now()) / 86400_000));
       const diff = Math.round(((price - s.price) * days) / 30 / 1000) * 1000;
