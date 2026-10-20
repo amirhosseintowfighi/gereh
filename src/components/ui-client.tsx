@@ -516,38 +516,54 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
 }
 
 export type MenuItem = { icon: string; label: string; run: () => unknown; danger?: boolean; dot?: boolean } | "-" | false | null | undefined;
-/** click-away popover menu; the trigger is rendered as its own button */
+/** click-away popover menu; the trigger is rendered as its own button. The popover is portalled to <body>
+    with fixed coordinates: inside a glass card (its own stacking context) the next card would paint over it,
+    and a trigger near the screen edge would push it off-screen. It opens upward when there is no room below. */
 export function Menu({ trigger, label, items, align = "left", triggerClass = "", width = "min-w-[220px]" }: { trigger: React.ReactNode; label: string; items: MenuItem[]; align?: "left" | "right"; triggerClass?: string; width?: string }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
-  // keep the popover inside the screen: on phones a trigger near the edge would push it off-screen
   useLayoutEffect(() => {
-    const el = pop.current;
-    if (!open || !el) return;
-    el.style.translate = "";
-    const r = el.getBoundingClientRect(), vw = document.documentElement.clientWidth, m = 8;
-    const dx = r.right > vw - m ? vw - m - r.right : r.left < m ? m - r.left : 0;
-    if (dx) el.style.translate = Math.round(dx) + "px 0";
-  }, [open]);
+    if (!open) return;
+    const place = () => {
+      const t = btn.current?.getBoundingClientRect(), el = pop.current;
+      if (!t || !el) return;
+      const vw = document.documentElement.clientWidth, vh = window.innerHeight, m = 8, w = el.offsetWidth, h = el.offsetHeight;
+      const left = Math.min(Math.max(m, align === "left" ? t.left : t.right - w), vw - m - w);
+      const below = t.bottom + 8, above = t.top - 8 - h;
+      setPos({ left: Math.round(left), top: Math.round(below + h > vh - m && above > m ? above : below) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open, align]);
   useEffect(() => {
     if (!open) return;
-    const f = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("pointerdown", f); document.addEventListener("keydown", k);
-    return () => { document.removeEventListener("pointerdown", f); document.removeEventListener("keydown", k); };
+    const inside = (n: EventTarget | null) => !!n && (ref.current?.contains(n as Node) || pop.current?.contains(n as Node));
+    const f = (e: PointerEvent) => { if (!inside(e.target)) setOpen(false); };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); btn.current?.focus(); } };
+    // the popover is fixed: close it when the page (not the menu itself) scrolls
+    const sc = (e: Event) => { if (!inside(e.target)) setOpen(false); };
+    document.addEventListener("pointerdown", f); document.addEventListener("keydown", k); window.addEventListener("scroll", sc, true);
+    return () => { document.removeEventListener("pointerdown", f); document.removeEventListener("keydown", k); window.removeEventListener("scroll", sc, true); };
   }, [open]);
+  const toggle = () => { setPos(null); setOpen((o) => !o); };
   return (
     <div ref={ref} className="relative inline-block" onClick={(e) => e.stopPropagation()}>
-      <button type="button" aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={triggerClass}>{trigger}</button>
+      <button ref={btn} type="button" aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open} onClick={toggle} className={triggerClass}>{trigger}</button>
       {open && (
-        <div ref={pop} role="menu" className={"pop-in absolute z-50 top-full mt-2 " + width + " max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl p-1.5 " + (align === "left" ? "left-0" : "right-0")}>
-          {items.filter(Boolean).map((it, i) => it === "-" ? <div key={i} className="h-px bg-white/[0.08] my-1.5" /> : it && (
-            <button type="button" role="menuitem" key={i} onClick={() => { setOpen(false); it.run(); }} className={"w-full flex items-center gap-2.5 px-3 min-h-10 py-2 rounded-xl text-sm leading-6 text-right hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " + (it.danger ? "text-rose-300" : "text-white/85")}>
-              <Icon name={it.icon} size={16} className={"shrink-0 " + (it.danger ? "" : "text-white/55")} /><span className="flex-1 min-w-0">{it.label}</span>{it.dot && <span className="w-2 h-2 rounded-full bg-[#9cc9ff] shrink-0" aria-label="خوانده‌نشده" />}
-            </button>
-          ))}
-        </div>
+        <Portal>
+          <div ref={pop} role="menu" aria-label={label} onClick={(e) => e.stopPropagation()} style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
+            className={"pop-in fixed z-[90] " + width + " max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto overscroll-contain rounded-2xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl p-1.5"}>
+            {items.filter(Boolean).map((it, i) => it === "-" ? <div key={i} className="h-px bg-white/[0.08] my-1.5" /> : it && (
+              <button type="button" role="menuitem" key={i} onClick={() => { setOpen(false); it.run(); }} className={"w-full flex items-center gap-2.5 px-3 min-h-10 py-2 rounded-xl text-sm leading-6 text-right hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " + (it.danger ? "text-rose-300" : "text-white/85")}>
+                <Icon name={it.icon} size={16} className={"shrink-0 " + (it.danger ? "" : "text-white/55")} /><span className="flex-1 min-w-0">{it.label}</span>{it.dot && <span className="w-2 h-2 rounded-full bg-[#9cc9ff] shrink-0" aria-label="خوانده‌نشده" />}
+              </button>
+            ))}
+          </div>
+        </Portal>
       )}
     </div>
   );
