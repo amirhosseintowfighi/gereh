@@ -8,7 +8,7 @@ import { BILLING, CLOUD_SPECS, HOSTING, LOCS, OSES, VPS, type Plan, type Sku } f
 import { toEnDigits } from "@/lib/format";
 import { addMonths } from "@/lib/jalali";
 import type { DB, Tx } from "../db/client";
-import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users } from "../db/schema";
+import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users, vpsSync } from "../db/schema";
 import { enqueue } from "../jobs";
 import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
@@ -133,6 +133,8 @@ export async function provisionServer(db: DB, p: Payload) {
       id: sid, userId: u.id, name: vmName, plan: spec.name, cpu: spec.cpu, ram: spec.ram, disk: spec.disk, loc: sku.loc, os: spec.tpl?.name ?? spec.osLabel,
       status: "provisioning", price: spec.price, billing: spec.hourly ? "hourly" : "monthly", backups: sku.t === "custom" && sku.backup, hostname: vmName + ".gereh.net",
       app: (sku as { app?: string }).app ?? "", orderRef: ref(p),
+      // the traffic the customer bought (0 = unlimited), not the column's default; the sync then keeps it equal to Virtualizor's limit
+      ...(spec.cpu > 0 ? { bwLimit: spec.traffic } : {}),
     }).onConflictDoNothing();
     [row] = await db.select().from(servers).where(eq(servers.orderRef, ref(p)));
     if (row.id === sid) {
@@ -169,7 +171,10 @@ export async function provisionServer(db: DB, p: Payload) {
         vpsid: created.vpsid, ip: created.ip, ipv6: created.ipv6, vncHost: created.vncHost, vncPort: created.vncPort, vncPassword: created.vncPassword,
         status: "building", provisionError: null, cpu: spec.cpu || row.cpu, ram: spec.ram || row.ram, disk: spec.disk || row.disk, os: spec.tpl!.name,
         paidUntil: spec.hourly ? null : addMonths(new Date(), spec.months),
+        ...(spec.cpu > 0 ? { bwLimit: spec.traffic } : {}),
       }).where(eq(servers.id, sid));
+      // the limit sent with addvs is the site's own (an adopted VPS keeps whatever Virtualizor has)
+      if (spec.cpu > 0 && !existing) await tx.insert(vpsSync).values({ serverId: sid, bwPushed: spec.traffic }).onConflictDoUpdate({ target: vpsSync.serverId, set: { bwPushed: spec.traffic } });
       await addTask(tx, sid, "ساخت VPS", "running", 10);
       if (spec.hourly) {
         // the prepaid month becomes wallet credit; usage is then charged hourly (billing.hourly)

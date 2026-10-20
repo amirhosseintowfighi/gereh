@@ -31,14 +31,16 @@ export function ServerDetail({ id }: { id: string }) {
   if (!s) return <Card><Empty icon="server" title="سرور پیدا نشد" text="ممکن است حذف شده باشد یا به حساب دیگری تعلق داشته باشد." action={<Link href="/panel/servers" className={BTN_G + BTN_MD}>بازگشت به فهرست</Link>} /></Card>;
   if (!s.vpsid) return <ServerPending s={s} />;
   const suspended = s.status === "suspended";
-  const tabs = suspended ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
+  // gone from Virtualizor (sync): only inspection until staff sort it out
+  const missing = s.status === "missing";
+  const tabs = suspended || missing ? TABS.filter((t) => READONLY_TABS.has(t.id)) : TABS;
   const cur = tabs.some((t) => t.id === tab) ? tab : "overview";
   const power = async (a: "start" | "stop" | "reboot", m: string) => { await api.servers.power(s.id, a); notify(m, "circle-check"); };
   return (
     <div>
       <PageTitle back={["/panel/servers", "سرورهای ابری"]} title={<span className="ltr inline-block">{s.name}</span>}
         sub={<span className="flex flex-wrap items-center gap-x-4 gap-y-1"><StatusBadge s={s.status} /><CopyText text={s.ip} className="mono text-xs text-white/60" /><span>{locLabel(s.loc)}</span><span>{s.os}</span></span>}
-        action={suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <>
+        action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge> : <>
           {s.status !== "running" && <AsyncButton onClick={() => power("start", "سرور روشن شد")}><Icon name="play" size={16} /> روشن کردن</AsyncButton>}
           {s.status === "running" && <AsyncButton className={BTN_G + BTN_MD} confirmText="سرور ری‌استارت شود؟" onClick={() => power("reboot", "سرور ری‌استارت شد")}><Icon name="refresh-cw" size={16} /> ری‌استارت</AsyncButton>}
           {s.status === "running" && <AsyncButton danger confirmText="سرور خاموش شود؟ سرویس‌های در حال اجرا متوقف می‌شوند." onClick={() => power("stop", "سرور خاموش شد")}><Icon name="pause" size={16} /> خاموش</AsyncButton>}
@@ -92,6 +94,26 @@ function AlertsCard({ s }: { s: Server }) {
   );
 }
 
+/** 2000 → «۲ ترابایت», 500 → «۵۰۰ گیگ» */
+const gbText = (gb: number) => (gb >= 1000 && gb % 100 === 0 ? fa(gb / 1000) + " ترابایت" : fa(gb) + " گیگ");
+
+/** when the specs were last read from Virtualizor, the latest change found, and a manual sync */
+function SyncLine({ s }: { s: Server }) {
+  const { notify } = useApp();
+  return (
+    <div className="mt-5 pt-4 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-3 text-[11px] text-white/55">
+      <div className="leading-6 min-w-0">
+        <div>{s.sync?.at ? "آخرین همگام‌سازی با زیرساخت: " + s.sync.at : "هنوز با زیرساخت همگام نشده است."}</div>
+        {s.sync?.last && <div className="text-white/70 [overflow-wrap:anywhere]">آخرین تغییر: {s.sync.last} ({s.sync.lastAt})</div>}
+      </div>
+      <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} onClick={async () => {
+        const r = await api.servers.sync(s.id);
+        notify(r.state === "missing" ? "این سرور در زیرساخت پیدا نشد؛ تیم فنی بررسی می‌کند" : r.changes.length ? "به‌روز شد: " + r.changes.join("، ") : "مشخصات به‌روز است", "refresh-cw");
+      }}><Icon name="refresh-cw" size={13} /> همگام‌سازی از Virtualizor</AsyncButton>
+    </div>
+  );
+}
+
 function Overview({ s }: { s: Server }) {
   const u = s.usage;
   const last = u.at(-1);
@@ -107,11 +129,14 @@ function Overview({ s }: { s: Server }) {
         <dl className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
           {([["شناسه VPS", <span key="v" className="mono">{s.vpsid}</span>], ["Hostname", <span key="h" className="mono text-xs ltr break-all">{s.hostname}</span>], ["پلن", s.plan], ["پردازنده", fa(s.cpu) + " هسته"], ["حافظه", fa(s.ram) + " گیگابایت"], ["دیسک", fa(s.disk) + " گیگ NVMe"], ["سیستم‌عامل", s.os], ["موقعیت", locLabel(s.loc)], ["تاریخ ساخت", s.created], ["هزینه ماهانه", toman(s.price)]] as [string, React.ReactNode][]).map(([k, v]) => <div key={k}><dt className="text-white/55 text-xs">{k}</dt><dd className="mt-1 font-medium">{v}</dd></div>)}
         </dl>
+        <SyncLine s={s} />
       </Card>
       <Card title="مصرف منابع" icon="gauge">
         <div className="space-y-5">
           {last ? <Meter label="فضای دیسک" value={last.disk} right={fa(Math.round(last.disk)) + "٪ از " + fa(s.disk) + " گیگ"} /> : <Meter label="فضای دیسک" value={0} right={"— از " + fa(s.disk) + " گیگ"} />}
-          <Meter label="ترافیک ماهانه" value={last?.bwUsed ?? 0} max={s.bwLimit} right={fa(Math.round(last?.bwUsed ?? 0)) + " از " + fa(s.bwLimit) + " گیگ"} />
+          {/* quota and usage as synced from Virtualizor (bwLimit = plan + packs, 0 = unlimited) */}
+          {s.bwLimit > 0 ? <Meter label="ترافیک ماهانه" value={s.bwUsed ?? last?.bwUsed ?? 0} max={s.bwLimit} right={fa(Math.round(s.bwUsed ?? last?.bwUsed ?? 0)) + " از " + gbText(s.bwLimit)} />
+            : <Meter label="ترافیک ماهانه" value={0} right={fa(Math.round(s.bwUsed ?? last?.bwUsed ?? 0)) + " گیگ، نامحدود"} />}
           <Meter label="اسنپ‌شات‌ها" value={s.snapshots.length} max={SNAP_LIMIT} right={fa(s.snapshots.length) + " از " + fa(SNAP_LIMIT)} />
         </div>
       </Card>
@@ -230,7 +255,7 @@ function ServerNetwork({ s }: { s: Server }) {
           <div className="flex justify-between items-center"><dt className="text-white/50">IPv4 اصلی</dt><dd><CopyText text={s.ip} className="mono" /></dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">IPv6</dt><dd>{s.ipv6 ? <CopyText text={s.ipv6} className="mono text-xs" /> : <span className="text-white/55">—</span>}</dd></div>
           <div className="flex justify-between items-center"><dt className="text-white/50">دروازه</dt><dd className="mono ltr">{s.ip.split(".").slice(0, 3).join(".")}.1</dd></div>
-          <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>۱ گیگابیت بر ثانیه</dd></div>
+          <div className="flex justify-between items-center"><dt className="text-white/50">پهنای باند</dt><dd>{s.sync?.netSpeed ? fa(Math.round((s.sync.netSpeed * 8) / 1024)) + " مگابیت بر ثانیه" : "۱ گیگابیت بر ثانیه"}</dd></div>
         </dl>
         <button type="button" onClick={() => addToCart({ t: "ip", serverId: s.id, serverName: s.name })} className={BTN_G + BTN_MD + " mt-6"}><Icon name="plus" size={16} /> خرید IPv4 اضافه ({toman(IP_PRICE)})</button>
       </Card>

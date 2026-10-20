@@ -3,7 +3,8 @@
 export type VpsExtrasView = {
   prices: { ip: number; diskGb: number; snapshotGb: number; packGb: number; packPrice: number; maxIps: number; maxDisks: number; maxDiskGb: number };
   ips: { id: string; ip: string; rdns: string; price: number; primary: boolean }[];
-  disks: { id: string; name: string; sizeGb: number; slot: number | null; serverId: string | null; at: string }[];
+  /** billed false: added by hand in Virtualizor (synced), shown but not charged */
+  disks: { id: string; name: string; sizeGb: number; slot: number | null; serverId: string | null; at: string; billed: boolean }[];
   /** detached volumes in the same location that could be attached here */
   spareDisks: { id: string; name: string; sizeGb: number }[];
   schedule: { frequency: "daily" | "weekly"; retention: number; hour: number; weekday: number; active: boolean; next: string; last: string } | null;
@@ -46,7 +47,7 @@ export function methodLevel(method: string): Exclude<PermLevel, "none"> {
   const verb = method.split(".")[1] ?? "";
   if (/^(list|get|inspect|stats|logs?$|logSearch|overview|metrics|report|extras|instances|disks$|releases|deployment$|job$|scanReport|runtime|consoleHistory|fsList|fsRead|fsSearch|objects|domain$|messages|message$|chats|chatGet|quote|check|envFile|roles)/.test(verb)) return "view";
   if (/deploy|redeploy|rollback|release|build|promote|preview|import|upload|^setEnv|^env/i.test(verb)) return "deploy";
-  if (/power|start|stop|restart|reboot|scale|console|snapshot|backup|restore|rescue|vnc|reset|mount|iso|boot|traffic|purge|flush|exec|run|sftp|^fs|hostname|password|pass$|rule|reply|open|close/i.test(verb)) return "operate";
+  if (/power|start|stop|restart|reboot|scale|console|snapshot|backup|restore|rescue|vnc|reset|mount|iso|boot|traffic|purge|flush|exec|run|sftp|^fs|hostname|password|pass$|rule|reply|open|close|^sync$/i.test(verb)) return "operate";
   return "manage";
 }
 export const levelAllows = (have: PermLevel | undefined, need: PermLevel) => PERM_LEVELS.indexOf(have ?? "none") >= PERM_LEVELS.indexOf(need);

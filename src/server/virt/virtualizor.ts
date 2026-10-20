@@ -4,7 +4,7 @@
    auth parameter style is configurable for that reason (VIRTUALIZOR_AUTH=adminapikey|apikey). */
 import "server-only";
 import { Agent, fetch } from "undici";
-import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsInfo, VpsLive } from "./driver";
+import type { CreateVps, PowerAction, VirtDriver, VncInfo, VpsDetail, VpsInfo, VpsLive } from "./driver";
 
 type Dict = Record<string, string | number | boolean | (string | number)[] | undefined>;
 export type VirtConfig = { host: string; key: string; pass: string; adminPort?: number; enduserPort?: number; tlsStrict?: boolean; auth?: "adminapikey" | "apikey" };
@@ -38,6 +38,39 @@ export function explainFetchError(e: unknown, host: string, port: number): strin
 /** Virtualizor's `error` is a string, an array or a {code: message} map (sometimes nested); keeps every message */
 const flatErrors = (d: unknown): string[] =>
   d && typeof d === "object" ? Object.values(d as Record<string, unknown>).flatMap(flatErrors) : d === undefined || d === null || d === "" ? [] : [String(d)];
+
+const values = (x: unknown): unknown[] => (Array.isArray(x) ? x : x && typeof x === "object" ? Object.values(x) : x === undefined || x === null || x === "" ? [] : [x]);
+const toGb = (size: unknown, unit: unknown) => {
+  const n = Number(size) || 0, u = String(unit ?? "G").toUpperCase();
+  return Math.round(u.startsWith("M") ? n / 1024 : u.startsWith("T") ? n * 1024 : n);
+};
+/** disks as a list or a map of {num|disk_num, size, size_unit, primary} (verify); primary first */
+export function parseDisks(raw: unknown): VpsDetail["disks"] {
+  const list = values(raw).filter((d): d is Record<string, unknown> => !!d && typeof d === "object").map((d, i) => {
+    const slot = Number(d.num ?? d.disk_num ?? d.slot ?? i) || 0;
+    return { slot, sizeGb: toGb(d.size ?? d.disk_size, d.size_unit), primary: Number(d.primary ?? (slot === 0 ? 1 : 0)) === 1 };
+  }).filter((d) => d.sizeGb > 0);
+  return list.sort((a, b) => Number(b.primary) - Number(a.primary) || a.slot - b.slot);
+}
+/** one act=vs entry (+ its vs_status) → VpsDetail; field names (verify) */
+export function parseDetail(v: Record<string, unknown>, vpsid: number, disks: VpsDetail["disks"], live?: VpsLive): VpsDetail {
+  const str = (k: string) => (v[k] === undefined || v[k] === null ? "" : String(v[k]));
+  const num = (k: string) => Number(v[k] ?? 0) || 0;
+  const ips = [...values(v.ips), ...values(v.ips6), ...values(v.ipv6)].map(String).map((x) => x.trim()).filter(Boolean);
+  const suspended = num("suspended") === 1 || live?.status === "suspended";
+  const st = Number(v.status ?? 1);
+  return {
+    vpsid, uid: num("uid"), hostname: str("hostname"),
+    cores: num("cores") || num("cpu_cores"), ramMb: num("ram"),
+    disks: disks.length ? disks : num("space") ? [{ slot: 0, sizeGb: Math.round(num("space")), primary: true }] : [],
+    ipv4: [...new Set(ips.filter((x) => !x.includes(":")))], ipv6: [...new Set(ips.filter((x) => x.includes(":")))],
+    bwLimit: Math.round(v.bandwidth !== undefined ? num("bandwidth") : live?.bwLimit ?? 0), bwUsed: live ? live.bwUsed : v.used_bandwidth !== undefined ? num("used_bandwidth") : -1,
+    osid: num("osid"), osName: str("os_name"), plid: num("plid"), serverId: num("serid"), serverName: str("server_name"),
+    status: suspended ? "suspended" : live ? live.status : st === 0 ? "stopped" : "running", suspendReason: suspended ? str("suspend_reason") : "",
+    netSpeed: num("network_speed"),
+    vnc: num("vncport") ? { port: num("vncport"), password: str("vnc_passwd") } : null,
+  };
+}
 
 export class VirtualizorError extends Error {
   constructor(public act: string, public details: unknown) {
@@ -222,6 +255,35 @@ export class VirtualizorDriver implements VirtDriver {
     const j = await this.admin<{ vs?: Record<string, Record<string, unknown>> }>("vs", { vpsid });
     const v = j.vs?.[vpsid] ?? Object.values(j.vs ?? {}).find((x) => Number(x.vpsid) === vpsid);
     return v ? this.info(v, vpsid) : null;
+  }
+  /* The authoritative per-VPS read for the sync (./sync.ts): act=vs filtered by vpsid (verify) for the
+     configuration, IPs and plan/node; one vs_status call per batch for the power state and this month's used
+     bandwidth; disks from the listing or, when it has none, act=managevps read without editvps (verify).
+     3.x responses vary, so every field is read defensively. */
+  async details(vpsids: number[]) {
+    const out = new Map<number, VpsDetail | null>();
+    if (!vpsids.length) return out;
+    const live = new Map((await this.status(vpsids).catch(() => [] as VpsLive[])).map((l) => [l.vpsid, l]));
+    const one = async (vpsid: number) => {
+      const j = await this.admin<{ vs?: Record<string, Record<string, unknown>> }>("vs", { vpsid });
+      const list = Object.values(j.vs ?? {});
+      const v = j.vs?.[vpsid] ?? list.find((x) => Number(x.vpsid) === vpsid);
+      if (!v) {
+        // an empty answer to the vpsid filter means it is gone; a list without it may be a filter this version
+        // ignores (one page of all VPSs), which proves nothing
+        if (!list.length) out.set(vpsid, null);
+        return;
+      }
+      let disks = parseDisks(v.disks ?? v.disk);
+      if (!disks.length) {
+        const m = await this.admin<{ vps?: Record<string, unknown>; disks?: unknown }>("managevps", { vpsid }).catch(() => ({} as { vps?: Record<string, unknown>; disks?: unknown }));
+        disks = parseDisks(m.vps?.disks ?? m.disks);
+      }
+      out.set(vpsid, parseDetail(v, vpsid, disks, live.get(vpsid)));
+    };
+    // a few at a time; a VPS whose call fails is simply not answered this round
+    for (let i = 0; i < vpsids.length; i += 4) await Promise.all(vpsids.slice(i, i + 4).map((id) => one(id).catch(() => undefined)));
+    return out;
   }
   /** act=vs filtered by vpshostname (verify); exact match only */
   async findVps(hostname: string, uid?: number) {

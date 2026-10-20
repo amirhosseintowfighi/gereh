@@ -111,8 +111,9 @@ export async function hourly(db: DB) {
       await enqueue(db, "notify.send", { userId: s.userId, kind: "billing", subject: "اتمام موجودی", text: "موجودی کیف پول برای سرور ساعتی " + s.name + " کافی نیست و سرور معلق شد. کیف پول را شارژ کنید تا سرور فعال شود." });
     }
   }
-  // credit returned → reactivate suspended hourly servers
-  for (const s of await db.select().from(servers).where(and(eq(servers.billing, "hourly"), eq(servers.status, "suspended")))) {
+  // credit returned → reactivate suspended hourly servers (only ones the site suspended: a suspension an admin
+  // made by hand in Virtualizor, picked up by the sync, has no suspendedAt and stays)
+  for (const s of await db.select().from(servers).where(and(eq(servers.billing, "hourly"), eq(servers.status, "suspended"), isNotNull(servers.suspendedAt)))) {
     const [u] = await db.select({ balance: users.balance }).from(users).where(eq(users.id, s.userId));
     if (u && u.balance >= s.price / 720 * 24) {
       if (s.vpsid) await (await virt()).unsuspend(s.vpsid);

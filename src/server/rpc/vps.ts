@@ -1,7 +1,7 @@
 /* Cloud-server extras: additional IPv4 with PTR, network reset, extra disks, snapshot schedules,
    the noVNC console, traffic packs, plan changes while stopped and reusable firewall groups. */
 import "server-only";
-import { and, asc, count, desc, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
 import { z } from "zod";
 import { PLAN_NUMS, type Plan } from "@/lib/catalog";
 import { faDate, faDateTime } from "@/lib/jalali";
@@ -10,6 +10,7 @@ import { debit, monthKey, needBudget, perHour, vpsPrices } from "../billing-extr
 import { method, needUser, type Ctx } from "../ctx";
 import { fwGroups, fwGroupServers, plans, servers, snapshots, subWallets, users, vpsDisks, vpsIps, vpsSnapSchedules, vpsTraffic, vpsTrafficDaily, walletLinks } from "../db/schema";
 import { virt } from "../virt/driver";
+import { markPushed, quotaOf, requestSync } from "../virt/sync";
 import { addTask, fail, logActivity, rid } from "../util";
 import { server, vps } from "./servers";
 
@@ -65,8 +66,8 @@ export const vpsRpc = {
     const s = await server(ctx, sid, { write: false });
     const prices = await vpsPrices(ctx.db);
     const [ips, disks, spare, [sched], snaps, groups, links, [link]] = await Promise.all([
-      ctx.db.select().from(vpsIps).where(eq(vpsIps.serverId, s.id)).orderBy(asc(vpsIps.createdAt)),
-      ctx.db.select().from(vpsDisks).where(eq(vpsDisks.serverId, s.id)).orderBy(asc(vpsDisks.createdAt)),
+      ctx.db.select().from(vpsIps).where(and(eq(vpsIps.serverId, s.id), isNull(vpsIps.goneAt))).orderBy(asc(vpsIps.createdAt)),
+      ctx.db.select().from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), isNull(vpsDisks.goneAt))).orderBy(asc(vpsDisks.slot), asc(vpsDisks.createdAt)),
       ctx.db.select().from(vpsDisks).where(and(eq(vpsDisks.userId, s.userId), isNull(vpsDisks.serverId), eq(vpsDisks.loc, s.loc))),
       ctx.db.select().from(vpsSnapSchedules).where(eq(vpsSnapSchedules.serverId, s.id)),
       ctx.db.select({ size: snapshots.size }).from(snapshots).where(eq(snapshots.serverId, s.id)),
@@ -77,15 +78,16 @@ export const vpsRpc = {
     const t = await trafficRow(ctx.db, s.id);
     const days = await ctx.db.select().from(vpsTrafficDaily).where(and(eq(vpsTrafficDaily.serverId, s.id), like(vpsTrafficDaily.day, t.month + "-%"))).orderBy(asc(vpsTrafficDaily.day));
     const snapshotGb = snaps.reduce((a, x) => a + x.size, 0);
-    const addonsMonthly = ips.reduce((a, x) => a + x.price, 0) + disks.reduce((a, d) => a + d.sizeGb * prices.diskGb, 0) + Math.round(snapshotGb * prices.snapshotGb);
+    const addonsMonthly = ips.reduce((a, x) => a + x.price, 0) + disks.reduce((a, d) => a + (d.billed ? d.sizeGb * prices.diskGb : 0), 0) + Math.round(snapshotGb * prices.snapshotGb);
     return {
       prices,
       ips: [{ id: "primary", ip: s.ip, rdns: s.rdns, price: 0, primary: true }, ...ips.map((x) => ({ id: x.id, ip: x.ip, rdns: x.rdns, price: x.price, primary: false }))],
-      disks: disks.map((d) => ({ id: d.id, name: d.name, sizeGb: d.sizeGb, slot: d.slot, serverId: d.serverId, at: faDate(d.createdAt) })),
+      disks: disks.map((d) => ({ id: d.id, name: d.name, sizeGb: d.sizeGb, slot: d.slot, serverId: d.serverId, at: faDate(d.createdAt), billed: d.billed })),
       spareDisks: spare.map((d) => ({ id: d.id, name: d.name, sizeGb: d.sizeGb })),
       schedule: sched ? { frequency: sched.frequency, retention: sched.retention, hour: sched.hour, weekday: sched.weekday, active: sched.active, next: faDateTime(sched.nextRunAt), last: sched.lastRunAt ? faDateTime(sched.lastRunAt) : "" } : null,
       snapshotGb: +snapshotGb.toFixed(1),
-      traffic: { month: t.month, planGb: s.bwLimit, extraGb: t.extraGb, quotaGb: s.bwLimit + t.extraGb, packs: t.packs, usedGb: +t.usedGb.toFixed(1), autoBuy: t.autoBuy, days: days.map((d) => ({ day: d.day, inGb: +(d.inMb / 1024).toFixed(2), outGb: +(d.outMb / 1024).toFixed(2) })) },
+      // the synced quota: Virtualizor's limit (see ../virt/sync.ts), never the catalog's text
+      traffic: { month: t.month, planGb: s.bwLimit, extraGb: t.extraGb, quotaGb: quotaOf(s.bwLimit, t.extraGb), packs: t.packs, usedGb: +t.usedGb.toFixed(1), autoBuy: t.autoBuy, days: days.map((d) => ({ day: d.day, inGb: +(d.inMb / 1024).toFixed(2), outGb: +(d.outMb / 1024).toFixed(2) })) },
       groups: groups.map((g) => ({ id: g.id, name: g.name, rules: g.rules, attached: links.some((l) => l.fw_group_servers.groupId === g.id && l.fw_group_servers.serverId === s.id), servers: links.filter((l) => l.fw_group_servers.groupId === g.id).length })),
       wallet: link ?? null,
       addonsMonthly,
@@ -96,7 +98,7 @@ export const vpsRpc = {
   "servers.addIp": method(z.tuple([id]), async (ctx, [sid]) => {
     const s = await server(ctx, sid);
     const p = await vpsPrices(ctx.db);
-    const extra = await ctx.db.select().from(vpsIps).where(eq(vpsIps.serverId, s.id));
+    const extra = await ctx.db.select().from(vpsIps).where(and(eq(vpsIps.serverId, s.id), isNull(vpsIps.goneAt)));
     if (extra.length >= p.maxIps) fail("حداکثر " + p.maxIps.toLocaleString("fa-IR") + " IPv4 اضافه برای هر سرور.");
     await needCredit(ctx, s.userId, p.ip);
     await needBudget(ctx.db, s.userId, "vps", perHour(p.ip) * 24);
@@ -104,15 +106,18 @@ export const vpsRpc = {
     const all = await (await virt()).setIps(vps(s), keep, keep.length + 1);
     const ip = all.find((x) => !keep.includes(x));
     if (!ip) fail("آدرس آزادی در این موقعیت باقی نمانده است؛ با پشتیبانی تماس بگیرید.");
+    // an address that was on another VPS and removed there by hand (kept as a "gone" row) is taken over
+    await ctx.db.delete(vpsIps).where(and(eq(vpsIps.ip, ip!), isNotNull(vpsIps.goneAt)));
     await ctx.db.insert(vpsIps).values({ id: rid("ip"), serverId: s.id, userId: s.userId, ip: ip!, price: p.ip });
     await addTask(ctx.db, s.id, "افزودن IPv4 " + ip);
     await log(ctx, s.userId, "hash", "افزودن IPv4 اضافه " + ip + " به " + s.name);
+    await requestSync(ctx.db, s.id);
     return ip!;
   }),
 
   "servers.removeIp": method(z.tuple([id, id]), async (ctx, [sid, ipId]) => {
     const s = await server(ctx, sid);
-    const extra = await ctx.db.select().from(vpsIps).where(eq(vpsIps.serverId, s.id));
+    const extra = await ctx.db.select().from(vpsIps).where(and(eq(vpsIps.serverId, s.id), isNull(vpsIps.goneAt)));
     const row = extra.find((x) => x.id === ipId);
     if (!row) fail("آدرس پیدا نشد.", 404);
     const keep = [s.ip, ...extra.filter((x) => x.id !== ipId).map((x) => x.ip)];
@@ -120,6 +125,7 @@ export const vpsRpc = {
     await ctx.db.delete(vpsIps).where(eq(vpsIps.id, row!.id));
     await addTask(ctx.db, s.id, "حذف IPv4 " + row!.ip);
     await log(ctx, s.userId, "hash", "حذف IPv4 اضافه " + row!.ip + " از " + s.name);
+    await requestSync(ctx.db, s.id);
   }),
 
   /** PTR for the primary address ("primary") or an extra one; empty clears it */
@@ -148,7 +154,7 @@ export const vpsRpc = {
     const p = await vpsPrices(ctx.db);
     if (!DISK_NAME_RE.test(d.name)) fail("نام دیسک: حروف کوچک انگلیسی، عدد و خط تیره؛ ۲ تا ۳۰ نویسه.");
     if (d.sizeGb > p.maxDiskGb) fail("حداکثر اندازه هر دیسک " + p.maxDiskGb.toLocaleString("fa-IR") + " گیگابایت است.");
-    const [{ n }] = await ctx.db.select({ n: count() }).from(vpsDisks).where(eq(vpsDisks.serverId, s.id));
+    const [{ n }] = await ctx.db.select({ n: count() }).from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), isNull(vpsDisks.goneAt)));
     if (n >= p.maxDisks) fail("حداکثر " + p.maxDisks.toLocaleString("fa-IR") + " دیسک اضافه برای هر سرور.");
     await needCredit(ctx, s.userId, d.sizeGb * p.diskGb);
     await needBudget(ctx.db, s.userId, "vps", perHour(d.sizeGb * p.diskGb) * 24);
@@ -157,6 +163,7 @@ export const vpsRpc = {
     await ctx.db.insert(vpsDisks).values({ id: diskId, userId: s.userId, serverId: s.id, name: d.name, loc: s.loc, sizeGb: d.sizeGb, slot });
     await addTask(ctx.db, s.id, "افزودن دیسک " + d.name + " (" + d.sizeGb + " GB)");
     await log(ctx, s.userId, "hard-drive", "افزودن دیسک " + d.sizeGb.toLocaleString("fa-IR") + " گیگابایتی به " + s.name);
+    await requestSync(ctx.db, s.id);
     return diskId;
   }),
 
@@ -173,6 +180,7 @@ export const vpsRpc = {
       await addTask(ctx.db, s.id, "افزایش دیسک " + d.name + " به " + sizeGb + " GB");
     }
     await ctx.db.update(vpsDisks).set({ sizeGb }).where(eq(vpsDisks.id, d.id));
+    if (d.serverId) await requestSync(ctx.db, d.serverId);
   }),
 
   "servers.detachDisk": method(z.tuple([id]), async (ctx, [diskId]) => {
@@ -182,6 +190,7 @@ export const vpsRpc = {
     await (await virt()).detachDisk(vps(s), d.slot ?? 1);
     await ctx.db.update(vpsDisks).set({ serverId: null, slot: null }).where(eq(vpsDisks.id, d.id));
     await addTask(ctx.db, s.id, "جدا کردن دیسک " + d.name);
+    await requestSync(ctx.db, s.id);
   }),
 
   "servers.attachDisk": method(z.tuple([id, id]), async (ctx, [diskId, sid]) => {
@@ -191,11 +200,12 @@ export const vpsRpc = {
     if (s.userId !== d.userId) fail("دیسک و سرور باید متعلق به یک حساب باشند.", 403);
     if (s.loc !== d.loc) fail("دیسک فقط به سرورهای همان موقعیت وصل می‌شود.");
     const p = await vpsPrices(ctx.db);
-    const [{ n }] = await ctx.db.select({ n: count() }).from(vpsDisks).where(eq(vpsDisks.serverId, s.id));
+    const [{ n }] = await ctx.db.select({ n: count() }).from(vpsDisks).where(and(eq(vpsDisks.serverId, s.id), isNull(vpsDisks.goneAt)));
     if (n >= p.maxDisks) fail("حداکثر " + p.maxDisks.toLocaleString("fa-IR") + " دیسک اضافه برای هر سرور.");
     const slot = await (await virt()).addDisk(vps(s), d.sizeGb);
     await ctx.db.update(vpsDisks).set({ serverId: s.id, slot }).where(eq(vpsDisks.id, d.id));
     await addTask(ctx.db, s.id, "اتصال دیسک " + d.name);
+    await requestSync(ctx.db, s.id);
   }),
 
   "servers.deleteDisk": method(z.tuple([id, z.string().max(30)]), async (ctx, [diskId, confirm]) => {
@@ -274,6 +284,7 @@ export const vpsRpc = {
     }
     await addTask(ctx.db, s.id, "تغییر پلن به " + plan.name);
     await log(ctx, s.userId, plan.price >= s.price ? "trending-up" : "trending-down", "تغییر پلن سرور " + s.name + " به " + plan.name);
+    await requestSync(ctx.db, s.id);
   }),
 
   /* ---------- firewall groups ---------- */
@@ -315,6 +326,7 @@ export const vpsRpc = {
 
 /** buys one traffic pack from the wallet and raises the hypervisor limit */
 export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why: string) {
+  if (s.bwLimit <= 0) fail("ترافیک این سرور نامحدود است و به بسته نیاز ندارد.");
   const p = await vpsPrices(db);
   const t = await trafficRow(db, s.id);
   await needBudget(db, s.userId, "vps", p.packPrice);
@@ -322,7 +334,12 @@ export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why
   if (!ok) fail("موجودی کیف پول برای بسته ترافیک (" + p.packPrice.toLocaleString("fa-IR") + " تومان) کافی نیست.", 402);
   const extraGb = t.extraGb + p.packGb;
   await db.update(vpsTraffic).set({ extraGb, packs: t.packs + 1, alerted: Math.min(t.alerted, 80), updatedAt: new Date() }).where(eq(vpsTraffic.serverId, s.id));
-  if (s.vpsid) await (await virt()).manage(s.vpsid, { bandwidth: s.bwLimit + extraGb });
+  if (s.vpsid) {
+    await (await virt()).manage(s.vpsid, { bandwidth: quotaOf(s.bwLimit, extraGb) });
+    // the sync then knows this limit is the site's own, not an admin's edit
+    await markPushed(db, s.id, quotaOf(s.bwLimit, extraGb));
+    await requestSync(db, s.id);
+  }
   await addTask(db, s.id, "افزودن " + p.packGb.toLocaleString("fa-IR") + " گیگابایت ترافیک");
 }
 
