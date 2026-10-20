@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, MAINTAIN_MODES, SCAN_EVERY, type MaintainMode, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView } from "@/lib/builder";
+import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, MAINTAIN_MODES, QUALITY_CATEGORIES, SCAN_EVERY, SKILL_TITLES, type MaintainMode, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type QualityReport } from "@/lib/builder";
+import { langLabel, SITE_LANGUAGES } from "@/lib/site-language";
 import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, refresh, useDB, useMyId } from "@/lib/store";
@@ -13,6 +14,7 @@ import { AsyncButton, CodeBlock, Menu, Modal, Select, Switch, Tabs, useMedia } f
 
 const StatusTag = ({ s }: { s: string }) => { const [l, t] = PROJECT_STATUS[s] ?? [s, "gray"]; return <Badge tone={t} dot>{l}</Badge>; };
 const useChatModels = () => useDB().ai.models.filter((m) => m.kind === "chat" && m.active);
+const LANGUAGE_OPTIONS = [{ value: "auto", label: "زبان: خودکار" }, ...SITE_LANGUAGES.map((l) => ({ value: l.id, label: l.label + " · " + l.native }))];
 
 /* ================= projects + the idea box ================= */
 export function BuildHome() {
@@ -22,6 +24,7 @@ export function BuildHome() {
   const [prompt, setPrompt] = useState("");
   const [stack, setStack] = useState<"auto" | "static" | "node">("auto");
   const [model, setModel] = useState(BUILDER_DEFAULT_MODEL);
+  const [language, setLanguage] = useState("auto");
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<BuilderProjectSummary[] | null>(null);
   useEffect(() => { api.builder.list().then(setList).catch(() => setList([])); }, []);
@@ -32,7 +35,7 @@ export function BuildHome() {
     if (text.length < 3 || busy) { if (!busy) notify("ایده‌تان را در یک یا دو جمله بنویسید", "circle-alert"); return; }
     setBusy(true);
     try {
-      const id = await api.builder.create({ prompt: text, stack, model: modelId });
+      const id = await api.builder.create({ prompt: text, stack, model: modelId, language });
       router.push(("/panel/build/" + id) as never);
     } catch (e) { notify((e as Error).message, "circle-alert"); setBusy(false); }
   };
@@ -54,6 +57,7 @@ export function BuildHome() {
             <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs size="sm" label="نوع پروژه" value={stack} onChange={(v) => setStack(v as typeof stack)} options={[{ id: "auto", label: "خودکار" }, ...BUILDER_STACKS.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))]} />
+                <div className="w-40 max-w-full"><Select label="زبان سایت" value={language} onChange={setLanguage} options={LANGUAGE_OPTIONS} /></div>
                 {models.length > 1 && <div className="w-44 max-w-full"><Select label="مدل" value={modelId} onChange={setModel} options={models.map((m) => ({ value: m.id, label: m.name }))} /></div>}
               </div>
               <button type="button" onClick={() => void start()} disabled={busy} className={BTN_P + BTN_MD}>
@@ -119,7 +123,7 @@ export function BuildStudio({ id }: { id: string }) {
   const [device, setDevice] = useState<Device>("desktop");
   const [showLive, setShowLive] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [modal, setModal] = useState<"" | "deploy" | "versions" | "maintain" | "rename">("");
+  const [modal, setModal] = useState<"" | "deploy" | "versions" | "maintain" | "rename" | "quality">("");
   const abort = useRef<AbortController | null>(null);
   const started = useRef(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -266,6 +270,7 @@ export function BuildStudio({ id }: { id: string }) {
           {v.liveUrl && <a href={v.liveView ?? v.liveUrl} target="_blank" rel="noopener noreferrer" className={BTN_G + BTN_MD + " max-w-[13rem]"} title={v.liveUrl} aria-label={"باز کردن " + v.liveUrl}><Icon name="globe" size={16} className="text-emerald-300" /><span dir="ltr" className="truncate max-sm:hidden">{v.liveUrl.replace("https://", "")}</span></a>}
           <Menu label="بیشتر" triggerClass={BTN_G + " h-10 w-10"} trigger={<Icon name="ellipsis-vertical" size={16} />} items={[
             { icon: "heart-pulse", label: "نگهداری و سلامت", run: () => setModal("maintain") },
+            { icon: "shield-check", label: "زبان سایت و بازبینی کیفیت", run: () => setModal("quality") },
             ...(v.version ? [{ icon: "download", label: "دانلود کد (نسخه فعلی)", run: () => { const a = document.createElement("a"); a.href = "/api/build/download/" + v.id; a.download = ""; a.click(); } }] : []),
             { icon: "pencil", label: "تغییر نام", run: () => setModal("rename") },
             v.appId ? { icon: "rocket", label: "مدیریت اپ در گره اپ", run: () => router.push(("/panel/apps/" + v.appId) as never) } : null,
@@ -297,6 +302,7 @@ export function BuildStudio({ id }: { id: string }) {
       <VersionsModal open={modal === "versions"} v={v} onClose={() => setModal("")} onDone={async () => { await load(); setReloadKey((k) => k + 1); }} />
       <MaintainModal key={"m" + v.maintainCap} open={modal === "maintain"} v={v} onClose={() => setModal("")} onDone={load} />
       <RenameModal key={"r" + v.name} open={modal === "rename"} v={v} onClose={() => setModal("")} onDone={load} />
+      <QualityModal open={modal === "quality"} v={v} onClose={() => setModal("")} onDone={load} />
     </div>
   );
 }
@@ -363,12 +369,49 @@ function Message({ m, run, projectId, onChange, links }: { m: BuilderProjectView
           {changed.length > 8 && <li className="text-[10px] text-white/50">و {fa(changed.length - 8)} فایل دیگر</li>}
         </ul>
       )}
+      {run && run.skills.length > 0 && (
+        <ul className="mt-2.5 flex flex-wrap gap-1" aria-label="مهارت‌های به‌کاررفته">
+          {run.skills.map((s) => <li key={s} className="text-[10px] px-1.5 py-0.5 rounded-md bg-violet-400/10 border border-violet-300/20 text-violet-100/80" title={s}>{SKILL_TITLES[s] ?? s}</li>)}
+        </ul>
+      )}
+      {run?.quality && <QualityRow q={run.quality} reviewCost={run.reviewCost} />}
       {run?.kind === "maintain" && run.hasPatch && !run.applied && (
         <AsyncButton className={BTN_P + BTN_SM + " mt-3"} confirmText="وصله پیشنهادی اعمال و نسخه جدید منتشر شود؟" onClick={async () => { await api.builder.applyPatch(projectId, run.id); await onChange(); }}><Icon name="hammer" size={14} />اعمال وصله و انتشار</AsyncButton>
       )}
       {run?.kind === "maintain" && run.applied && <p className="mt-2 text-[11px] text-emerald-300 flex items-center gap-1"><Icon name="circle-check" size={12} />وصله اعمال شد</p>}
       <p className="mt-2 text-[10px] text-white/50">{m.at}</p>
     </div>
+  );
+}
+
+const scoreTone = (n: number) => (n >= 90 ? "green" : n >= 70 ? "amber" : "red");
+/** the quality report of a run: a compact badge row, details on demand */
+function QualityRow({ q, reviewCost }: { q: QualityReport; reviewCost: number }) {
+  const errors = q.findings.filter((f) => f.severity === "error").length;
+  return (
+    <details className="mt-2.5 group rounded-xl bg-black/20 border border-white/[0.08] px-2.5 py-2">
+      <summary className="cursor-pointer list-none flex flex-wrap items-center gap-1.5 text-[11px]">
+        <Icon name="shield-check" size={13} className="text-white/55" />
+        <Badge tone={scoreTone(q.score)}>کیفیت {fa(q.score)}</Badge>
+        {QUALITY_CATEGORIES.map((c) => q.scores[c.id] === null ? null : <span key={c.id} className="inline-flex items-center gap-1 text-white/60" title={c.label}><Icon name={c.icon} size={11} />{fa(q.scores[c.id]!)}</span>)}
+        {q.review?.status === "done" && <span className="text-white/50">· بازبینی{q.review.files.length ? " و اصلاح" : ""} {reviewCost > 0 ? toman(reviewCost) : ""}</span>}
+        <Icon name="chevron-down" size={12} className="ms-auto text-white/50 transition group-open:rotate-180" />
+      </summary>
+      <div className="mt-2 space-y-1.5 text-[11px] leading-5">
+        {q.before && <p className="text-white/60">پیش از بازبینی: امتیاز {fa(q.before.score)}، {fa(q.before.errors)} خطا و {fa(q.before.warnings)} هشدار.</p>}
+        {q.review && <p className="text-white/60">{q.review.status === "done" ? (q.review.files.length ? "بازبینی AI این فایل‌ها را اصلاح کرد: " + q.review.files.join("، ") : "بازبینی AI مشکلی برای اصلاح پیدا نکرد.") : q.review.note}</p>}
+        {q.findings.length === 0 ? <p className="text-emerald-300/90 flex items-center gap-1"><Icon name="circle-check" size={12} />بررسی خودکار مشکلی پیدا نکرد.</p> : (
+          <ul className="space-y-1" aria-label={"یافته‌ها (" + fa(errors) + " خطا)"}>
+            {q.findings.slice(0, 12).map((f) => (
+              <li key={f.rule + f.file} className="flex gap-1.5">
+                <Icon name={f.severity === "error" ? "circle-x" : "triangle-alert"} size={12} className={"shrink-0 mt-1 " + (f.severity === "error" ? "text-rose-300" : "text-amber-200")} />
+                <span className="text-white/70">{f.message}{f.count > 1 ? " (" + fa(f.count) + " مورد)" : ""} <span dir="ltr" className="font-mono text-white/45">{f.file}</span></span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -579,6 +622,25 @@ function MaintainModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
             <AsyncButton className={BTN_G + BTN_MD + " mt-3 w-full"} onClick={async () => { await api.builder.simulateIncident(v.id); await onDone(); onClose(); }}><Icon name="zap" size={16} />شبیه‌سازی خرابی</AsyncButton>
           </div>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+function QualityModal({ open, v, onClose, onDone }: { open: boolean; v: BuilderProjectView; onClose: () => void; onDone: () => unknown }) {
+  const last = v.runs.find((r) => r.quality);
+  return (
+    <Modal open={open} onClose={onClose} title="زبان سایت و بازبینی کیفیت" icon="shield-check" size="max-w-xl">
+      <div className="space-y-5 text-sm leading-7">
+        <Field label="زبان سایت" hint={"اکنون: " + langLabel(v.siteLanguage) + " (" + (v.siteDir === "rtl" ? "راست‌به‌چپ" : "چپ‌به‌راست") + "). در حالت خودکار، زبانی که در درخواست بخواهید یا زبانی که با آن می‌نویسید به کار می‌رود."}>
+          <Select label="زبان سایت" value={v.language} onChange={async (language) => { await api.builder.update(v.id, { language }); await onDone(); }} options={LANGUAGE_OPTIONS} />
+        </Field>
+        <div className="rounded-2xl bg-white/[0.04] border border-white/[0.1] p-4 flex items-start justify-between gap-4">
+          <span><b>بازبینی کیفیت و امنیت با AI</b><span className="block text-xs text-white/50 leading-6">پس از ساخت هر پروژه (و ویرایش‌هایی که خطا دارند) یک بار دیگر کد را از نظر رابط کاربری، دسترس‌پذیری، امنیت، بک‌اند و سرعت بازبینی و اصلاح می‌کند. هزینه آن جدا در هر پیام نمایش داده می‌شود.</span></span>
+          <Switch label="بازبینی کیفیت با AI" on={v.selfReview} onChange={async (selfReview) => { await api.builder.update(v.id, { selfReview }); await onDone(); }} />
+        </div>
+        {last?.quality ? <div><b className="text-xs text-white/55">آخرین گزارش کیفیت ({last.at})</b><QualityRow q={last.quality} reviewCost={last.reviewCost} /></div>
+          : <p className="text-xs text-white/50">هنوز گزارشی ثبت نشده است.</p>}
       </div>
     </Modal>
   );

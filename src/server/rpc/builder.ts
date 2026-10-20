@@ -10,12 +10,14 @@ import { filesAt, ownProject } from "../builder/engine";
 import { applyPatch, maintainProject } from "../builder/maintain";
 import { createProject, listProjects, projectView, restoreVersion, runView, writeFile } from "../builder/service";
 import { faDateTime } from "@/lib/jalali";
+import { dirOf, LANG_RE } from "@/lib/site-language";
 import { paas } from "../paas/driver";
 import { logEvent } from "../paas/runtime";
 import { fail, logActivity } from "../util";
 
 const id = z.string().max(40);
 const stack = z.enum(["auto", "static", "node"]);
+const language = z.string().trim().max(20).refine((s) => s === "auto" || LANG_RE.test(s), "زبان نامعتبر است.");
 
 async function own(ctx: Ctx, projectId: string) {
   const a = needUser(ctx);
@@ -33,7 +35,7 @@ export const builderRpc = {
   "builder.get": method(z.tuple([id]), async (ctx, [projectId]) => projectView(ctx.db, (await own(ctx, projectId)).p)),
 
   /** a new project from an idea; the panel then streams the first generation from /api/build/run */
-  "builder.create": method(z.tuple([z.object({ prompt: z.string().trim().min(3, "ایده را کمی کامل‌تر بنویسید.").max(4000), stack: stack.default("auto"), model: z.string().max(80).optional() })]), async (ctx, [i]) => {
+  "builder.create": method(z.tuple([z.object({ prompt: z.string().trim().min(3, "ایده را کمی کامل‌تر بنویسید.").max(4000), stack: stack.default("auto"), model: z.string().max(80).optional(), language: language.optional() })]), async (ctx, [i]) => {
     const a = needUser(ctx);
     await rateLimit(ctx.db, "builder-create:" + a.uid, 30, 3600);
     if (i.model) await checkModel(ctx, i.model);
@@ -42,10 +44,13 @@ export const builderRpc = {
     return projectId;
   }),
 
-  "builder.update": method(z.tuple([id, z.object({ name: z.string().trim().min(1).max(80).optional(), model: z.string().max(80).optional(), autoMaintain: z.boolean().optional(), maintainCap: z.number().int().min(0).max(50_000_000).optional(), maintainMode: z.enum(["continuous", "incident", "manual"]).optional(), scanEvery: z.union([z.literal(15), z.literal(30), z.literal(60)]).optional() })]), async (ctx, [projectId, patch]) => {
+  "builder.update": method(z.tuple([id, z.object({ name: z.string().trim().min(1).max(80).optional(), model: z.string().max(80).optional(), selfReview: z.boolean().optional(), language: language.optional(), autoMaintain: z.boolean().optional(), maintainCap: z.number().int().min(0).max(50_000_000).optional(), maintainMode: z.enum(["continuous", "incident", "manual"]).optional(), scanEvery: z.union([z.literal(15), z.literal(30), z.literal(60)]).optional() })]), async (ctx, [projectId, patch]) => {
     const { p } = await own(ctx, projectId);
     if (patch.model) await checkModel(ctx, patch.model);
-    await ctx.db.update(builderProjects).set({ ...patch, updatedAt: new Date() }).where(eq(builderProjects.id, p.id));
+    const { language, ...rest } = patch;
+    // a chosen language applies to the next run; "auto" keeps the language the site already has
+    const lang = language === undefined ? {} : language === "auto" ? { languageSetting: "auto" } : { languageSetting: language, siteLanguage: language, siteDir: dirOf(language) };
+    await ctx.db.update(builderProjects).set({ ...rest, ...lang, updatedAt: new Date() }).where(eq(builderProjects.id, p.id));
   }),
 
   /** the project only: a deployed app keeps running and stays in the apps list */

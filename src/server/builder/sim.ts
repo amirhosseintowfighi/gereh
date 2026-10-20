@@ -1,12 +1,15 @@
 /* The builder without an upstream model (no AI_UPSTREAM_KEY: tests, offline demos): deterministic,
-   good-looking Persian projects chosen from the prompt's keywords, keyword-driven edits, fixes for the
-   common build failures and a maintenance diagnosis. The answer uses the same tagged format as a real
-   model, so it goes through the same parser, validation and billing. */
+   good-looking projects chosen from the prompt's keywords (Persian copy for a Persian site, English copy
+   for any other language: the simulator writes no other languages, but the pages still declare the
+   requested lang and dir), keyword-driven edits, fixes for the common build failures, a maintenance
+   diagnosis and the quality self-review. The answer uses the same tagged format as a real model, so it
+   goes through the same parser, validation and billing. */
 import "server-only";
-import type { BuilderStack } from "@/lib/builder";
+import type { BuilderStack, QualityFinding } from "@/lib/builder";
+import { baseLang, dirOf } from "@/lib/site-language";
 import { CDN } from "./assets";
 import { render } from "./format";
-import type { TaskInput } from "./prompt";
+import type { Langs, TaskInput } from "./prompt";
 
 type Item = { icon: string; name: string; desc: string; price?: number; meta?: string };
 type Field = { name: string; label: string; type: "text" | "tel" | "email" | "date" | "select" | "textarea" | "number"; options?: string[]; required?: boolean };
@@ -28,21 +31,152 @@ export const PALETTES: Record<string, string[]> = {
   pink: ["#fdf2f8", "#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777", "#be185d", "#9d174d", "#831843"],
   teal: ["#f0fdfa", "#ccfbf1", "#99f6e4", "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488", "#0f766e", "#115e59", "#134e4a"],
 };
-const COLOR_WORDS: [RegExp, string, string][] = [
-  [/سرمه[‌ ]?ای/, "indigo", "سرمه‌ای"], [/فیروزه[‌ ]?ای/, "teal", "فیروزه‌ای"], [/آبی/, "blue", "آبی"], [/سبز/, "emerald", "سبز"], [/بنفش|یاسی/, "violet", "بنفش"],
-  [/قرمز|زرشکی/, "rose", "قرمز"], [/صورتی/, "pink", "صورتی"], [/نارنجی/, "orange", "نارنجی"], [/طلایی|زرد/, "amber", "طلایی"],
+const COLOR_WORDS: [RegExp, string, string, string][] = [
+  [/سرمه[‌ ]?ای|\bnavy\b|\bindigo\b/i, "indigo", "سرمه‌ای", "navy"], [/فیروزه[‌ ]?ای|\bteal\b|\bturquoise\b/i, "teal", "فیروزه‌ای", "teal"], [/آبی|\bblue\b/i, "blue", "آبی", "blue"], [/سبز|\bgreen\b/i, "emerald", "سبز", "green"], [/بنفش|یاسی|\bpurple\b|\bviolet\b/i, "violet", "بنفش", "purple"],
+  [/قرمز|زرشکی|\bred\b/i, "rose", "قرمز", "red"], [/صورتی|\bpink\b/i, "pink", "صورتی", "pink"], [/نارنجی|\borange\b/i, "orange", "نارنجی", "orange"], [/طلایی|زرد|\bgold(en)?\b|\byellow\b/i, "amber", "طلایی", "gold"],
 ];
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
 const toman = (n: number) => fa(n) + " تومان";
 const TIMES = ["۱۰:۰۰", "۱۱:۰۰", "۱۲:۰۰", "۱۴:۰۰", "۱۵:۰۰", "۱۶:۰۰", "۱۷:۰۰", "۱۸:۰۰", "۱۹:۰۰"];
 
+/* ---------- the two copy languages of the simulator ---------- */
+type Copy = "fa" | "en";
+const copyOf = (lang = "fa"): Copy => (baseLang(lang) === "fa" ? "fa" : "en");
+const UI = {
+  fa: {
+    mainNav: "منوی اصلی", mobileNav: "منوی موبایل", cart: "سبد خرید", menu: "منو", skip: "پرش به محتوا", why: (b: string) => "چرا " + b + "؟", reviews: "مشتریان چه می‌گویند", rating: "امتیاز",
+    address: "نشانی", contactHours: "تماس و ساعت کاری", rights: "همه حقوق محفوظ است.", choose: "انتخاب کنید", cartEmpty: "سبد خرید خالی است؛ از بخش محصولات انتخاب کنید.",
+    phonePattern: "0?9[0-9]{9}", phonePlaceholder: "09121234567", fill: "لطفاً «%s» را کامل کنید.", phoneBad: "شماره موبایل معتبر نیست (مثل ۰۹۱۲۱۲۳۴۵۶۷).", cartNone: "سبد خرید خالی است.",
+    added: "✓ اضافه شد", remove: "حذف", total: "جمع کل: ", saveFail: "ثبت انجام نشد؛ دوباره تلاش کنید.", preview: "پیش‌نمایش: %s (پس از انتشار، اطلاعات در پایگاه داده ذخیره می‌شود.)",
+    serverError: "خطای سرور؛ چند لحظه بعد دوباره تلاش کنید.", required: "همه فیلدهای ضروری را کامل کنید.", phoneServer: "شماره موبایل معتبر نیست.", sending: "در حال ثبت…",
+  },
+  en: {
+    mainNav: "Main menu", mobileNav: "Mobile menu", cart: "Shopping cart", menu: "Menu", skip: "Skip to content", why: (b: string) => "Why " + b + "?", reviews: "What our customers say", rating: "Rating",
+    address: "Address", contactHours: "Contact and hours", rights: "All rights reserved.", choose: "Choose…", cartEmpty: "Your cart is empty; pick something from the products.",
+    phonePattern: "\\+?[0-9 ]{7,20}", phonePlaceholder: "+1 555 123 4567", fill: "Please fill in “%s”.", phoneBad: "Please enter a valid phone number (like +1 555 123 4567).", cartNone: "Your cart is empty.",
+    added: "✓ Added", remove: "Remove", total: "Total: ", saveFail: "We could not save that; please try again.", preview: "Preview: %s (once published, it is stored in the database.)",
+    serverError: "Server error; please try again in a moment.", required: "Please fill in all required fields.", phoneServer: "The phone number is not valid.", sending: "Sending…",
+  },
+};
+const moneyOf = (c: Copy) => (c === "fa" ? toman : (n: number) => "$" + n.toLocaleString("en-US"));
+const num = (c: Copy) => (n: number) => n.toLocaleString(c === "fa" ? "fa-IR" : "en-US");
+
 function kindOf(prompt: string): Kind["key"] {
-  if (/نوبت|آرایش|سالن|زیبایی|باربر|ناخن|مژه/.test(prompt)) return "salon";
-  if (/فروشگاه|لباس|پوشاک|محصول|خرید|کفش|shop|store/i.test(prompt)) return "shop";
-  if (/رستوران|کافه|منو|غذا|کافی[‌ ]?شاپ|فست[‌ ]?فود/.test(prompt)) return "restaurant";
-  if (/رویداد|همایش|کنفرانس|ورکشاپ|کارگاه|سمینار|ثبت[‌ ]?نام/.test(prompt)) return "event";
+  // "coffee shop" is a café, not a store
+  if (/coffee|caf[eé]|bakery|restaurant|bistro/i.test(prompt)) return "restaurant";
+  if (/نوبت|آرایش|سالن|زیبایی|باربر|ناخن|مژه|salon|barber|beauty|hair|nail/i.test(prompt)) return "salon";
+  if (/فروشگاه|لباس|پوشاک|محصول|خرید|کفش|shop|store|cloth|fashion/i.test(prompt)) return "shop";
+  if (/رستوران|کافه|منو|غذا|کافی[‌ ]?شاپ|فست[‌ ]?فود|restaurant|caf[eé]|coffee|food|bakery|menu/i.test(prompt)) return "restaurant";
+  if (/رویداد|همایش|کنفرانس|ورکشاپ|کارگاه|سمینار|ثبت[‌ ]?نام|event|conference|workshop|meetup|summit/i.test(prompt)) return "event";
   return "business";
+}
+
+/** the project's copy in the site's language */
+const kindFor = (prompt: string, lang = "fa"): Kind => (copyOf(lang) === "fa" ? kind(prompt) : kindEn(prompt));
+
+function kindEn(prompt: string): Kind {
+  const key = kindOf(prompt);
+  const common = { address: "1240 Valencia Street, San Francisco, CA", phone: "+1 415 555 0136", hours: "Monday to Saturday, 10am to 8pm" };
+  const nameF: Field = { name: "name", label: "Full name", type: "text", required: true };
+  const phoneF: Field = { name: "phone", label: "Phone number", type: "tel", required: true };
+  const times = ["10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+  const reviews = (a: [string, string][]): [string, string, string][] => a.map(([n, t], i) => [n, t, i === 2 ? "⭐⭐⭐⭐" : "⭐⭐⭐⭐⭐"]);
+  switch (key) {
+    case "salon": {
+      const items: Item[] = [
+        { icon: "✂️", name: "Cut and blow-dry", desc: "A face-shape consultation, a modern cut and a polished finish", price: 65, meta: "60 min" },
+        { icon: "🎨", name: "Color and highlights", desc: "Italian color with a free patch test", price: 180, meta: "180 min" },
+        { icon: "💆‍♀️", name: "Keratin treatment", desc: "Smooth and glossy for up to six months", price: 240, meta: "150 min" },
+        { icon: "💄", name: "Event makeup", desc: "Long-wear makeup with hypoallergenic products", price: 120, meta: "90 min" },
+        { icon: "💅", name: "Gel manicure", desc: "Sterile tools, a durable finish and simple nail art", price: 45, meta: "60 min" },
+        { icon: "🌸", name: "Brow shaping", desc: "Shaping and tint that suits your face", price: 25, meta: "30 min" },
+      ];
+      return { ...common, key, brand: "Rose Hair Studio", emoji: "💇‍♀️", palette: "rose", title: "Rose Hair Studio | Book online",
+        hero: "Great hair, at a time that suits you", sub: "Book your appointment online in under a minute. Experienced stylists, a spotless studio and clear prices.",
+        stats: [["12+", "years"], ["8,500+", "happy clients"], ["4.9", "average rating"]], itemsTitle: "Services and prices", itemsSub: "Prices include everything; no surprises at the till.", items, itemCta: "Book this",
+        features: [["🧴", "Genuine products", "Only trusted brands with clear expiry dates"], ["🧼", "Spotless hygiene", "Sterile and single-use tools for every client"], ["⏰", "On time", "Online booking means no waiting"]],
+        formTitle: "Book an appointment", formSub: "Pick a service and a time; we will call you to confirm.",
+        fields: [nameF, phoneF, { name: "service", label: "Service", type: "select", options: items.map((i) => i.name), required: true }, { name: "date", label: "Date", type: "date", required: true }, { name: "time", label: "Time", type: "select", options: times, required: true }, { name: "note", label: "Notes (optional)", type: "textarea" }],
+        submit: "Book now", success: "You are booked! We will call you shortly to confirm.",
+        testimonials: reviews([["Emma Clarke", "The color came out exactly as I hoped, and booking online took seconds."], ["Sofia Martin", "Calm, clean and friendly. We chose them for my sister's wedding too."], ["Grace Lee", "Lovely gel nails and they started right on time."]]),
+        endpoint: "bookings", nav: [["#services", "Services"], ["#why", "Why us"], ["#book", "Book"], ["#reviews", "Reviews"], ["#contact", "Contact"]] };
+    }
+    case "shop": {
+      const items: Item[] = [
+        { icon: "👗", name: "Linen summer dress", desc: "Breathable linen, sizes XS to XL", price: 89 }, { icon: "👕", name: "Classic cotton tee", desc: "100% cotton in six colors", price: 24 },
+        { icon: "👖", name: "Straight-leg jeans", desc: "Soft stretch denim", price: 69 }, { icon: "🧥", name: "Wool autumn jacket", desc: "Warm wool blend with satin lining", price: 149 },
+        { icon: "👟", name: "White leather sneakers", desc: "Leather upper, cushioned sole", price: 110 }, { icon: "🧣", name: "Printed cotton scarf", desc: "Light and soft, for every season", price: 19 },
+      ];
+      return { ...common, key, brand: "Nila Clothing", emoji: "🛍️", palette: "indigo", title: "Nila Clothing | Online store",
+        hero: "Everyday style you can feel", sub: "Comfortable, well-made clothes at fair prices, fast shipping and seven-day returns.",
+        stats: [["2 days", "shipping"], ["7 days", "free returns"], ["12,000+", "orders"]], itemsTitle: "Best sellers", itemsSub: "Stock is limited: add to your cart and place the order.", items, itemCta: "Add to cart",
+        features: [["🚚", "Free shipping", "On orders over $100"], ["↩️", "Easy returns", "Within seven days, no questions"], ["🔒", "Secure payment", "Trusted gateway or pay on delivery"]],
+        formTitle: "Place your order", formSub: "Enter the delivery details; we call before shipping.",
+        fields: [nameF, phoneF, { name: "address", label: "Delivery address", type: "textarea", required: true }],
+        submit: "Place order", success: "Order placed! We will call you to arrange delivery.",
+        testimonials: reviews([["Olivia Brown", "The fabric is even better than in the photos, and it arrived in two days."], ["James Wilson", "I ordered the wrong size and the exchange was effortless."], ["Mia Davis", "Fair prices and lovely packaging."]]),
+        endpoint: "orders", nav: [["#services", "Products"], ["#why", "Why Nila"], ["#book", "Cart"], ["#reviews", "Reviews"], ["#contact", "Contact"]] };
+    }
+    case "restaurant": {
+      const cafe = /caf[eé]|coffee|کافه/i.test(prompt);
+      const items: Item[] = cafe ? [
+        { icon: "☕", name: "Flat white", desc: "Double ristretto with silky milk", price: 5 }, { icon: "🥐", name: "Butter croissant", desc: "Baked here every morning", price: 4 },
+        { icon: "🍰", name: "Cheesecake of the day", desc: "Ask us for today's topping", price: 7 }, { icon: "🧋", name: "Iced latte", desc: "Cold milk, espresso and ice", price: 6 },
+        { icon: "🥪", name: "Halloumi sandwich", desc: "Grilled halloumi, tomato and basil", price: 11 }, { icon: "🍵", name: "Saffron tea", desc: "Black tea with a touch of saffron", price: 4 },
+      ] : [
+        { icon: "🍢", name: "Kabab koobideh", desc: "Two skewers with saffron rice and grilled tomato", price: 24 }, { icon: "🍗", name: "Saffron chicken kabab", desc: "Chicken breast in saffron and lemon", price: 22 },
+        { icon: "🍲", name: "Ghormeh sabzi", desc: "Slow-cooked herbs, kidney beans and beef", price: 19 }, { icon: "🍛", name: "Zereshk polo", desc: "Chicken with barberry rice and pistachio", price: 21 },
+        { icon: "🍆", name: "Mirza ghasemi", desc: "Smoky eggplant starter from Gilan", price: 10 }, { icon: "🍧", name: "Faloodeh", desc: "Rosewater sorbet with fresh lime", price: 8 },
+      ];
+      return { ...common, key, brand: cafe ? "Corner Cup Café" : "Sofreh Kitchen", emoji: cafe ? "☕" : "🍽️", palette: "amber", title: (cafe ? "Corner Cup Café" : "Sofreh Kitchen") + " | Reserve a table", hours: "Every day, 8am to 10pm",
+        hero: cafe ? "Good coffee, slow mornings" : "Home-style Persian food, fresh every day", sub: cafe ? "Specialty coffee, pastries baked on site and a quiet corner to work or meet. Reserve a table online." : "Traditional recipes, ingredients bought fresh each morning and a warm room for family dinners. Reserve your table online.",
+        stats: [["25+", "dishes"], ["18 years", "in the city"], ["4.8", "guest rating"]], itemsTitle: cafe ? "On the menu" : "Today's menu", itemsSub: cafe ? "Oat and almond milk at no extra cost." : "All dishes come with premium basmati rice.", items, itemCta: "Reserve a table",
+        features: [["🥬", "Fresh daily", "Ingredients from the morning market"], ["👨‍🍳", "Experienced chef", "Recipes passed down at home"], ["🚗", "Parking", "Free for guests"]],
+        formTitle: "Reserve a table", formSub: "Choose the party size and time.",
+        fields: [nameF, phoneF, { name: "guests", label: "Guests", type: "select", options: ["1", "2", "3", "4", "5", "6", "8", "10"], required: true }, { name: "date", label: "Date", type: "date", required: true }, { name: "time", label: "Time", type: "select", options: ["12:30", "13:30", "19:00", "20:00", "21:00"], required: true }],
+        submit: "Reserve", success: "Your table is reserved. See you soon!",
+        testimonials: reviews([["Daniel Moore", cafe ? "The best flat white in the neighborhood, hands down." : "The best koobideh I have had outside Tehran."], ["Hannah White", "We booked for my mother's birthday and the service was wonderful."], ["Lucas Hall", cafe ? "Quiet in the mornings, perfect for working." : "The ghormeh sabzi tastes like home cooking."]]),
+        endpoint: "reservations", nav: [["#services", "Menu"], ["#why", "Why us"], ["#book", "Reserve"], ["#reviews", "Reviews"], ["#contact", "Contact"]] };
+    }
+    case "event": {
+      const items: Item[] = [
+        { icon: "🎤", name: "Opening keynote: AI in practice", desc: "Dr. Sarah Sharif, machine learning researcher", meta: "9:00–9:45" },
+        { icon: "☁️", name: "Cloud infrastructure for startups", desc: "Kaveh Noori, cloud architect", meta: "10:00–10:45" },
+        { icon: "🛒", name: "Growing an online store", desc: "Nilufar Ahmadi, product lead", meta: "11:00–11:45" },
+        { icon: "🔐", name: "Protecting user data", desc: "Dr. Omid Rahimi, security engineer", meta: "13:30–14:15" },
+        { icon: "💡", name: "Panel: from idea to product", desc: "Three founders on what worked", meta: "14:30–15:30" },
+        { icon: "🤝", name: "Networking and refreshments", desc: "Meet the speakers and attendees", meta: "15:30–17:00" },
+      ];
+      return { ...common, key, brand: "City Tech Summit", emoji: "🎟️", palette: "violet", title: "City Tech Summit 2026 | Register", hours: "Thursday, December 10, 2026, 9am to 5pm",
+        address: "Moscone Center West, San Francisco",
+        hero: "One day, six sessions, plenty of new ideas", sub: "The yearly gathering of builders, from AI to cloud infrastructure. Seats are limited; register now.",
+        stats: [["800", "attendees"], ["12", "speakers"], ["6", "sessions"]], itemsTitle: "Programme", itemsSub: "Thursday, December 10, 2026 · Moscone Center West", items, itemCta: "Register",
+        features: [["🎓", "Certificate", "For every attendee"], ["🍱", "Lunch included", "Plus coffee breaks"], ["📹", "Recordings", "A year of access after the event"]],
+        formTitle: "Register for the summit", formSub: "Your ticket and details arrive by email.",
+        fields: [nameF, { name: "email", label: "Email", type: "email", required: true }, phoneF, { name: "ticket", label: "Ticket", type: "select", options: ["Standard — $90", "Student — $45", "VIP — $250"], required: true }],
+        submit: "Register", success: "You are registered! Your ticket is on its way to your inbox.",
+        testimonials: reviews([["Ryan Cooper", "I met two great teammates there last year."], ["Laura Scott", "Practical sessions, and everything ran on time."], ["Ethan Young", "The best tech event of my year."]]),
+        endpoint: "registrations", nav: [["#services", "Programme"], ["#why", "Benefits"], ["#book", "Register"], ["#reviews", "Reviews"], ["#contact", "Venue"]] };
+    }
+    default: {
+      const words = prompt.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 3 && !/^(build|make|create|website|site|page|landing|with|that|this|english|for|from|about|please)$/i.test(w));
+      const topic = words.slice(0, 2).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") || "Your business";
+      return { ...common, key, brand: topic + " Studio", emoji: "✨", palette: "emerald", title: topic + " | About and contact",
+        hero: topic + ", simple and professional", sub: "Everything your customers need on one page: services, why you, and how to reach you. Leave a message and we will get back to you.",
+        stats: [["10+", "years"], ["300+", "projects"], ["24/7", "support"]], itemsTitle: "What we do", itemsSub: "The right approach for your needs", itemCta: "Ask for advice",
+        items: [
+          { icon: "💬", name: "Free consultation", desc: "We listen first, then suggest the best path" }, { icon: "🎯", name: "Tailored design", desc: "Fitted to your goals and budget" },
+          { icon: "⚡", name: "Fast delivery", desc: "Step by step, with progress updates" }, { icon: "🛟", name: "Support", desc: "We stay with you after launch" },
+          { icon: "📈", name: "Reporting", desc: "Results measured in numbers" }, { icon: "🤝", name: "Clear contracts", desc: "No hidden costs" },
+        ],
+        features: [["✅", "Quality guaranteed", "Until you are happy"], ["⏱️", "Quick replies", "Within one business hour"], ["💳", "Pay in stages", "As the work progresses"]],
+        formTitle: "Get in touch", formSub: "Leave a message; we reply within one business day.",
+        fields: [nameF, phoneF, { name: "message", label: "Your message", type: "textarea", required: true }], submit: "Send message", success: "Thanks! We will be in touch soon.",
+        testimonials: reviews([["Chloe Adams", "Professional and precise: exactly what we needed."], ["Noah Turner", "Fast answers and a fair price."], ["Ava Baker", "A genuinely good experience working together."]]),
+        endpoint: "messages", nav: [["#services", "Services"], ["#why", "Why us"], ["#book", "Contact"], ["#reviews", "Reviews"], ["#contact", "Address"]] };
+    }
+  }
 }
 
 function kind(prompt: string): Kind {
@@ -151,19 +285,26 @@ function kind(prompt: string): Kind {
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const paletteVars = (name: string) => (PALETTES[name] ?? PALETTES.emerald).map((c, i) => "--color-brand-" + (i ? i * 100 : 50) + ": " + c + ";").join(" ");
 
-function field(f: Field) {
+const AUTOCOMPLETE: Record<string, string> = { name: "name", phone: "tel", email: "email", address: "street-address" };
+function field(f: Field, c: Copy) {
   const req = f.required ? " required" : "";
-  const cls = "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition";
+  const L = UI[c];
+  const cls = "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition";
+  const ac = AUTOCOMPLETE[f.name] ? ` autocomplete="${AUTOCOMPLETE[f.name]}"` : "";
   const input = f.type === "select"
-    ? `<select id="f-${f.name}" name="${f.name}" class="${cls}"${req}><option value="">انتخاب کنید</option>${(f.options ?? []).map((o) => `<option>${esc(o)}</option>`).join("")}</select>`
-    : f.type === "textarea" ? `<textarea id="f-${f.name}" name="${f.name}" rows="3" maxlength="1000" class="${cls}"${req}></textarea>`
-    : `<input id="f-${f.name}" name="${f.name}" type="${f.type}" maxlength="120" class="${cls}"${f.type === "tel" ? ' dir="ltr" inputmode="tel" pattern="0?9[0-9]{9}" placeholder="09121234567"' : f.type === "email" ? ' dir="ltr" placeholder="you@example.com"' : ""}${req}>`;
+    ? `<select id="f-${f.name}" name="${f.name}" class="${cls}"${req}><option value="">${L.choose}</option>${(f.options ?? []).map((o) => `<option>${esc(o)}</option>`).join("")}</select>`
+    : f.type === "textarea" ? `<textarea id="f-${f.name}" name="${f.name}" rows="3" maxlength="1000" class="${cls}"${ac}${req}></textarea>`
+    : `<input id="f-${f.name}" name="${f.name}" type="${f.type}" maxlength="120" class="${cls}"${ac}${f.type === "tel" ? ` dir="ltr" inputmode="tel" pattern="${L.phonePattern}" placeholder="${L.phonePlaceholder}"` : f.type === "email" ? ' dir="ltr" inputmode="email" placeholder="you@example.com"' : ""}${req}>`;
   return `<div class="${f.type === "textarea" ? "sm:col-span-2" : ""}"><label for="f-${f.name}" class="block text-sm font-bold text-slate-700 mb-2">${esc(f.label)}</label>${input}</div>`;
 }
 
-export function indexHtml(k: Kind, stack: BuilderStack) {
+const ARABIC_SCRIPT = new Set(["fa", "ar", "ur", "ps", "ckb"]);
+export function indexHtml(k: Kind, stack: BuilderStack, lang = "fa") {
   const asset = (p: string) => (stack === "node" ? p : "assets/" + p);
   const shop = k.key === "shop";
+  const c = copyOf(lang), L = UI[c], n = num(c), money = moneyOf(c);
+  const vazir = ARABIC_SCRIPT.has(baseLang(lang));
+  const sans = vazir ? "Vazirmatn, Tahoma, sans-serif" : 'Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif';
   const card = (it: Item, i: number) => `
         <article class="group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-100">
           <div class="flex items-start justify-between gap-4">
@@ -173,40 +314,41 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
           <h3 class="mt-5 text-lg font-extrabold text-slate-900">${esc(it.name)}</h3>
           <p class="mt-2 text-sm leading-7 text-slate-600">${esc(it.desc)}</p>
           <div class="mt-5 flex items-center justify-between gap-3">
-            ${it.price ? `<span class="text-lg font-black text-brand-700">${toman(it.price)}</span>` : "<span></span>"}
+            ${it.price ? `<span class="text-lg font-black text-brand-700">${money(it.price)}</span>` : "<span></span>"}
             <button type="button" class="rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-200" ${shop ? `data-add="${i}"` : `data-pick="${esc(it.name)}"`}>${k.itemCta}</button>
           </div>
         </article>`;
   return `<!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="${lang}" dir="${dirOf(lang)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(k.title)}</title>
   <meta name="description" content="${esc(k.sub)}">
-  <link rel="stylesheet" href="${CDN.font}">
-  <script src="${CDN.tailwind}"></script>
+${vazir ? `  <link rel="stylesheet" href="${CDN.font}">
+` : ""}  <script src="${CDN.tailwind}"></script>
   <style type="text/tailwindcss">
     @theme {
-      --font-sans: Vazirmatn, Tahoma, sans-serif;
+      --font-sans: ${sans};
       /*brand*/${paletteVars(k.palette)}/*/brand*/
     }
   </style>
   <link rel="stylesheet" href="${asset("style.css")}">
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
+  <a href="#top" class="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:font-bold">${L.skip}</a>
   <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur">
     <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
       <a href="#top" class="flex items-center gap-2 text-lg font-black text-slate-900"><span class="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white" aria-hidden="true">${k.emoji}</span><span data-brand>${esc(k.brand)}</span></a>
-      <nav class="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex" aria-label="منوی اصلی">
+      <nav class="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex" aria-label="${L.mainNav}">
         ${k.nav.map(([h, l]) => `<a href="${h}" class="transition hover:text-brand-600">${l}</a>`).join("\n        ")}
       </nav>
       <div class="flex items-center gap-2">
-        ${shop ? `<button type="button" id="cart-btn" class="relative rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200" aria-label="سبد خرید">🛒 <span id="cart-count" class="absolute -top-1.5 -left-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-[11px] text-white">۰</span></button>` : `<a href="#book" class="hidden rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 sm:inline-block">${k.submit}</a>`}
-        <button type="button" id="menu-btn" class="rounded-xl p-2 text-slate-700 hover:bg-slate-100 md:hidden" aria-expanded="false" aria-controls="mobile-menu" aria-label="منو">☰</button>
+        ${shop ? `<button type="button" id="cart-btn" class="relative rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200" aria-label="${L.cart}"><span aria-hidden="true">🛒</span> <span id="cart-count" class="absolute -top-1.5 -end-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-[11px] text-white" aria-live="polite">${n(0)}</span></button>` : `<a href="#book" class="hidden rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 sm:inline-block">${k.submit}</a>`}
+        <button type="button" id="menu-btn" class="grid h-11 w-11 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 md:hidden" aria-expanded="false" aria-controls="mobile-menu" aria-label="${L.menu}"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
-    <nav id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 py-3 md:hidden" aria-label="منوی موبایل">
+    <nav id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 py-3 md:hidden" aria-label="${L.mobileNav}">
       ${k.nav.map(([h, l]) => `<a href="${h}" class="block rounded-lg px-3 py-2.5 font-bold text-slate-700 hover:bg-brand-50">${l}</a>`).join("\n      ")}
     </nav>
   </header>
@@ -235,7 +377,7 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
               ${k.items.slice(0, 3).map((it) => `<div class="rounded-2xl bg-brand-50 p-3 text-center"><div class="text-2xl" aria-hidden="true">${it.icon}</div><div class="mt-1 truncate text-xs font-bold text-slate-700">${esc(it.name)}</div></div>`).join("\n              ")}
             </div>
           </div>
-          <div class="absolute -bottom-5 right-6 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-xl ring-1 ring-slate-100">⭐ ${k.stats[2][0]} — ${k.stats[2][1]}</div>
+          <div class="absolute -bottom-5 end-6 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-xl ring-1 ring-slate-100">⭐ ${k.stats[2][0]} — ${k.stats[2][1]}</div>
         </div>
       </div>
     </section>
@@ -251,7 +393,7 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
 
     <section id="why" class="bg-white py-20">
       <div class="mx-auto max-w-6xl px-4">
-        <h2 class="text-center text-3xl font-black text-slate-900">چرا ${esc(k.brand)}؟</h2>
+        <h2 class="text-center text-3xl font-black text-slate-900">${esc(L.why(k.brand))}</h2>
         <div class="mt-12 grid gap-6 md:grid-cols-3">
           ${k.features.map(([i, t, d]) => `<div class="rounded-3xl bg-slate-50 p-7 text-center ring-1 ring-slate-100"><div class="text-4xl" aria-hidden="true">${i}</div><h3 class="mt-4 text-lg font-extrabold">${t}</h3><p class="mt-2 text-sm leading-7 text-slate-600">${d}</p></div>`).join("\n          ")}
         </div>
@@ -263,10 +405,10 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
         <div>
           <h2 class="text-3xl font-black">${k.formTitle}</h2>
           <p class="mt-4 leading-8 text-brand-50">${esc(k.formSub)}</p>
-          ${shop ? `<div id="cart-box" class="mt-6 rounded-2xl bg-white/10 p-4 text-sm"><p id="cart-empty">سبد خرید خالی است؛ از بخش محصولات انتخاب کنید.</p><ul id="cart-list" class="space-y-2"></ul><p id="cart-total" class="mt-3 hidden border-t border-white/20 pt-3 font-black"></p></div>` : `<ul class="mt-6 space-y-3 text-brand-50"><li>📍 ${esc(k.address)}</li><li>☎️ <span dir="ltr">${k.phone}</span></li><li>🕘 ${esc(k.hours)}</li></ul>`}
+          ${shop ? `<div id="cart-box" class="mt-6 rounded-2xl bg-white/10 p-4 text-sm"><p id="cart-empty">${L.cartEmpty}</p><ul id="cart-list" class="space-y-2"></ul><p id="cart-total" class="mt-3 hidden border-t border-white/20 pt-3 font-black"></p></div>` : `<ul class="mt-6 space-y-3 text-brand-50"><li><span aria-hidden="true">📍</span> ${esc(k.address)}</li><li><span aria-hidden="true">☎️</span> <span dir="ltr">${k.phone}</span></li><li><span aria-hidden="true">🕘</span> ${esc(k.hours)}</li></ul>`}
         </div>
         <form id="lead-form" class="grid gap-4 rounded-3xl bg-white p-6 text-slate-800 sm:grid-cols-2" novalidate>
-          ${k.fields.map(field).join("\n          ")}
+          ${k.fields.map((f) => field(f, c)).join("\n          ")}
           <div class="sm:col-span-2">
             <button type="submit" class="w-full rounded-2xl bg-brand-600 py-3.5 font-black text-white transition hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-200 disabled:opacity-60">${k.submit}</button>
             <p id="form-msg" class="mt-3 hidden rounded-xl px-4 py-3 text-sm font-bold" role="status" aria-live="polite"></p>
@@ -277,9 +419,9 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
 
     <section id="reviews" class="bg-white py-20">
       <div class="mx-auto max-w-6xl px-4">
-        <h2 class="text-center text-3xl font-black text-slate-900">مشتریان چه می‌گویند</h2>
+        <h2 class="text-center text-3xl font-black text-slate-900">${L.reviews}</h2>
         <div class="mt-12 grid gap-6 md:grid-cols-3">
-          ${k.testimonials.map(([n, t, s]) => `<figure class="rounded-3xl bg-slate-50 p-7 ring-1 ring-slate-100"><div aria-label="امتیاز">${s}</div><blockquote class="mt-4 leading-8 text-slate-700">«${esc(t)}»</blockquote><figcaption class="mt-4 text-sm font-bold text-slate-900">${esc(n)}</figcaption></figure>`).join("\n          ")}
+          ${k.testimonials.map(([who, t, s]) => `<figure class="rounded-3xl bg-slate-50 p-7 ring-1 ring-slate-100"><div role="img" aria-label="${L.rating}: ${n([...s].length)}/${n(5)}">${s}</div><blockquote class="mt-4 leading-8 text-slate-700">${c === "fa" ? "«" + esc(t) + "»" : "“" + esc(t) + "”"}</blockquote><figcaption class="mt-4 text-sm font-bold text-slate-900">${esc(who)}</figcaption></figure>`).join("\n          ")}
         </div>
       </div>
     </section>
@@ -288,11 +430,11 @@ export function indexHtml(k: Kind, stack: BuilderStack) {
 
   <footer id="contact" class="bg-slate-900 text-slate-300">
     <div class="mx-auto grid max-w-6xl gap-8 px-4 py-14 md:grid-cols-3">
-      <div><div class="text-lg font-black text-white">${k.emoji} <span data-brand>${esc(k.brand)}</span></div><p class="mt-3 text-sm leading-7">${esc(k.sub.split("؛")[0])}.</p></div>
-      <div><h3 class="font-bold text-white">نشانی</h3><p class="mt-3 text-sm leading-7">${esc(k.address)}</p></div>
-      <div><h3 class="font-bold text-white">تماس و ساعت کاری</h3><p class="mt-3 text-sm leading-7"><a href="tel:02188776655" dir="ltr" class="hover:text-white">${k.phone}</a><br>${esc(k.hours)}</p></div>
+      <div><div class="text-lg font-black text-white">${k.emoji} <span data-brand>${esc(k.brand)}</span></div><p class="mt-3 text-sm leading-7">${esc(k.sub.split(/[؛.]/)[0])}.</p></div>
+      <div><h3 class="font-bold text-white">${L.address}</h3><p class="mt-3 text-sm leading-7">${esc(k.address)}</p></div>
+      <div><h3 class="font-bold text-white">${L.contactHours}</h3><p class="mt-3 text-sm leading-7"><a href="tel:${k.phone.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d+]/g, "")}" dir="ltr" class="hover:text-white">${k.phone}</a><br>${esc(k.hours)}</p></div>
     </div>
-    <p class="border-t border-white/10 py-5 text-center text-xs text-slate-500">© <span id="year"></span> <span data-brand>${esc(k.brand)}</span> — همه حقوق محفوظ است.</p>
+    <p class="border-t border-white/10 py-5 text-center text-xs text-slate-500">© <span id="year"></span> <span data-brand>${esc(k.brand)}</span> — ${L.rights}</p>
   </footer>
   <script src="${asset("app.js")}"></script>
 </body>
@@ -306,44 +448,54 @@ body { font-feature-settings: "ss01"; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 `;
 
-export function appJs(k: Kind, stack: BuilderStack) {
+export function appJs(k: Kind, stack: BuilderStack, lang = "fa") {
+  const c = copyOf(lang), L = UI[c], locale = c === "fa" ? "fa-IR" : "en-US";
+  const q = (s: string) => JSON.stringify(s);
   const products = k.key === "shop" ? "const PRODUCTS = " + JSON.stringify(k.items.map((i) => ({ name: i.name, price: i.price ?? 0 }))) + ";\n" : "";
+  const money = c === "fa" ? `(n) => num(n) + " تومان"` : `(n) => "$" + num(n)`;
+  const phoneOk = c === "fa" ? `(v) => /^(\\+98|0)?9\\d{9}$/.test(v)` : `(v) => /^\\+?[0-9][0-9 ()-]{6,19}$/.test(v)`;
   return `// ${k.brand}: menu, ${k.key === "shop" ? "cart, " : ""}form
 (function () {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const fa = (n) => Number(n).toLocaleString("fa-IR");
+  const num = (n) => Number(n).toLocaleString(${q(locale)});
+  const money = ${money};
+  // any digits typed (Persian, Arabic-Indic or Latin) are validated as Latin digits
+  const digits = (s) => String(s).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  const phoneOk = ${phoneOk};
   ${products.trim()}
   const year = $("#year");
-  if (year) year.textContent = new Date().toLocaleDateString("fa-IR", { year: "numeric" });
+  if (year) year.textContent = new Date().toLocaleDateString(${q(locale)}, { year: "numeric" });
 
   const menuBtn = $("#menu-btn"), menu = $("#mobile-menu");
   if (menuBtn && menu) {
+    const close = () => { menu.classList.add("hidden"); menuBtn.setAttribute("aria-expanded", "false"); };
     menuBtn.addEventListener("click", () => { const open = menu.classList.toggle("hidden") === false; menuBtn.setAttribute("aria-expanded", String(open)); });
-    menu.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => menu.classList.add("hidden")));
+    menu.querySelectorAll("a").forEach((a) => a.addEventListener("click", close));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.classList.contains("hidden")) { close(); menuBtn.focus(); } });
   }
 ${k.key === "shop" ? `
   const cart = [];
   const renderCart = () => {
     const list = $("#cart-list"), total = $("#cart-total");
-    $("#cart-count").textContent = fa(cart.length);
+    $("#cart-count").textContent = num(cart.length);
     $("#cart-empty").classList.toggle("hidden", cart.length > 0);
     list.textContent = "";
     cart.forEach((p, i) => {
       const li = document.createElement("li");
       li.className = "flex items-center justify-between gap-3";
-      const name = document.createElement("span"); name.textContent = p.name + " — " + fa(p.price) + " تومان";
-      const rm = document.createElement("button"); rm.type = "button"; rm.textContent = "حذف"; rm.className = "rounded-lg bg-white/15 px-2 py-1 text-xs";
+      const name = document.createElement("span"); name.textContent = p.name + " — " + money(p.price);
+      const rm = document.createElement("button"); rm.type = "button"; rm.textContent = ${q(L.remove)}; rm.className = "rounded-lg bg-white/15 px-3 py-2 text-xs";
       rm.addEventListener("click", () => { cart.splice(i, 1); renderCart(); });
       li.append(name, rm); list.append(li);
     });
     const sum = cart.reduce((s, p) => s + p.price, 0);
-    total.textContent = "جمع کل: " + fa(sum) + " تومان";
+    total.textContent = ${q(L.total)} + money(sum);
     total.classList.toggle("hidden", cart.length === 0);
   };
   document.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => {
     cart.push(PRODUCTS[Number(b.dataset.add)]); renderCart();
-    b.textContent = "✓ اضافه شد"; setTimeout(() => { b.textContent = "${k.itemCta}"; }, 1200);
+    b.textContent = ${q(L.added)}; setTimeout(() => { b.textContent = ${q(k.itemCta)}; }, 1200);
   }));
   const cartBtn = $("#cart-btn");
   if (cartBtn) cartBtn.addEventListener("click", () => $("#book").scrollIntoView({ behavior: "smooth" }));
@@ -354,49 +506,74 @@ ${k.key === "shop" ? `
     $("#book").scrollIntoView({ behavior: "smooth" });
   }));
 `}
+  // a newsletter form added later by an edit
+  document.querySelectorAll("form[data-newsletter]").forEach((f) => f.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const done = document.createElement("p"); done.className = "w-full font-bold"; done.setAttribute("role", "status"); done.textContent = f.dataset.done || "✓";
+    f.replaceChildren(done);
+  }));
+
   const form = $("#lead-form"), msg = $("#form-msg");
   const show = (text, ok) => {
     msg.textContent = text;
     msg.className = "mt-3 rounded-xl px-4 py-3 text-sm font-bold " + (ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700");
   };
+  const invalid = (el, text) => { el.setAttribute("aria-invalid", "true"); el.setAttribute("aria-describedby", "form-msg"); show(text, false); el.focus(); };
+  form.addEventListener("input", (e) => { if (e.target.getAttribute("aria-invalid") === "true" && String(e.target.value).trim()) e.target.removeAttribute("aria-invalid"); });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
     const missing = [...form.querySelectorAll("[required]")].find((el) => !String(el.value).trim());
-    if (missing) { show("لطفاً «" + form.querySelector("label[for='" + missing.id + "']").textContent + "» را کامل کنید.", false); missing.focus(); return; }
-    if (data.phone && !/^0?9\\d{9}$/.test(String(data.phone).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)))) { show("شماره موبایل معتبر نیست (مثل ۰۹۱۲۱۲۳۴۵۶۷).", false); return; }
-${k.key === "shop" ? `    if (!cart.length) { show("سبد خرید خالی است.", false); return; }
+    if (missing) return invalid(missing, ${q(L.fill)}.replace("%s", form.querySelector("label[for='" + missing.id + "']").textContent));
+    if (data.phone && !phoneOk(digits(data.phone).trim())) return invalid(form.querySelector("[name=phone]"), ${q(L.phoneBad)});
+${k.key === "shop" ? `    if (!cart.length) { show(${q(L.cartNone)}, false); return; }
     data.items = cart.map((p) => p.name);
-` : ""}    const btn = form.querySelector("button[type=submit]");
-    btn.disabled = true;
+` : ""}    const btn = form.querySelector("button[type=submit]"), label = btn.textContent;
+    btn.disabled = true; btn.textContent = ${q(L.sending)}; form.setAttribute("aria-busy", "true");
 ${stack === "node" ? `    try {
       const res = await fetch("api/${k.endpoint}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
       const out = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(out.error || "ثبت انجام نشد؛ دوباره تلاش کنید.");
-      show("${k.success}", true);
+      if (!res.ok) throw new Error(out.error || ${q(L.saveFail)});
+      show(${q(k.success)}, true);
       form.reset();${k.key === "shop" ? " cart.length = 0; renderCart();" : ""}
     } catch (err) {
       // the panel preview has no server: say so instead of failing
-      if (err instanceof TypeError) show("پیش‌نمایش: ${k.success} (پس از انتشار، اطلاعات در پایگاه داده ذخیره می‌شود.)", true);
+      if (err instanceof TypeError) show(${q(L.preview.replace("%s", k.success))}, true);
       else show(err.message, false);
-    } finally { btn.disabled = false; }` : `    setTimeout(() => {
-      show("${k.success}", true);
+    } finally { btn.disabled = false; btn.textContent = label; form.removeAttribute("aria-busy"); }` : `    setTimeout(() => {
+      show(${q(k.success)}, true);
       form.reset();${k.key === "shop" ? " cart.length = 0; renderCart();" : ""}
-      btn.disabled = false;
+      btn.disabled = false; btn.textContent = label; form.removeAttribute("aria-busy");
     }, 500);`}
   });
 })();
 `;
 }
 
-export function serverJs(k: Kind) {
+export function serverJs(k: Kind, lang = "fa") {
+  const c = copyOf(lang), L = UI[c];
+  const q = (s: string) => JSON.stringify(s);
   const fields = k.fields.map((f) => f.name);
+  const phoneOk = c === "fa" ? `/^(\\+98|0)?9\\d{9}$/` : `/^\\+?[0-9][0-9 ()-]{6,19}$/`;
   return `// ${k.brand}: Express server — static frontend from public/, JSON API under /api, PostgreSQL when DATABASE_URL is set
 const path = require("path");
 const express = require("express");
 
 const app = express();
 app.disable("x-powered-by");
+// security headers (what helmet would set), without a dependency
+app.use((req, res, next) => {
+  res.set({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+  });
+  next();
+});
+app.get("/healthz", (req, res) => res.json({ ok: true }));
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public"), { maxAge: "1h" }));
 
@@ -409,7 +586,7 @@ if (process.env.DATABASE_URL) {
 }
 
 async function init() {
-  if (!pool) return console.log("DATABASE_URL is not set: keeping data in memory");
+  if (!pool) return console.log("no database configured: keeping data in memory");
   try {
     await pool.query("CREATE TABLE IF NOT EXISTS ${k.endpoint} (id SERIAL PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())");
   } catch (err) {
@@ -420,20 +597,19 @@ async function init() {
 
 const FIELDS = ${JSON.stringify(fields)};
 const REQUIRED = ${JSON.stringify(k.fields.filter((f) => f.required).map((f) => f.name))};
+const digits = (s) => s.replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 const clean = (v, max) => String(v == null ? "" : v).trim().slice(0, max);
-const wrap = (fn) => (req, res) => fn(req, res).catch((err) => { console.error(err); res.status(500).json({ error: "خطای سرور؛ چند لحظه بعد دوباره تلاش کنید." }); });
-
-app.get("/healthz", (req, res) => res.json({ ok: true }));
+const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
 
 app.post("/api/${k.endpoint}", wrap(async (req, res) => {
-  const body = req.body || {};
+  const body = req.body && typeof req.body === "object" ? req.body : {};
   const data = {};
   for (const f of FIELDS) data[f] = clean(body[f], f === "note" || f === "message" || f === "address" ? 1000 : 120);
   const missing = REQUIRED.find((f) => !data[f]);
-  if (missing) return res.status(400).json({ error: "همه فیلدهای ضروری را کامل کنید." });
-  if (data.phone && !/^0?9\\d{9}$/.test(data.phone.replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)))) return res.status(400).json({ error: "شماره موبایل معتبر نیست." });
+  if (missing) return res.status(400).json({ error: ${q(L.required)} });
+  if (data.phone && !${phoneOk}.test(digits(data.phone))) return res.status(400).json({ error: ${q(L.phoneServer)} });
 ${k.key === "shop" ? `  data.items = Array.isArray(body.items) ? body.items.slice(0, 50).map((x) => clean(x, 120)) : [];
-  if (!data.items.length) return res.status(400).json({ error: "سبد خرید خالی است." });
+  if (!data.items.length) return res.status(400).json({ error: ${q(L.cartNone)} });
 ` : ""}  if (pool) {
     const r = await pool.query("INSERT INTO ${k.endpoint} (data) VALUES ($1) RETURNING id", [data]);
     return res.status(201).json({ ok: true, id: r.rows[0].id });
@@ -447,11 +623,29 @@ app.get("/api/${k.endpoint}/count", wrap(async (req, res) => {
   res.json({ count: memory.length });
 }));
 
+app.use("/api", (req, res) => res.status(404).json({ error: "not found" }));
+// errors answer a short message; details stay in the log
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err.type === "entity.parse.failed" || err.type === "entity.too.large") return res.status(400).json({ error: ${q(L.saveFail)} });
+  console.error(err.message);
+  res.status(500).json({ error: ${q(L.serverError)} });
+});
+
 process.on("unhandledRejection", (err) => console.error("unhandled rejection:", err));
 process.on("uncaughtException", (err) => console.error("uncaught exception:", err));
 
 const port = Number(process.env.PORT) || 8080;
-init().then(() => app.listen(port, "0.0.0.0", () => console.log("listening on 0.0.0.0:" + port)));
+let server = null;
+init().then(() => { server = app.listen(port, "0.0.0.0", () => console.log("listening on 0.0.0.0:" + port)); });
+
+// graceful shutdown: finish in-flight requests, close the database pool, exit
+process.on("SIGTERM", () => {
+  console.log("SIGTERM: shutting down");
+  setTimeout(() => process.exit(0), 10000).unref();
+  const done = () => (pool ? pool.end().catch(() => {}).then(() => process.exit(0)) : process.exit(0));
+  if (server) server.close(done); else done();
+});
 `;
 }
 
@@ -461,60 +655,70 @@ export const packageJson = (k: Kind) => JSON.stringify({
   dependencies: { express: "^4.21.2", pg: "^8.13.1" },
 }, null, 2) + "\n";
 
-const readme = (k: Kind, stack: BuilderStack) => `# ${k.brand}
+const readme = (k: Kind, stack: BuilderStack, lang = "fa") => copyOf(lang) === "fa" ? `# ${k.brand}
 
 ${k.sub}
 
 ${stack === "node" ? "- اجرا: `npm install` و سپس `npm start` (پورت از متغیر PORT)\n- داده‌ها در PostgreSQL (متغیر DATABASE_URL) و در نبود آن در حافظه\n- API: `POST /api/" + k.endpoint + "`، سلامت: `GET /healthz`" : "- سایت ایستا: index.html و پوشه assets"}
+` : `# ${k.brand}
+
+${k.sub}
+
+${stack === "node" ? "- Run: `npm install`, then `npm start` (port from PORT)\n- Data in PostgreSQL (DATABASE_URL), in memory without it\n- API: `POST /api/" + k.endpoint + "`, health: `GET /healthz`" : "- Static site: index.html and the assets folder"}
 `;
 
-export function projectFiles(prompt: string, stack: BuilderStack): Record<string, string> {
-  const k = kind(prompt);
-  if (stack === "node") return { "package.json": packageJson(k), "server.js": serverJs(k), "public/index.html": indexHtml(k, "node"), "public/app.js": appJs(k, "node"), "public/style.css": STYLE, "README.md": readme(k, "node") };
-  return { "index.html": indexHtml(k, "static"), "assets/app.js": appJs(k, "static"), "assets/style.css": STYLE, "README.md": readme(k, "static") };
+export function projectFiles(prompt: string, stack: BuilderStack, lang = "fa"): Record<string, string> {
+  const k = kindFor(prompt, lang);
+  if (stack === "node") return { "package.json": packageJson(k), "server.js": serverJs(k, lang), "public/index.html": indexHtml(k, "node", lang), "public/app.js": appJs(k, "node", lang), "public/style.css": STYLE, "README.md": readme(k, "node", lang) };
+  return { "index.html": indexHtml(k, "static", lang), "assets/app.js": appJs(k, "static", lang), "assets/style.css": STYLE, "README.md": readme(k, "static", lang) };
 }
 
 /* ---------- edits ---------- */
-const SECTIONS: { re: RegExp; id: string; label: string; html: (brand: string) => string }[] = [
-  { re: /سوال|سؤال|پرسش|faq/i, id: "faq", label: "بخش سؤالات متداول", html: () => `
+type Section = { re: RegExp; id: string; label: [string, string]; html: (c: Copy) => string };
+const SECTIONS: Section[] = [
+  { re: /سوال|سؤال|پرسش|faq|questions/i, id: "faq", label: ["بخش سؤالات متداول", "an FAQ section"], html: (c) => `
     <section id="faq" class="mx-auto max-w-3xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">سؤالات متداول</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "سؤالات متداول" : "Frequently asked questions"}</h2>
       <div class="mt-10 space-y-3">
-        ${[["چطور زمان را تغییر دهم؟", "کافی است تا ۲۴ ساعت قبل با شماره ما تماس بگیرید."], ["پرداخت چگونه است؟", "پرداخت در محل با کارت یا به‌صورت آنلاین."], ["پارکینگ دارید؟", "بله، پارکینگ عمومی در ۵۰ متری ما قرار دارد."]].map(([q, a]) => `<details class="group rounded-2xl bg-white p-5 ring-1 ring-slate-100"><summary class="cursor-pointer list-none font-bold text-slate-800">${q}</summary><p class="mt-3 leading-7 text-slate-600">${a}</p></details>`).join("\n        ")}
+        ${(c === "fa" ? [["چطور زمان را تغییر دهم؟", "کافی است تا ۲۴ ساعت قبل با شماره ما تماس بگیرید."], ["پرداخت چگونه است؟", "پرداخت در محل با کارت یا به‌صورت آنلاین."], ["پارکینگ دارید؟", "بله، پارکینگ عمومی در ۵۰ متری ما قرار دارد."]]
+          : [["How do I change my time?", "Just call us up to 24 hours before."], ["How can I pay?", "By card on site or online."], ["Is there parking?", "Yes, a public car park is 50 meters away."]]).map(([q, a]) => `<details class="group rounded-2xl bg-white p-5 ring-1 ring-slate-100"><summary class="cursor-pointer list-none font-bold text-slate-800">${q}</summary><p class="mt-3 leading-7 text-slate-600">${a}</p></details>`).join("\n        ")}
       </div>
     </section>` },
-  { re: /گالری|نمونه[‌ ]?کار|تصاویر|عکس/, id: "gallery", label: "گالری نمونه‌کارها", html: () => `
+  { re: /گالری|نمونه[‌ ]?کار|تصاویر|عکس|gallery|portfolio|photos/i, id: "gallery", label: ["گالری نمونه‌کارها", "a portfolio gallery"], html: (c) => `
     <section id="gallery" class="mx-auto max-w-6xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">نمونه‌کارها</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "نمونه‌کارها" : "Our work"}</h2>
       <div class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-        ${["from-brand-300 to-brand-600", "from-brand-200 to-brand-500", "from-brand-400 to-brand-800", "from-brand-100 to-brand-400"].map((g, i) => `<div class="grid aspect-square place-items-center rounded-3xl bg-gradient-to-br ${g} text-5xl text-white shadow-lg" aria-label="نمونه‌کار ${fa(i + 1)}">${["✨", "🌟", "💫", "⭐"][i]}</div>`).join("\n        ")}
+        ${["from-brand-300 to-brand-600", "from-brand-200 to-brand-500", "from-brand-400 to-brand-800", "from-brand-100 to-brand-400"].map((g, i) => `<div class="grid aspect-square place-items-center rounded-3xl bg-gradient-to-br ${g} text-5xl text-white shadow-lg" role="img" aria-label="${c === "fa" ? "نمونه‌کار " + fa(i + 1) : "Sample " + (i + 1)}">${["✨", "🌟", "💫", "⭐"][i]}</div>`).join("\n        ")}
       </div>
     </section>` },
-  { re: /نقشه|مسیر|لوکیشن/, id: "map", label: "بخش نقشه و مسیریابی", html: () => `
+  { re: /نقشه|مسیر|لوکیشن|\bmap\b|directions|location/i, id: "map", label: ["بخش نقشه و مسیریابی", "a map and directions section"], html: (c) => `
     <section id="map" class="mx-auto max-w-6xl px-4 py-20">
       <div class="grid gap-6 rounded-[2rem] bg-white p-8 ring-1 ring-slate-100 md:grid-cols-2">
-        <div><h2 class="text-3xl font-black text-slate-900">مسیریابی</h2><p class="mt-4 leading-8 text-slate-600">با نشان و بلد مستقیم به ما برسید.</p>
-        <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://neshan.org/maps" target="_blank" rel="noopener">مسیریابی با نشان</a><a class="rounded-xl bg-slate-100 px-5 py-3 font-bold text-slate-700" href="https://balad.ir" target="_blank" rel="noopener">مسیریابی با بلد</a></div></div>
+        ${c === "fa" ? `<div><h2 class="text-3xl font-black text-slate-900">مسیریابی</h2><p class="mt-4 leading-8 text-slate-600">با نشان و بلد مستقیم به ما برسید.</p>
+        <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://neshan.org/maps" target="_blank" rel="noopener noreferrer">مسیریابی با نشان</a><a class="rounded-xl bg-slate-100 px-5 py-3 font-bold text-slate-700" href="https://balad.ir" target="_blank" rel="noopener noreferrer">مسیریابی با بلد</a></div></div>`
+          : `<div><h2 class="text-3xl font-black text-slate-900">Find us</h2><p class="mt-4 leading-8 text-slate-600">Get directions straight to our door.</p>
+        <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer">Open the map</a></div></div>`}
         <div class="grid min-h-48 place-items-center rounded-3xl bg-gradient-to-br from-brand-100 to-brand-300 text-6xl" aria-hidden="true">📍</div>
       </div>
     </section>` },
-  { re: /خبرنامه|ایمیل/, id: "newsletter", label: "فرم عضویت در خبرنامه", html: () => `
+  { re: /خبرنامه|ایمیل|newsletter|subscribe/i, id: "newsletter", label: ["فرم عضویت در خبرنامه", "a newsletter sign-up form"], html: (c) => `
     <section id="newsletter" class="mx-auto max-w-4xl px-4 py-16">
-      <div class="rounded-[2rem] bg-brand-600 p-8 text-center text-white"><h2 class="text-2xl font-black">از تخفیف‌ها باخبر شوید</h2><p class="mt-2 text-brand-50">ماهی یک ایمیل، بدون مزاحمت.</p>
-      <form class="mx-auto mt-6 flex max-w-md gap-2" onsubmit="event.preventDefault(); this.innerHTML='<p class=&quot;w-full font-bold&quot;>عضویت شما ثبت شد ✓</p>'"><label for="nl" class="sr-only">ایمیل</label><input id="nl" type="email" required dir="ltr" placeholder="you@example.com" class="flex-1 rounded-xl px-4 py-3 text-slate-800"><button class="rounded-xl bg-slate-900 px-5 font-bold">عضویت</button></form></div>
+      <div class="rounded-[2rem] bg-brand-600 p-8 text-center text-white"><h2 class="text-2xl font-black">${c === "fa" ? "از تخفیف‌ها باخبر شوید" : "Hear about offers first"}</h2><p class="mt-2 text-brand-50">${c === "fa" ? "ماهی یک ایمیل، بدون مزاحمت." : "One email a month, no spam."}</p>
+      <form class="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row" data-newsletter data-done="${c === "fa" ? "عضویت شما ثبت شد ✓" : "You are subscribed ✓"}"><label for="nl" class="sr-only">${c === "fa" ? "ایمیل" : "Email"}</label><input id="nl" type="email" required dir="ltr" autocomplete="email" placeholder="you@example.com" class="flex-1 rounded-xl px-4 py-3 text-base text-slate-800"><button type="submit" class="rounded-xl bg-slate-900 px-5 py-3 font-bold">${c === "fa" ? "عضویت" : "Subscribe"}</button></form></div>
     </section>` },
-  { re: /قیمت|تعرفه|پلن|پکیج/, id: "pricing", label: "جدول بسته‌ها و قیمت‌ها", html: () => `
+  { re: /قیمت|تعرفه|پلن|پکیج|pricing|plans|packages/i, id: "pricing", label: ["جدول بسته‌ها و قیمت‌ها", "a pricing table"], html: (c) => `
     <section id="pricing" class="mx-auto max-w-6xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">بسته‌ها</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "بسته‌ها" : "Packages"}</h2>
       <div class="mt-10 grid gap-6 md:grid-cols-3">
-        ${[["پایه", 490_000, "مناسب شروع"], ["ویژه", 990_000, "پرطرفدارترین"], ["کامل", 1_890_000, "همه خدمات"]].map(([n, p, d], i) => `<div class="rounded-3xl bg-white p-7 ring-1 ${i === 1 ? "ring-2 ring-brand-500 shadow-xl" : "ring-slate-100"}"><h3 class="text-lg font-extrabold">${n}</h3><p class="text-sm text-slate-500">${d}</p><p class="mt-4 text-3xl font-black text-brand-700">${toman(p as number)}</p><a href="#book" class="mt-6 block rounded-xl bg-brand-600 py-3 text-center font-bold text-white">انتخاب</a></div>`).join("\n        ")}
+        ${(c === "fa" ? [["پایه", 490_000, "مناسب شروع"], ["ویژه", 990_000, "پرطرفدارترین"], ["کامل", 1_890_000, "همه خدمات"]] : [["Basic", 29, "A good start"], ["Plus", 59, "Most popular"], ["Complete", 99, "Everything included"]]).map(([n, p, d], i) => `<div class="rounded-3xl bg-white p-7 ring-1 ${i === 1 ? "ring-2 ring-brand-500 shadow-xl" : "ring-slate-100"}"><h3 class="text-lg font-extrabold">${n}</h3><p class="text-sm text-slate-500">${d}</p><p class="mt-4 text-3xl font-black text-brand-700">${moneyOf(c)(p as number)}</p><a href="#book" class="mt-6 block rounded-xl bg-brand-600 py-3 text-center font-bold text-white">${c === "fa" ? "انتخاب" : "Choose"}</a></div>`).join("\n        ")}
       </div>
     </section>` },
 ];
 
-function editProject(files: Record<string, string>, prompt: string): { files: Record<string, string>; summary: string; plan: string } {
+function editProject(files: Record<string, string>, prompt: string, l: Langs = {}): { files: Record<string, string>; summary: string; plan: string } {
+  const c = copyOf(l.lang), r = copyOf(l.reply ?? l.lang), say = (fa: string, en: string) => (r === "fa" ? fa : en);
   const htmlPath = files["public/index.html"] !== undefined ? "public/index.html" : files["index.html"] !== undefined ? "index.html" : Object.keys(files).find((p) => p.endsWith(".html"));
-  if (!htmlPath) return { files: {}, summary: "فایل صفحه اصلی پیدا نشد؛ لطفاً دوباره بخواهید پروژه ساخته شود.", plan: "- بررسی فایل‌ها" };
+  if (!htmlPath) return { files: {}, summary: say("فایل صفحه اصلی پیدا نشد؛ لطفاً دوباره بخواهید پروژه ساخته شود.", "The home page file is missing; please ask for the project to be built again."), plan: say("- بررسی فایل‌ها", "- check the files") };
   let html = files[htmlPath];
   const done: string[] = [];
   const out: Record<string, string> = {};
@@ -522,38 +726,35 @@ function editProject(files: Record<string, string>, prompt: string): { files: Re
   const color = COLOR_WORDS.find(([re]) => re.test(prompt));
   if (color && /\/\*brand\*\/[\s\S]*?\/\*\/brand\*\//.test(html)) {
     html = html.replace(/\/\*brand\*\/[\s\S]*?\/\*\/brand\*\//, "/*brand*/" + paletteVars(color[1]) + "/*/brand*/");
-    done.push("رنگ اصلی سایت " + color[2] + " شد");
+    done.push(say("رنگ اصلی سایت " + color[2] + " شد", "the main color is now " + color[3]));
   }
-  const rename = /[«"]([^»"]{2,40})[»"]/.exec(prompt);
+  const rename = /[«"“]([^»"”]{2,40})[»"”]/.exec(prompt);
   const current = /data-brand>([^<]+)</.exec(html)?.[1];
-  if (rename && current && /اسم|نام|عنوان|برند/.test(prompt) && rename[1] !== current) {
-    for (const [p, c] of Object.entries(files)) if (p !== htmlPath && c.includes(current)) out[p] = c.split(current).join(rename[1]);
+  if (rename && current && /اسم|نام|عنوان|برند|\bname\b|\btitle\b|\bbrand\b|rename/i.test(prompt) && rename[1] !== current) {
+    for (const [p, x] of Object.entries(files)) if (p !== htmlPath && x.includes(current)) out[p] = x.split(current).join(rename[1]);
     html = html.split(current).join(esc(rename[1]));
-    done.push("نام کسب‌وکار به «" + rename[1] + "» تغییر کرد");
+    done.push(say("نام کسب‌وکار به «" + rename[1] + "» تغییر کرد", "the business is now called “" + rename[1] + "”"));
   }
-  if (/واتس[‌ ]?اپ|تلگرام|دکمه تماس|تماس فوری/.test(prompt) && !html.includes('id="float-contact"')) {
-    html = html.replace("</body>", `  <a id="float-contact" href="tel:02188776655" class="fixed bottom-5 left-5 z-50 flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 font-bold text-white shadow-2xl shadow-emerald-300 transition hover:bg-emerald-600">📞 تماس فوری</a>\n</body>`);
-    done.push("دکمه شناور «تماس فوری» اضافه شد");
+  if (/واتس[‌ ]?اپ|تلگرام|دکمه تماس|تماس فوری|whatsapp|telegram|call button/i.test(prompt) && !html.includes('id="float-contact"')) {
+    html = html.replace("</body>", `  <a id="float-contact" href="tel:${c === "fa" ? "02188776655" : "+14155550136"}" class="fixed bottom-5 start-5 z-50 flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 font-bold text-white shadow-2xl shadow-emerald-300 transition hover:bg-emerald-800"><span aria-hidden="true">📞</span> ${c === "fa" ? "تماس فوری" : "Call us"}</a>\n</body>`);
+    done.push(say("دکمه شناور «تماس فوری» اضافه شد", "a floating call button was added"));
   }
-  for (const s of SECTIONS) {
-    if (s.re.test(prompt) && !html.includes('id="' + s.id + '"')) { html = html.replace("<!-- sections:end -->", s.html("").trim() + "\n    <!-- sections:end -->"); done.push(s.label + " اضافه شد"); }
-  }
+  const add = (s: Section) => { html = html.replace("<!-- sections:end -->", s.html(c).trim() + "\n    <!-- sections:end -->"); done.push(say(s.label[0] + " اضافه شد", s.label[1] + " was added")); };
+  for (const s of SECTIONS) if (s.re.test(prompt) && !html.includes('id="' + s.id + '"')) add(s);
   if (!done.length) {
     const next = SECTIONS.find((s) => !html.includes('id="' + s.id + '"'));
     const note = prompt.replace(/\s+/g, " ").trim().slice(0, 90);
     if (!html.includes('id="announce"')) {
-      html = html.replace(/<header /, `<div id="announce" class="bg-brand-700 px-4 py-2 text-center text-sm font-bold text-white">📣 ${esc(note)}</div>\n  <header `);
-      done.push("نوار اطلاع‌رسانی بالای صفحه با متن درخواستی شما اضافه شد");
-    } else if (next) {
-      html = html.replace("<!-- sections:end -->", next.html("").trim() + "\n    <!-- sections:end -->");
-      done.push(next.label + " اضافه شد");
-    } else {
-      html = html.replace(/<div id="announce"[^>]*>[\s\S]*?<\/div>/, `<div id="announce" class="bg-brand-700 px-4 py-2 text-center text-sm font-bold text-white">📣 ${esc(note)}</div>`);
-      done.push("متن نوار اطلاع‌رسانی به‌روز شد");
+      html = html.replace(/<header /, `<div id="announce" class="bg-brand-700 px-4 py-2 text-center text-sm font-bold text-white"><span aria-hidden="true">📣</span> ${esc(note)}</div>\n  <header `);
+      done.push(say("نوار اطلاع‌رسانی بالای صفحه با متن درخواستی شما اضافه شد", "an announcement bar with your text was added at the top"));
+    } else if (next) add(next);
+    else {
+      html = html.replace(/<div id="announce"[^>]*>[\s\S]*?<\/div>/, `<div id="announce" class="bg-brand-700 px-4 py-2 text-center text-sm font-bold text-white"><span aria-hidden="true">📣</span> ${esc(note)}</div>`);
+      done.push(say("متن نوار اطلاع‌رسانی به‌روز شد", "the announcement text was updated"));
     }
   }
   out[htmlPath] = html;
-  return { files: out, plan: done.map((d) => "- " + d).join("\n"), summary: "انجام شد: " + done.join("، ") + ". پیش‌نمایش را ببینید؛ اگر تغییر دیگری لازم است، همین‌جا بنویسید." };
+  return { files: out, plan: done.map((d) => "- " + d).join("\n"), summary: say("انجام شد: " + done.join("، ") + ". پیش‌نمایش را ببینید؛ اگر تغییر دیگری لازم است، همین‌جا بنویسید.", "Done: " + done.join("; ") + ". Have a look at the preview, and tell me here if you want anything else changed.") };
 }
 
 /* ---------- fixes for failed deployments ---------- */
@@ -614,16 +815,75 @@ function diagnose(files: Record<string, string>, raw: string, stack: BuilderStac
 export function simulate(stack: BuilderStack, t: TaskInput): string {
   switch (t.kind) {
     case "generate": {
-      const k = kind(t.prompt);
-      const files = projectFiles(t.prompt, stack);
-      return render({
-        plan: ["- طراحی صفحه اصلی «" + k.brand + "» با معرفی، " + k.itemsTitle + " و نظرات مشتریان", "- " + k.formTitle + (stack === "node" ? " با ذخیره در پایگاه داده (API در server.js)" : " با پیام تأیید"), "- نسخه موبایل، فونت وزیرمتن و راست‌به‌چپ کامل"].join("\n"),
+      const lang = t.lang || "fa", k = kindFor(t.prompt, lang);
+      const files = projectFiles(t.prompt, stack, lang);
+      const skills = "skills: frontend-design, i18n-typography, responsive-mobile-first, accessibility-wcag, web-security" + (stack === "node" ? ", node-backend" : "");
+      const dir = dirOf(lang) === "rtl" ? "RTL" : "LTR";
+      if (copyOf(t.reply ?? lang) === "fa") return render({
+        plan: ["- طراحی صفحه اصلی «" + k.brand + "» با معرفی، " + k.itemsTitle + " و نظرات مشتریان", "- " + k.formTitle + (stack === "node" ? " با ذخیره در پایگاه داده (API در server.js)" : " با پیام تأیید"), "- نسخه موبایل، زبان سایت " + lang + " و چیدمان " + dir, skills].join("\n"),
         files,
         summary: "«" + k.brand + "» آماده است: " + k.itemsTitle + "، بخش «" + k.formTitle + "» و نظرات مشتریان، با طراحی واکنش‌گرا برای موبایل. " + (stack === "node" ? "اطلاعات فرم پس از انتشار در پایگاه داده ذخیره می‌شود. " : "") + "می‌توانید بنویسید مثلاً «رنگ را سبز کن» یا «بخش سؤالات متداول اضافه کن».",
       });
+      return render({
+        plan: ["- a home page for “" + k.brand + "” with an intro, " + k.itemsTitle.toLowerCase() + " and reviews", "- " + k.formTitle.toLowerCase() + (stack === "node" ? ", saved to the database (API in server.js)" : " with a confirmation"), "- mobile-first, site language " + lang + ", " + dir + " layout", skills].join("\n"),
+        files,
+        summary: "“" + k.brand + "” is ready: " + k.itemsTitle.toLowerCase() + ", “" + k.formTitle + "” and customer reviews, responsive on phones. " + (stack === "node" ? "Form entries are stored in the database once it is published. " : "") + "You can ask for things like “make it green” or “add an FAQ section”.",
+      });
     }
-    case "edit": return render(editProject(t.files, t.prompt));
+    case "edit": return render(editProject(t.files, t.prompt, t));
     case "fix": return render(fixProject(t.files, t.log, stack));
     case "maintain": return render(diagnose(t.files, t.incident, stack));
   }
+}
+
+/* ---------- the quality self-review ---------- */
+const SECURITY_HEADERS = `// security headers (what helmet would set), without a dependency
+app.use((req, res, next) => {
+  res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "SAMEORIGIN", "Referrer-Policy": "strict-origin-when-cross-origin", "Permissions-Policy": "camera=(), microphone=(), geolocation=()" });
+  next();
+});`;
+const SIGTERM = `
+// graceful shutdown
+process.on("SIGTERM", () => { console.log("SIGTERM: shutting down"); setTimeout(() => process.exit(0), 10000).unref(); process.exit(0); });
+`;
+
+/** fixes the findings a careful reviewer would fix mechanically; an answer without <file> blocks when clean */
+export function simulateReview(stack: BuilderStack, files: Record<string, string>, findings: QualityFinding[], l: Langs = {}): string {
+  const lang = l.lang || "fa", dir = dirOf(lang), r = copyOf(l.reply ?? lang);
+  const out: Record<string, string> = {};
+  const fixed: string[] = [];
+  const edit = (path: string, fn: (s: string) => string, what: string) => {
+    const before = out[path] ?? files[path];
+    if (before === undefined) return;
+    const after = fn(before);
+    if (after !== before) { out[path] = after; if (!fixed.includes(what)) fixed.push(what); }
+  };
+  for (const f of findings) {
+    switch (f.rule) {
+      case "html-lang": case "html-dir":
+        edit(f.file, (s) => /<html\b[^>]*>/i.test(s) ? s.replace(/<html\b[^>]*>/i, `<html lang="${lang}" dir="${dir}">`) : s, "lang/dir"); break;
+      case "charset":
+        edit(f.file, (s) => s.replace(/<head>/i, '<head>\n  <meta charset="utf-8">'), "charset"); break;
+      case "viewport": case "zoom-disabled":
+        edit(f.file, (s) => s.replace(/<meta\s[^>]*name\s*=\s*["']?viewport[^>]*>\s*/i, "").replace(/(<meta charset[^>]*>)/i, '$1\n  <meta name="viewport" content="width=device-width, initial-scale=1">'), "viewport"); break;
+      case "img-alt":
+        edit(f.file, (s) => s.replace(/<img\b(?![^>]*\salt\s*=)([^>]*)>/gi, '<img alt=""$1>'), "alt"); break;
+      case "blank-noopener":
+        edit(f.file, (s) => s.replace(/<a\b([^>]*target\s*=\s*["']?_blank[^>]*)>/gi, (m, a: string) => (/\srel\s*=/.test(a) ? m.replace(/\srel\s*=\s*["']([^"']*)["']/i, ' rel="noopener noreferrer"') : "<a" + a + ' rel="noopener noreferrer">')), "rel=noopener"); break;
+      case "security-headers":
+        if (stack === "node") edit(f.file, (s) => s.replace(/(const app = express\(\);\n(?:app\.disable\("x-powered-by"\);\n)?)/, "$1" + SECURITY_HEADERS + "\n"), "security headers"); break;
+      case "sigterm":
+        if (stack === "node") edit(f.file, (s) => s.replace(/\n*$/, "\n") + SIGTERM, "SIGTERM"); break;
+      case "health":
+        if (stack === "node") edit(f.file, (s) => s.replace(/(const app = express\(\);\n)/, '$1app.get("/healthz", (req, res) => res.json({ ok: true }));\n'), "/healthz"); break;
+      case "port-env":
+        if (stack === "node") edit(f.file, (s) => s.replace(/\.listen\(\s*(\d+)/, ".listen(Number(process.env.PORT) || 8080"), "PORT"); break;
+    }
+  }
+  const n = Object.keys(out).length;
+  const plan = n ? fixed.map((x) => "- " + x).join("\n") : r === "fa" ? "- بازبینی فایل‌ها با چک‌لیست‌ها" : "- reviewed the files against the checklists";
+  const summary = n
+    ? (r === "fa" ? "در بازبینی کیفیت و امنیت این موارد اصلاح شد: " + fixed.join("، ") + "." : "The quality and security review fixed: " + fixed.join(", ") + ".")
+    : (r === "fa" ? "بازبینی کیفیت و امنیت انجام شد؛ مشکل جدی‌ای پیدا نشد." : "The quality and security review found nothing that needed fixing.");
+  return render({ plan, files: out, summary });
 }

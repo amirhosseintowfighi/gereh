@@ -211,6 +211,13 @@
       "when": 1791600031000,
       "tag": "0031_server_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791600032000,
+      "tag": "0032_builder_skills",
+      "breakpoints": true
     }
   ]
 }

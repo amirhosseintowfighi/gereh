@@ -20,9 +20,9 @@ async function statusOut(ctx: Ctx, id: string) {
   const v = await projectView(ctx.db, p);
   return {
     id: v.id, name: v.name, product: BUILDER.name, stack: v.stack, status: v.status, version: v.version, deployed_version: v.deployedVersion, files: v.tree.map((f) => f.path),
-    live_url: v.liveUrl, app_id: v.appId, app_name: v.appName, ai_cost_toman: v.spent,
+    live_url: v.liveUrl, app_id: v.appId, app_name: v.appName, ai_cost_toman: v.spent, site_language: v.siteLanguage, site_dir: v.siteDir,
     deploy: v.deploy && { status: v.deploy.status, attempt: v.deploy.attempt, failure: v.deploy.failure, log_tail: v.deploy.log.slice(-1500) },
-    plan: v.plan, latest_runs: v.runs.slice(0, 5).map((r) => ({ id: r.id, kind: r.kind, status: r.status, summary: r.summary, cost_toman: r.cost, diff: r.diff, at: r.at })),
+    plan: v.plan, latest_runs: v.runs.slice(0, 5).map((r) => ({ id: r.id, kind: r.kind, status: r.status, summary: r.summary, cost_toman: r.cost, review_cost_toman: r.reviewCost, skills: r.skills, quality_score: r.quality?.score ?? null, diff: r.diff, at: r.at })),
   };
 }
 async function generate(ctx: Ctx, id: string, prompt: string) {
@@ -38,7 +38,7 @@ export const BUILDER_ROUTES: Route[] = [
   { method: "GET", pattern: /^builder\/projects$/, run: async (ctx) => ({ data: await listProjects(ctx.db, ctx.auth!.uid) }) },
   { method: "GET", pattern: /^builder\/projects\/([\w-]+)$/, run: async (ctx, m) => statusOut(ctx, m[1]) },
   { method: "POST", pattern: /^builder\/projects$/, write: true, run: async (ctx, _m, b) => {
-    const id = await rpc<string>(ctx, "builder.create", { prompt: String(b.prompt ?? ""), stack: ["static", "node"].includes(String(b.stack)) ? b.stack : "auto" });
+    const id = await rpc<string>(ctx, "builder.create", { prompt: String(b.prompt ?? ""), stack: ["static", "node"].includes(String(b.stack)) ? b.stack : "auto", ...(typeof b.language === "string" ? { language: b.language } : {}) });
     return generate(ctx, id, String(b.prompt ?? ""));
   } },
   { method: "POST", pattern: /^builder\/projects\/([\w-]+)\/edit$/, write: true, run: async (ctx, m, b) => generate(ctx, m[1], String(b.prompt ?? "")) },

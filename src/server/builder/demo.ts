@@ -7,7 +7,9 @@ import { builderMessages, builderProjects, builderRuns, builderVersions, paasApp
 import { seal } from "../secrets";
 import { diffOf } from "./engine";
 import { parseOutput } from "./format";
+import { checkFiles } from "./quality";
 import { simulate } from "./sim";
+import { selectSkills } from "./skills";
 
 const PROMPT = "یک سایت نوبت‌دهی برای سالن زیبایی با معرفی خدمات، قیمت‌ها و فرم رزرو آنلاین نوبت";
 const EDITS = ["رنگ سایت را صورتی کن و بخش سؤالات متداول اضافه کن", "یک گالری نمونه‌کار و دکمه تماس فوری اضافه کن"];
@@ -41,13 +43,15 @@ export async function seedBuilderDemo(db: DB) {
 
   await db.insert(builderProjects).values({
     id: pid, userId: "u1", name: "سایت نوبت‌دهی سالن زیبایی", description: PROMPT, stack, model: "claude-opus-5.5", status: "live", appId, dbId: "pdb-demo-salon",
-    previewToken: "demoSalonPreviewToken0000000000", version: 4, deployedVersion: 4, deploymentId: "dep-salon2", deployAttempt: 2, autoMaintain: true,
+    previewToken: "demoSalonPreviewToken0000000000", siteLanguage: "fa", siteDir: "rtl", version: 4, deployedVersion: 4, deploymentId: "dep-salon2", deployAttempt: 2, autoMaintain: true,
     checkedAt: at(3), spent: 61_200 + 18_900 + 21_400 + 12_300 + 6_800, maintainSpent: 6_800, createdAt: at(320), updatedAt: at(240),
   }).onConflictDoNothing();
   const run = (id: string, kind: "generate" | "edit" | "fix" | "maintain", o: { prompt?: string; cost: number; summary: string; diff?: { added: string[]; changed: string[]; deleted: string[] }; version?: number; attempt?: number; incident?: string; min: number }) =>
     ({ id, projectId: pid, userId: "u1", kind, status: "succeeded" as const, model: "claude-opus-5.5", prompt: o.prompt ?? "", inTokens: Math.round(o.cost / 4), outTokens: Math.round(o.cost / 9.5), cost: o.cost, summary: o.summary, diff: o.diff ?? { added: [], changed: [], deleted: [] }, version: o.version ?? null, attempt: o.attempt ?? 0, incident: o.incident ?? "", createdAt: at(o.min), finishedAt: at(o.min - 1) });
   await db.insert(builderRuns).values([
-    run("brun-demo1", "generate", { prompt: PROMPT, cost: 61_200, summary: v1.summary, diff: v1.diff, version: 1, min: 318 }),
+    { ...run("brun-demo1", "generate", { prompt: PROMPT, cost: 61_200, summary: v1.summary, diff: v1.diff, version: 1, min: 318 }),
+      skills: selectSkills({ stack, kind: "generate", prompt: PROMPT, lang: "fa" }).map((s) => s.id), reviewCost: 9_400,
+      quality: { ...checkFiles(v1.next, stack, { lang: "fa", dir: "rtl" }), before: { score: 92, errors: 0, warnings: 2 }, review: { status: "done" as const, note: "بازبینی کیفیت و امنیت انجام شد؛ مشکل جدی‌ای پیدا نشد.", files: [], cost: 9_400 } } },
     run("brun-demo2", "edit", { prompt: EDITS[0], cost: 18_900, summary: v2.summary, diff: v2.diff, version: 2, min: 312 }),
     run("brun-demo3", "edit", { prompt: EDITS[1], cost: 21_400, summary: v3.summary, diff: v3.diff, version: 3, min: 305 }),
     run("brun-demo4", "fix", { cost: 12_300, summary: v4.summary, diff: v4.diff, version: 4, attempt: 1, min: 296 }),

@@ -95,6 +95,8 @@ export type BuilderRunView = {
   id: string; kind: "generate" | "edit" | "fix" | "maintain"; status: "running" | "succeeded" | "failed" | "cancelled"; model: string; prompt: string;
   cost: number; inTokens: number; outTokens: number; summary: string; log: string; diff: { added: string[]; changed: string[]; deleted: string[] };
   version: number | null; attempt: number; incident: string; hasPatch: boolean; applied: boolean; at: string;
+  /** skills given to the agent, the quality report of the result and the AI cost of its self-review (included in cost) */
+  skills: string[]; quality: QualityReport | null; reviewCost: number;
 };
 export type BuilderProjectSummary = {
   id: string; name: string; description: string; stack: BuilderStack; status: string; version: number; liveUrl: string | null; spent: number; updatedAt: string; files: number;
@@ -108,6 +110,10 @@ export type BuilderProjectView = BuilderProjectSummary & {
   /** the platform runs on the simulator (demo tools are offered) */
   simulator: boolean;
   model: string; previewUrl: string; appId: string | null; appName: string | null; dbId: string | null; deployedVersion: number | null;
+  /** a second AI pass reviews each new project (and edits with errors) for quality and security */
+  selfReview: boolean;
+  /** the site's language: the owner's choice ("auto" or a BCP-47 tag) and the one in use, with its direction */
+  language: string; siteLanguage: string; siteDir: "rtl" | "ltr";
   autoMaintain: boolean; maintainCap: number; maintainSpent: number; checkedAt: string | null;
   maintainMode: MaintainMode; scanEvery: number;
   /** rough AI cost of one routine scan and of a month of continuous watching at scanEvery (Toman) */
@@ -122,11 +128,11 @@ export type BuilderProjectView = BuilderProjectSummary & {
 
 /** events of the generation stream (/api/build/run) */
 export type BuilderEvent =
-  | { type: "run"; runId: string; kind: string; model: string }
+  | { type: "run"; runId: string; kind: string; model: string; skills?: string[] }
   | { type: "status"; text: string }
   | { type: "plan"; text: string }
   | { type: "file"; path: string }
-  | { type: "done"; version: number; summary: string; charged: number; diff: { added: string[]; changed: string[]; deleted: string[] } }
+  | { type: "done"; version: number; summary: string; charged: number; diff: { added: string[]; changed: string[]; deleted: string[] }; score?: number }
   | { type: "error"; message: string };
 
 /* ---------- maintenance agent: when it looks ---------- */
@@ -139,3 +145,47 @@ export const MAINTAIN_MODES: { id: MaintainMode; label: string; icon: string; te
 export const SCAN_EVERY = [15, 30, 60] as const;
 /** tokens of one routine scan (files summary + recent logs in, a short diagnosis out) */
 export const SCAN_TOKENS = { in: 6000, out: 400 };
+
+/* ---------- skills and the quality gate (src/server/builder/skills, quality.ts) ---------- */
+/** Persian titles of the agent's skills (the bodies live on the server) */
+export const SKILL_TITLES: Record<string, string> = {
+  "frontend-design": "طراحی متمایز",
+  "i18n-typography": "زبان، جهت و تایپوگرافی",
+  "responsive-mobile-first": "واکنش‌گرا، اول موبایل",
+  "accessibility-wcag": "دسترس‌پذیری",
+  "web-security": "امنیت وب",
+  "node-backend": "بک‌اند Node",
+  "performance-seo": "سرعت و سئو",
+  "forms-and-states": "فرم‌ها و حالت‌ها",
+  "testing-and-debugging": "اشکال‌یابی ریشه‌ای",
+  "landing-copywriting": "متن فروش",
+  "dashboard-data": "داشبورد و جدول داده",
+  "ecommerce-basics": "فروشگاه آنلاین",
+  "auth-accounts": "ورود و حساب کاربری",
+};
+
+export type QualityCategory = "ui" | "a11y" | "security" | "backend" | "performance";
+export const QUALITY_CATEGORIES: { id: QualityCategory; label: string; icon: string }[] = [
+  { id: "ui", label: "رابط کاربری", icon: "palette" },
+  { id: "a11y", label: "دسترس‌پذیری", icon: "accessibility" },
+  { id: "security", label: "امنیت", icon: "shield-check" },
+  { id: "backend", label: "بک‌اند", icon: "server" },
+  { id: "performance", label: "سرعت و سئو", icon: "gauge" },
+];
+export type QualityFinding = {
+  rule: string; category: QualityCategory; severity: "error" | "warn"; file: string;
+  /** Persian, for the owner */
+  message: string;
+  /** English, for the review pass */
+  hint: string;
+  count: number;
+};
+export type QualityReport = {
+  /** 0–100 overall and per category (backend is null on a static site) */
+  score: number;
+  scores: Record<QualityCategory, number | null>;
+  findings: QualityFinding[];
+  /** what the static checks found before the AI self-review, when one ran */
+  before: { score: number; errors: number; warnings: number } | null;
+  review: { status: "done" | "skipped" | "failed"; note: string; files: string[]; cost: number } | null;
+};

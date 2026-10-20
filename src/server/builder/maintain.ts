@@ -27,7 +27,7 @@ const SEVERITY = ["oom", "crash", "health_failed"];
 const ERROR_RE = /\b(error|exception|fatal|unhandled|uncaught|ECONNREFUSED|ETIMEDOUT|panic|traceback)\b|\s5\d\d\s/i;
 const ERROR_BURST = 3;
 /** a routine scan that found nothing begins its summary with this */
-export const healthy = (summary: string) => /^\s*وضعیت:\s*سالم/.test(summary);
+export const healthy = (summary: string) => /^\s*(وضعیت:\s*سالم|status:\s*healthy)/i.test(summary);
 
 async function appLogs(db: DB, appId: string | null) {
   if (!appId) return "";

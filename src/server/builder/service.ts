@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { BUILDER_DEFAULT_MODEL, SCAN_TOKENS, filesError, guessStack, pathError, projectName, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type BuilderStack } from "@/lib/builder";
 import { costOf } from "@/lib/ai";
 import { faDateTime } from "@/lib/jalali";
+import { dirOf, resolveSiteLanguage } from "@/lib/site-language";
 import type { DB } from "../db/client";
 import { aiModels, builderMessages, builderProjects, builderRuns, builderVersions, paasApps, paasDeployments } from "../db/schema";
 import { paas } from "../paas/driver";
@@ -15,12 +16,14 @@ import { quote } from "./deploy";
 
 export const MAX_PROJECTS = 50;
 
-export async function createProject(db: DB, userId: string, o: { prompt: string; stack: BuilderStack | "auto"; model?: string }) {
+export async function createProject(db: DB, userId: string, o: { prompt: string; stack: BuilderStack | "auto"; model?: string; language?: string }) {
   const [n] = await db.select({ n: sql<number>`count(*)::int` }).from(builderProjects).where(eq(builderProjects.userId, userId));
   if ((n?.n ?? 0) >= MAX_PROJECTS) throw new AppError("حداکثر " + MAX_PROJECTS.toLocaleString("fa-IR") + " پروژه مجاز است؛ پروژه‌های قدیمی را حذف کنید.");
   const id = rid("bld");
   const stack = o.stack === "auto" ? guessStack(o.prompt) : o.stack;
-  await db.insert(builderProjects).values({ id, userId, name: projectName(o.prompt), description: o.prompt.slice(0, 4000), stack, model: o.model || BUILDER_DEFAULT_MODEL, previewToken: randomBytes(24).toString("base64url") });
+  const languageSetting = o.language && o.language !== "auto" ? o.language : "auto";
+  const siteLanguage = resolveSiteLanguage({ prompt: o.prompt, setting: languageSetting });
+  await db.insert(builderProjects).values({ id, userId, name: projectName(o.prompt), description: o.prompt.slice(0, 4000), stack, model: o.model || BUILDER_DEFAULT_MODEL, previewToken: randomBytes(24).toString("base64url"), languageSetting, siteLanguage, siteDir: dirOf(siteLanguage) });
   return id;
 }
 
@@ -48,6 +51,7 @@ const summary = (p: Project, files: number, hosts: Map<string, string>): Builder
 export const runView = (r: Run): BuilderRunView => ({
   id: r.id, kind: r.kind, status: r.status, model: r.model, prompt: r.prompt, cost: r.cost, inTokens: r.inTokens, outTokens: r.outTokens, summary: r.summary, log: r.log,
   diff: r.diff, version: r.version, attempt: r.attempt, incident: r.incident, hasPatch: !!r.patch && Object.keys(r.patch).length > 0, applied: r.applied, at: iso(r.createdAt),
+  skills: r.skills ?? [], quality: r.quality ?? null, reviewCost: r.reviewCost,
 });
 
 export async function projectView(db: DB, p: Project): Promise<BuilderProjectView> {
@@ -72,6 +76,7 @@ export async function projectView(db: DB, p: Project): Promise<BuilderProjectVie
   return {
     ...s, model: p.model, previewUrl: previewPath(p.previewToken), appId: p.appId, appName: app?.name ?? null, dbId: p.dbId, deployedVersion: p.deployedVersion,
     liveView: s.liveUrl ? (sim ? previewPath(p.previewToken, p.deployedVersion) : s.liveUrl) : null, simulator: sim,
+    selfReview: p.selfReview, language: p.languageSetting, siteLanguage: p.siteLanguage || "fa", siteDir: p.siteDir || dirOf(p.siteLanguage || "fa"),
     autoMaintain: p.autoMaintain, maintainCap: p.maintainCap, maintainSpent: p.maintainSpent, checkedAt: p.checkedAt ? iso(p.checkedAt) : null,
     maintainMode: p.maintainMode, scanEvery: p.scanEvery, scanCost, continuousMonthly: scanCost * Math.round((30 * 24 * 60) / p.scanEvery),
     tree: Object.keys(files).sort().map((path) => ({ path, size: new TextEncoder().encode(files[path]).length })),

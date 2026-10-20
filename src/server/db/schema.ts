@@ -2,6 +2,7 @@
    Timestamps are timestamptz; the UI formats them in the Jalali calendar. Text ids keep the
    human-readable prefixes the panel shows (srv-…, INV-…, TK-…). */
 import { sql } from "drizzle-orm";
+import type { QualityReport } from "@/lib/builder";
 import { bigint, bigserial, boolean, index, integer, jsonb, pgTable, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -1673,6 +1674,13 @@ export const builderProjects = pgTable("builder_projects", {
   deployError: text("deploy_error").notNull().default(""),
   /** maintenance agent: apply its patches and redeploy without asking, within a monthly AI cost cap */
   autoMaintain: boolean("auto_maintain").notNull().default(false),
+  /** a second AI pass reviews new projects for quality and security (0032_builder_skills) */
+  selfReview: boolean("self_review").notNull().default(true),
+  /** the language of the generated site: the owner's choice ("auto" or a BCP-47 tag), and the one the
+      last run resolved (an explicit request > the choice > the project's language > the prompt's) */
+  languageSetting: text("language_setting").notNull().default("auto"),
+  siteLanguage: text("site_language").notNull().default(""),
+  siteDir: text("site_dir", { enum: ["rtl", "ltr", ""] }).notNull().default(""),
   maintainCap: money("maintain_cap").notNull().default(300_000),
   maintainSpent: money("maintain_spent").notNull().default(0),
   maintainMonth: text("maintain_month").notNull().default(""),
@@ -1731,6 +1739,11 @@ export const builderRuns = pgTable("builder_runs", {
   incident: text("incident").notNull().default(""),
   patch: jsonb("patch").$type<Record<string, string | null>>(),
   applied: boolean("applied").notNull().default(false),
+  /** skills given to the agent (0032_builder_skills), the quality report of the result and the AI cost
+      of its self-review pass (already included in cost) */
+  skills: jsonb("skills").$type<string[]>().notNull().default([]),
+  quality: jsonb("quality").$type<QualityReport>(),
+  reviewCost: money("review_cost").notNull().default(0),
   createdAt: created(),
   finishedAt: ts("finished_at"),
 }, (t) => [index("builder_run_project_ix").on(t.projectId, t.createdAt)]);

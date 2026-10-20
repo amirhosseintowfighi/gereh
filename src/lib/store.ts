@@ -425,8 +425,8 @@ export const api = {
   builder: {
     list: () => rpc<BuilderProjectSummary[]>("builder.list"),
     get: (id: string) => rpc<BuilderProjectView>("builder.get", id),
-    create: (i: { prompt: string; stack: "auto" | "static" | "node"; model?: string }) => rpc<string>("builder.create", i),
-    update: (id: string, patch: Partial<{ name: string; model: string; autoMaintain: boolean; maintainCap: number; maintainMode: "continuous" | "incident" | "manual"; scanEvery: 15 | 30 | 60 }>) => rpc("builder.update", id, patch),
+    create: (i: { prompt: string; stack: "auto" | "static" | "node"; model?: string; language?: string }) => rpc<string>("builder.create", i),
+    update: (id: string, patch: Partial<{ name: string; model: string; selfReview: boolean; language: string; autoMaintain: boolean; maintainCap: number; maintainMode: "continuous" | "incident" | "manual"; scanEvery: 15 | 30 | 60 }>) => rpc("builder.update", id, patch),
     remove: (id: string) => rpc("builder.remove", id),
     file: (id: string, path: string, version?: number) => rpc<string>("builder.file", id, path, ...(version ? [version] : [])),
     saveFile: (id: string, path: string, content: string | null) => rpc<number>("builder.saveFile", id, path, content),

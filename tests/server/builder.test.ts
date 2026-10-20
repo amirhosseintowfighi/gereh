@@ -108,7 +108,11 @@ describe("builder: generate, edit, versions", () => {
     expect(v.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
     expect(await balance()).toBe(before - done.charged);
     const usage = await (await db()).select().from(aiUsage).where(and(eq(aiUsage.userId, "u1"), eq(aiUsage.format, "panel")));
-    expect(usage.some((u) => u.charged === done.charged && u.status === "success")).toBe(true);
+    // the build and its quality self-review: two metered calls, charged together on the run
+    expect(usage.filter((u) => u.status === "success")).toHaveLength(2);
+    expect(usage.reduce((s, u) => s + u.charged, 0)).toBe(done.charged);
+    expect(v.runs[0].reviewCost).toBeGreaterThan(0);
+    expect(v.runs[0].reviewCost).toBeLessThan(done.charged);
     const html = await call<string>("builder.file", id, "index.html");
     expect(html).toContain('dir="rtl"');
     expect(html).toContain("سالن زیبایی");
@@ -254,6 +258,7 @@ describe("builder: deploy, auto-fix and maintenance", () => {
   it("a dropped upstream stream («terminated») is retried and the build still completes", async () => {
     await asUser();
     const id = await call<string>("builder.create", { prompt: "صفحه معرفی کافه", stack: "static" });
+    await call("builder.update", id, { selfReview: false }); // count only the build's calls
     const out = render({ plan: "- صفحه اصلی", files: { "index.html": "<!doctype html><html lang=fa><title>کافه</title><body>کافه</body></html>" }, summary: "ساخته شد." });
     let calls = 0;
     const broken = () => new Response(new ReadableStream({ start(c) {
