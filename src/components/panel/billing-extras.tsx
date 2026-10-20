@@ -103,7 +103,7 @@ export function BillingExtras() {
       </Card>
       <Modal open={!!prof} onClose={() => setProf(null)} title="پروفایل صورتحساب" icon="file-text" footer={<><AsyncButton onClick={async () => { if (!prof) return; await billingApi.saveProfile(prof); setProf(null); done("پروفایل ذخیره شد"); }}>ذخیره</AsyncButton><button type="button" onClick={() => setProf(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {prof && <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="عنوان"><input value={prof.label} onChange={(e) => setProf({ ...prof, label: e.target.value })} className={INPUT} placeholder="مثلا شرکت" /></Field>
+          <Field label="عنوان"><input value={prof.label} onChange={(e) => setProf({ ...prof, label: e.target.value })} className={INPUT} placeholder="مثلاً شرکت" /></Field>
           <Field label="نام شخص یا شرکت"><input value={prof.name} onChange={(e) => setProf({ ...prof, name: e.target.value })} className={INPUT} /></Field>
           <Field label="کد ملی / شناسه ملی"><input value={prof.nationalId} onChange={(e) => setProf({ ...prof, nationalId: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
           <Field label="کد اقتصادی (اختیاری)"><input value={prof.economicCode} onChange={(e) => setProf({ ...prof, economicCode: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>

@@ -2,7 +2,7 @@
 import { NotifMatrix, SecurityExtras, TeamExtras } from "./billing-extras";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
@@ -153,7 +153,7 @@ export function UserHosting({ id }: { id?: string }) {
             <Meter label="فضای دیسک" value={h.diskUsed} max={h.diskTotal} right={fa(h.diskUsed, 1) + " از " + fa(h.diskTotal) + " گیگ"} />
             <Meter label="ترافیک ماهانه" value={h.bwUsed} max={h.bwTotal} right={fa(h.bwUsed) + " از " + fa(h.bwTotal) + " گیگ"} />
             <Meter label="حساب‌های ایمیل" value={h.emails} max={25} right={fa(h.emails) + " از ۲۵"} />
-            <Meter label="دیتابیس‌ها" value={h.dbs} max={10} right={fa(h.dbs) + " از ۱۰"} />
+            <Meter label="پایگاه‌های داده" value={h.dbs} max={10} right={fa(h.dbs) + " از ۱۰"} />
           </div>
         </Card>
         <Card title="اطلاعات" icon="file-text">
@@ -450,7 +450,7 @@ export function UserKeys() {
           await api.account.addKey(k); setK({ name: "", pub: "" }); setKeyM(false); notify("کلید اضافه شد", "key-round");
         }}>افزودن</AsyncButton><button type="button" onClick={() => setKeyM(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="space-y-4">
-          <Field label="نام کلید"><input value={k.name} maxLength={60} onChange={(e) => setK((s) => ({ ...s, name: e.target.value }))} placeholder="مثلا لپ‌تاپ کار" className={INPUT} /></Field>
+          <Field label="نام کلید"><input value={k.name} maxLength={60} onChange={(e) => setK((s) => ({ ...s, name: e.target.value }))} placeholder="مثلاً لپ‌تاپ کار" className={INPUT} /></Field>
           <Field label="کلید عمومی" hint="محتوای فایل ~/.ssh/id_ed25519.pub"><textarea value={k.pub} onChange={(e) => setK((s) => ({ ...s, pub: e.target.value }))} rows={4} dir="ltr" className={TEXTAREA + " mono text-xs text-left"} placeholder="ssh-ed25519 AAAA…" /></Field>
         </div>
       </Modal>
@@ -566,7 +566,7 @@ function AccountView() {
               {db.sessions.map((se) => (
                 <div key={se.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
                   <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name={/iPhone|Android/.test(se.device) ? "smartphone" : "monitor-smartphone"} size={16} /></span>
-                    <div><div className="text-sm font-bold flex flex-wrap items-center gap-2">{se.device} {se.current && <Badge tone="green">همین دستگاه</Badge>}</div><div className="text-[11px] text-white/55 mt-0.5"><span className="mono ltr">{se.ip}</span>، {se.place}، {se.last}</div></div></div>
+                    <div><div className="text-sm font-bold flex flex-wrap items-center gap-2">{se.device} {se.current && <Badge tone="green">همین دستگاه</Badge>}</div><div className="text-[11px] text-white/55 mt-0.5">{[se.ip && <span key="ip" className="mono ltr">{se.ip}</span>, se.place, se.last].filter(Boolean).map((x, k) => <Fragment key={k}>{k > 0 && "، "}{x}</Fragment>)}</div></div></div>
                   {!se.current && <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText={"نشست " + se.device + " خاتمه یابد؟"} onClick={async () => { await api.account.revokeSession(se.id); notify("نشست خاتمه یافت"); }}>خروج از دستگاه</AsyncButton>}
                 </div>
               ))}

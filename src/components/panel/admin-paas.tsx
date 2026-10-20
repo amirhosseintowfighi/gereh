@@ -39,7 +39,7 @@ export function AdminPaas() {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[{ id: "apps", label: "اپ‌ها", icon: "rocket" }, { id: "dbs", label: "پایگاه داده", icon: "database" }, { id: "plans", label: "پلن‌ها", icon: "tag" }, { id: "platform", label: "زیرساخت", icon: "radio-tower" }]} />
-        {(tab === "apps" || tab === "dbs") && <><label className="sr-only" htmlFor="paas-q">جستجو</label><input id="paas-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="نام، مشتری یا ایمیل" className={INPUT + " max-w-xs"} /></>}
+        {(tab === "apps" || tab === "dbs") && <><label className="sr-only" htmlFor="paas-q">جست‌وجو</label><input id="paas-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="نام، مشتری یا ایمیل" className={INPUT + " max-w-xs"} /></>}
       </div>
 
       {tab === "apps" && (

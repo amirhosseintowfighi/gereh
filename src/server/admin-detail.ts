@@ -343,7 +343,7 @@ export async function userOrders(db: DB, uid: string, offset = 0, limit = 15): P
 }
 
 export async function userServices(db: DB, uid: string): Promise<UserServices> {
-  const [srv, hst, dom, apps, dbs, bld, bkt, mail, keys, zones, inq, aPlans, sPlans] = await Promise.all([
+  const [srv, hst, dom, apps, dbs, bld, bkt, mail, keys, zones, inq, aPlans, sPlans, mPlans, gPlans] = await Promise.all([
     db.select().from(t.servers).where(eq(t.servers.userId, uid)).orderBy(asc(t.servers.createdAt)),
     db.select().from(t.hosting).where(eq(t.hosting.userId, uid)),
     db.select().from(t.domains).where(eq(t.domains.userId, uid)),
@@ -357,13 +357,17 @@ export async function userServices(db: DB, uid: string): Promise<UserServices> {
     db.select().from(t.inquiryAccounts).where(eq(t.inquiryAccounts.userId, uid)),
     db.select().from(t.paasPlans),
     db.select().from(t.storagePlans),
+    db.select().from(t.mailPlans),
+    db.select().from(t.geoPlans),
   ]);
   const plan = (id: string) => aPlans.find((p) => p.id === id)?.name ?? id;
+  const locs = await getLocations(db);
+  const locName = (id: string) => locs.find((l) => l.id === id)?.label ?? id;
   const sus = (st: string) => (st === "suspended" ? ["unsuspend"] : ["suspend"]) as ServiceRow["actions"];
-  const gb = (b: number) => (b / 1e9).toFixed(b < 1e9 ? 2 : 1);
+  const gb = (b: number) => fa(b / 1e9, b < 1e9 ? 2 : 1);
   const rows: ServiceRow[] = [
     ...srv.map((s) => ({ kind: "server", id: s.id, name: s.name, status: s.status, href: "/admin/services",
-      info: s.cpu + "C / " + s.ram + "G / " + s.disk + "G · " + (s.ip || "بدون IP") + " · " + s.loc + " · " + (s.billing === "hourly" ? "ساعتی" : "تا " + faDate(s.paidUntil)) + (s.provisionError ? " · خطای تحویل" : ""),
+      info: s.cpu + "C / " + s.ram + "G / " + s.disk + "G · " + (s.ip || "بدون IP") + " · " + locName(s.loc) + " · " + (s.billing === "hourly" ? "ساعتی" : "تا " + faDate(s.paidUntil)) + (s.provisionError ? " · خطای تحویل" : ""),
       actions: s.status === "provisioning" ? [] : [...sus(s.status), "delete"] as ServiceRow["actions"] })),
     ...hst.map((h) => ({ kind: "hosting", id: h.id, name: h.domain, status: h.status, href: "/admin/services", info: h.plan + " · تا " + faDate(h.expiresAt) + " · " + h.server, actions: sus(h.status) })),
     ...dom.map((d) => ({ kind: "domain", id: d.id, name: d.name, status: d.status, href: "/admin/domains", info: "انقضا " + faDate(d.expiresAt) + (d.autoRenew ? " · تمدید خودکار" : ""), actions: [] })),
@@ -371,9 +375,9 @@ export async function userServices(db: DB, uid: string): Promise<UserServices> {
     ...dbs.map((d) => ({ kind: "db", id: d.id, name: d.name, status: d.status, href: "/admin/paas", info: d.engine + " " + d.version + " · " + plan(d.planId), actions: sus(d.status) })),
     ...bld.map((b) => ({ kind: "builder", id: b.id, name: b.name, status: b.status, href: "", info: (b.stack === "node" ? "Node" : "استاتیک") + " · نسخه " + fa(b.version) + (b.appId ? " · اپ " + b.appId : ""), actions: [] })),
     ...bkt.map((b) => ({ kind: "bucket", id: b.id, name: b.name, status: b.status, href: "/admin/storage", info: (sPlans.find((p) => p.id === b.planId)?.name ?? b.planId) + " · " + gb(b.usedBytes) + " گیگ · " + fa(b.objects) + " شیء", actions: sus(b.status) })),
-    ...mail.map((m) => ({ kind: "mail", id: m.id, name: m.domain, status: m.status, href: "/admin/mail", info: (m.mode === "live" ? "ارسال واقعی" : "حالت آزمایشی") + " · " + m.planId, actions: sus(m.status) })),
+    ...mail.map((m) => ({ kind: "mail", id: m.id, name: m.domain, status: m.status, href: "/admin/mail", info: (m.mode === "live" ? "ارسال واقعی" : "حالت آزمایشی") + " · " + (mPlans.find((p) => p.id === m.planId)?.name ?? m.planId), actions: sus(m.status) })),
     ...keys.map((k) => ({ kind: "aikey", id: k.id, name: k.name, status: k.status, href: "/admin/ai", info: k.prefix + "… · آخرین استفاده " + (k.lastUsedAt ? faDateTime(k.lastUsedAt) : "—"), actions: [] })),
-    ...zones.map((z) => ({ kind: "geo", id: z.id, name: z.domain, status: z.status, href: "/admin/geo", info: z.planId + " · تا " + faDate(z.paidUntil) + (z.nsOk ? "" : " · NS تنظیم نشده"), actions: [...sus(z.status), "extend"] as ServiceRow["actions"] })),
+    ...zones.map((z) => ({ kind: "geo", id: z.id, name: z.domain, status: z.status, href: "/admin/geo", info: (gPlans.find((p) => p.id === z.planId)?.name ?? z.planId) + " · تا " + faDate(z.paidUntil) + (z.nsOk ? "" : " · NS تنظیم نشده"), actions: [...sus(z.status), "extend"] as ServiceRow["actions"] })),
     ...inq.map((a) => ({ kind: "inquiry", id: a.userId, name: "حساب استعلام #" + a.accountNo, status: a.status, href: "/admin/inquiry", info: "کلید " + a.apiKey.slice(0, 8) + "…", actions: sus(a.status) })),
   ];
   return { tab: "services", rows };

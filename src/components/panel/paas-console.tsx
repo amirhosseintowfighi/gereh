@@ -326,9 +326,9 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
         <button type="button" onClick={async () => { const n = window.prompt("نام پوشه جدید"); if (n) await act(() => api.paas.fsMkdir(diskId, join(n))); }} className={BTN_G + BTN_SM}><Icon name="folder-plus" size={14} />پوشه</button>
         <button type="button" onClick={() => { const n = window.prompt("نام فایل جدید"); if (n) setEdit({ path: join(n), text: "", isNew: true }); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />فایل</button>
         <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); if (!q.trim()) { setFound(null); return; } try { setFound(await api.paas.fsSearch(diskId, path, q)); } catch (er) { notify((er as Error).message, "circle-alert"); } }}>
-          <label className="sr-only" htmlFor="fs-q">جستجوی نام فایل</label>
-          <input id="fs-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام…" className={INPUT_BASE + " h-9 w-40 text-xs"} />
-          <button type="submit" aria-label="جستجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
+          <label className="sr-only" htmlFor="fs-q">جست‌وجوی نام فایل</label>
+          <input id="fs-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی نام…" className={INPUT_BASE + " h-9 w-40 text-xs"} />
+          <button type="submit" aria-label="جست‌وجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
         </form>
       </div>
       {progress && <p className="text-xs text-white/60 mb-2" dir="ltr">{progress}</p>}

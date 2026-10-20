@@ -101,7 +101,7 @@ export function AdminUsers() {
           <form className="mt-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4" onSubmit={(e) => e.preventDefault()}>
             <div className="text-sm font-bold mb-3 flex items-center gap-2"><Icon name="wallet" size={16} className="acc" />تغییر موجودی</div>
             <div className="grid grid-cols-2 gap-2">
-              <input value={adj.amount} onChange={(e) => setAdj((s) => ({ ...s, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 یا -200000" className={INPUT + " text-left tabular"} />
+              <input value={adj.amount} onChange={(e) => setAdj((s) => ({ ...s, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-left tabular"} />
               <input value={adj.reason} onChange={(e) => setAdj((s) => ({ ...s, reason: e.target.value }))} aria-label="دلیل" placeholder="دلیل" className={INPUT} />
             </div>
             <div className="mt-3 flex justify-end"><AsyncButton confirmText={"موجودی " + u.name + " تغییر کند؟"} onClick={async () => {

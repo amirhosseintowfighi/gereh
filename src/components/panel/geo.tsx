@@ -67,7 +67,7 @@ function NewZone({ open, onClose }: { open: boolean; onClose: () => void }) {
         <Field label="دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="example.ir" className={INPUT + " text-left"} /></Field>
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="IP سرور ایران" hint="بازدیدکنندگان داخل ایران"><input value={f.iran} onChange={(e) => setF({ ...f, iran: e.target.value.trim() })} dir="ltr" placeholder="185.x.x.x" className={INPUT + " text-left font-mono"} /></Field>
-          <Field label="IP سرور خارج" hint={plan?.sync === "full" ? "اگر ندارید خالی نگذارید؛ تیم ما پس از خرید با شما هماهنگ می‌کند" : "بقیه دنیا و موتورهای جستجو"}><input value={f.world} onChange={(e) => setF({ ...f, world: e.target.value.trim() })} dir="ltr" placeholder="94.x.x.x" className={INPUT + " text-left font-mono"} /></Field>
+          <Field label="IP سرور خارج" hint={plan?.sync === "full" ? "اگر ندارید خالی نگذارید؛ تیم ما پس از خرید با شما هماهنگ می‌کند" : "بقیه دنیا و موتورهای جست‌وجو"}><input value={f.world} onChange={(e) => setF({ ...f, world: e.target.value.trim() })} dir="ltr" placeholder="94.x.x.x" className={INPUT + " text-left font-mono"} /></Field>
         </div>
         <p className="text-[11px] text-white/55 leading-6">رکوردهای ریشه (@) و www با همین دو IP ساخته می‌شوند؛ بقیه رکوردها (ایمیل، زیردامنه‌ها…) را بعداً اضافه کنید. ماه اول از کیف پول کسر می‌شود و سرویس پس از تغییر NS دامنه فعال می‌شود.</p>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/[0.08]">
@@ -172,7 +172,7 @@ function Records({ z }: { z: GeoZone }) {
               </div>
               <div className={"grid gap-2 mt-2 text-xs " + (geo ? "sm:grid-cols-2" : "")}>
                 <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">{geo ? "ایران" : "مقدار"}{r.type === "MX" ? " (اولویت " + fa(r.priority ?? 10) + ")" : ""}</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-right">{r.iran}</span>{geo && plan?.healthChecks && <span className="block mt-1"><Up v={r.iranUp} /></span>}</div>
-                {geo && <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">خارج و موتورهای جستجو</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-right">{r.world}</span>{plan?.healthChecks && <span className="block mt-1"><Up v={r.worldUp} /></span>}</div>}
+                {geo && <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">خارج و موتورهای جست‌وجو</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-right">{r.world}</span>{plan?.healthChecks && <span className="block mt-1"><Up v={r.worldUp} /></span>}</div>}
               </div>
             </li>
           ); })}
@@ -198,7 +198,7 @@ function RecordModal({ z, edit, onClose }: { z: GeoZone; edit: { id: number | nu
           <Field label="نوع"><Select label="نوع رکورد" value={r.type} onChange={(v) => setR({ ...r, type: v as GeoRecordType, world: GEO_TYPES.find((x) => x.id === v)!.geo ? r.world : "" })} options={GEO_TYPES.map((x) => ({ value: x.id, label: x.label }))} /></Field>
         </div>
         <Field label={t.geo ? "مقدار برای ایران" : "مقدار"} hint={t.hint}><input value={r.iran} onChange={(e) => setR({ ...r, iran: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
-        {t.geo && <Field label="مقدار برای خارج و موتورهای جستجو" hint="خالی = برای همه یکسان (بدون تفکیک)"><input value={r.world} onChange={(e) => setR({ ...r, world: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>}
+        {t.geo && <Field label="مقدار برای خارج و موتورهای جست‌وجو" hint="خالی = برای همه یکسان (بدون تفکیک)"><input value={r.world} onChange={(e) => setR({ ...r, world: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>}
         <div className="grid grid-cols-2 gap-3">
           <Field label="TTL (ثانیه)" hint="برای رکوردهای تفکیک‌شده ۶۰ پیشنهاد می‌شود"><input value={r.ttl} inputMode="numeric" onChange={(e) => setR({ ...r, ttl: Number(e.target.value.replace(/\D/g, "")) || 60 })} dir="ltr" className={INPUT + " text-left"} /></Field>
           {r.type === "MX" && <Field label="اولویت"><input value={r.priority ?? 10} inputMode="numeric" onChange={(e) => setR({ ...r, priority: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>}

@@ -111,7 +111,7 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
       <div>
         <h3 className="text-sm text-white/55 mb-2">یادداشت‌های داخلی</h3>
         <ol className="space-y-2 mb-3">{l.notes.map((n, i) => <li key={i} className="text-sm bg-white/[0.03] rounded-xl p-3"><span className="text-[11px] text-white/50 block mb-1">{n.by} · {n.at}</span>{n.text}</li>)}</ol>
-        <div className="flex gap-2"><label className="sr-only" htmlFor="lead-note">یادداشت</label><input id="lead-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="مثلا: جلسه برای سه‌شنبه هماهنگ شد" className={INPUT} />
+        <div className="flex gap-2"><label className="sr-only" htmlFor="lead-note">یادداشت</label><input id="lead-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="مثلاً: جلسه برای سه‌شنبه هماهنگ شد" className={INPUT} />
           <AsyncButton className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.devops.noteLead(l.id, note); setNote(""); }}>ثبت</AsyncButton></div>
       </div>
       {l.status !== "lost" && <button type="button" onClick={onProject} className={BTN_P + BTN_LG + " w-full"}><Icon name="rocket" size={16} />قرارداد بسته شد: ساخت پروژه</button>}
@@ -189,7 +189,7 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
       <section>
         <h3 className="font-extrabold mb-3">صورتحساب یک‌باره</h3>
         <div className="grid sm:grid-cols-[1fr_10rem_auto] gap-2">
-          <label className="sr-only" htmlFor="inv-desc">شرح</label><input id="inv-desc" value={inv.desc} onChange={(e) => setInv({ ...inv, desc: e.target.value })} placeholder="مثلا: ۱۲ ساعت اضافه مهر" className={INPUT} />
+          <label className="sr-only" htmlFor="inv-desc">شرح</label><input id="inv-desc" value={inv.desc} onChange={(e) => setInv({ ...inv, desc: e.target.value })} placeholder="مثلاً: ۱۲ ساعت اضافه مهر" className={INPUT} />
           <label className="sr-only" htmlFor="inv-amount">مبلغ (تومان)</label><input id="inv-amount" inputMode="numeric" value={inv.amount} onChange={(e) => setInv({ ...inv, amount: e.target.value })} placeholder="مبلغ (تومان)" dir="ltr" className={INPUT + " text-left"} />
           <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const id = await api.devops.invoice(p.id, { desc: inv.desc, amount: num(inv.amount) }); setInv({ desc: "", amount: "" }); notify("صورتحساب " + id + " صادر شد", "receipt"); }}>صدور</AsyncButton>
         </div>

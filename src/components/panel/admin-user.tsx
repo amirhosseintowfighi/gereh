@@ -63,7 +63,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
   const u = s.user;
   const [adj, setAdj] = useState({ amount: "", reason: "" });
   const [msg, setMsg] = useState("");
-  const COUNT: [string, string][] = [["servers", "سرور"], ["hosting", "هاست"], ["domains", "دامنه"], ["apps", "اپ"], ["dbs", "دیتابیس"], ["buckets", "باکت"], ["mail", "دامنه ایمیل"], ["geo", "Geo DNS"], ["aiKeys", "کلید AI"], ["builder", "پروژه بافت"], ["tickets", "تیکت"]];
+  const COUNT: [string, string][] = [["servers", "سرور"], ["hosting", "هاست"], ["domains", "دامنه"], ["apps", "اپ"], ["dbs", "پایگاه داده"], ["buckets", "باکت"], ["mail", "دامنه ایمیل"], ["geo", "Geo DNS"], ["aiKeys", "کلید AI"], ["builder", "پروژه بافت"], ["tickets", "تیکت"]];
   return (
     <div className="space-y-4">
       {s.flags.length > 0 && <div className="flex flex-wrap gap-2">{s.flags.map((f) => <Badge key={f} tone="amber" dot>{f}</Badge>)}</div>}
@@ -102,7 +102,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
       <div className="grid lg:grid-cols-3 gap-4">
         <Card title="تغییر موجودی" icon="wallet">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-            <input value={adj.amount} onChange={(e) => setAdj((x) => ({ ...x, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 یا -200000" className={INPUT + " text-left tabular"} />
+            <input value={adj.amount} onChange={(e) => setAdj((x) => ({ ...x, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-left tabular"} />
             <input value={adj.reason} onChange={(e) => setAdj((x) => ({ ...x, reason: e.target.value }))} aria-label="دلیل" placeholder="دلیل (در تراکنش و گزارش ثبت می‌شود)" className={INPUT} />
           </div>
           <div className="mt-3 flex justify-end"><AsyncButton confirmText={"موجودی " + u.name + " تغییر کند؟"} onClick={async () => {
@@ -183,7 +183,7 @@ function Pager({ offset, size, total, onChange }: { offset: number; size: number
 
 /* ---------- سرویس‌ها ---------- */
 const KINDS: Record<string, [string, string]> = {
-  server: ["سرورهای ابری", "server"], hosting: ["هاست", "layers"], domain: ["دامنه‌ها", "globe"], app: ["اپ‌های گره اپ", "rocket"], db: ["دیتابیس‌های گره اپ", "database"],
+  server: ["سرورهای ابری", "server"], hosting: ["هاست", "layers"], domain: ["دامنه‌ها", "globe"], app: ["اپ‌های گره اپ", "rocket"], db: ["پایگاه‌های داده گره اپ", "database"],
   builder: ["پروژه‌های بافت", "sparkles"], bucket: ["باکت‌های ذخیره‌سازی", "hard-drive"], mail: ["دامنه‌های ایمیل", "mail"], aikey: ["کلیدهای API هوش مصنوعی", "bot"], geo: ["Geo DNS", "radar"], inquiry: ["API استعلام", "fingerprint"],
 };
 async function runAction(r: ServiceRow, a: ServiceRow["actions"][number]) {

@@ -67,9 +67,9 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
     <Card pad="p-4">
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); setApplied(q); setNonce((n) => n + 1); }}>
-          <label className="sr-only" htmlFor="log-q">جستجو در لاگ</label>
+          <label className="sr-only" htmlFor="log-q">جست‌وجو در لاگ</label>
           <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="search…" className={INPUT_BASE + " h-9 w-52 text-left text-xs"} />
-          <button type="submit" aria-label="جستجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
+          <button type="submit" aria-label="جست‌وجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
         </form>
         <span className="flex gap-1" role="group" aria-label="سطح لاگ">
           {LOG_LEVELS.map((l) => <button key={l.id} type="button" aria-pressed={levels.includes(l.id)} onClick={() => toggle(l.id)} className={"h-8 px-2.5 rounded-lg text-[11px] border " + (levels.includes(l.id) ? "border-white/30 bg-white/[0.08] " + LEVEL_TONE[l.id] : "border-white/[0.08] text-white/50")}>{l.label}</button>)}
@@ -86,7 +86,7 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
         {lines === null ? "…" : lines.length === 0 ? <span className="text-white/50">{app.status === "running" ? "لاگی با این فیلترها پیدا نشد؛ لاگ‌ها هر ۵ دقیقه جمع‌آوری می‌شوند." : "اپ در حال اجرا نیست."}</span>
           : lines.map((l) => <div key={l.id} className={LEVEL_TONE[l.level]}><span className="text-white/50">{l.at.slice(5, 19).replace("T", " ")} </span>{l.instance && <span className="text-white/30">[{l.instance.slice(-5)}] </span>}{l.line}</div>)}
       </div>
-      <p className="text-[11px] text-white/50 mt-2">لاگ‌ها {fa(days)} روز نگه داشته می‌شوند (بسته به پلن). جستجو روی متن کامل خطوط است.</p>
+      <p className="text-[11px] text-white/50 mt-2">لاگ‌ها {fa(days)} روز نگه داشته می‌شوند (بسته به پلن). جست‌وجو روی متن کامل خطوط است.</p>
     </Card>
   );
 }

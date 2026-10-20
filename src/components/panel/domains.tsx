@@ -174,7 +174,7 @@ function DnsTab({ d }: { d: Domain }) {
         <button type="button" onClick={() => setRec({ type: "A", name: "", value: "", ttl: 3600 })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> رکورد جدید</button>
       </div>}>
         <div className="flex flex-wrap gap-2 mb-3">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو در نام و مقدار" aria-label="جستجوی رکورد" className={INPUT + " max-w-xs"} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو در نام و مقدار" aria-label="جست‌وجوی رکورد" className={INPUT + " max-w-xs"} />
           <Select value={type} onChange={setType} label="فیلتر نوع" options={[{ value: "", label: "همه انواع" }, ...types.map((t) => ({ value: t, label: t }))]} className="w-40" ltr />
           <span className="text-xs text-white/50 self-center">{fa(rows.length)} از {fa(d.dns.length)} رکورد</span>
         </div>

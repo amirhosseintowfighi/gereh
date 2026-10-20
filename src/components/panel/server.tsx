@@ -84,8 +84,8 @@ function AlertsCard({ s }: { s: Server }) {
     <Card title="هشدار مصرف" icon="bell-ring">
       <p className="text-xs text-white/55 leading-6 mb-4">با عبور از این آستانه‌ها، اعلان و طبق تنظیمات حساب، ایمیل یا پیامک می‌گیرید. خالی یعنی خاموش.</p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="CPU بالای (٪) به مدت ۱۵ دقیقه"><input value={cpu} onChange={(e) => setCpu(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلا 90" className={INPUT + " text-left tabular"} /></Field>
-        <Field label="ترافیک ماهانه بالای (٪ سهمیه)"><input value={bw} onChange={(e) => setBw(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلا 80" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="CPU بالای (٪) به مدت ۱۵ دقیقه"><input value={cpu} onChange={(e) => setCpu(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۹۰" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="ترافیک ماهانه بالای (٪ سهمیه)"><input value={bw} onChange={(e) => setBw(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۸۰" className={INPUT + " text-left tabular"} /></Field>
       </div>
       <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { await api.servers.setAlerts(s.id, { cpu: num(cpu), bw: num(bw) }); notify("هشدارها ذخیره شد", "bell-ring"); }}>ذخیره</AsyncButton></div>
     </Card>

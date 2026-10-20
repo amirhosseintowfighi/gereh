@@ -60,7 +60,7 @@ function PtrRow({ sid, ip, onDone }: { sid: string; ip: VpsExtrasView["ips"][num
   return (
     <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2 items-center p-3 rounded-xl hover:bg-white/[0.03]">
       <div className="flex items-center gap-2"><span className="mono text-sm ltr">{ip.ip}</span>{ip.primary ? <Badge>اصلی</Badge> : <Badge tone="blue">{toman(ip.price)}/ماه</Badge>}</div>
-      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلا mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT_BASE + " h-9 text-left text-xs"} />
+      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلاً mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT_BASE + " h-9 text-left text-xs"} />
       <div className="flex gap-1 justify-end">
         <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const h = ptr.trim().toLowerCase().replace(/\.$/, ""); if (h && !FQDN_RE.test(h)) throw new Error("نام دامنه معتبر نیست."); await vpsApi.setPtr(sid, ip.id, h); notify("PTR ذخیره شد"); onDone(); }}>ذخیره</AsyncButton>
         {!ip.primary && <IconBtn icon="trash-2" label={"حذف " + ip.ip} className="hover:text-rose-300" onClick={async () => { if (await confirm("آدرس " + ip.ip + " حذف و به استخر برگردانده شود؟", { danger: true, ok: "حذف" })) { await vpsApi.removeIp(sid, ip.id); notify("آدرس حذف شد"); onDone(); } }} />}

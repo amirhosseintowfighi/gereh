@@ -55,7 +55,7 @@ export function AdminBlog() {
           <Card title="انتشار" icon="send">
             <div className="space-y-4">
               <Field label="نشانی (slug)" hint={"/blog/" + (d.slug || "…")}><input value={d.slug} dir="auto" maxLength={80} onChange={(e) => { setSlugTouched(true); setD({ ...d, slug: slugify(e.target.value) }); }} className={INPUT} /></Field>
-              <Field label="خلاصه (توضیحات موتور جستجو)" hint={d.excerpt.length.toLocaleString("fa-IR") + " / ۳۰۰ — بهتر است ۱۲۰ تا ۱۶۰ نویسه"}><textarea value={d.excerpt} maxLength={300} rows={4} onChange={(e) => setD({ ...d, excerpt: e.target.value })} className={TEXTAREA} /></Field>
+              <Field label="خلاصه (توضیحات موتور جست‌وجو)" hint={d.excerpt.length.toLocaleString("fa-IR") + " / ۳۰۰ — بهتر است ۱۲۰ تا ۱۶۰ نویسه"}><textarea value={d.excerpt} maxLength={300} rows={4} onChange={(e) => setD({ ...d, excerpt: e.target.value })} className={TEXTAREA} /></Field>
               <Field label="برچسب‌ها" hint="با ویرگول جدا کنید"><input value={d.tags} onChange={(e) => setD({ ...d, tags: e.target.value })} className={INPUT} /></Field>
               <div className="text-xs text-white/55">وضعیت: {d.status === "published" ? <Badge tone="green">منتشرشده</Badge> : <Badge>پیش‌نویس</Badge>}</div>
               {d.id && d.status === "published" && <a href={"/blog/" + encodeURIComponent(d.slug)} target="_blank" className="text-xs acc inline-flex items-center gap-1">مشاهده در سایت <Icon name="external-link" size={12} /></a>}
