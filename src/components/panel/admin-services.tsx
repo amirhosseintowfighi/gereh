@@ -24,7 +24,7 @@ export function AdminInquiry() {
   return (
     <div>
       <PageTitle title="API استعلام" sub={"سرویس‌ها و قیمت‌ها، درخواست‌های دسترسی و حساب‌های API. سرویس‌دهنده: " + (q.provider === "http" ? "متصل" : "شبیه‌ساز (INQUIRY_PROVIDER_URL تنظیم نشده)")} />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="activity" label="درخواست امروز" value={q.stats.todayCount} />
         <StatCard icon="wallet" label="درآمد امروز" value={q.stats.todaySpend} suffix="تومان" />
         <StatCard icon="chart-column" label="درآمد ۳۰ روز" value={Math.round(q.stats.monthSpend / 1e5) / 10} suffix="میلیون" />
@@ -158,7 +158,7 @@ export function AdminGeo() {
       <PageTitle title="Geo DNS" sub={"دامنه‌ها، همگام‌سازی مدیریت‌شده و پلن‌ها. درایور: " + (g.driver === "powerdns" ? "PowerDNS" : "شبیه‌ساز (GEO_PDNS تنظیم نشده)")}
         action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={16} />تست نام‌سرورها</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="globe" label="دامنه‌ها" value={g.zones.length} sub={fa(g.zones.filter((z) => z.status === "active").length) + " فعال"} />
         <StatCard icon="clock" label="در انتظار NS" value={g.zones.filter((z) => z.status === "pending").length} />
         <StatCard icon="refresh-cw" label="همگام‌سازی نیازمند رسیدگی" value={g.zones.filter((z) => ["setup", "failed", "lagging"].includes(z.syncStatus)).length} tone={g.zones.some((z) => z.syncStatus === "failed") ? "down" : ""} />

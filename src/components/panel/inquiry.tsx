@@ -206,7 +206,7 @@ function Logs() {
   const name = (id: string) => q.services.find((s) => s.id === id)?.name ?? id;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon="activity" label="درخواست امروز" value={q.stats.todayCount} />
         <StatCard icon="wallet" label="هزینه امروز" value={q.stats.todaySpend} suffix="تومان" />
         <StatCard icon="chart-column" label="درخواست ۳۰ روز" value={q.stats.monthCount} />

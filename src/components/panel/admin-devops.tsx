@@ -36,7 +36,7 @@ export function AdminDevops() {
     <div>
       <PageTitle title="خدمات دواپس" sub="درخواست‌های مشاوره از /devops و پروژه‌های در جریان."
         action={<button type="button" onClick={() => setCreate({ userId: "", title: "", services: [] })} className={BTN_P + BTN_MD}><Icon name="plus" size={16} />پروژه جدید</button>} />
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="rocket" label="درخواست‌های باز" value={open.length} sub={fa(db.devopsLeads.filter((l) => l.status === "new").length) + " مورد بررسی‌نشده"} tone={db.devopsLeads.some((l) => l.status === "new") ? "down" : ""} />
         <StatCard icon="wallet" label="ارزش قیف فروش" value={fa(Math.round(pipeline / 1e6))} suffix="میلیون تومان" />
         <StatCard icon="refresh-cw" label="درآمد ماهانه تکرارشونده" value={fa(Math.round(mrr / 1e6))} suffix="میلیون تومان" sub={fa(db.devopsProjects.filter((p) => p.status === "active").length) + " پروژه فعال"} />

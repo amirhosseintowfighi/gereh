@@ -24,7 +24,7 @@ export function UserAffiliate() {
   return (
     <div>
       <PageTitle title="کسب درآمد با معرفی" sub={"به ازای هر پرداخت دوستانی که معرفی می‌کنید، " + fa(db.settings.affiliateRate) + "٪ مبلغ تا یک سال به کیف پول شما برمی‌گردد."} />
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid sm:grid-cols-3 gap-4 mb-4">
         <StatCard icon="users-round" label="کاربران معرفی‌شده" value={a.referred} />
         <StatCard icon="gift" label="مجموع پورسانت" value={a.earned} suffix="تومان" />
         <StatCard icon="badge-percent" label="سهم شما" value={db.settings.affiliateRate} suffix="٪" />

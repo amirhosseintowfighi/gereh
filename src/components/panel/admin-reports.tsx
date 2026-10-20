@@ -39,7 +39,7 @@ export function AdminReports() {
         <div aria-busy="true" className="grid place-items-center py-20"><Icon name="loader-circle" size={28} className="animate-spin text-white/50" /></div>
       ) : (
         <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
             <StatCard icon="wallet" label="فروش با مالیات" value={mil(f.totals.gross)} suffix="میلیون تومان" sub={fa(f.totals.invoices) + " صورتحساب پرداخت‌شده"} />
             <StatCard icon="receipt" label="مالیات بر ارزش افزوده" value={mil(f.totals.vat)} suffix="میلیون تومان" sub={"فروش خالص " + mil(f.totals.net) + " میلیون"} />
             <StatCard icon="clock" label="مطالبات معوق" value={mil(f.outstanding.amount)} suffix="میلیون تومان" sub={fa(f.outstanding.count) + " صورتحساب پرداخت‌نشده"} tone={f.outstanding.count ? "down" : ""} />

@@ -382,7 +382,7 @@ function Usage({ b }: { b: StorageBucket }) {
   const sum = (k: "requests" | "bytesIn" | "bytesOut") => b.usage.reduce((s, u) => s + u[k], 0);
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon="hard-drive" label="فضای استفاده‌شده" value={bytes(b.usedBytes)} sub={"از " + (plan?.name ?? "")} />
         <StatCard icon="file-text" label="تعداد فایل" value={b.objects} />
         <StatCard icon="activity" label="درخواست‌ها (۷ روز)" value={sum("requests")} />

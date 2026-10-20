@@ -31,7 +31,7 @@ export function AdminPaas() {
   return (
     <div>
       <PageTitle title="گره اپ (PaaS)" sub="اپ‌ها و پایگاه‌های داده مشتریان، پلن‌ها و اتصال به کلاستر." />
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="rocket" label="اپ‌ها" value={db.paasApps.length} sub={fa(db.paasApps.filter((a) => a.status === "running").length) + " در حال اجرا"} />
         <StatCard icon="database" label="پایگاه‌های داده" value={db.paasDbs.length} sub={fa(db.paasDbs.filter((d) => d.status === "running").length) + " در حال اجرا"} />
         <StatCard icon="wallet" label="درآمد ماهانه جاری" value={fa(Math.round(runRate / 1e6 * 10) / 10, 1)} suffix="میلیون تومان" sub="بر اساس مصرف ساعتی فعلی" />
@@ -46,7 +46,7 @@ export function AdminPaas() {
         <Card pad="p-0">
           {apps.length === 0 ? <div className="p-6"><Empty icon="rocket" title="اپی پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="اپ‌ها">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">اپ</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">پشته / منبع</th><th scope="col" className="text-right font-medium p-3">منابع</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{apps.map((a) => {
                   const plan = db.paasPlans.find((p) => p.id === a.planId);
@@ -73,7 +73,7 @@ export function AdminPaas() {
         <Card pad="p-0">
           {dbs.length === 0 ? <div className="p-6"><Empty icon="database" title="پایگاه داده‌ای پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="پایگاه‌های داده">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[720px]">
                 <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">موتور</th><th scope="col" className="text-right font-medium p-3">پلن</th><th scope="col" className="text-right font-medium p-3">پشتیبان</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{dbs.map((d) => {
                   const plan = db.paasPlans.find((p) => p.id === d.planId);

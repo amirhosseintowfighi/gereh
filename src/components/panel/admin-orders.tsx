@@ -40,7 +40,7 @@ export function AdminOrders() {
           <button type="button" onClick={() => setAssign(true)} className={BTN_G + BTN_MD}><Icon name="user-plus" size={16} /> تخصیص دستی سرور</button>
           {list.length > 0 && <AsyncButton confirmText="برای همه سفارش‌ها دوباره تلاش شود؟" onClick={async () => { const n = await api.provisioning.retryAll(); notify(fa(n) + " سفارش دوباره در صف قرار گرفت", "refresh-cw"); await load(); }}><Icon name="refresh-cw" size={16} /> تلاش دوباره برای همه</AsyncButton>}
         </div>} />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="package-open" label="تحویل‌نشده" value={list.length} tone={list.length ? "down" : ""} />
         <StatCard icon="circle-alert" label="ناموفق" value={list.filter((r) => r.stage === "failed").length} />
         <StatCard icon="wallet" label="مبلغ معلق" value={list.reduce((s, r) => s + r.amount, 0)} suffix="تومان" />

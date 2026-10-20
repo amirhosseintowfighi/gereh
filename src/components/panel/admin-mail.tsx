@@ -33,7 +33,7 @@ export function AdminMail() {
       <PageTitle title="سرویس ایمیل" sub={"دامنه‌ها، تعلیق و پلن‌ها. درایور: " + (data.driver === "stalwart" ? "Stalwart" : "شبیه‌ساز (STALWART_URL تنظیم نشده)")}
         action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.mail.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={16} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="mail" label="دامنه‌ها" value={data.domains.length} sub={fa(data.domains.filter((d) => d.mode === "live").length) + " در حالت LIVE"} />
         <StatCard icon="ban" label="معلق" value={data.domains.filter((d) => d.status === "suspended").length} />
         <StatCard icon="send" label="ارسال ۳۰ روز" value={data.domains.reduce((s, d) => s + d.sent30, 0)} />

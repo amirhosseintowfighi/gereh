@@ -245,7 +245,7 @@ export function AdminAi() {
   return (
     <div>
       <PageTitle title="API هوش مصنوعی" sub={"مدل‌ها و قیمت‌ها، همگام‌سازی با سرویس‌دهنده و گزارش مصرف. سرویس‌دهنده: " + (a.upstream === "http" ? "متصل (" + "AI_UPSTREAM_URL" + ")" : "شبیه‌ساز — AI_UPSTREAM_KEY تنظیم نشده")} />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="activity" label="درخواست امروز" value={a.stats.todayCount} />
         <StatCard icon="wallet" label="درآمد امروز" value={a.stats.todaySpend} suffix="تومان" />
         <StatCard icon="chart-column" label="درآمد این ماه" value={Math.round(a.stats.monthSpend / 1e5) / 10} suffix="میلیون" />

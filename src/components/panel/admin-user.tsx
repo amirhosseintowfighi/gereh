@@ -67,7 +67,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
   return (
     <div className="space-y-4">
       {s.flags.length > 0 && <div className="flex flex-wrap gap-2">{s.flags.map((f) => <Badge key={f} tone="amber" dot>{f}</Badge>)}</div>}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon="wallet" label="موجودی کیف پول" value={u.balance} suffix="تومان" tone={u.balance < 0 ? "down" : ""} />
         <StatCard icon="gauge" label="مصرف روزانه (۷ روز)" value={s.forecast.burn} suffix="تومان" />
         <StatCard icon="calendar-clock" label="اعتبار کافی تا" value={s.forecast.days === null ? "—" : fa(s.forecast.days) + " روز"} sub={s.forecast.until} tone={s.forecast.days !== null && s.forecast.days < 3 ? "down" : ""} />

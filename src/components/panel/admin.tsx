@@ -200,7 +200,7 @@ export function AdminBilling() {
   return (
     <div>
       <PageTitle title="مالی" sub="صورتحساب‌ها، پرداخت‌ها و بازگشت وجه" action={<button type="button" onClick={() => setCreate({ userId: db.users.find((u) => u.role === "user")?.id || "", desc: "", amount: "" })} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> صورتحساب دستی</button>} />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="circle-check" label="پرداخت‌شده" value={sum("paid")} suffix="تومان" />
         <StatCard icon="clock" label="در انتظار پرداخت" value={sum("unpaid")} suffix="تومان" />
         <StatCard icon="circle-alert" label="سررسید گذشته" value={sum("overdue")} suffix="تومان" tone="down" sub={fa(db.invoices.filter((i) => i.status === "overdue").length) + " صورتحساب"} />
@@ -370,7 +370,7 @@ export function AdminInfra() {
           <button type="button" onClick={() => setAdd({ id: "", loc: locs[0]?.id ?? "", model: "" })} className={BTN_G + BTN_MD}><Icon name="radio-tower" size={16} /> افزودن نود</button>
           <button type="button" onClick={() => setEdit({ ...NEW_LOC })} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> افزودن لوکیشن</button>
         </div>} />
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         {locs.map((l, i) => {
           const ns = db.nodes.filter((n) => n.loc === l.id && n.status === "online");
           const all = db.nodes.filter((n) => n.loc === l.id);
@@ -460,7 +460,7 @@ export function AdminVirtualizor() {
     <div>
       <PageTitle title="اتصال Virtualizor" sub="سرورها مستقیم روی Virtualizor ساخته و مدیریت می‌شوند؛ این‌جا اتصال و نگاشت‌ها را تنظیم کنید."
         action={<Badge tone={db.virt.connected ? "green" : "red"} dot>{db.virt.connected ? "متصل به " + db.virt.host : "قطع"}</Badge>} />
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="radio-tower" label="سرورهای Virtualizor" value={db.nodes.length} />
         <StatCard icon="server" label="VPSهای همگام" value={db.servers.length} />
         <StatCard icon="tag" label="پلن‌های نگاشت‌شده" value={db.planMap.filter((p) => p.plid).length} />

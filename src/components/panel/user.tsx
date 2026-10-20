@@ -272,7 +272,7 @@ export function UserBilling() {
           <Icon name={params.get("paid") ? "circle-check" : "circle-alert"} size={18} />{params.get("msg") || (params.get("paid") ? "پرداخت انجام شد." : "پرداخت انجام نشد.")}
         </div>
       )}
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid sm:grid-cols-3 gap-4 mb-4">
         <StatCard icon="wallet" label="موجودی کیف پول" value={me.balance} suffix="تومان" />
         <StatCard icon="receipt" label="بدهی جاری" value={invs.filter((i) => i.status === "unpaid" || i.status === "overdue").reduce((s, i) => s + total(i), 0)} suffix="تومان" />
         <StatCard icon="trending-up" label="مجموع پرداختی" value={invs.filter((i) => i.status === "paid").reduce((s, i) => s + total(i), 0)} suffix="تومان" />

@@ -28,7 +28,7 @@ export function AdminStorage() {
       <PageTitle title="فضای ذخیره‌سازی ابری" sub={"باکت‌های مشتریان و پلن‌ها. درایور: " + (s.driver === "s3" ? "MinIO / S3" : "شبیه‌ساز (STORAGE_S3_* تنظیم نشده)")}
         action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={16} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="hard-drive" label="باکت‌ها" value={s.buckets.length} sub={fa(active.length) + " فعال"} />
         <StatCard icon="database" label="حجم ذخیره‌شده" value={bytes(used)} />
         <StatCard icon="pause" label="معلق" value={s.buckets.length - active.length} tone={s.buckets.length > active.length ? "down" : ""} />
