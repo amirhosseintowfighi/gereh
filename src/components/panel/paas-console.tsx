@@ -282,7 +282,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
 
 /* ================= file manager ================= */
 function FileManager({ diskId, running }: { diskId: string; running: boolean }) {
-  const { notify, confirm } = useApp();
+  const { notify, confirm, prompt } = useApp();
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<PaasFsEntry[] | null>(null);
   const [error, setError] = useState("");
@@ -323,8 +323,8 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
         </nav>
         <input ref={upload} type="file" multiple className="sr-only" aria-label="بارگذاری فایل" onChange={(e) => { void onFiles(e.target.files); e.target.value = ""; }} />
         <button type="button" onClick={() => upload.current?.click()} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />بارگذاری</button>
-        <button type="button" onClick={async () => { const n = window.prompt("نام پوشه جدید"); if (n) await act(() => api.paas.fsMkdir(diskId, join(n))); }} className={BTN_G + BTN_SM}><Icon name="folder-plus" size={14} />پوشه</button>
-        <button type="button" onClick={() => { const n = window.prompt("نام فایل جدید"); if (n) setEdit({ path: join(n), text: "", isNew: true }); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />فایل</button>
+        <button type="button" onClick={async () => { const n = await prompt("نام پوشه", { title: "پوشه جدید", ok: "ساخت", ltr: true }); if (n) await act(() => api.paas.fsMkdir(diskId, join(n))); }} className={BTN_G + BTN_SM}><Icon name="folder-plus" size={14} />پوشه</button>
+        <button type="button" onClick={async () => { const n = await prompt("نام فایل", { title: "فایل جدید", ok: "ادامه", ltr: true, placeholder: "index.html" }); if (n) setEdit({ path: join(n), text: "", isNew: true }); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />فایل</button>
         <form className="flex gap-1" onSubmit={async (e) => { e.preventDefault(); if (!q.trim()) { setFound(null); return; } try { setFound(await api.paas.fsSearch(diskId, path, q)); } catch (er) { notify((er as Error).message, "circle-alert"); } }}>
           <label className="sr-only" htmlFor="fs-q">جست‌وجوی نام فایل</label>
           <input id="fs-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی نام…" className={INPUT_BASE + " h-9 w-40 text-xs"} />
@@ -358,7 +358,7 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
                   <td className="p-1">
                     <span className="flex justify-end gap-0.5">
                       {e.editable && <button type="button" title="ویرایش" aria-label={"ویرایش " + e.name} onClick={async () => { try { setEdit({ path: join(e.name), text: await api.paas.fsRead(diskId, join(e.name)) }); } catch (er) { notify((er as Error).message, "circle-alert"); } }} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="file-pen" size={13} /></button>}
-                      {!e.dir && /\.zip$/i.test(e.name) && <button type="button" title="باز کردن ZIP" aria-label={"باز کردن " + e.name} onClick={async () => { const dest = window.prompt("پوشه مقصد (خالی: همین پوشه)", e.name.replace(/\.zip$/i, "")); if (dest !== null) await act(async () => { const n = await api.paas.fsExtract(diskId, join(e.name), dest ? join(dest) : path); notify(fa(n) + " فایل باز شد", "file-archive"); }); }} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="file-archive" size={13} /></button>}
+                      {!e.dir && /\.zip$/i.test(e.name) && <button type="button" title="باز کردن ZIP" aria-label={"باز کردن " + e.name} onClick={async () => { const dest = await prompt("پوشه مقصد", { title: "باز کردن " + e.name, ok: "باز کردن", ltr: true, allowEmpty: true, hint: "خالی بگذارید تا در همین پوشه باز شود.", value: e.name.replace(/\.zip$/i, "") }); if (dest !== null) await act(async () => { const n = await api.paas.fsExtract(diskId, join(e.name), dest ? join(dest) : path); notify(fa(n) + " فایل باز شد", "file-archive"); }); }} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="file-archive" size={13} /></button>}
                       {!e.dir && <a title="دانلود" aria-label={"دانلود " + e.name} href={dl(join(e.name))} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="download" size={13} /></a>}
                       <button type="button" title="تغییر نام یا انتقال" aria-label={"تغییر نام " + e.name} onClick={() => setRename({ from: join(e.name), to: join(e.name) })} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="pencil" size={13} /></button>
                       <button type="button" title="حذف" aria-label={"حذف " + e.name} onClick={async () => { if (await confirm((e.dir ? "پوشه «" + e.name + "» و همه محتوایش" : "فایل «" + e.name + "»") + " حذف شود؟", { danger: true, ok: "حذف" })) await act(() => api.paas.fsDelete(diskId, [join(e.name)])); }} className="w-7 h-7 grid place-items-center rounded-lg hover:bg-white/10 hover:text-rose-300"><Icon name="trash-2" size={13} /></button>

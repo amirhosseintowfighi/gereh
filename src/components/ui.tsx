@@ -45,7 +45,7 @@ export function Card({ title, icon, action, children, className = "", pad = "p-5
 
 export function Empty({ icon = "package-open", title, text, action }: { icon?: string; title: string; text?: string; action?: React.ReactNode }) {
   return (
-    <div className="py-10 sm:py-12 px-4 text-center">
+    <div className="py-8 sm:py-10 px-4 text-center">
       <div className="w-12 h-12 mx-auto rounded-2xl tile grid place-items-center" aria-hidden="true"><Icon name={icon} size={22} /></div>
       <div className="font-bold leading-7 mt-4">{title}</div>
       {text && <p className="text-white/55 text-sm mt-1.5 leading-7 max-w-sm mx-auto">{text}</p>}

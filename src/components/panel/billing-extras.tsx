@@ -19,7 +19,7 @@ const num = (v: string) => +toEnDigits(v).replace(/\D/g, "") || 0;
 export function BillingExtras() {
   const x = useRemote("billing", () => billingApi.extras());
   const db = useDB(); const myId = useMyId();
-  const { notify, confirm } = useApp();
+  const { notify, confirm, prompt } = useApp();
   const [low, setLow] = useState<{ auto: boolean; amount: string } | null>(null);
   const [bud, setBud] = useState({ service: "all", cap: "", pct: "80", block: false });
   const [tr, setTr] = useState({ from: "", to: "", amount: "" });
@@ -70,7 +70,7 @@ export function BillingExtras() {
         </div>
       </Card>
 
-      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const n = window.prompt("نام پروژه"); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={14} /> کیف پول جدید</AsyncButton>}>
+      <Card title="کیف پول‌های پروژه" icon="wallet" pad="p-3 sm:p-4" action={<AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const n = await prompt("نام پروژه", { title: "کیف پول پروژه جدید", ok: "ساخت", placeholder: "مثلاً فروشگاه" }); if (n) { await billingApi.createWallet(n); done("کیف پول پروژه ساخته شد"); } }}><Icon name="plus" size={14} /> کیف پول جدید</AsyncButton>}>
         <p className="text-xs text-white/55 leading-6 px-2 mb-3">پول را برای هر پروژه جدا کنید و سرورهای پروژه را در تنظیمات سرور به آن وصل کنید؛ هزینه ساعتی آن‌ها اول از کیف پول پروژه کسر می‌شود.</p>
         {v.wallets.length === 0 ? <Empty icon="wallet" title="کیف پول پروژه‌ای ندارید" /> : v.wallets.map((w) => (
           <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">

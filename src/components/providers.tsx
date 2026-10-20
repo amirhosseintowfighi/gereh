@@ -2,15 +2,15 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { BUILDER } from "@/lib/builder";
-import { BTN_D, BTN_G, BTN_MD, BTN_P } from "@/lib/cls";
+import { BTN_D, BTN_G, BTN_MD, BTN_P, INPUT } from "@/lib/cls";
 import { setCart, useCart } from "@/lib/cart";
 import { fa, roundK, toman } from "@/lib/format";
 import { priceSku } from "@/lib/catalog";
 import { couponDiscount, type CouponRule } from "@/lib/money";
 import { api, useDB, useSession, type CartItem } from "@/lib/store";
-import { AppCtx, type AppApi, type ConfirmOpts } from "./app-context";
+import { AppCtx, type AppApi, type ConfirmOpts, type PromptOpts } from "./app-context";
 import { Icon } from "./icon";
-import { CheckDraw } from "./ui";
+import { CheckDraw, Field } from "./ui";
 import { AsyncButton, Modal, Num, useDialog } from "./ui-client";
 
 /** every product, grouped; the header's mega menu, the mobile menu, the footer and the command palette use it */
@@ -55,6 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [palette, setPalette] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [ask, setAsk] = useState<{ text: string; opts: ConfirmOpts; resolve: (v: boolean) => void } | null>(null);
+  const [asking, setAsking] = useState<{ label: string; opts: PromptOpts; value: string; resolve: (v: string | null) => void } | null>(null);
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
 
@@ -85,11 +86,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     searchDomain: (q) => router.push(("/domains?q=" + encodeURIComponent(q.trim())) as never),
     confirm: (text, opts = {}) => new Promise<boolean>((resolve) => setAsk({ text, opts, resolve })),
+    prompt: (label, opts = {}) => new Promise<string | null>((resolve) => setAsking({ label, opts, value: opts.value ?? "", resolve })),
     openCart: () => setCartOpen(true),
     openPalette: () => setPalette(true),
   }), [cart, notify, router, db]);
 
   const answer = (v: boolean) => { ask?.resolve(v); setAsk(null); };
+  const reply = (v: string | null) => { asking?.resolve(v === null ? null : v.trim() || (asking.opts.allowEmpty ? "" : null)); setAsking(null); };
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -101,6 +104,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           <button type="button" onClick={() => answer(true)} className={(ask?.opts.danger ? BTN_D : BTN_P) + BTN_MD}>{ask?.opts.ok || "تأیید"}</button><button type="button" autoFocus={!!ask?.opts.danger} onClick={() => answer(false)} className={BTN_G + BTN_MD}>انصراف</button>
         </>}>
         <p className="text-sm text-white/75 leading-7">{ask?.text}</p>
+      </Modal>
+      <Modal open={!!asking} onClose={() => reply(null)} title={asking?.opts.title || asking?.label || ""} icon="pencil"
+        footer={<>
+          <button type="submit" form="app-prompt" disabled={!asking?.opts.allowEmpty && !asking?.value.trim()} className={BTN_P + BTN_MD}>{asking?.opts.ok || "تأیید"}</button><button type="button" onClick={() => reply(null)} className={BTN_G + BTN_MD}>انصراف</button>
+        </>}>
+        {asking && <form id="app-prompt" onSubmit={(e) => { e.preventDefault(); if (asking.opts.allowEmpty || asking.value.trim()) reply(asking.value); }}>
+          <Field label={asking.label} hint={asking.opts.hint}>
+            <input autoFocus value={asking.value} onChange={(e) => setAsking({ ...asking, value: e.target.value })} placeholder={asking.opts.placeholder} dir={asking.opts.ltr ? "ltr" : undefined} className={INPUT + (asking.opts.ltr ? " text-left font-mono" : "")} />
+          </Field>
+        </form>}
       </Modal>
       <div aria-live="polite" role="status" className="sr-only-focusable">{toast?.msg}</div>
       {toast && (

@@ -270,12 +270,12 @@ export function DbFirewall({ d }: { d: PaasDb }) {
 /* ================= backups: extra actions and import ================= */
 export function BackupActions({ d, backupId }: { d: PaasDb; backupId: string }) {
   const router = useRouter();
-  const { notify } = useApp();
+  const { notify, prompt } = useApp();
   if (!engineOf(d.engine)?.backups) return null;
   return <>
     <AsyncButton className={BTN_G + BTN_SM} title="دانلود" onClick={async () => { window.open(await api.dbaas.backupLink(backupId), "_blank", "noopener"); }}><Icon name="download" size={14} /></AsyncButton>
     <AsyncButton className={BTN_G + BTN_SM} title="بازگردانی در پایگاه داده جدید" onClick={async () => {
-      const name = window.prompt("نام پایگاه داده جدید", (d.name + "-copy").slice(0, 30))?.trim().toLowerCase();
+      const name = (await prompt("نام پایگاه داده جدید", { title: "بازگردانی در پایگاه داده جدید", ok: "بازگردانی", ltr: true, value: (d.name + "-copy").slice(0, 30) }))?.toLowerCase();
       if (!name) return;
       if (!PAAS_NAME_RE.test(name)) throw new Error("نام معتبر نیست.");
       const id = await api.dbaas.restoreToNew(backupId, name);
