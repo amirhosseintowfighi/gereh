@@ -313,6 +313,15 @@ describe("kubernetes manifests", () => {
     },
   };
   type Dep = { spec: { strategy: { type: string }; minReadySeconds?: number; template: { spec: Record<string, any> } } };
+  it("default health settings: liveness only checks the port, so a slow app (n8n) is not restarted in a loop", () => {
+    const rt = { ...base.runtime!, health: { type: "http" as const, command: "", codes: "200-399", interval: 5, timeout: 3, retries: 3, startPeriod: 0 }, readOnlyFs: false, nginxConf: "", phpIni: "" };
+    const dep = appObjects({ ...base, stack: "image", image: "n8nio/n8n:2.44.0", port: 5678, healthPath: "/healthz", startCommand: "", runtime: rt }, "n8nio/n8n:2.44.0", "dep-2").find((o) => o.kind === "Deployment") as unknown as Dep;
+    const c = dep.spec.template.spec.containers[0];
+    expect(c.readinessProbe).toMatchObject({ httpGet: { path: "/healthz", port: 5678 }, timeoutSeconds: 5 });
+    expect(c.startupProbe.failureThreshold).toBe(60);
+    expect(c.livenessProbe).toMatchObject({ tcpSocket: { port: 5678 }, failureThreshold: 6, timeoutSeconds: 5 });
+  });
+
   it("deployment: probes, strategy, pre-start, read-only root, DNS and config mounts", () => {
     const objs = appObjects(base, "img:1", "dep-1");
     const dep = objs.find((o) => o.kind === "Deployment") as unknown as Dep;

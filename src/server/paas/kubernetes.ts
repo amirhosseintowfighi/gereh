@@ -170,10 +170,14 @@ export function httpCheckScript(port: number, path: string, codes: number[]) {
   const url = shq("http://127.0.0.1:" + port + path);
   return `c=$( (curl -s -o /dev/null -w '%{http_code}' ${url}) 2>/dev/null || (wget -q -S -O /dev/null ${url} 2>&1 | awk '/HTTP\\//{c=$2} END{print c}') ); case "$c" in ${codes.join("|")}) exit 0;; esac; echo "status $c"; exit 1`;
 }
-/** readiness/liveness probe: the runtime health check, or an HTTP GET of healthPath */
+/** a health check changed from the defaults (type http, codes 200-399, no start period, 5 s / 3 s / 3 tries) */
+export const customHealth = (h: NonNullable<AppSpec["runtime"]>["health"]) =>
+  h.type !== "http" || h.codes.replace(/\s/g, "") !== "200-399" || h.startPeriod > 0 || h.interval !== 5 || h.timeout !== 3 || h.retries !== 3;
+/** readiness/startup probe: the runtime health check, or an HTTP GET of healthPath */
 export function healthProbe(app: AppSpec, port: number): Obj {
   const h = app.runtime?.health;
-  const timing = { periodSeconds: h?.interval ?? 5, timeoutSeconds: h?.timeout ?? 3, failureThreshold: h?.retries ?? 3 };
+  // the defaults give a busy app 5 s to answer (a timeout only takes it out of rotation, it never restarts it)
+  const timing = { periodSeconds: h?.interval ?? 5, timeoutSeconds: h && customHealth(h) ? h.timeout : 5, failureThreshold: h?.retries ?? 3 };
   if (h?.type === "command" && h.command.trim()) return { exec: { command: ["/bin/sh", "-c", h.command] }, ...timing };
   if (h?.type === "tcp") return { tcpSocket: { port }, ...timing };
   const path = app.healthPath || "/", codes = h ? expandCodes(h.codes) : null;
@@ -280,9 +284,12 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
           // compose services share the plan: each may burst to the full limit, requests are split
           resources,
           ...(w.primary && probe ? { readinessProbe: probe, startupProbe: { ...probe, periodSeconds: 5, failureThreshold: rt?.health.startPeriod ? Math.ceil(rt.health.startPeriod / 5) + rt.health.retries : 60 } } : {}),
-          ...(w.port ? { livenessProbe: rt && w.primary && probe
-            ? { ...probe, periodSeconds: Math.max(10, rt.health.interval), failureThreshold: Math.max(3, rt.health.retries) }
-            : { tcpSocket: { port: w.port }, periodSeconds: 20, failureThreshold: 3, initialDelaySeconds: w.primary ? 0 : 30 } } : {}),
+          // liveness restarts the container, so it stays lenient: a health check the customer set up themselves, or
+          // else only "is the port open". Reusing the readiness HTTP check (3 s timeout) killed busy apps such as
+          // n8n over and over (0/1 Running, ingress 503) although they were only slow to answer for a moment.
+          ...(w.port ? { livenessProbe: rt && w.primary && probe && customHealth(rt.health)
+            ? { ...probe, periodSeconds: Math.max(10, rt.health.interval), timeoutSeconds: Math.max(5, rt.health.timeout), failureThreshold: Math.max(6, rt.health.retries * 2) }
+            : { tcpSocket: { port: w.port }, periodSeconds: 20, timeoutSeconds: 5, failureThreshold: 6, initialDelaySeconds: w.primary ? 0 : 30 } } : {}),
           ...(rt?.zeroDowntime && w.port ? { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } } } : {}),
           securityContext: security,
           ...(mounts.length ? { volumeMounts: mounts } : {}),
