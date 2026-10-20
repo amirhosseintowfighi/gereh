@@ -39,7 +39,7 @@ export function BuildHome() {
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] bg-gradient-to-b from-violet-500/[0.12] via-white/[0.03] to-transparent p-5 sm:p-10">
+      <section className="relative overflow-hidden rounded-[1.4rem] border border-white/[0.12] bg-gradient-to-b from-violet-500/[0.12] via-white/[0.03] to-transparent p-5 sm:p-10">
         <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[38rem] max-w-full h-56 rounded-full bg-violet-500/20 blur-3xl" aria-hidden="true" />
         <div className="relative max-w-3xl mx-auto text-center">
           <span className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="sparkles" size={14} className="text-violet-300" />{BUILDER.name} · {BUILDER.short}</span>

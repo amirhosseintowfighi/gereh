@@ -217,7 +217,7 @@ export function Portal({ children }: { children: React.ReactNode }) {
   return hydrated ? createPortal(children, document.body) : null;
 }
 
-export function Modal({ open, onClose, title, children, footer, size = "max-w-lg", icon }: { open: boolean; onClose: () => void; title: string; children?: React.ReactNode; footer?: React.ReactNode; size?: string; icon?: string }) {
+export function Modal({ open, onClose, title, children, footer, size = "max-w-lg", icon, danger = false }: { open: boolean; onClose: () => void; title: string; children?: React.ReactNode; footer?: React.ReactNode; size?: string; icon?: string; danger?: boolean }) {
   const ref = useDialog(open, onClose);
   const tid = useId();
   if (!open) return null;
@@ -229,8 +229,8 @@ export function Modal({ open, onClose, title, children, footer, size = "max-w-lg
         <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={tid}
           className={"dlg-max sheet-in relative w-full " + size + " flex flex-col rounded-t-3xl sm:rounded-3xl bg-[#0b0d16] border border-white/[0.12] border-b-0 sm:border-b shadow-2xl outline-none overflow-hidden"}>
           <div className="flex items-center justify-between gap-3 px-5 sm:px-6 min-h-16 py-3 border-b border-white/[0.08] shrink-0">
-            <h2 id={tid} className="flex items-center gap-3 font-extrabold text-base leading-7 min-w-0">{icon && <Icon name={icon} size={19} className="acc shrink-0" />}<span className="min-w-0 [overflow-wrap:anywhere]">{title}</span></h2>
-            <button type="button" data-close onClick={onClose} className="w-9 h-9 shrink-0 grid place-items-center rounded-xl hover:bg-white/10" aria-label="بستن"><Icon name="x" size={18} /></button>
+            <h2 id={tid} className="flex items-center gap-3 font-extrabold text-base leading-7 min-w-0">{icon && <Icon name={icon} size={19} className={"shrink-0 " + (danger ? "text-rose-300" : "acc")} />}<span className="min-w-0 [overflow-wrap:anywhere]">{title}</span></h2>
+            <button type="button" data-close onClick={onClose} className="w-9 h-9 shrink-0 grid place-items-center rounded-xl text-white/65 hover:text-white hover:bg-white/10 transition" aria-label="بستن"><Icon name="x" size={18} /></button>
           </div>
           <div className="p-5 sm:p-6 overflow-y-auto overflow-x-hidden overscroll-contain min-h-0 flex-1" style={footer ? undefined : { paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px))" }}>{children}</div>
           {footer && <div className="px-5 sm:px-6 py-4 border-t border-white/[0.08] flex flex-wrap items-center justify-end gap-2 shrink-0 max-sm:[&>*]:flex-1" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>{footer}</div>}
@@ -515,11 +515,21 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
   );
 }
 
-export type MenuItem = { icon: string; label: string; run: () => unknown; danger?: boolean } | "-" | false | null | undefined;
+export type MenuItem = { icon: string; label: string; run: () => unknown; danger?: boolean; dot?: boolean } | "-" | false | null | undefined;
 /** click-away popover menu; the trigger is rendered as its own button */
-export function Menu({ trigger, label, items, align = "left", triggerClass = "" }: { trigger: React.ReactNode; label: string; items: MenuItem[]; align?: "left" | "right"; triggerClass?: string }) {
+export function Menu({ trigger, label, items, align = "left", triggerClass = "", width = "min-w-[220px]" }: { trigger: React.ReactNode; label: string; items: MenuItem[]; align?: "left" | "right"; triggerClass?: string; width?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  // keep the popover inside the screen: on phones a trigger near the edge would push it off-screen
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!open || !el) return;
+    el.style.translate = "";
+    const r = el.getBoundingClientRect(), vw = document.documentElement.clientWidth, m = 8;
+    const dx = r.right > vw - m ? vw - m - r.right : r.left < m ? m - r.left : 0;
+    if (dx) el.style.translate = Math.round(dx) + "px 0";
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const f = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -531,10 +541,10 @@ export function Menu({ trigger, label, items, align = "left", triggerClass = "" 
     <div ref={ref} className="relative inline-block" onClick={(e) => e.stopPropagation()}>
       <button type="button" aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={triggerClass}>{trigger}</button>
       {open && (
-        <div role="menu" className={"pop-in absolute z-50 top-full mt-2 min-w-[220px] max-w-[85vw] rounded-2xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl p-1.5 " + (align === "left" ? "left-0" : "right-0")}>
+        <div ref={pop} role="menu" className={"pop-in absolute z-50 top-full mt-2 " + width + " max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl p-1.5 " + (align === "left" ? "left-0" : "right-0")}>
           {items.filter(Boolean).map((it, i) => it === "-" ? <div key={i} className="h-px bg-white/[0.08] my-1.5" /> : it && (
             <button type="button" role="menuitem" key={i} onClick={() => { setOpen(false); it.run(); }} className={"w-full flex items-center gap-2.5 px-3 min-h-10 py-2 rounded-xl text-sm leading-6 text-right hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " + (it.danger ? "text-rose-300" : "text-white/85")}>
-              <Icon name={it.icon} size={16} className={"shrink-0 " + (it.danger ? "" : "text-white/55")} /><span className="flex-1 min-w-0">{it.label}</span>
+              <Icon name={it.icon} size={16} className={"shrink-0 " + (it.danger ? "" : "text-white/55")} /><span className="flex-1 min-w-0">{it.label}</span>{it.dot && <span className="w-2 h-2 rounded-full bg-[#9cc9ff] shrink-0" aria-label="خوانده‌نشده" />}
             </button>
           ))}
         </div>

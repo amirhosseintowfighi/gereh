@@ -86,13 +86,13 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
         </Card>
         <Card title="اقدامات" icon="settings-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {u.status === "suspended"
-              ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={16} /> رفع تعلیق حساب</AsyncButton>
-              : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟"} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); await reload(); }}><Icon name="ban" size={16} /> تعلیق حساب</AsyncButton>}
             {u.kyc !== "verified" && <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { kyc: "verified" }); notify("احراز هویت تأیید شد"); await reload(); }}><Icon name="fingerprint" size={16} /> تأیید احراز</AsyncButton>}
             {u.twofa && <AsyncButton className={BTN_G + BTN_MD} confirmText={"ورود دومرحله‌ای " + u.name + " غیرفعال شود؟ پس از تأیید هویت مشتری این کار را انجام دهید."} onClick={async () => { await adminDetailApi.resetTwofa(u.id); notify("ورود دومرحله‌ای غیرفعال شد", "shield-check"); await reload(); }}><Icon name="shield-alert" size={16} /> بازنشانی ورود دومرحله‌ای</AsyncButton>}
             {u.role === "user" && <AsyncButton className={BTN_G + BTN_MD} confirmText={"با حساب " + u.name + " وارد پنل کاربری شوید؟ این کار در گزارش فعالیت ثبت می‌شود."} onClick={async () => { await api.admin.impersonate(u.id); notify("اکنون پنل " + u.name + " را می‌بینید", "user-round"); router.push("/panel"); }}><Icon name="eye" size={16} /> ورود به‌جای کاربر</AsyncButton>}
             <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.auth.forgot(u.email); notify("ایمیل بازیابی رمز ارسال شد", "mail"); }}><Icon name="mail" size={16} /> ارسال بازیابی رمز</AsyncButton>
+            {u.status === "suspended"
+              ? <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.admin.updateUser(u.id, { status: "active" }); notify("حساب فعال شد"); await reload(); }}><Icon name="circle-check" size={16} /> رفع تعلیق حساب</AsyncButton>
+              : <AsyncButton danger confirmText={"حساب " + u.name + " معلق شود؟"} onClick={async () => { await api.admin.updateUser(u.id, { status: "suspended" }); notify("حساب معلق شد"); await reload(); }}><Icon name="ban" size={16} /> تعلیق حساب</AsyncButton>}
           </div>
           <Field label="سطح حساب" className="mt-4"><Select value={s.levelId} label="سطح حساب"
             onChange={async (v) => { try { await billingApi.adminSetLevel(u.id, v); notify("سطح حساب تغییر کرد"); await reload(); } catch (e) { notify(errText(e), "circle-alert"); } }}
