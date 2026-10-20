@@ -417,8 +417,8 @@ export function AdminSearch() {
   const wrap = useRef<HTMLDivElement>(null);
   return (
     <>
-      <div ref={wrap} className="hidden md:block w-72"><SearchPanel onPick={() => wrap.current?.querySelector("input")?.blur()} /></div>
-      <button type="button" onClick={() => setOpen(true)} className="md:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10" aria-label="جست‌وجوی مشتری"><Icon name="search" size={18} /></button>
+      <div ref={wrap} className="hidden xl:block w-64 2xl:w-72"><SearchPanel onPick={() => wrap.current?.querySelector("input")?.blur()} /></div>
+      <button type="button" onClick={() => setOpen(true)} className="xl:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/10 transition" aria-label="جست‌وجوی مشتری"><Icon name="search" size={18} /></button>
       <Modal open={open} onClose={() => setOpen(false)} title="جست‌وجوی مشتری" icon="search">
         <div className="min-h-64"><SearchPanel autoFocus onPick={() => setOpen(false)} /></div>
         <p className="text-xs text-white/50 mt-3 leading-6">با ایمیل، موبایل، شماره فاکتور، IP سرور یا دامنه، نمای کامل مشتری باز می‌شود.</p>

@@ -168,7 +168,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         <header className="sticky z-30 h-16 px-4 sm:px-8 flex items-center justify-between gap-3 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
           <div className="flex items-center gap-2">
             <button type="button" className="lg:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10" onClick={() => setMobile(true)} aria-label="منو" aria-expanded={mobile}><Icon name="menu" size={19} /></button>
-            <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/55 hover:text-white text-sm w-64">
+            <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/55 hover:text-white text-sm w-56 lg:w-64 min-w-0 transition">
               <Icon name="search" size={16} /> جست‌وجو در پنل <kbd className="mr-auto ltr text-[10px] px-1.5 py-0.5 rounded bg-white/10">Ctrl K</kbd>
             </button>
           </div>
