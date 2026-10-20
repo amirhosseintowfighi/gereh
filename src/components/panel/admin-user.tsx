@@ -189,7 +189,7 @@ const KINDS: Record<string, [string, string]> = {
 async function runAction(r: ServiceRow, a: ServiceRow["actions"][number]) {
   const on = a === "suspend";
   switch (r.kind) {
-    case "server": return a === "delete" ? api.servers.remove(r.id) : api.servers.setStatus(r.id, on ? "suspended" : "running");
+    case "server": return a === "sync" ? api.servers.sync(r.id) : a === "delete" ? api.servers.remove(r.id) : api.servers.setStatus(r.id, on ? "suspended" : "running");
     case "hosting": return api.hosting.setStatus(r.id, on ? "suspended" : "active");
     case "app": case "db": return api.paas.adminSuspend(r.kind, r.id, on);
     case "bucket": return api.storage.adminSuspend(r.id, on);
@@ -198,7 +198,7 @@ async function runAction(r: ServiceRow, a: ServiceRow["actions"][number]) {
     case "inquiry": return api.inquiry.adminAccount(r.id, on ? "suspended" : "active");
   }
 }
-const ACTION: Record<ServiceRow["actions"][number], [string, string]> = { suspend: ["تعلیق", "pause"], unsuspend: ["رفع تعلیق", "play"], delete: ["حذف", "trash-2"], extend: ["تمدید ۳۰ روز", "calendar-clock"] };
+const ACTION: Record<ServiceRow["actions"][number], [string, string]> = { suspend: ["تعلیق", "pause"], unsuspend: ["رفع تعلیق", "play"], delete: ["حذف", "trash-2"], extend: ["تمدید ۳۰ روز", "calendar-clock"], sync: ["همگام‌سازی از Virtualizor", "refresh-cw"] };
 
 function ServicesTab({ id }: { id: string }) {
   const { notify } = useApp();
@@ -220,6 +220,11 @@ function ServicesTab({ id }: { id: string }) {
                   {r.href && <Link href={r.href as never} className="text-xs acc hover:underline shrink-0">نمای مدیریت</Link>}
                 </div>
                 <div className="text-[11px] text-white/55 mt-1 [overflow-wrap:anywhere]" dir="auto">{r.info}</div>
+                {r.notes?.map((n) => <div key={n} className={"text-[11px] mt-1 [overflow-wrap:anywhere] " + (/پیدا نشد|فرق دارد|همگام‌سازی:/.test(n) ? "text-amber-200" : "text-white/45")}>{n}</div>)}
+                {!!r.changes?.length && <details className="mt-1.5 text-[11px] text-white/60">
+                  <summary className="cursor-pointer acc">تغییرات از Virtualizor ({fa(r.changes.length)})</summary>
+                  <ul className="mt-1 space-y-0.5">{r.changes.map((c, i) => <li key={i}>{c.at} — {c.text}</li>)}</ul>
+                </details>}
                 {r.actions.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">
                   {r.actions.map((a) => <AsyncButton key={a} className={BTN_G + " px-3 h-8 text-xs" + (a === "delete" || a === "suspend" ? " text-rose-200" : "")} danger={a === "delete"}
                     confirmText={a === "delete" ? "«" + r.name + "» برای همیشه حذف شود؟" : a === "suspend" ? "«" + r.name + "» معلق شود؟" : undefined}

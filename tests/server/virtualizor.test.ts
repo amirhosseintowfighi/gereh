@@ -138,6 +138,26 @@ describe("Virtualizor connection errors", () => {
     expect(explainFetchError(failed("ENOTFOUND"), "h", 4085)).toContain("DNS");
   });
 
+  it("reads one VPS's full detail; an empty answer means it is gone, a page without it proves nothing", async () => {
+    reply = (u) => {
+      if (u.searchParams.has("vs_status[]")) return { status: { 3301: { status: 1, used_bandwidth: 120, bandwidth: 1000 } } };
+      if (u.searchParams.get("act") === "managevps") return { vps: { disks: { 0: { num: "0", size: "40", size_unit: "G", primary: "1" }, 1: { num: "1", size: "40960", size_unit: "M", primary: "0" } } } };
+      const id = u.searchParams.get("vpsid");
+      if (id === "3301") return { vs: { 3301: { vpsid: "3301", uid: "7", hostname: "a.example.com", cores: "2", ram: "4096", space: "80", ips: { 5: "185.1.2.3", 6: "185.1.2.4" }, ips6: { 9: "2a01::5" },
+        bandwidth: "1000", osid: "347", os_name: "ubuntu-24.04-x86_64", plid: "11", serid: "2", server_name: "thr-hv-02", suspended: "0", network_speed: "12800", vncport: "5911", vnc_passwd: "x" } } };
+      if (id === "3302") return { vs: {} };
+      return { vs: { 1: { vpsid: "1" } } };
+    };
+    const m = await v().details([3301, 3302, 3303]);
+    expect(m.get(3301)).toEqual({
+      vpsid: 3301, uid: 7, hostname: "a.example.com", cores: 2, ramMb: 4096, disks: [{ slot: 0, sizeGb: 40, primary: true }, { slot: 1, sizeGb: 40, primary: false }],
+      ipv4: ["185.1.2.3", "185.1.2.4"], ipv6: ["2a01::5"], bwLimit: 1000, bwUsed: 120, osid: 347, osName: "ubuntu-24.04-x86_64", plid: 11, serverId: 2, serverName: "thr-hv-02",
+      status: "running", suspendReason: "", netSpeed: 12800, vnc: { port: 5911, password: "x" },
+    });
+    expect(m.get(3302)).toBeNull();
+    expect(m.has(3303)).toBe(false);
+  });
+
   it("reports a refused connection with its cause", async () => {
     reply = () => { throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED", message: "connect ECONNREFUSED" } }); };
     await expect(v().test()).rejects.toThrow(/پورت 4085 روی vz\.example\.com.*ECONNREFUSED/);

@@ -24,6 +24,7 @@ import { storageBilling, storageCollect } from "../storage/service";
 import { domainAlertsJob } from "../domains/service";
 import { provisionDomain, provisionHosting, provisionIp, provisionServer, waitForBuild } from "./provision";
 import { vpsBilling, vpsSnapshots } from "./vps";
+import { virtSync } from "../virt/sync";
 import { builderFix, builderWatch } from "../builder/deploy";
 import { builderMaintain } from "../builder/maintain";
 
@@ -40,6 +41,7 @@ const handlers: Record<JobType, Handler> = {
   "usage.collect": async (db) => { await collectUsage(db); await usageAlerts(db); },
   "usage.alerts": (db) => usageAlerts(db),
   "virt.reconcile": async (db) => { await reconcile(db); await purgeOld(db); await sweepRateLimits(db); },
+  "virt.sync": (db, p) => virtSync(db, p as never),
   "tickets.sla": (db, p) => ticketSla(db, p),
   "notify.send": (db, p) => notifySend(db, p as never),
   "devops.billing": (db) => devopsBilling(db),
@@ -91,6 +93,8 @@ export const SCHEDULE: [JobType, number][] = [
   ["domains.alerts", 60],
   ["vps.billing", 60], ["vps.snapshots", 15],
   ["builder.maintain", 5],
+  // Virtualizor → site (resources, IPs, disks, traffic, status); VIRT_SYNC_MINUTES, default 5
+  ["virt.sync", Math.max(1, Math.round(Number(process.env.VIRT_SYNC_MINUTES)) || 5)],
 ];
 
 /** enqueues each periodic job whose time has come; the UPDATE … WHERE next_run_at <= now() claim makes it run once */
@@ -107,7 +111,7 @@ export async function tickSchedule(db: DB) {
     must not stop the queue behind it */
 const LONG_JOBS: Partial<Record<JobType, number>> = {
   "dbaas.import": 90, "paas.diskBackup": 60, "paas.backup": 60, "wp.import": 90, "paas.toolsDaily": 30, "paas.daily": 30,
-  "dbaas.init": 20, "builder.maintain": 20, "builder.fix": 10, "paas.collect": 10, "virt.reconcile": 20,
+  "dbaas.init": 20, "builder.maintain": 20, "builder.fix": 10, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
 };
 const jobLimitMs = (type: string) => (LONG_JOBS[type as JobType] ?? 5) * 60_000;
 class JobTimeout extends Error {}

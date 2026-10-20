@@ -20,6 +20,10 @@ export type Server = {
   billing: "monthly" | "hourly"; app: string; alerts: { cpu: number; bw: number };
   /** delivery is late (status "provisioning" without vpsid, or a build that timed out); staff also get the error */
   delayed?: boolean; provisionError?: string;
+  /** this month's traffic from Virtualizor (GB); bwLimit is the synced quota (plan + packs, 0 = unlimited) */
+  bwUsed?: number;
+  /** the last Virtualizor sync: when, and the latest change it found; staff also get node, error and plan hint */
+  sync?: { at: string; last: string; lastAt: string; netSpeed: number; node?: string; error?: string; hint?: string };
   /** recent 5-minute hypervisor samples, oldest first (customer view only) */
   usage: { at: string; cpu: number; ram: number; disk: number; netIn: number; netOut: number; bwUsed: number }[];
 };

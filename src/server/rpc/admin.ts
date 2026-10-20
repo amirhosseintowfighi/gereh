@@ -249,8 +249,9 @@ export const adminRpc = {
       await enqueue(ctx.db, "usage.collect", {}, { dedupe: "usage.collect" });
       detail = "در صف جمع‌آوری";
     } else {
-      await enqueue(ctx.db, "virt.reconcile", {}, { dedupe: "virt.reconcile" });
-      detail = "تطبیق VPSها در صف اجرا";
+      // every VPS: resources, IPs, disks, traffic limit and usage, hostname, OS, node and status (../virt/sync.ts)
+      await enqueue(ctx.db, "virt.sync", { all: true }, { dedupe: "virt.sync:all" });
+      detail = "همگام‌سازی همه VPSها از Virtualizor در صف اجرا";
     }
     const cur = await getVirt(ctx.db);
     await ctx.db.insert(kv).values({ key: "virt", value: { ...cur, lastSync: new Date().toISOString() } }).onConflictDoUpdate({ target: kv.key, set: { value: { ...cur, lastSync: new Date().toISOString() } } });

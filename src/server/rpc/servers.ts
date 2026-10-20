@@ -7,7 +7,9 @@ import { actor, isStaff, method, needStaff, needUser, type Ctx } from "../ctx";
 import { backups, firewallRules, osTemplates, plans, servers, snapshots, users } from "../db/schema";
 import { sendEmail } from "../messaging";
 import { createInvoice } from "./billing";
+import { rateLimit } from "../auth";
 import { virt } from "../virt/driver";
+import { requestSync, SYNCABLE, syncNow } from "../virt/sync";
 import { addTask, fail, genPassword, logActivity, logAudit, rid } from "../util";
 
 const id = z.string().max(40);
@@ -26,6 +28,7 @@ export async function server(ctx: Ctx, sid: string, opts: { write?: boolean } = 
   if (!s) fail("سرور پیدا نشد.", 404);
   if (opts.write && s!.status === "suspended" && !staff) fail("این سرور معلق است؛ ابتدا صورتحساب‌ها را پرداخت کنید.", 403);
   if (opts.write && s!.status === "provisioning" && !staff) fail("سرور هنوز تحویل نشده است؛ پس از آماده شدن قابل مدیریت است.");
+  if (opts.write && s!.status === "missing" && !staff) fail("این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است. برای پیگیری تیکت ثبت کنید.", 409);
   return s!;
 }
 export const vps = (s: Row) => { if (!s.vpsid) fail("سرور هنوز در حال ساخت است."); return s.vpsid!; };
@@ -73,6 +76,7 @@ export const serversRpc = {
     if (diff > 0 && s.billing === "monthly") await createInvoice(ctx.db, s.userId, [{ desc: "مابه‌التفاوت ارتقای " + s.name + " به " + plan.name + " (" + days.toLocaleString("fa-IR") + " روز)", amount: diff }], { dueDays: 3 });
     await addTask(ctx.db, s.id, "ارتقا به پلن " + plan.name);
     await log(ctx, s, "trending-up", "ارتقای سرور به پلن " + plan.name);
+    await requestSync(ctx.db, s.id);
   }),
 
   "servers.reinstall": method(z.tuple([id, z.string().max(80)]), async (ctx, [sid, osName]) => {
@@ -84,6 +88,7 @@ export const serversRpc = {
     await ctx.db.update(servers).set({ os: tpl!.name, status: "running", rescue: false, iso: "" }).where(eq(servers.id, s.id));
     await addTask(ctx.db, s.id, "نصب مجدد " + tpl!.name);
     await log(ctx, s, "terminal", "نصب مجدد " + tpl!.name + " روی " + s.name);
+    await requestSync(ctx.db, s.id);
     const [owner] = await ctx.db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
     if (owner) await sendEmail(owner.email, "نصب مجدد " + s.name, "سیستم‌عامل " + tpl!.name + " روی " + s.name + " (" + s.ip + ") نصب شد.\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
   }),
@@ -166,6 +171,19 @@ export const serversRpc = {
     await ctx.db.update(servers).set({ hostname: h }).where(eq(servers.id, s.id));
     await addTask(ctx.db, s.id, "تغییر hostname به " + h);
     await log(ctx, s, "pencil", "تغییر hostname سرور " + s.name);
+    await requestSync(ctx.db, s.id);
+  }),
+
+  /** reads this VPS from Virtualizor now (owner or staff); a few times per 10 minutes per server */
+  "servers.sync": method(z.tuple([id]), async (ctx, [sid]) => {
+    const s = await server(ctx, sid, { write: false });
+    const staff = isStaff(ctx, "services");
+    if (!s.vpsid || !SYNCABLE.includes(s.status)) fail("این سرور هنوز تحویل نشده است.");
+    await rateLimit(ctx.db, "virt-sync:" + s.id + ":" + (staff ? "staff" : "owner"), staff ? 10 : 3, 600);
+    const r = await syncNow(ctx.db, s);
+    if (r.state === "unanswered") fail("Virtualizor پاسخ نداد؛ چند دقیقه دیگر دوباره امتحان کنید.", 502);
+    if (staff && ctx.auth!.uid !== s.userId) await logAudit(ctx.db, actor(ctx), "همگام‌سازی سرور از Virtualizor", s.id, ctx.ip);
+    return r;
   }),
 
   "servers.resetRootPassword": method(z.tuple([id, z.string().max(128)]), async (ctx, [sid, pass]) => {

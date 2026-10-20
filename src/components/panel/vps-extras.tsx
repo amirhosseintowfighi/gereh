@@ -80,7 +80,7 @@ export function DisksPanel({ s }: { s: Server }) {
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">هر گیگابایت {toman(v.prices.diskGb)} در ماه، ساعتی از کیف پول. اندازه دیسک فقط افزایش می‌یابد؛ پس از افزایش، پارتیشن را در سیستم‌عامل بزرگ کنید. دیسک جداشده داده‌هایش را نگه می‌دارد و به سرورهای همین موقعیت وصل می‌شود.</p>
       {v.disks.length === 0 ? <Empty icon="hard-drive" title="دیسک اضافه‌ای ندارید" text="برای داده، لاگ یا بکاپ، یک دیسک جدا بسازید." /> : v.disks.map((d) => (
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-          <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-right">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}</div></div></div>
+          <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-right">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}{!d.billed && " · افزوده‌شده توسط پشتیبانی، بدون هزینه"}</div></div></div>
           <div className="flex gap-1">
             <button type="button" onClick={() => setGrow({ id: d.id, name: d.name, size: String(d.sizeGb + 10), min: d.sizeGb + 1 })} className={BTN_G + " px-3 h-8 text-xs"}>افزایش اندازه</button>
             <AsyncButton className={BTN_G + " px-3 h-8 text-xs"} confirmText={"دیسک " + d.name + " از سرور جدا شود؟ پیش از آن، آن را در سیستم‌عامل unmount کنید."} onClick={async () => { await vpsApi.detachDisk(d.id); notify("دیسک جدا شد"); x.reload(); }}>جدا کردن</AsyncButton>
@@ -157,7 +157,7 @@ export function TrafficPanel({ s }: { s: Server }) {
           <StatCard icon="activity" label="ورودی (in)" value={Math.round(totIn)} suffix="گیگابایت" />
         </div>
         <Card title="ترافیک روزانه" icon="activity">
-          <div className="mb-6"><Meter label="سهمیه ماهانه" value={t.usedGb} max={t.quotaGb} right={fa(Math.round(t.usedGb)) + " از " + fa(t.quotaGb) + " گیگابایت" + (t.extraGb ? " (" + fa(t.planGb) + " پلن + " + fa(t.extraGb) + " بسته)" : "")} /></div>
+          <div className="mb-6"><Meter label="سهمیه ماهانه" value={t.quotaGb ? t.usedGb : 0} max={t.quotaGb} right={t.quotaGb ? fa(Math.round(t.usedGb)) + " از " + fa(t.quotaGb) + " گیگابایت" + (t.extraGb ? " (" + fa(t.planGb) + " پلن + " + fa(t.extraGb) + " بسته)" : "") : fa(Math.round(t.usedGb)) + " گیگابایت، نامحدود"} /></div>
           {t.days.length === 0 ? <Empty icon="activity" title="هنوز داده‌ای ثبت نشده" text="مصرف هر ساعت از Virtualizor خوانده می‌شود." /> : <>
             <div className="flex items-end gap-[3px] h-48" role="img" aria-label={"ترافیک روزانه، مجموع " + fa(Math.round(t.usedGb)) + " گیگابایت"}>
               {t.days.map((d) => (

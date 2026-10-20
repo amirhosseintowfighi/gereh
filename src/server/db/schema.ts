@@ -1485,6 +1485,8 @@ export const vpsIps = pgTable("vps_ips", {
   rdns: text("rdns").notNull().default(""),
   price: money("price").notNull(),
   createdAt: created(),
+  /** removed from the VPS in Virtualizor by hand (virt sync); no longer charged */
+  goneAt: ts("gone_at"),
 }, (t) => [uniqueIndex("vps_ips_ip_uq").on(t.ip), index("vps_ips_server_ix").on(t.serverId)]);
 
 /** extra block volumes; detached volumes keep their data (and their cost) until deleted */
@@ -1498,6 +1500,10 @@ export const vpsDisks = pgTable("vps_disks", {
   /** hypervisor disk index while attached */
   slot: integer("slot"),
   createdAt: created(),
+  /** false: a disk an admin added in Virtualizor by hand (virt sync); shown, never charged */
+  billed: boolean("billed").notNull().default(true),
+  /** removed from the VPS in Virtualizor by hand (virt sync); no longer charged */
+  goneAt: ts("gone_at"),
 }, (t) => [index("vps_disks_user_ix").on(t.userId), index("vps_disks_server_ix").on(t.serverId)]);
 
 /** automatic snapshots: daily or weekly, keeping the newest `retention` automatic ones */
@@ -1726,3 +1732,40 @@ export const builderRuns = pgTable("builder_runs", {
   createdAt: created(),
   finishedAt: ts("finished_at"),
 }, (t) => [index("builder_run_project_ix").on(t.projectId, t.createdAt)]);
+
+/* ---------- Virtualizor sync: the hypervisor is the source of truth for every VPS (0028_virt_sync) ---------- */
+/** what the last sync saw for a VPS, and the monthly traffic limit the site itself last pushed */
+export const vpsSync = pgTable("vps_sync", {
+  serverId: text("server_id").primaryKey().references(() => servers.id, { onDelete: "cascade" }),
+  syncedAt: ts("synced_at"),
+  /** ok | missing (deleted in Virtualizor) */
+  state: text("state").notNull().default("ok"),
+  missingSince: ts("missing_since"),
+  node: text("node").notNull().default(""),
+  nodeId: integer("node_id").notNull().default(0),
+  osid: integer("osid").notNull().default(0),
+  plid: integer("plid").notNull().default(0),
+  ramMb: integer("ram_mb").notNull().default(0),
+  /** KB/s, 0 = unlimited */
+  netSpeed: integer("net_speed").notNull().default(0),
+  suspendReason: text("suspend_reason").notNull().default(""),
+  /** GB/month as Virtualizor has it (0 = unlimited) and as the site last set it (null = never) */
+  bwLimit: integer("bw_limit").notNull().default(0),
+  bwPushed: integer("bw_pushed"),
+  bwUsed: real("bw_used").notNull().default(0),
+  ipv4: jsonb("ipv4").$type<string[]>().notNull().default([]),
+  ipv6: jsonb("ipv6").$type<string[]>().notNull().default([]),
+  disks: jsonb("disks").$type<{ slot: number; sizeGb: number; primary: boolean }[]>().notNull().default([]),
+  lastError: text("last_error").notNull().default(""),
+});
+/** every change the sync found, once (shown to staff; the customer sees a server task line) */
+export const vpsSyncLog = pgTable("vps_sync_log", {
+  id: serial("id").primaryKey(),
+  serverId: text("server_id").notNull().references(() => servers.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  field: text("field").notNull(),
+  before: text("before").notNull().default(""),
+  after: text("after").notNull().default(""),
+  text: text("text").notNull(),
+  createdAt: created(),
+}, (t) => [index("vps_sync_log_server_ix").on(t.serverId, t.createdAt), index("vps_sync_log_user_ix").on(t.userId, t.createdAt)]);

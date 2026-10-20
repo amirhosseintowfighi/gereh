@@ -5,9 +5,11 @@ import { fanout } from "../channels";
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { activity, chats, devopsLeads, notifications, servers, ticketMessages, tickets, usageSamples, users, virtLog } from "../db/schema";
+import { activity, chats, devopsLeads, notifications, servers, ticketMessages, tickets, usageSamples, users, virtLog, vpsTraffic } from "../db/schema";
+import { monthKey } from "../billing-extras";
 import { sendEmail, sendSms } from "../messaging";
 import { virt } from "../virt/driver";
+import { quotaOf } from "../virt/sync";
 import { rid } from "../util";
 
 /** every 5 minutes: one batched status call per 50 VPSs; status drift is corrected from the hypervisor */
@@ -40,7 +42,10 @@ export async function usageAlerts(db: DB) {
       await db.insert(notifications).values({ id: "al-" + s.id + "-cpu-" + today, userId: s.userId, icon: "cpu", text: "مصرف CPU سرور " + s.name + " بیش از " + s.alerts.cpu.toLocaleString("fa-IR") + "٪ است" });
       await notifySend(db, { userId: s.userId, kind: "service", subject: "هشدار CPU سرور " + s.name, text: "مصرف CPU سرور " + s.name + " در ۱۵ دقیقه اخیر بالای " + s.alerts.cpu + "٪ بوده است." });
     }
-    const bwPct = s.bwLimit ? (recent[0].bwUsed / s.bwLimit) * 100 : 0;
+    // the synced quota: Virtualizor's limit (plan traffic + this month's packs)
+    const [tr] = await db.select().from(vpsTraffic).where(and(eq(vpsTraffic.serverId, s.id), eq(vpsTraffic.month, monthKey())));
+    const quota = quotaOf(s.bwLimit, tr?.extraGb ?? 0);
+    const bwPct = quota ? (recent[0].bwUsed / quota) * 100 : 0;
     if (s.alerts.bw > 0 && bwPct >= s.alerts.bw && !(await already("bw"))) {
       await db.insert(notifications).values({ id: "al-" + s.id + "-bw-" + today, userId: s.userId, icon: "activity", text: "ترافیک ماهانه " + s.name + " به " + Math.round(bwPct).toLocaleString("fa-IR") + "٪ سهمیه رسید" });
       await notifySend(db, { userId: s.userId, kind: "service", subject: "هشدار ترافیک " + s.name, text: "ترافیک ماهانه سرور " + s.name + " به " + Math.round(bwPct) + "٪ سهمیه رسیده است." });

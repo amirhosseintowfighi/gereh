@@ -22,7 +22,11 @@ export type OrderDetail = {
 };
 
 export type UserTab = "summary" | "orders" | "services" | "usage" | "activity";
-export type ServiceRow = { kind: string; id: string; name: string; status: string; info: string; href: string; actions: ("suspend" | "unsuspend" | "delete" | "extend")[] };
+export type ServiceRow = {
+  kind: string; id: string; name: string; status: string; info: string; href: string; actions: ("suspend" | "unsuspend" | "delete" | "extend" | "sync")[];
+  /** servers: warnings from the Virtualizor sync (missing, plan mismatch, read errors) and its recent changes */
+  notes?: string[]; changes?: { text: string; at: string }[];
+};
 export type Series = { labels: string[]; data: number[] };
 
 export type UserSummary = {

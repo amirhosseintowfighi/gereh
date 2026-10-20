@@ -12,6 +12,7 @@ import * as t from "./db/schema";
 import type { Auth } from "./auth";
 import { paas } from "./paas/driver";
 import { virtFromEnv } from "./virt/driver";
+import { planHints, quotaOf, syncInfo } from "./virt/sync";
 import { getLocations, publicLocations } from "./locations";
 import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
@@ -105,6 +106,13 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.backups).where(inArray(t.backups.serverId, sids)).orderBy(desc(t.backups.createdAt)),
     db.select().from(t.serverTasks).where(inArray(t.serverTasks.serverId, sids)).orderBy(desc(t.serverTasks.createdAt)),
   ]) : [[], [], [], []];
+  const [{ sync: syncBy, traffic: trafficBy }, syncLogs, hints] = await Promise.all([
+    syncInfo(db, sids),
+    // the latest change per server
+    sids.length ? db.selectDistinctOn([t.vpsSyncLog.serverId]).from(t.vpsSyncLog).where(inArray(t.vpsSyncLog.serverId, sids)).orderBy(t.vpsSyncLog.serverId, desc(t.vpsSyncLog.createdAt), desc(t.vpsSyncLog.id)) : [],
+    admin ? planHints(db, servers) : new Map<string, string>(),
+  ]);
+  const lastLog = new Map(syncLogs.map((l) => [l.serverId, l]));
   const samples = !admin && sids.length ? await db.select().from(t.usageSamples).where(and(inArray(t.usageSamples.serverId, sids), gte(t.usageSamples.createdAt, new Date(Date.now() - 4 * 3600_000)))).orderBy(asc(t.usageSamples.createdAt)) : [];
   const dids = domains.map((d) => d.id);
   const dns = dids.length ? await db.select().from(t.dnsRecords).where(inArray(t.dnsRecords.domainId, dids)).orderBy(asc(t.dnsRecords.position)) : [];
@@ -132,7 +140,12 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
       firewall: (fwBy.get(s.id) || []).map((r) => ({ id: r.id, proto: r.proto, port: r.port, source: r.source, action: r.action, note: r.note })),
       snapshots: (snapBy.get(s.id) || []).map((x) => ({ id: x.id, name: x.name, size: x.size, at: faDate(x.createdAt) })),
       backupsList: (bkBy.get(s.id) || []).map((x) => ({ id: x.id, size: x.size, at: faDateTime(x.createdAt) })),
-      vpsid: s.vpsid || 0, delayed: !!s.provisionError, ...(admin ? { provisionError: s.provisionError ?? "" } : {}), hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue, bwLimit: s.bwLimit,
+      vpsid: s.vpsid || 0, delayed: !!s.provisionError, ...(admin ? { provisionError: s.provisionError ?? "" } : {}), hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue,
+      bwLimit: quotaOf(s.bwLimit, trafficBy.get(s.id)?.extraGb ?? 0), bwUsed: +(trafficBy.get(s.id)?.usedGb ?? 0).toFixed(1),
+      ...((sy, lg) => (sy?.syncedAt || lg ? { sync: {
+        at: sy?.syncedAt ? faDateTime(sy.syncedAt) : "", last: lg?.text ?? "", lastAt: lg ? faDateTime(lg.createdAt) : "", netSpeed: sy?.netSpeed ?? 0,
+        ...(admin ? { node: sy?.node ?? "", error: sy?.lastError ?? "", hint: hints.get(s.id) ?? "" } : {}),
+      } } : {}))(syncBy.get(s.id), lastLog.get(s.id)),
       vnc: { host: s.vncHost, port: s.vncPort, password: s.vncPassword },
       usage: (usageBy.get(s.id) || []).map((u) => ({ at: faDateTime(u.createdAt), cpu: u.cpu, ram: u.ram, disk: u.disk, netIn: u.netIn, netOut: u.netOut, bwUsed: u.bwUsed })),
       tasks: (taskBy.get(s.id) || []).map((x) => ({ id: x.id, action: x.action, status: x.status, progress: x.progress, at: faDateTime(x.createdAt) })),

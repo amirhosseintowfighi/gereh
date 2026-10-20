@@ -151,6 +151,7 @@ export function AdminServices() {
     <Menu label="اقدامات" triggerClass={ICON_BTN} trigger={<Icon name="settings-2" size={17} />} items={[
       r.status !== "suspended" && { icon: "ban", label: "تعلیق", danger: true, run: async () => { if (!(await confirm("سرویس " + (r.name || r.domain) + " معلق شود؟", { danger: true, ok: "تعلیق" }))) return; if (kind === "servers") await api.servers.setStatus(r.id, "suspended"); else await api.hosting.setStatus(r.id, "suspended"); notify("سرویس معلق شد"); } },
       r.status === "suspended" && { icon: "circle-check", label: "رفع تعلیق", run: async () => { if (kind === "servers") await api.servers.setStatus(r.id, "running"); else await api.hosting.setStatus(r.id, "active"); notify("سرویس فعال شد"); } },
+      kind === "servers" && { icon: "refresh-cw", label: "همگام‌سازی از Virtualizor", run: async () => { const x = await api.servers.sync(r.id); notify(x.state === "missing" ? "در Virtualizor پیدا نشد" : x.changes.length ? x.changes.join("، ") : "بدون تغییر", "refresh-cw"); } },
       kind === "servers" && r.status === "running" && { icon: "refresh-cw", label: "ری‌استارت اجباری", run: async () => { if (!(await confirm("سرور " + r.name + " ری‌استارت اجباری شود؟", { danger: true }))) return; await api.servers.power(r.id, "reboot"); notify("ری‌استارت شد"); } },
     ]} />
   );
@@ -159,13 +160,16 @@ export function AdminServices() {
       <PageTitle title="سرویس‌ها" sub="همه سرویس‌های مشتریان" />
       <div className="mb-6"><Tabs size="sm" value={tab} onChange={setTab} label="نوع سرویس" options={[{ id: "servers", label: "سرورها", icon: "server" }, { id: "hosting", label: "هاست‌ها", icon: "layers" }, { id: "domains", label: "دامنه‌ها", icon: "globe" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
-        {tab === "servers" && <DataTable rows={db.servers} searchKeys={["name", "ip", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }, { key: "loc", label: "موقعیت", options: LOCS.map((l) => l.id) }]} pageSize={10}
+        {tab === "servers" && <DataTable rows={db.servers} searchKeys={["name", "ip", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended", "missing"] },{ key: "loc", label: "موقعیت", options: LOCS.map((l) => l.id) }]} pageSize={10}
           columns={[
             { key: "id", label: "شناسه", render: (r) => <span className="mono text-xs">{r.id}</span> },
             { key: "name", label: "نام", render: (r) => <span className="font-bold ltr">{r.name}</span> },
             { key: "owner", label: "مالک", render: (r) => owner(r.userId) },
             { key: "ip", label: "IP", render: (r) => <CopyText text={r.ip} className="mono text-xs text-white/60" /> },
-            { key: "spec", label: "منابع", render: (r) => <span className="text-white/60 text-xs ltr">{r.cpu}C / {r.ram}G / {r.disk}G</span> },
+            { key: "spec", label: "منابع", render: (r) => <span className="text-xs"><span className="text-white/60 ltr inline-block">{r.cpu}C / {r.ram}G / {r.disk}G</span>
+              {r.sync?.hint && <span className="block text-amber-200 mt-0.5" title={r.sync.hint}>منابع با پلن فرق دارد</span>}
+              {r.sync?.node && <span className="block text-white/45 mt-0.5 ltr text-right">{r.sync.node}</span>}
+              {r.sync?.last && <span className="block text-white/45 mt-0.5" title={r.sync.lastAt}>{r.sync.last}</span>}</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
             { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
             { key: "a", label: "", className: "text-left", render: (r) => actions("servers", r) },
@@ -496,7 +500,7 @@ export function AdminVirtualizor() {
                 </div>
               ))}
               <div className="flex items-center justify-between gap-3 p-3 mt-1 border-t border-white/[0.06]">
-                <div><div className="text-sm font-bold">همگام‌سازی خودکار</div><div className="text-[11px] text-white/55 mt-0.5">وضعیت هر ۱ دقیقه، ترافیک هر ۵ دقیقه، تطبیق کامل شبانه</div></div>
+                <div><div className="text-sm font-bold">همگام‌سازی خودکار</div><div className="text-[11px] text-white/55 mt-0.5">منابع، IP، دیسک، سهمیه و مصرف ترافیک و وضعیت هر VPS هر چند دقیقه از Virtualizor خوانده می‌شود</div></div>
                 <Switch on={!!db.virt.autoSync} label="همگام‌سازی خودکار" onChange={(v) => api.admin.saveVirt({ autoSync: v })} />
               </div>
             </Card>

@@ -183,6 +183,13 @@
       "when": 1791600026000,
       "tag": "0026_builder_watch_modes",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791600028000,
+      "tag": "0028_virt_sync",
+      "breakpoints": true
     }
   ]
 }

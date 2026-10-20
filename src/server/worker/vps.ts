@@ -1,15 +1,16 @@
 /* Cloud-server extras in the worker: hourly add-on charges (extra IPv4, disks, snapshot GB), traffic
    metering with 80% / 100% alerts and automatic packs, scheduled snapshots, budget and low-credit alerts. */
 import "server-only";
-import { and, asc, eq, inArray, isNotNull, like, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, like, lte, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
 import { nextRun } from "@/lib/vps-billing";
 import { budgetAlerts, debit, lowCreditAlerts, monthKey, perHour, vpsPrices } from "../billing-extras";
 import type { DB } from "../db/client";
-import { servers, snapshots, vpsDisks, vpsIps, vpsSnapSchedules, vpsTraffic, vpsTrafficDaily } from "../db/schema";
+import { servers, snapshots, vpsDisks, vpsIps, vpsSnapSchedules, vpsSync, vpsTraffic, vpsTrafficDaily } from "../db/schema";
 import { enqueue } from "../jobs";
 import { buyPack, trafficRow } from "../rpc/vps";
 import { virt } from "../virt/driver";
+import { quotaOf } from "../virt/sync";
 import { addTask, notify, rid } from "../util";
 
 /** hourly */
@@ -22,9 +23,10 @@ export async function vpsBilling(db: DB) {
 
 async function addonCharges(db: DB) {
   const p = await vpsPrices(db);
+  // addresses and disks removed in Virtualizor by hand, and disks an admin added there, are not charged
   const [ips, disks, snaps] = await Promise.all([
-    db.select().from(vpsIps),
-    db.select().from(vpsDisks),
+    db.select().from(vpsIps).where(isNull(vpsIps.goneAt)),
+    db.select().from(vpsDisks).where(and(isNull(vpsDisks.goneAt), eq(vpsDisks.billed, true))),
     db.select({ serverId: snapshots.serverId, gb: sql<number>`sum(${snapshots.size})::float` }).from(snapshots).groupBy(snapshots.serverId),
   ]);
   const sids = [...new Set([...ips.map((x) => x.serverId), ...disks.flatMap((d) => (d.serverId ? [d.serverId] : [])), ...snaps.map((x) => x.serverId)])];
@@ -32,7 +34,7 @@ async function addonCharges(db: DB) {
   for (const s of list) {
     const parts: string[] = [];
     let monthly = 0;
-    const myIps = ips.filter((x) => x.serverId === s.id);
+    const myIps = ips.filter((x) => x.serverId === s.id && x.price > 0);
     if (myIps.length) { monthly += myIps.reduce((a, x) => a + x.price, 0); parts.push(myIps.length.toLocaleString("fa-IR") + " IPv4"); }
     const myDisks = disks.filter((d) => d.serverId === s.id);
     if (myDisks.length) { monthly += myDisks.reduce((a, d) => a + d.sizeGb * p.diskGb, 0); parts.push("دیسک اضافه"); }
@@ -52,7 +54,9 @@ async function addonCharges(db: DB) {
   }
 }
 
-/** daily usage from the hypervisor, quota = plan traffic + packs; alerts at 80% and 100% */
+/** daily usage from the hypervisor for the chart; the month's total is Virtualizor's own used bandwidth once
+    the VPS has been synced this month (../virt/sync.ts), else the sum of the days. Quota = the synced limit
+    (plan traffic + packs); alerts at 80% and 100% */
 export async function meterTraffic(db: DB) {
   const list = await db.select().from(servers).where(and(isNotNull(servers.vpsid), inArray(servers.status, ["running", "stopped"])));
   if (!list.length) return;
@@ -60,13 +64,15 @@ export async function meterTraffic(db: DB) {
   const now = new Date();
   const month = monthKey(now);
   const today = now.toISOString().slice(0, 10);
+  const synced = new Set((await db.select({ id: vpsSync.serverId, at: vpsSync.syncedAt, err: vpsSync.lastError, state: vpsSync.state }).from(vpsSync).where(inArray(vpsSync.serverId, list.map((s) => s.id))))
+    .filter((r) => r.at && r.state === "ok" && !r.err && monthKey(r.at) === month).map((r) => r.id));
   for (const s of list) {
     let days: { day: number; inMb: number; outMb: number }[];
     try { days = await v.bandwidth(s.vpsid!, month.replace("-", "")); } catch { continue; }
     const rows = days.map((d) => ({ serverId: s.id, day: month + "-" + String(d.day).padStart(2, "0"), inMb: d.inMb, outMb: d.outMb })).filter((r) => r.day <= today);
     for (const r of rows) await db.insert(vpsTrafficDaily).values(r).onConflictDoUpdate({ target: [vpsTrafficDaily.serverId, vpsTrafficDaily.day], set: { inMb: r.inMb, outMb: r.outMb } });
-    const usedGb = rows.reduce((a, r) => a + r.inMb + r.outMb, 0) / 1024;
     const t = await trafficRow(db, s.id);
+    const usedGb = synced.has(s.id) ? t.usedGb : rows.reduce((a, r) => a + r.inMb + r.outMb, 0) / 1024;
     await db.update(vpsTraffic).set({ usedGb, updatedAt: now }).where(eq(vpsTraffic.serverId, s.id));
     await trafficAlerts(db, s, { ...t, usedGb });
   }
@@ -74,7 +80,7 @@ export async function meterTraffic(db: DB) {
 }
 
 export async function trafficAlerts(db: DB, s: typeof servers.$inferSelect, t: typeof vpsTraffic.$inferSelect) {
-  const quota = s.bwLimit + t.extraGb;
+  const quota = quotaOf(s.bwLimit, t.extraGb);
   const pct = quota > 0 ? (t.usedGb / quota) * 100 : 0;
   if (pct >= 100 && t.autoBuy) {
     try {

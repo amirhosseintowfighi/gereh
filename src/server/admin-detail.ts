@@ -15,6 +15,7 @@ import { lineAmount } from "./provisioning";
 import { errorText, serverSpec, type Override } from "./worker/provision";
 import type { FulfilItem } from "./rpc/fulfil";
 import { virt } from "./virt/driver";
+import { gbLabel, planHints, quotaOf, syncInfo } from "./virt/sync";
 import { fail } from "./util";
 
 const levelLabel = (l: string) => (LEVELS as Record<string, { label: string }>)[l]?.label ?? l;
@@ -361,10 +362,27 @@ export async function userServices(db: DB, uid: string): Promise<UserServices> {
   const plan = (id: string) => aPlans.find((p) => p.id === id)?.name ?? id;
   const sus = (st: string) => (st === "suspended" ? ["unsuspend"] : ["suspend"]) as ServiceRow["actions"];
   const gb = (b: number) => (b / 1e9).toFixed(b < 1e9 ? 2 : 1);
+  // what the Virtualizor sync found for each server
+  const sids = srv.map((s) => s.id);
+  const [{ sync, traffic }, hints, logs] = await Promise.all([
+    syncInfo(db, sids), planHints(db, srv),
+    sids.length ? db.select().from(t.vpsSyncLog).where(inArray(t.vpsSyncLog.serverId, sids)).orderBy(desc(t.vpsSyncLog.createdAt), desc(t.vpsSyncLog.id)).limit(100) : [],
+  ]);
+  const serverNotes = (s: typeof srv[number]) => {
+    const y = sync.get(s.id), out: string[] = [];
+    if (s.status === "missing") out.push("در Virtualizor پیدا نشد" + (y?.missingSince ? " (از " + faDateTime(y.missingSince) + ")" : ""));
+    const hint = hints.get(s.id);
+    if (hint) out.push(hint);
+    if (y?.lastError) out.push("همگام‌سازی: " + y.lastError);
+    if (y?.syncedAt) out.push("آخرین همگام‌سازی " + faDateTime(y.syncedAt) + (y.node ? " · نود " + y.node : ""));
+    return out;
+  };
   const rows: ServiceRow[] = [
     ...srv.map((s) => ({ kind: "server", id: s.id, name: s.name, status: s.status, href: "/admin/services",
-      info: s.cpu + "C / " + s.ram + "G / " + s.disk + "G · " + (s.ip || "بدون IP") + " · " + s.loc + " · " + (s.billing === "hourly" ? "ساعتی" : "تا " + faDate(s.paidUntil)) + (s.provisionError ? " · خطای تحویل" : ""),
-      actions: s.status === "provisioning" ? [] : [...sus(s.status), "delete"] as ServiceRow["actions"] })),
+      info: s.cpu + "C / " + s.ram + "G / " + s.disk + "G · " + (s.ip || "بدون IP") + " · " + s.loc + " · " + (s.billing === "hourly" ? "ساعتی" : "تا " + faDate(s.paidUntil))
+        + " · ترافیک " + fa(Math.round(traffic.get(s.id)?.usedGb ?? 0)) + " از " + gbLabel(quotaOf(s.bwLimit, traffic.get(s.id)?.extraGb ?? 0)) + (s.provisionError ? " · خطای تحویل" : ""),
+      actions: s.status === "provisioning" ? [] : [...(s.vpsid ? ["sync"] : []), ...(s.status === "missing" ? [] : sus(s.status)), "delete"] as ServiceRow["actions"],
+      notes: serverNotes(s), changes: logs.filter((l) => l.serverId === s.id).slice(0, 5).map((l) => ({ text: l.text, at: faDateTime(l.createdAt) })) })),
     ...hst.map((h) => ({ kind: "hosting", id: h.id, name: h.domain, status: h.status, href: "/admin/services", info: h.plan + " · تا " + faDate(h.expiresAt) + " · " + h.server, actions: sus(h.status) })),
     ...dom.map((d) => ({ kind: "domain", id: d.id, name: d.name, status: d.status, href: "/admin/domains", info: "انقضا " + faDate(d.expiresAt) + (d.autoRenew ? " · تمدید خودکار" : ""), actions: [] })),
     ...apps.map((a) => ({ kind: "app", id: a.id, name: a.name, status: a.status, href: "/admin/paas", info: a.stack + " · " + plan(a.planId) + " · " + fa(a.instances) + " نمونه", actions: sus(a.status) })),

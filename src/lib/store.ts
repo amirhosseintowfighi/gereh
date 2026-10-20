@@ -162,6 +162,8 @@ export const api = {
     setRescue: (id: string, on: boolean, pass?: string) => rpc("servers.setRescue", id, on, ...(pass ? [pass] : [])),
     installPanel: (id: string, panel: string) => rpc("servers.installPanel", id, panel),
     setAlerts: (id: string, alerts: { cpu: number; bw: number }) => rpc("servers.setAlerts", id, alerts),
+    /** reads the VPS from Virtualizor now; returns the changes it found */
+    sync: (id: string) => rpc<{ changes: string[]; state: "ok" | "missing" | "unanswered" }>("servers.sync", id),
   },
   hosting: {
     resetPassword: (id: string) => rpc<string>("hosting.resetPassword", id),
