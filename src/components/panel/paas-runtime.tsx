@@ -11,6 +11,7 @@ import { api, useDB, useMyId, type PaasRuntimeView } from "@/lib/store";
 import type { PaasApp } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { EgressCard } from "./paas-egress";
 import { AsyncButton, CodeBlock, CopyText, Select, Switch, Tabs } from "../ui-client";
@@ -192,6 +193,7 @@ const EVENT: Record<string, [string, string, "green" | "blue" | "amber" | "red" 
   restart: ["refresh-cw", "ری‌استارت", "blue"], crash: ["triangle-alert", "کرش", "red"], oom: ["memory-stick", "کمبود حافظه", "red"], scale: ["sliders-horizontal", "تغییر مقیاس", "blue"],
   health_failed: ["heart-pulse", "سلامت ناموفق", "amber"], budget: ["wallet", "بودجه", "amber"], traffic: ["activity", "ترافیک", "amber"],
 };
+const PROBLEMS = ["deploy_failed", "crash", "oom", "health_failed"];
 export function AppEvents({ app }: { app: PaasApp }) {
   const { data, error } = useRuntime(app.id);
   const [filter, setFilter] = useState("all");
@@ -208,6 +210,7 @@ export function AppEvents({ app }: { app: PaasApp }) {
                 <span className="absolute -right-[9px] top-0.5 w-[18px] h-[18px] rounded-full bg-[#0b1220] border border-white/20 grid place-items-center"><Icon name={icon} size={10} /></span>
                 <span className="flex flex-wrap items-center gap-2"><Badge tone={tone}>{label}</Badge><span className="text-[11px] text-white/50">{e.at}</span></span>
                 <p className="text-sm text-white/75 mt-1 break-words">{e.message}</p>
+                {PROBLEMS.includes(e.kind) && <div className="mt-1.5"><ExplainButton compact kind="paas" resourceId={app.id} errorRef={"ev-" + e.id} label="توضیح بده و درستش کن" /></div>}
               </li>
             );
           })}

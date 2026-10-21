@@ -5,6 +5,7 @@ import { BTN_G, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import type { Server } from "@/lib/store";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, StatusBadge } from "../ui";
 import { PageTitle } from "../ui-client";
 
@@ -37,6 +38,7 @@ export function ServerPending({ s }: { s: Server }) {
                 : "پرداخت ثبت شد و سرور در حال ساخت است. معمولا چند دقیقه طول می‌کشد؛ پس از آماده شدن، مشخصات ورود ایمیل می‌شود."}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {late && <ExplainButton kind="vps" resourceId={s.id} errorRef="provision" />}
               <Link href="/panel/tickets" className={BTN_G + BTN_SM}><Icon name="message-circle" size={14} /> پیگیری با پشتیبانی</Link>
             </div>
           </div>
@@ -54,7 +56,7 @@ export function ServerPending({ s }: { s: Server }) {
             {s.tasks.length === 0 ? <li className="text-white/55">در صف ساخت…</li> : s.tasks.slice(0, 6).map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2"><Icon name={t.status === "failed" ? "circle-alert" : t.status === "running" ? "loader-circle" : "circle-check"} size={15} className={t.status === "running" ? "animate-spin acc" : t.status === "failed" ? "text-amber-300" : "text-emerald-300"} />{t.action}</span>
-                <span className="text-[11px] text-white/50">{t.at}</span>
+                <span className="flex items-center gap-3 shrink-0">{t.status === "failed" && <ExplainButton compact kind="vps" resourceId={s.id} errorRef={"t-" + t.id} label="توضیح" />}<span className="text-[11px] text-white/50">{t.at}</span></span>
               </li>
             ))}
           </ul>

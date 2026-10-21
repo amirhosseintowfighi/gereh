@@ -15,6 +15,7 @@ import { AppJobs } from "./paas-jobs";
 import { AppLogsPro, AppMetrics, AppReleases, EnvBulk } from "./paas-observe";
 import { AppEvents, AppRuntime, AppUsage, CiTemplates, CloneApp, DeployNoCache, DomainOptions, FailureHint } from "./paas-runtime";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
 import { Cost, cpuLabel, DeployPill, EnvEditor, envProblems, type EnvRow, PlanPicker, ramLabel, StatusPill } from "./paas-shared";
@@ -257,7 +258,7 @@ export function AppDetail({ id }: { id: string }) {
         {tab === "usage" && <AppUsage app={app} />}
         {tab === "settings" && <AppSettings app={app} />}
       </div>
-      <BuildLog depId={logDep} onClose={() => setLogDep(null)} />
+      <BuildLog appId={app.id} depId={logDep} onClose={() => setLogDep(null)} />
     </div>
   );
 }
@@ -272,7 +273,7 @@ function AutoRefresh({ active }: { active: boolean }) {
   return null;
 }
 
-function BuildLog({ depId, onClose }: { depId: string | null; onClose: () => void }) {
+function BuildLog({ appId, depId, onClose }: { appId: string; depId: string | null; onClose: () => void }) {
   const [data, setData] = useState<{ status: string; log: string; failure?: string } | null>(null);
   const pre = useRef<HTMLPreElement>(null);
   useEffect(() => {
@@ -290,7 +291,8 @@ function BuildLog({ depId, onClose }: { depId: string | null; onClose: () => voi
   }, [depId]);
   return (
     <Modal open={!!depId} onClose={() => { setData(null); onClose(); }} title={"لاگ استقرار " + (depId ?? "")} icon="terminal" size="max-w-3xl">
-      <div className="mb-3">{data ? <DeployPill s={data.status} /> : <Icon name="loader-circle" size={16} className="animate-spin" />}</div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">{data ? <DeployPill s={data.status} /> : <Icon name="loader-circle" size={16} className="animate-spin" />}
+        {depId && (data?.status === "failed" || data?.log.includes("==> Waiting:")) && <ExplainButton kind="paas" resourceId={appId} errorRef={depId} />}</div>
       <div className={data?.failure ? "grid md:grid-cols-[1fr_16rem] gap-3" : ""}>
         <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ بیلد" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[55vh] overflow-auto whitespace-pre-wrap">{data?.log || "در انتظار شروع…"}</pre>
         <FailureHint kind={data?.failure} />
@@ -319,7 +321,7 @@ function AppOverview({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
       {latest && latest.id !== app.liveDeployment && (
         <div role="status" className={"rounded-2xl px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3 border " + (latest.status === "failed" ? "border-rose-300/30 bg-rose-400/[0.07]" : "border-sky-300/30 bg-sky-400/[0.07]")}>
           <span className="flex items-center gap-2"><DeployPill s={latest.status} />{latest.message || latest.ref}</span>
-          <button type="button" onClick={() => onLog(latest.id)} className="text-xs acc">مشاهده لاگ</button>
+          <span className="flex flex-wrap items-center gap-3">{latest.status === "failed" && <ExplainButton kind="paas" resourceId={app.id} errorRef={latest.id} />}<button type="button" onClick={() => onLog(latest.id)} className="text-xs acc">مشاهده لاگ</button></span>
         </div>
       )}
       <div className="grid md:grid-cols-3 gap-4">
@@ -415,7 +417,8 @@ function AppDeploys({ app, onLog }: { app: PaasApp; onLog: (id: string) => void 
                 <span className="flex items-center gap-2 flex-wrap"><DeployPill s={d.status} />{d.target === "preview" && <Badge tone="blue">پیش‌نمایش</Badge>}<ScanBadge d={d} /><span className="text-sm truncate">{d.message || "—"}</span>{d.id === app.liveDeployment && <Badge tone="green">فعال</Badge>}</span>
                 <span className="block text-[11px] text-white/50 mt-1">{TRIG[d.trigger] ?? d.trigger}{d.ref ? " · " : ""}<span dir="ltr" className="font-mono">{d.ref}</span> · {d.at}{d.seconds !== null ? " · " + fa(d.seconds) + " ثانیه" : ""}</span>
               </span>
-              <span className="flex gap-2">
+              <span className="flex flex-wrap gap-2">
+                {d.status === "failed" && <ExplainButton kind="paas" resourceId={app.id} errorRef={d.id} label="توضیح خطا" />}
                 <button type="button" onClick={() => onLog(d.id)} className={BTN_G + BTN_SM}>لاگ</button>
                 {d.image && d.target === "production" && d.id !== app.liveDeployment && ["live", "superseded"].includes(d.status) && <AsyncButton className={BTN_G + BTN_SM} confirmText="به این نسخه برگردیم؟ نسخه فعلی جایگزین می‌شود." onClick={() => api.paas.rollback(app.id, d.id)}><Icon name="refresh-cw" size={14} />بازگشت</AsyncButton>}
               </span>

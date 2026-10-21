@@ -232,6 +232,13 @@
       "when": 1791600034000,
       "tag": "0034_assistant",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791600035000,
+      "tag": "0035_ai_explain",
+      "breakpoints": true
     }
   ]
 }

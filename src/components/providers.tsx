@@ -10,6 +10,7 @@ import { couponDiscount, type CouponRule } from "@/lib/money";
 import { api, useDB, useSession, type CartItem } from "@/lib/store";
 import { AppCtx, type AppApi, type ConfirmOpts, type PromptOpts } from "./app-context";
 import { Icon } from "./icon";
+import { ExplainHost, ToastExplain, toastExplainable } from "./panel/explain";
 import { CheckDraw, Field } from "./ui";
 import { AsyncButton, Modal, Num, useDialog } from "./ui-client";
 
@@ -57,7 +58,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ask, setAsk] = useState<{ text: string; opts: ConfirmOpts; resolve: (v: boolean) => void } | null>(null);
   const [asking, setAsking] = useState<{ label: string; opts: PromptOpts; value: string; resolve: (v: string | null) => void } | null>(null);
 
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
+  // an RPC error toast offers «توضیح», so it stays a little longer
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toastExplainable(toast.msg) ? 7000 : 2800); return () => clearTimeout(t); }, [toast]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((o) => !o); } };
@@ -115,11 +117,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           </Field>
         </form>}
       </Modal>
+      <ExplainHost />
       <div aria-live="polite" role="status" className="sr-only-focusable">{toast?.msg}</div>
       {toast && (
         <div key={toast.k} className="toast-in fixed left-1/2 z-[90] rounded-2xl px-5 py-3.5 text-sm flex items-center gap-3 shadow-2xl bg-[#0a0c14]/90 backdrop-blur-xl border border-white/[0.12] max-w-[92vw]"
           style={{ bottom: "calc(24px + env(safe-area-inset-bottom, 0px))", transform: "translateX(-50%)" }}>
-          <span className="w-8 h-8 rounded-xl acc-bg grid place-items-center shrink-0"><Icon name={toast.icon} size={16} className={toast.icon === "loader-circle" ? "animate-spin" : ""} /></span>{toast.msg}
+          <span className="w-8 h-8 rounded-xl acc-bg grid place-items-center shrink-0"><Icon name={toast.icon} size={16} className={toast.icon === "loader-circle" ? "animate-spin" : ""} /></span>{toast.msg}<ToastExplain msg={toast.msg} />
         </div>
       )}
     </AppCtx.Provider>

@@ -9,6 +9,7 @@ import { api, useDB, useMyId } from "@/lib/store";
 import type { PaasDb } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
 import { BackupActions, DbActivity, DbFirewall, DbImport, DbInspector, DbPanels, DbTuning, DbUsers } from "./dbaas";
@@ -123,6 +124,12 @@ export function DbDetail({ id }: { id: string }) {
         action={d.status === "suspended" ? <Badge tone="amber">معلق؛ کیف پول را شارژ کنید</Badge> : d.status === "stopped"
           ? <AsyncButton className={BTN_G + BTN_MD} onClick={() => api.paas.dbPower(d.id, "start")}><Icon name="play" size={16} />روشن</AsyncButton>
           : d.status === "running" ? <AsyncButton danger className={BTN_G + BTN_MD} confirmText="پایگاه داده خاموش شود؟ اپ‌های متصل به آن خطا خواهند داد." onClick={() => api.paas.dbPower(d.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton> : null} />
+      {d.status === "failed" && (
+        <div role="alert" className="mb-5 rounded-2xl px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3 border border-rose-300/30 bg-rose-400/[0.07]">
+          <span className="flex items-center gap-2"><Icon name="circle-alert" size={16} className="text-rose-300" />راه‌اندازی پایگاه داده ناموفق بود.</span>
+          <ExplainButton kind="dbaas" resourceId={d.id} errorRef="status" />
+        </div>
+      )}
       <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایگاه داده" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <DbConnect d={d} />}
