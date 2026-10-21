@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { ASSISTANT } from "@/lib/assistant";
 import { BUILDER } from "@/lib/builder";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
@@ -9,6 +10,7 @@ import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
 import { useLocs } from "@/lib/use-locs";
 import { useApp } from "../app-context";
 import { VirguleLink, VirguleMark, Wordmark } from "../brand";
+import { AssistantLauncher } from "./assistant";
 import { AccountSwitcher, roleLabel } from "./team";
 import { AdminSearch } from "./admin-user";
 import { Icon } from "../icon";
@@ -18,6 +20,7 @@ import { AsyncButton, Menu, useDialog } from "../ui-client";
 type NavItem = { href: string; label: string; icon: string; group?: string; tag?: string };
 const USER_NAV: NavItem[] = [
   { href: "/panel", label: "داشبورد", icon: "layout-dashboard" },
+  { href: "/panel/assistant", label: ASSISTANT.name, icon: "bot", tag: "AI" },
   { href: "/panel/build", label: BUILDER.name, icon: "sparkles", tag: "AI" },
   { href: "/panel/servers", label: "سرورهای ابری", icon: "server", group: "زیرساخت" },
   { href: "/panel/hosting", label: "هاست‌ها", icon: "layers", group: "زیرساخت" },
@@ -204,6 +207,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         )}
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>
       </div>
+      {kind === "user" && <AssistantLauncher />}
     </div>
   );
 }

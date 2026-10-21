@@ -14,6 +14,7 @@ import { invGross, invTotal } from "./money";
 import type { EgressMode } from "./paas-egress";
 import type { RuntimeConfig } from "./paas-runtime";
 import type { AiKind } from "./ai";
+import type { AssistantMessageView, AssistantThreadView } from "./assistant";
 import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
 import type { AlertMetric, CdnPoint, CdnRule, CdnView, DnsSuggestion, DomainAlertView, TransferView, WhoisView } from "./domains";
@@ -113,7 +114,7 @@ export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
 export type PendingCredential = { serverId: string; kind: "root" | "rescue"; username: string; name: string; ip: string; createdAt: string; expiresAt: string; revealed: boolean };
-const READ_ONLY = new Set(["servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.egress", "paas.platformProxy", "paas.adminEgress", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["assistant.threads", "assistant.thread", "assistant.adminSettings", "servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.egress", "paas.platformProxy", "paas.adminEgress", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -443,6 +444,14 @@ export const api = {
     healthCheck: (id: string) => rpc<BuilderRunView>("builder.healthCheck", id),
     applyPatch: (id: string, runId: string) => rpc<number>("builder.applyPatch", id, runId),
     simulateIncident: (id: string) => rpc<BuilderRunView>("builder.simulateIncident", id),
+  },
+  /** «دستیار گره»: the chat itself streams from /api/assistant/chat */
+  assistant: {
+    threads: () => rpc<AssistantThreadView[]>("assistant.threads"),
+    thread: (id: string) => rpc<{ id: string; title: string; spent: number; messages: AssistantMessageView[] }>("assistant.thread", id),
+    deleteThread: (id: string) => rpc("assistant.deleteThread", id),
+    adminSettings: () => rpc<{ model: string; effective: string; env: boolean; models: { id: string; name: string }[] }>("assistant.adminSettings"),
+    adminSetModel: (model: string) => rpc("assistant.adminSetModel", model),
   },
   ai: {
     createKey: (k: AiKeyInput) => rpc<string>("ai.createKey", k),

@@ -13,6 +13,7 @@ import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, Bars, CodeBlock, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { AiSettingsCard, EmbedPlayground, KnowledgeBases, Projects, RequestLogs, UsageReport, WebChat } from "./ai-plus";
 import { UserLink } from "./admin-order-detail";
+import { AssistantModelCard } from "./assistant";
 
 const USAGE_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
   success: ["موفق", "green"], error: ["خطا", "red"], denied: ["رد شده", "amber"], cancelled: ["لغو شده", "gray"],
@@ -280,6 +281,7 @@ function AdminModels() {
           <button type="button" onClick={() => setAdd(true)} className={BTN_G + BTN_MD}><Icon name="plus" size={16} />افزودن مدل</button>
         </div>
       </Card>
+      <AssistantModelCard />
       <Card pad="p-3 sm:p-4" title={<span className="flex items-center gap-2">مدل‌ها <Badge>{fa(a.models.filter((m) => m.active).length)} فعال از {fa(a.models.length)}</Badge></span>}
         action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجو" aria-label="جست‌وجوی مدل" className={INPUT_BASE + " h-9 w-40"} />}>
         <div className="space-y-2">{list.map((m) => <AdminModelRow key={m.id + m.inPrice + m.outPrice + m.active} m={m} />)}</div>

@@ -1881,3 +1881,58 @@ export const paasEgress = pgTable("paas_egress", {
   extraKeys: jsonb("extra_keys").$type<string[]>().notNull().default([]),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/* ---------- «دستیار گره»: the account assistant (0034_assistant) ---------- */
+/** a conversation with the assistant, kept per person (a team member or staff member has their own) and per
+    account the tools act on */
+export const assistantThreads = pgTable("assistant_threads", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default(""),
+  /** what fell out of the context window, in a few lines (built without a model call) */
+  summary: text("summary").notNull().default(""),
+  spent: money("spent").notNull().default(0),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("assistant_threads_user_ix").on(t.userId, t.accountId)]);
+
+export const assistantMessages = pgTable("assistant_messages", {
+  id: serial("id").primaryKey(),
+  threadId: text("thread_id").notNull().references(() => assistantThreads.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["user", "assistant", "tool"] }).notNull(),
+  content: text("content").notNull().default(""),
+  /** assistant turns: the tool calls the model asked for (OpenAI shape) */
+  toolCalls: jsonb("tool_calls").$type<{ id: string; type: "function"; function: { name: string; arguments: string } }[]>(),
+  /** tool turns: the call this answers */
+  toolCallId: text("tool_call_id"),
+  toolName: text("tool_name"),
+  /** what the panel shows: tool label and summary, the confirmation card, the page context */
+  meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+  inTokens: integer("in_tokens").notNull().default(0),
+  outTokens: integer("out_tokens").notNull().default(0),
+  cost: money("cost").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("assistant_messages_thread_ix").on(t.threadId, t.id)]);
+
+/** a sensitive action the model proposed; it runs only when the person confirms it with the one-time token,
+    which is bound to the person, the account, the exact arguments and a short expiry */
+export const assistantActions = pgTable("assistant_actions", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  threadId: text("thread_id").notNull().references(() => assistantThreads.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  toolCallId: text("tool_call_id").notNull(),
+  tool: text("tool").notNull(),
+  args: jsonb("args").$type<Record<string, unknown>>().notNull(),
+  argsHash: text("args_hash").notNull(),
+  summary: text("summary").notNull().default(""),
+  /** Toman from the real pricing; null when the action itself costs nothing */
+  cost: money("cost"),
+  status: text("status", { enum: ["pending", "done", "failed", "cancelled"] }).notNull().default("pending"),
+  result: text("result").notNull().default(""),
+  expiresAt: ts("expires_at").notNull(),
+  decidedAt: ts("decided_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("assistant_actions_token_uq").on(t.tokenHash), index("assistant_actions_thread_ix").on(t.threadId)]);
