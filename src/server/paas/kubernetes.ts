@@ -16,13 +16,14 @@
      custom DNS, nginx/php.ini overrides (ConfigMap), extra Ingresses for wildcard hosts, redirects and
      path basic auth */
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { resolve4, resolveCname } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import { mirrorEnv, mirrorHost } from "@/lib/mirror";
 import { VERSION_ARG } from "@/lib/paas";
+import { n8nRunners, runnersMemory } from "@/lib/paas-egress";
 import { versionBuild } from "@/lib/paas-build";
 import { expandCodes, NGINX_STACKS, PHP_STACKS } from "@/lib/paas-runtime";
 import { diskClaim, diskVolume } from "@/lib/paas-tools";
@@ -163,7 +164,44 @@ export function namespaceObjects(userId: string): Obj[] {
   return out;
 }
 
-type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[]; own?: boolean };
+type Workload = { name: string; image: string; port?: number; command?: string; env?: Record<string, string>; replicas: number; primary: boolean; service: string; aliases?: { ip: string; hostnames: string[] }[]; own?: boolean; runners?: Runners };
+
+/* n8n task runners: the n8nio/runners image of the same version as a sidecar in n8n's pod ("external"
+   mode). The broker stays on the pod's loopback (127.0.0.1:5679), so it is never reachable from outside
+   the pod; the shared token is derived per app (stable across deploys) and lives in the env Secret. The
+   sidecar's memory is carved out of the plan's limit. */
+type Runners = { image: string; major: number; ramMb: number; port: string };
+export function runnersFor(app: AppSpec, image: string): Runners | null {
+  const r = n8nRunners(image), ramMb = runnersMemory(app.ramMb);
+  const mode = app.env.N8N_RUNNERS_MODE;
+  if (!r || !ramMb || (mode && mode !== "external")) return null;
+  return { image: r.image, major: r.major, ramMb, port: /^\d{2,5}$/.test(app.env.N8N_RUNNERS_BROKER_PORT ?? "") ? app.env.N8N_RUNNERS_BROKER_PORT! : "5679" };
+}
+/** what the n8n container needs for external runners (variables the customer set win) */
+export function runnersEnv(app: AppSpec, r: Runners): Record<string, string> {
+  const out: Record<string, string> = {
+    N8N_RUNNERS_MODE: "external",
+    N8N_RUNNERS_AUTH_TOKEN: createHmac("sha256", process.env.APP_SECRET || "dev").update("n8n-runners:" + app.id).digest("base64url"),
+    N8N_RUNNERS_BROKER_LISTEN_ADDRESS: "127.0.0.1",
+    // 1.x: runners are opt-in and the native Python runner is a flag; both are defaults in 2.x
+    ...(r.major === 1 ? { N8N_RUNNERS_ENABLED: "true", N8N_NATIVE_PYTHON_RUNNER: "true" } : {}),
+  };
+  return Object.fromEntries(Object.entries(out).filter(([k]) => !(k in app.env)));
+}
+function runnersContainer(app: AppSpec, r: Runners): Obj {
+  return {
+    name: "runners", image: r.image, imagePullPolicy: "IfNotPresent",
+    env: [
+      { name: "N8N_RUNNERS_AUTH_TOKEN", valueFrom: { secretKeyRef: { name: app.name + "-env", key: "N8N_RUNNERS_AUTH_TOKEN" } } },
+      { name: "N8N_RUNNERS_TASK_BROKER_URI", value: "http://127.0.0.1:" + r.port },
+      // idle runner processes exit and are started again on the next task
+      { name: "N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT", value: "15" },
+      { name: "GENERIC_TIMEZONE", value: app.env.GENERIC_TIMEZONE || app.env.TZ || "Asia/Tehran" },
+    ],
+    resources: { requests: { cpu: "25m", memory: memQty(Math.round(r.ramMb / 2)) }, limits: { cpu: cpuQty(Math.max(0.25, app.cpu / 2)), memory: memQty(r.ramMb) } },
+    securityContext: { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" } },
+  };
+}
 
 /** shell check of an HTTP status against an allowed list (curl, else busybox/GNU wget) */
 export function httpCheckScript(port: number, path: string, codes: number[]) {
@@ -249,7 +287,8 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
     ...(Object.keys(conf).length ? [{ name: "conf", configMap: { name: app.name + "-conf" } }] : []),
   ];
   const security = { allowPrivilegeEscalation: false, seccompProfile: { type: "RuntimeDefault" }, ...(rt?.readOnlyFs ? { readOnlyRootFilesystem: true } : {}) };
-  const resources = { requests: { cpu: cpuQty(app.cpu / 2 / share), memory: memQty(Math.ceil(app.ramMb / share)) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(app.ramMb) } };
+  const ram = app.ramMb - (w.runners?.ramMb ?? 0);
+  const resources = { requests: { cpu: cpuQty(app.cpu / 2 / share), memory: memQty(Math.ceil(ram / share)) }, limits: { cpu: cpuQty(app.cpu), memory: memQty(ram) } };
   const dns = rt?.dns.length ? rt.dns : null;
   return { apiVersion: "apps/v1", kind: "Deployment", metadata: { name: w.name, namespace: ns, labels }, spec: {
     ...(w.primary && app.autoscale ? {} : { replicas: w.replicas }),
@@ -293,7 +332,7 @@ function deployment(app: AppSpec, w: Workload, deploymentId: string, share: numb
           ...(rt?.zeroDowntime && w.port ? { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 5"] } } } } : {}),
           securityContext: security,
           ...(mounts.length ? { volumeMounts: mounts } : {}),
-        }, ...(sftp ? [sftpContainer(sftp)] : [])],
+        }, ...(w.runners ? [runnersContainer(app, w.runners)] : []), ...(sftp ? [sftpContainer(sftp)] : [])],
         ...(volumes.length ? { volumes } : {}),
       },
     },
@@ -468,12 +507,13 @@ export function appObjects(app: AppSpec, image: string, deploymentId: string, ip
         // panel variables win over compose defaults (container env would otherwise shadow envFrom)
         env: Object.fromEntries(Object.entries(s.env).filter(([k]) => !(k in app.env))),
       }))
-    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app", aliases },
+    : [{ name: app.name, image, port: app.port, command: app.startCommand, replicas: app.instances, primary: true, service: "app", aliases, runners: runnersFor(app, image) ?? undefined },
         // background processes get the plan's full size each (they are billed per instance)
         ...(app.processes ?? []).filter((p) => p.instances > 0).map((p) => ({ name: procName(app, p.name), image, command: p.command, replicas: p.instances, primary: false, service: "proc-" + p.name, own: true, aliases }))];
   const conf = confData(app);
+  const runners = workloads[0]?.runners;
   const out: Obj[] = [
-    { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, ...(compose ? { PORT: String(compose.find((x) => x.public)!.port) } : {}), GEREH_DEPLOYMENT: deploymentId } },
+    { apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-env", namespace: ns, labels }, type: "Opaque", stringData: { ...app.env, ...(runners ? runnersEnv(app, runners) : {}), ...(compose ? { PORT: String(compose.find((x) => x.public)!.port) } : {}), GEREH_DEPLOYMENT: deploymentId } },
     ...(Object.keys(conf).length ? [{ apiVersion: "v1", kind: "ConfigMap", metadata: { name: app.name + "-conf", namespace: ns, labels }, data: conf }] : []),
     ...workloads.map((w) => deployment(app, w, deploymentId, w.own ? 1 : workloads.filter((x) => !x.own).length)),
     ...(app.runtime?.basicAuth ? [{ apiVersion: "v1", kind: "Secret", metadata: { name: app.name + "-basic-auth", namespace: ns, labels }, type: "Opaque", stringData: { auth: app.runtime.basicAuth.htpasswd + "\n" } }] : []),

@@ -57,7 +57,7 @@ describe("one-click templates", () => {
 
   it("picks version tags and fills placeholders", () => {
     const n8n = templateOf("n8n")!;
-    expect(templateImage(n8n, "1.123.84")).toBe("n8nio/n8n:1.123.84");
+    expect(templateImage(n8n, "1.123.85")).toBe("n8nio/n8n:1.123.85");
     expect(templateImage(n8n, "9.9.9")).toBe(n8n.image);
     const v = fillTemplate("${url}|${host}|${email}|${secret}|${secret}|${hex}|${hex32}", { url: "https://a.gereh.dev", host: "a.gereh.dev", email: "x@y.ir" }).split("|");
     expect(v.slice(0, 3)).toEqual(["https://a.gereh.dev", "a.gereh.dev", "x@y.ir"]);

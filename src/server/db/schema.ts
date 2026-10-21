@@ -1866,3 +1866,18 @@ export const serverCredentials = pgTable("server_credentials", {
   revealedAt: ts("revealed_at"),
   acknowledgedAt: ts("acknowledged_at"),
 }, (t) => [uniqueIndex("server_credentials_uq").on(t.serverId, t.kind), index("server_credentials_user_idx").on(t.userId)]);
+
+/* ---------- Gereh Apps outbound proxy (0033_paas_egress) ---------- */
+/** an app's outbound HTTP(S)/SOCKS5 proxy: its own URL (sealed, ../secrets.ts) or the platform's shared one
+    (kv "paas_egress" or PAAS_EGRESS_PROXY); injected as HTTP(S)_PROXY, ALL_PROXY and NO_PROXY on the next deploy */
+export const paasEgress = pgTable("paas_egress", {
+  appId: text("app_id").primaryKey().references(() => paasApps.id, { onDelete: "cascade" }),
+  /** off | custom | platform */
+  mode: text("mode", { enum: ["off", "custom", "platform"] }).notNull().default("off"),
+  proxyEnc: text("proxy_enc").notNull().default(""),
+  /** NO_PROXY entries beside the cluster-internal defaults */
+  noProxy: jsonb("no_proxy").$type<string[]>().notNull().default([]),
+  /** further env names that receive the proxy URL (e.g. TELEGRAM_PROXY) */
+  extraKeys: jsonb("extra_keys").$type<string[]>().notNull().default([]),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

@@ -12,6 +12,7 @@ import type { PaasApp } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field } from "../ui";
+import { EgressCard } from "./paas-egress";
 import { AsyncButton, CodeBlock, CopyText, Select, Switch, Tabs } from "../ui-client";
 
 /** loads the runtime view of one app; reload() after a change */
@@ -107,6 +108,7 @@ function RuntimeForm({ app, view, reload }: { app: PaasApp; view: PaasRuntimeVie
         <div className="flex justify-end"><AsyncButton onClick={save}>ذخیره تنظیمات</AsyncButton></div>
       </div>
       <BasicAuthCard app={app} view={view} reload={reload} />
+      <EgressCard app={app} />
     </div>
   );
 }

@@ -218,6 +218,13 @@
       "when": 1791600032000,
       "tag": "0032_builder_skills",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791600033000,
+      "tag": "0033_paas_egress",
+      "breakpoints": true
     }
   ]
 }

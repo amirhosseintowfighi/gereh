@@ -11,6 +11,7 @@ import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, PageTitle, StatCard, Switch, Tabs } from "../ui-client";
 import { cpuLabel, ramLabel, StatusPill } from "./paas-shared";
 import { PlanLogRetention } from "./paas-observe";
+import { AdminEgress } from "./paas-egress";
 import { PlanLimits } from "./paas-runtime";
 import { UserLink } from "./admin-order-detail";
 
@@ -171,6 +172,7 @@ function Platform() {
         <AsyncButton disabled={!domain || domain === db.settings.paasDomain} className={BTN_P + BTN_MD + " mt-3"} confirmText="آدرس پیش‌فرض همه اپ‌ها عوض می‌شود. ادامه؟" onClick={async () => { await api.admin.saveSettings({ paasDomain: domain }); notify("دامنه اپ‌ها ذخیره شد", "globe"); }}>ذخیره</AsyncButton>
         <div className="mt-4 text-[11px] text-white/55 leading-6" dir="ltr">*.{domain || "gereh.dev"} → A → INGRESS_IP</div>
       </Card>
+      <AdminEgress />
     </div>
   );
 }

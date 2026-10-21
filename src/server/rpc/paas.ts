@@ -5,14 +5,17 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { DB_ENGINES, ENV_KEY_RE, ENV_RESERVED, GIT_URL_RE, IMAGE_RE, MAX_CRONS, MAX_PROCESSES, PAAS_NAME_RE, PAAS_RESERVED, PROC_NAME_RE, STACKS, VERSION_ARG, appMonthly, cronError, hourlyOf, stackOf, stackVersions } from "@/lib/paas";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
-import { paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
+import { aiKeys, paasApps, paasCrons, paasDbBackups, paasDbs, paasDeployments, paasDomains, paasEnv, paasJobs, paasLinks, paasPlans, paasProcesses, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { afterCreateDb } from "../paas/dbaas-service";
 import { paas } from "../paas/driver";
 import { growFromScale } from "../paas/disks";
 import { checkDeployQuota, logEvent, saveRuntime } from "../paas/runtime";
 import { appSpec, appsDomain, connectionUrl, dbSpec, defaultEnvKey, previewSpec, queueDeployment, redeployConfig, setEnvValue, uploadPathFor } from "../paas/service";
-import { fillTemplate, templateImage, templateOf } from "@/lib/paas-templates";
+import { fillTemplate, inputError, LLM_BASE_RE, templateImage, templateOf } from "@/lib/paas-templates";
+import { createKey } from "../ai/service";
+import { aiEndpoint } from "../ai/state";
+import { platformEgress, saveEgress } from "../paas/egress";
 import { open, seal } from "../secrets";
 import { checkDomain } from "../worker/paas";
 import { fail, logActivity, logAudit, rid } from "../util";
@@ -90,6 +93,14 @@ const appInput = z.object({
   version: z.string().trim().max(20).optional(),
 });
 
+/** one-click extras: the template's input variables, the model backend (Gereh AI API with a new key, or
+    another OpenAI-compatible endpoint) and the platform's outbound proxy */
+const templateOptions = z.object({
+  inputs: z.record(z.string().max(64), z.string().max(2000)).optional(),
+  llm: z.object({ mode: z.enum(["gereh", "custom"]), baseUrl: z.string().trim().max(300).optional(), apiKey: z.string().max(500).optional() }).optional(),
+  proxy: z.boolean().optional(),
+});
+
 export const paasRpc = {
   /* ---------------- apps ---------------- */
   "paas.createApp": method(z.tuple([appInput]), async (ctx, [i]) => {
@@ -123,23 +134,49 @@ export const paasRpc = {
   }),
 
   /** one-click app: official image + disk + (optionally) a linked managed database + generated secrets */
-  "paas.createFromTemplate": method(z.tuple([z.string().max(40), z.string().trim().toLowerCase().max(30), id.optional(), z.string().max(64).optional()]), async (ctx, [templateId, name, planId, version]): Promise<{ appId: string; credentials: { label: string; value: string }[] }> => {
+  "paas.createFromTemplate": method(z.tuple([z.string().max(40), z.string().trim().toLowerCase().max(30), id.optional(), z.string().max(64).optional(), templateOptions.optional()]), async (ctx, [templateId, name, planId, version, o]): Promise<{ appId: string; credentials: { label: string; value: string }[] }> => {
     const run = (m: string, args: unknown[]) => (paasRpc as unknown as Record<string, { run: (c: Ctx, a: unknown) => Promise<unknown> }>)[m].run(ctx, args) as Promise<string>;
     const a = needUser(ctx);
     const t = templateOf(templateId);
     if (!t) fail("این اپ آماده پیدا نشد.", 404);
     if (version && !t!.versions?.includes(version)) fail("نسخه انتخابی برای این اپ در دسترس نیست.");
     checkName(name);
+    // the customer's inputs, the model backend and the platform proxy are all checked before anything is created
+    const inputs = (t!.inputs ?? []).map((i) => ({ i, value: (o?.inputs?.[i.key] ?? "").trim() }));
+    for (const { i, value } of inputs) { const e = inputError(i, value); if (e) fail(e); }
+    const llm = t!.llm ? o?.llm ?? { mode: "gereh" as const } : null;
+    if (llm?.mode === "custom" && !LLM_BASE_RE.test(llm.baseUrl ?? "")) fail("نشانی API مدل معتبر نیست؛ مثل https://api.example.com/v1");
+    if (llm?.mode === "gereh") {
+      const [{ n }] = await ctx.db.select({ n: sql<number>`count(*)::int` }).from(aiKeys).where(and(eq(aiKeys.userId, a.uid), eq(aiKeys.status, "active")));
+      if (n >= 20) fail("حداکثر ۲۰ کلید فعال API هوش مصنوعی؛ کلیدهای بی‌استفاده را باطل کنید یا «سرویس دیگر» را انتخاب کنید.");
+    }
+    if (o?.proxy && (!t!.needsProxy || !(await platformEgress(ctx.db)).url)) fail("پروکسی گره برای این اپ در دسترس نیست.");
     const p = await plan(ctx, planId || t!.planId, "app");
     const dbPlan = t!.db ? await plan(ctx, t!.db.planId, "db") : null;
     await needCredit(ctx, a.uid, appMonthly(p, 1, t!.diskGb) + (dbPlan?.price ?? 0));
     const host = name + "." + (await appsDomain(ctx.db));
     const env = Object.entries(t!.env).map(([key, v]) => ({ key, value: fillTemplate(v, { url: "https://" + host, host, email: a.user.email }), secret: /\$\{(secret|hex|hex32)\}/.test(v) }));
-    let dbId: string | undefined;
-    if (t!.db) dbId = await run("paas.createDb", [{ name: (name + "-db").slice(0, 30), engine: t!.db.engine, version: t!.db.version, planId: dbPlan!.id, publicAccess: false, backups: true }]);
-    const appId = await run("paas.createApp", [{ name, stack: "docker", source: "image", gitUrl: "", gitBranch: "main", image: templateImage(t!, version), rootDir: "", buildCommand: "", startCommand: t!.start ?? "", port: t!.port, planId: p.id, instances: 1, diskGb: t!.diskGb, env }]);
+    for (const { i, value } of inputs) if (value) env.push({ key: i.key, value, secret: !!i.secret });
+    let aiKey: { id: string; key: string } | undefined;
+    if (llm) {
+      if (llm.mode === "gereh") aiKey = await createKey(ctx.db, a.uid, { name: ("اپ " + name).slice(0, 40), models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0 });
+      const base = llm.mode === "gereh" ? aiEndpoint() + "/v1" : llm.baseUrl!.replace(/\/+$/, "");
+      const key = aiKey?.key ?? llm.apiKey?.trim() ?? "";
+      if (t!.llm!.baseEnv) env.push({ key: t!.llm!.baseEnv, value: base, secret: false });
+      if (key) env.push({ key: t!.llm!.keyEnv, value: key, secret: true });
+    }
+    let dbId: string | undefined, appId: string;
+    try {
+      if (t!.db) dbId = await run("paas.createDb", [{ name: (name + "-db").slice(0, 30), engine: t!.db.engine, version: t!.db.version, planId: dbPlan!.id, publicAccess: false, backups: true }]);
+      appId = await run("paas.createApp", [{ name, stack: "docker", source: "image", gitUrl: "", gitBranch: "main", image: templateImage(t!, version), rootDir: "", buildCommand: "", startCommand: t!.start ?? "", port: t!.port, planId: p.id, instances: 1, diskGb: t!.diskGb, env }]);
+    } catch (e) {
+      if (aiKey) await ctx.db.delete(aiKeys).where(eq(aiKeys.id, aiKey.id));
+      throw e;
+    }
     await ctx.db.update(paasApps).set({ diskMount: t!.diskMount, ...(t!.health ? { healthPath: t!.health } : {}) }).where(eq(paasApps.id, appId));
     if (dbId) await ctx.db.insert(paasLinks).values({ appId, dbId, envKey: t!.db!.envKey }).onConflictDoNothing();
+    if (o?.proxy || t!.proxyEnv?.length) await saveEgress(ctx.db, appId, { mode: o?.proxy ? "platform" : "off", extraKeys: t!.proxyEnv ?? [] });
+    if (aiKey) await logActivity(ctx.db, a.uid, "key-round", "ساخت کلید API هوش مصنوعی برای اپ " + name, ctx.ip);
     const credentials = (t!.show ?? []).map((s) => ({ label: s.label, value: env.find((e) => e.key === s.key)?.value ?? "" }));
     if (t!.auth) {
       const password = randomBytes(15).toString("base64url");

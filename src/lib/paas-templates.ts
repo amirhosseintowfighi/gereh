@@ -3,6 +3,9 @@
    ${secret} a random 32-character string (each occurrence new), ${hex} 64 random hex digits,
    ${hex32} 32 random hex digits, ${url} the app's https URL, ${host} its host name,
    ${email} the customer's email.
+   `inputs` are variables the customer fills in the creation form; `llm` wires an OpenAI-compatible
+   backend (by default the Gereh AI API with a new gk- key); `needsProxy` offers the platform's outbound
+   proxy to apps that talk to foreign APIs blocked from Iran (src/lib/paas-egress.ts).
    A database link's envKey is a variable name (the connection URL), "@parts:PREFIX_" or
    "@map:KEY=field,…" (see dbMap) for images that take host, port, user… separately. */
 
@@ -24,10 +27,38 @@ export type PaasTemplate = {
   auth?: boolean;
   /** env keys shown to the customer once after creation (generated passwords) */
   show?: { key: string; label: string }[];
-  /** what to do after the app is live */
+  /** what to do after the app is live ("{ai}" is shown as the Gereh AI API base URL) */
   next: string;
   docs: string;
+  /** variables the customer fills in at creation (the key is the env name) */
+  inputs?: TemplateInput[];
+  /** OpenAI-compatible model backend: its base URL (…/v1) and key go into these variables */
+  llm?: { baseEnv?: string; keyEnv: string };
+  /** talks to foreign APIs that are blocked from Iran (Telegram…): offer the platform's outbound proxy */
+  needsProxy?: boolean;
+  /** variables that also receive the proxy URL (the app's own proxy setting) */
+  proxyEnv?: string[];
 };
+export type TemplateInput = {
+  key: string; label: string; hint?: string; placeholder?: string;
+  /** stored as a secret variable */
+  secret?: boolean; required?: boolean;
+  /** a select; the first option is the default */
+  options?: { value: string; label: string }[];
+  /** "model": a chat model of the Gereh AI API (free text for another backend) */
+  kind?: "text" | "model";
+  /** the whole value must match this regex source */
+  pattern?: string;
+};
+/** why a template input's value is not accepted, or null */
+export function inputError(i: TemplateInput, v: string) {
+  if (!v) return i.required ? "«" + i.label + "» را وارد کنید." : null;
+  if (v.length > 2000 || /[\r\n\0]/.test(v)) return "مقدار «" + i.label + "» معتبر نیست.";
+  if (i.options && !i.options.some((o) => o.value === v)) return "گزینه «" + i.label + "» معتبر نیست.";
+  if (i.pattern && !new RegExp("^(?:" + i.pattern + ")$").test(v)) return "قالب «" + i.label + "» درست نیست.";
+  return null;
+}
+export const LLM_BASE_RE = /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?(\/[\w./~%+-]*)?$/i;
 
 export const TEMPLATE_CATEGORIES = ["اتوماسیون", "هوش مصنوعی", "تحلیل و داده", "توسعه", "پایگاه داده و جست‌وجو", "مدیریت محتوا", "کسب‌وکار و فروشگاه", "همکاری و ارتباط", "امنیت", "ابزار"];
 
@@ -58,8 +89,9 @@ const TZ = { TZ: "Asia/Tehran" };
 
 export const PAAS_TEMPLATES: PaasTemplate[] = [
   /* ---------- automation ---------- */
-  { id: "n8n", name: "n8n", category: "اتوماسیون", icon: "workflow", desc: "اتوماسیون گردش کار با ۴۰۰+ اتصال؛ جایگزین Zapier", image: "n8nio/n8n:2.44.0", versions: ["2.44.0", "1.123.84"], port: 5678, planId: "app-small", diskGb: 5, diskMount: "/home/node/.n8n", health: "/healthz",
-    env: { WEBHOOK_URL: "${url}/", N8N_PROXY_HOPS: "1", N8N_ENCRYPTION_KEY: "${secret}", GENERIC_TIMEZONE: "Asia/Tehran", ...TZ }, next: "آدرس اپ را باز کنید و حساب مالک را بسازید.", docs: "https://docs.n8n.io" },
+  { id: "n8n", name: "n8n", category: "اتوماسیون", icon: "workflow", desc: "اتوماسیون گردش کار با ۴۰۰+ اتصال؛ جایگزین Zapier", image: "n8nio/n8n:2.44.5", versions: ["2.44.5", "2.44.0", "1.123.85"], port: 5678, planId: "app-small", diskGb: 5, diskMount: "/home/node/.n8n", health: "/healthz",
+    env: { WEBHOOK_URL: "${url}/", N8N_PROXY_HOPS: "1", N8N_ENCRYPTION_KEY: "${secret}", GENERIC_TIMEZONE: "Asia/Tehran", ...TZ }, needsProxy: true,
+    next: "آدرس اپ را باز کنید و حساب مالک را بسازید. نود Code (جاوااسکریپت و پایتون) در Task Runner هم‌نسخه کنار n8n اجرا می‌شود و خودکار راه‌اندازی شده است. «Code sandbox» که دستیار هوش مصنوعی n8n (Assistant/Agents) می‌خواهد سرویس جداگانه‌ای است (Daytona یا n8n Sandbox Service) و برای اجرای گردش کارها لازم نیست. برای مدل زبانی، اعتبارنامه OpenAI با Base URL ‎{ai}‎ و یک کلید gk- از «API هوش مصنوعی» بسازید. برای تلگرام و سرویس‌های خارجیِ مسدود، «پروکسی خروجی» را در تب «تنظیمات» روشن کنید.", docs: "https://docs.n8n.io" },
   { id: "changedetection", name: "changedetection.io", category: "اتوماسیون", icon: "eye", desc: "پایش تغییر صفحه‌های وب و قیمت‌ها با هشدار", image: "dgtlmoon/changedetection.io:0.60.9", port: 5000, planId: "app-micro", diskGb: 1, diskMount: "/datastore",
     env: { BASE_URL: "${url}" }, auth: true, next: "با نام کاربری admin و رمز نمایش‌داده‌شده وارد شوید و صفحه‌ها را اضافه کنید.", docs: "https://github.com/dgtlmoon/changedetection.io/wiki" },
   { id: "node-red", name: "Node-RED", category: "اتوماسیون", icon: "workflow", desc: "برنامه‌نویسی جریانی برای IoT، API و اتوماسیون", image: "nodered/node-red:4.1", versions: ["5.0", "4.1", "3.1"], port: 1880, planId: "app-micro", diskGb: 2, diskMount: "/data",
@@ -69,7 +101,28 @@ export const PAAS_TEMPLATES: PaasTemplate[] = [
 
   /* ---------- AI ---------- */
   { id: "open-webui", name: "Open WebUI", category: "هوش مصنوعی", icon: "bot", desc: "رابط گفت‌وگوی تحت وب برای مدل‌های زبانی با API سازگار OpenAI", image: "ghcr.io/open-webui/open-webui:v0.12.0", versions: ["v0.12.0", "v0.11.4"], port: 8080, planId: "app-small", diskGb: 5, diskMount: "/app/backend/data", health: "/health",
-    env: { WEBUI_SECRET_KEY: "${secret}", WEBUI_URL: "${url}" }, next: "اولین حسابی که می‌سازید مدیر است؛ سپس در تنظیمات، آدرس و کلید API مدل را وارد کنید.", docs: "https://docs.openwebui.com" },
+    env: { WEBUI_SECRET_KEY: "${secret}", WEBUI_URL: "${url}", ENABLE_OLLAMA_API: "false" }, llm: { baseEnv: "OPENAI_API_BASE_URL", keyEnv: "OPENAI_API_KEY" },
+    next: "اولین حسابی که می‌سازید مدیر است؛ مدل‌های API متصل در فهرست مدل‌ها آمده‌اند (Admin › Settings › Connections).", docs: "https://docs.openwebui.com" },
+  { id: "hermes", name: "Hermes Agent", category: "هوش مصنوعی", icon: "bot", desc: "ایجنت خودآموز Nous Research با حافظه، مهارت و زمان‌بندی؛ گفت‌وگو از تلگرام و داشبورد وب", image: "nousresearch/hermes-agent:v0.22.2", versions: ["v0.22.2", "v0.22.1"], port: 9119, planId: "app-small", diskGb: 5, diskMount: "/opt/data",
+    // the image's entrypoint must stay PID 1 (s6-overlay); the model is written to config.yaml on the first boot only
+    start: String.raw`mkdir -p /opt/data && if [ ! -s /opt/data/config.yaml ] && [ -n "$OPENAI_BASE_URL" ] && [ -n "$HERMES_DEFAULT_MODEL" ]; then printf 'model:\n  provider: custom\n  base_url: "%s"\n  default: "%s"\n  key_env: OPENAI_API_KEY\n' "$OPENAI_BASE_URL" "$HERMES_DEFAULT_MODEL" > /opt/data/config.yaml; fi; exec /opt/hermes/docker/entrypoint-dispatch.sh gateway run`,
+    env: { HERMES_DASHBOARD: "1", HERMES_DASHBOARD_HOST: "0.0.0.0", HERMES_DASHBOARD_PORT: "9119", HERMES_DASHBOARD_PUBLIC_URL: "${url}", HERMES_DASHBOARD_BASIC_AUTH_USERNAME: "admin", HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: "${secret}", HERMES_DASHBOARD_BASIC_AUTH_SECRET: "${hex}", HERMES_TIMEZONE: "Asia/Tehran", ...TZ },
+    inputs: [
+      { key: "TELEGRAM_BOT_TOKEN", label: "توکن ربات تلگرام", hint: "از ‎@BotFather‎؛ خالی بگذارید تا بعداً از داشبورد وصل کنید", placeholder: "123456789:AA…", secret: true, pattern: String.raw`\d{5,12}:[A-Za-z0-9_-]{30,60}` },
+      { key: "TELEGRAM_ALLOWED_USERS", label: "شناسه عددی کاربران مجاز تلگرام", hint: "با ویرگول جدا کنید (شناسه را از ‎@userinfobot‎ بگیرید)؛ ربات فقط به این کاربران پاسخ می‌دهد", placeholder: "123456789", pattern: String.raw`\d{3,15}(,\s*\d{3,15})*` },
+      { key: "HERMES_DEFAULT_MODEL", label: "مدل", kind: "model", required: true },
+    ],
+    llm: { baseEnv: "OPENAI_BASE_URL", keyEnv: "OPENAI_API_KEY" }, needsProxy: true, proxyEnv: ["TELEGRAM_PROXY"],
+    show: [{ key: "HERMES_DASHBOARD_BASIC_AUTH_PASSWORD", label: "رمز داشبورد (کاربر admin)" }],
+    next: "داشبورد Hermes روی آدرس اپ است (کاربر admin و رمز نمایش‌داده‌شده). API تلگرام از ایران مسدود است: اگر هنگام ساخت «پروکسی گره» را نزده‌اید، در تب «تنظیمات › پروکسی خروجی» یک پروکسی HTTP یا SOCKS5 بگذارید و سپس به ربات پیام بدهید. مدل در ‎/opt/data/config.yaml‎ ذخیره شده و از داشبورد یا دستور hermes model (تب «کنسول») عوض می‌شود.", docs: "https://hermes-agent.nousresearch.com/docs" },
+  { id: "librechat", name: "LibreChat", category: "هوش مصنوعی", icon: "message-circle", desc: "رابط گفت‌وگوی چندکاربره با ایجنت، ابزار و MCP", image: "ghcr.io/danny-avila/librechat:v0.8.7", versions: ["v0.8.7", "v0.8.6"], port: 3080, planId: "app-small", diskGb: 5, diskMount: "/app/uploads", health: "/health",
+    env: { HOST: "0.0.0.0", DOMAIN_CLIENT: "${url}", DOMAIN_SERVER: "${url}", TRUST_PROXY: "1", NO_INDEX: "true", CREDS_KEY: "${hex}", CREDS_IV: "${hex32}", JWT_SECRET: "${hex}", JWT_REFRESH_SECRET: "${hex}", SEARCH: "false", ENDPOINTS: "openAI,agents", ALLOW_REGISTRATION: "true", ALLOW_SOCIAL_LOGIN: "false", ...TZ },
+    db: { engine: "mongodb", version: "8.0", envKey: "MONGO_URI", planId: "db-micro" }, llm: { baseEnv: "OPENAI_REVERSE_PROXY", keyEnv: "OPENAI_API_KEY" },
+    next: "حساب بسازید (اولین حساب مدیر است) و سپس ALLOW_REGISTRATION را در تب «متغیرها» false کنید. مدل‌های API متصل در بخش OpenAI فهرست می‌شوند.", docs: "https://www.librechat.ai/docs" },
+  { id: "agent-zero", name: "Agent Zero", category: "هوش مصنوعی", icon: "bot", desc: "ایجنت همه‌کاره با ترمینال، مرورگر، حافظه و ساخت ابزار؛ با رابط وب", image: "agent0ai/agent-zero:v2.14", versions: ["v2.14", "v2.13"], port: 80, planId: "app-medium", diskGb: 10, diskMount: "/a0/usr",
+    env: { AUTH_LOGIN: "admin", AUTH_PASSWORD: "${secret}", ...TZ }, llm: { keyEnv: "API_KEY_OTHER" }, needsProxy: true,
+    show: [{ key: "AUTH_PASSWORD", label: "رمز ورود (کاربر admin)" }],
+    next: "با کاربر admin و رمز نمایش‌داده‌شده وارد شوید؛ در Settings › Models ارائه‌دهنده را «Other OpenAI compatible» و API base را ‎{ai}‎ بگذارید (کلید از پیش تنظیم شده است).", docs: "https://github.com/agent0ai/agent-zero" },
   { id: "flowise", name: "Flowise", category: "هوش مصنوعی", icon: "bot", desc: "ساخت ایجنت و چت‌بات با کشیدن و رها کردن", image: "flowiseai/flowise:3.1.4", port: 3000, planId: "app-small", diskGb: 5, diskMount: "/root/.flowise",
     env: { DATABASE_PATH: "/root/.flowise", SECRETKEY_PATH: "/root/.flowise", BLOB_STORAGE_PATH: "/root/.flowise/storage" }, next: "آدرس اپ را باز کنید و حساب مدیر را بسازید.", docs: "https://docs.flowiseai.com" },
   { id: "langflow", name: "Langflow", category: "هوش مصنوعی", icon: "bot", desc: "طراحی بصری ایجنت‌ها و RAG با پایتون", image: "langflowai/langflow:1.12.6", port: 7860, planId: "app-medium", diskGb: 5, diskMount: "/app/langflow",
@@ -285,5 +338,7 @@ export const VPS_ONLY_APPS: VpsOnlyApp[] = [
   { id: "odoo", name: "Odoo", icon: "building-2", category: "کسب‌وکار و فروشگاه", desc: "ERP کامل: حسابداری، انبار، فروش و منابع انسانی", reason: "مدیر پایگاه داده Odoo دسترسی ساخت پایگاه داده (CREATEDB) و worker طولانی‌مدت می‌خواهد؛ روی سرور ابری با PostgreSQL خودتان پایدارتر است.", docs: "https://www.odoo.com/documentation/18.0/administration/install/install.html" },
   { id: "moodle", name: "Moodle", icon: "book-open", category: "مدیریت محتوا", desc: "سامانه آموزش آنلاین (LMS)", reason: "ایمیج رسمی production ندارد و به cron و چند پوشه داده دائمی نیاز دارد؛ روی سرور ابری نصب کنید.", docs: "https://docs.moodle.org/en/Installing_Moodle" },
   { id: "mautic", name: "Mautic", icon: "megaphone", category: "کسب‌وکار و فروشگاه", desc: "اتوماسیون بازاریابی", reason: "سه نقش web، cron و worker با پوشه‌های مشترک لازم دارد؛ روی سرور ابری با compose رسمی اجرا کنید.", docs: "https://docs.mautic.org/en/5.x/getting_started/how_to_install_mautic.html" },
+  { id: "dify", name: "Dify", icon: "bot", category: "هوش مصنوعی", desc: "پلتفرم ساخت اپ و ایجنت هوش مصنوعی با RAG و گردش کار", reason: "حدود ۱۰ سرویس (api، worker، web، sandbox، plugin daemon، Weaviate، Redis، PostgreSQL و nginx) دارد و sandbox آن دسترسی ویژه می‌خواهد؛ روی سرور ابری با docker compose رسمی نصب کنید. مجوز آن Apache 2.0 با شرط است: ارائه چندمستأجری (SaaS) و حذف لوگو بدون مجوز تجاری مجاز نیست.", docs: "https://github.com/langgenius/dify" },
+  { id: "openhands", name: "OpenHands", icon: "code-xml", category: "هوش مصنوعی", desc: "ایجنت برنامه‌نویس متن‌باز که کد می‌نویسد، اجرا و تست می‌کند", reason: "هر گفت‌وگو را در یک کانتینر sandbox جدا اجرا می‌کند و به Docker socket میزبان نیاز دارد که در گره اپ در دسترس نیست؛ روی سرور ابری با Docker نصب کنید.", docs: "https://github.com/OpenHands/OpenHands" },
   { id: "portainer", name: "Portainer", icon: "box", category: "ابزار", desc: "مدیریت Docker در مرورگر", reason: "به Docker socket میزبان نیاز دارد که در گره اپ در دسترس نیست؛ سرور ابری با نصب یک‌کلیکی Portainer را بگیرید.", docs: "https://docs.portainer.io", vpsApp: "portainer" },
 ];

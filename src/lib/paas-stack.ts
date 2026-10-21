@@ -314,7 +314,7 @@ databases:
   - { id: queue, engine: redis, version: "7.4" }
 apps:
   - name: $APP_NAME
-    image: n8nio/n8n:2.44.0
+    image: n8nio/n8n:2.44.5
     port: 5678
     plan: app-small
     health: /healthz
@@ -334,7 +334,7 @@ apps:
       QUEUE_BULL_REDIS_PASSWORD: $DB_queue_PASSWORD
       GENERIC_TIMEZONE: Asia/Tehran
   - name: $APP_NAME-worker
-    image: n8nio/n8n:2.44.0
+    image: n8nio/n8n:2.44.5
     plan: app-small
     start: exec n8n worker
     env: *env

@@ -1,16 +1,16 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BTN_G, BTN_LG, BTN_MD, BTN_P, INPUT } from "@/lib/cls";
 import { fa } from "@/lib/format";
 import { appMonthly, engineOf, PAAS_NAME_RE } from "@/lib/paas";
-import { PAAS_TEMPLATES, TEMPLATE_CATEGORIES, templateImage, templateTag, VPS_ONLY_APPS, type PaasTemplate, type VpsOnlyApp } from "@/lib/paas-templates";
+import { inputError, LLM_BASE_RE, PAAS_TEMPLATES, TEMPLATE_CATEGORIES, templateImage, templateTag, VPS_ONLY_APPS, type PaasTemplate, type VpsOnlyApp } from "@/lib/paas-templates";
 import { api, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Field } from "../ui";
-import { AsyncButton, CopyText, Modal, PageTitle } from "../ui-client";
+import { AsyncButton, CopyText, Modal, PageTitle, Select, Switch } from "../ui-client";
 import { Cost, PlanPicker, ramLabel } from "./paas-shared";
 
 const match = (q: string, ...s: string[]) => !q || s.some((x) => x.toLowerCase().includes(q.toLowerCase()));
@@ -78,13 +78,23 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
   const [name, setName] = useState(t.id.replace(/[^a-z0-9-]/g, "") + "-" + (db.paasApps.length + 1));
   const [planId, setPlanId] = useState(plans.some((p) => p.id === t.planId) ? t.planId : plans[0]?.id ?? "");
   const [version, setVersion] = useState(templateTag(t));
+  const [inputs, setInputs] = useState<Record<string, string>>(() => Object.fromEntries((t.inputs ?? []).map((i) => [i.key, i.options?.[0]?.value ?? ""])));
+  const [llm, setLlm] = useState<{ mode: "gereh" | "custom"; baseUrl: string; apiKey: string }>({ mode: "gereh", baseUrl: "", apiKey: "" });
+  const [proxy, setProxy] = useState(false);
+  const [proxyOk, setProxyOk] = useState(false);
+  useEffect(() => { if (t.needsProxy) void api.paas.platformProxy().then((r) => { setProxyOk(r.available); setProxy(r.available); }).catch(() => setProxyOk(false)); }, [t.needsProxy]);
   const [done, setDone] = useState<{ appId: string; credentials: { label: string; value: string }[] } | null>(null);
   const plan = plans.find((p) => p.id === planId);
   const dbPlan = t.db ? db.paasPlans.find((p) => p.id === t.db!.planId) : undefined;
   const monthly = (plan ? appMonthly(plan, 1, t.diskGb) : 0) + (dbPlan?.price ?? 0);
+  const aiBase = (db.ai.endpoint || "https://api.gereh.dev") + "/v1";
+  const base = t.llm && llm.mode === "custom" ? llm.baseUrl.replace(/\/+$/, "") : aiBase;
+  const chatModels = db.ai.models.filter((m) => m.kind === "chat" && m.active);
+  const errors = (t.inputs ?? []).map((i) => inputError(i, (inputs[i.key] ?? "").trim())).filter(Boolean);
+  const llmError = t.llm && llm.mode === "custom" && !LLM_BASE_RE.test(llm.baseUrl.trim());
   if (done) return (
     <Modal open onClose={() => router.push(("/panel/apps/" + done.appId) as never)} title={t.name + " در حال راه‌اندازی است"} icon="rocket">
-      <p className="text-sm text-white/70 leading-7">{t.next}</p>
+      <p className="text-sm text-white/70 leading-7">{t.next.replaceAll("{ai}", base)}</p>
       {done.credentials.length > 0 && <>
         <p className="text-sm text-amber-200/90 leading-7 mt-3">این اطلاعات فقط یک بار نمایش داده می‌شود؛ همین حالا ذخیره کنید.</p>
         <ul className="space-y-2 mt-3">{done.credentials.map((c) => <li key={c.label} className="rounded-xl bg-black/40 p-3"><span className="block text-[11px] text-white/55 mb-1">{c.label}</span><CopyText text={c.value} className="font-mono text-sm break-all" /></li>)}</ul>
@@ -104,6 +114,31 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
             </select>
           </Field>
         )}
+        {t.llm && (
+          <Card pad="p-3" title="مدل زبانی (سازگار با OpenAI)">
+            <div className="space-y-3">
+              <Select label="سرویس مدل" value={llm.mode} onChange={(v) => setLlm({ ...llm, mode: v as "gereh" | "custom" })} options={[{ value: "gereh", label: "API هوش مصنوعی گره (پیشنهادی؛ کلید gk- جدید ساخته می‌شود)" }, { value: "custom", label: "سرویس دیگر سازگار با OpenAI" }]} />
+              {llm.mode === "gereh" ? <p className="text-[11px] text-white/55 leading-6">هزینه هر درخواست از کیف پول کم می‌شود؛ کلید را بعداً در «API هوش مصنوعی» محدود یا باطل کنید. نشانی: <span dir="ltr" className="font-mono">{aiBase}</span></p> : <>
+                <Field label="Base URL" error={llm.baseUrl && llmError ? "نشانی معتبر نیست" : undefined}><input dir="ltr" value={llm.baseUrl} onChange={(e) => setLlm({ ...llm, baseUrl: e.target.value.trim() })} placeholder="https://api.example.com/v1" className={INPUT + " font-mono text-left"} /></Field>
+                <Field label="کلید API"><input dir="ltr" type="password" autoComplete="off" value={llm.apiKey} onChange={(e) => setLlm({ ...llm, apiKey: e.target.value })} className={INPUT + " font-mono text-left"} /></Field>
+              </>}
+            </div>
+          </Card>
+        )}
+        {(t.inputs ?? []).map((i) => (
+          <Field key={i.key} label={i.label + (i.required ? "" : " (اختیاری)")} hint={i.hint}>
+            {i.options ? <Select label={i.label} value={inputs[i.key] ?? ""} onChange={(v) => setInputs({ ...inputs, [i.key]: v })} options={i.options} />
+              : i.kind === "model" && llm.mode === "gereh" && chatModels.length ? <Select label={i.label} ltr value={inputs[i.key] ?? ""} onChange={(v) => setInputs({ ...inputs, [i.key]: v })} options={[{ value: "", label: "انتخاب مدل…" }, ...chatModels.map((m) => ({ value: m.id, label: m.name + " · " + m.id }))]} />
+              : <input dir="ltr" type={i.secret ? "password" : "text"} autoComplete="off" value={inputs[i.key] ?? ""} placeholder={i.placeholder ?? (i.kind === "model" ? "model-id" : "")} onChange={(e) => setInputs({ ...inputs, [i.key]: e.target.value })} className={INPUT + " font-mono text-left"} />}
+          </Field>
+        ))}
+        {t.needsProxy && (
+          <div className="flex items-start justify-between gap-3 text-sm rounded-xl bg-white/[0.03] p-3">
+            <span>استفاده از پروکسی گره برای تلگرام و سرویس‌های خارجی
+              <span className="block text-[11px] text-white/50 leading-6">{proxyOk ? "ترافیک خروجی اپ (جز شبکه داخلی و سرویس‌های گره) از پروکسی گره می‌گذرد. بعداً در تب «تنظیمات › پروکسی خروجی» قابل تغییر است." : "پروکسی گره فعلاً در دسترس نیست؛ پس از ساخت می‌توانید پروکسی خودتان را در تب «تنظیمات» بگذارید."}</span></span>
+            <Switch on={proxy && proxyOk} disabled={!proxyOk} onChange={setProxy} label="پروکسی گره" />
+          </div>
+        )}
         <Card pad="p-3" title="اندازه"><PlanPicker plans={plans} value={planId} onChange={setPlanId} label="پلن" /></Card>
         <ul className="text-xs text-white/60 space-y-1.5">
           <li className="flex gap-2"><Icon name="box" size={14} className="acc shrink-0 mt-0.5" />ایمیج رسمی <code dir="ltr">{templateImage(t, version)}</code></li>
@@ -113,7 +148,10 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
         </ul>
         <Cost monthly={monthly} />
         <div className="flex gap-2">
-          <AsyncButton disabled={!PAAS_NAME_RE.test(name) || !planId} className={BTN_P + BTN_LG + " flex-1"} onClick={async () => { const r = await api.paas.createFromTemplate(t.id, name, planId, version === templateTag(t) ? undefined : version); notify(t.name + " ساخته شد", "rocket"); setDone(r); }}><Icon name="rocket" size={16} />راه‌اندازی</AsyncButton>
+          <AsyncButton disabled={!PAAS_NAME_RE.test(name) || !planId || errors.length > 0 || !!llmError} className={BTN_P + BTN_LG + " flex-1"} onClick={async () => {
+            const extra = t.inputs || t.llm || t.needsProxy ? { inputs: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.trim()])), ...(t.llm ? { llm: llm.mode === "gereh" ? { mode: "gereh" as const } : { mode: "custom" as const, baseUrl: llm.baseUrl.trim(), apiKey: llm.apiKey } } : {}), proxy: proxy && proxyOk } : undefined;
+            const r = await api.paas.createFromTemplate(t.id, name, planId, version === templateTag(t) ? undefined : version, extra); notify(t.name + " ساخته شد", "rocket"); setDone(r);
+          }}><Icon name="rocket" size={16} />راه‌اندازی</AsyncButton>
           <button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button>
         </div>
       </div>

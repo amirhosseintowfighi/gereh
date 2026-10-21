@@ -11,6 +11,7 @@ import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
+import type { EgressMode } from "./paas-egress";
 import type { RuntimeConfig } from "./paas-runtime";
 import type { AiKind } from "./ai";
 import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
@@ -95,6 +96,8 @@ export type PaasRuntimeView = {
   egressIps: string[];
   limits: { deploysPerDay: number; maxBuildMinutes: number; deploysToday: number };
 };
+export type PaasEgressView = { mode: EgressMode; url: string; noProxy: string[]; extraKeys: string[]; platform: boolean; defaults: string[] };
+export type TemplateOptions = { inputs?: Record<string, string>; llm?: { mode: "gereh" | "custom"; baseUrl?: string; apiKey?: string }; proxy?: boolean };
 export type PaasFsEntry = { name: string; dir: boolean; size: number; mtime: number; editable: boolean };
 export type PaasDisksView = {
   running: boolean; diskPrice: number; maxDisks: number; sftp: { host: string; port: number | null };
@@ -110,7 +113,7 @@ export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
 export type PendingCredential = { serverId: string; kind: "root" | "rescue"; username: string; name: string; ip: string; createdAt: string; expiresAt: string; revealed: boolean };
-const READ_ONLY = new Set(["servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.egress", "paas.platformProxy", "paas.adminEgress", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -278,7 +281,7 @@ export const api = {
     createApp: (a: { name: string; stack: string; source: string; gitUrl?: string; gitBranch?: string; image?: string; uploadId?: string; rootDir?: string; buildCommand?: string; startCommand?: string; port: number; planId: string; instances?: number; diskGb?: number; env?: { key: string; value: string; secret: boolean }[]; version?: string }) => rpc<string>("paas.createApp", a),
     deploy: (appId: string, o: { uploadId?: string; message?: string; noCache?: boolean } = {}) => rpc<string>("paas.deploy", appId, o),
     rollback: (appId: string, depId: string) => rpc<string>("paas.rollback", appId, depId),
-    createFromTemplate: (templateId: string, name: string, planId?: string, version?: string) => rpc<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", templateId, name, ...(planId || version ? [planId || ""] : []), ...(version ? [version] : [])),
+    createFromTemplate: (templateId: string, name: string, planId?: string, version?: string, o?: TemplateOptions) => rpc<{ appId: string; credentials: { label: string; value: string }[] }>("paas.createFromTemplate", templateId, name, ...(planId || version || o ? [planId || ""] : []), ...(version || o ? [version || ""] : []), ...(o ? [o] : [])),
     createStack: (yaml: string, name: string) => rpc<{ appIds: string[]; dbIds: string[]; warnings: string[] }>("paas.createStack", yaml, name),
     deployPreview: (appId: string, o: { branch?: string; uploadId?: string; message?: string }) => rpc<string>("paas.deployPreview", appId, o),
     promote: (appId: string, depId: string) => rpc<string>("paas.promote", appId, depId),
@@ -317,6 +320,11 @@ export const api = {
     adminSuspend: (kind: "app" | "db", id: string, on: boolean) => rpc("paas.adminSuspend", kind, id, on),
     adminTest: () => rpc<{ driver: string; version: string }>("paas.adminTest"),
     runtime: (appId: string) => rpc<PaasRuntimeView>("paas.runtime", appId),
+    egress: (appId: string) => rpc<PaasEgressView>("paas.egress", appId),
+    setEgress: (appId: string, o: { mode: EgressMode; url: string | null; noProxy: string[] }) => rpc<string | null>("paas.setEgress", appId, o),
+    platformProxy: () => rpc<{ available: boolean }>("paas.platformProxy"),
+    adminEgress: () => rpc<{ url: string; source: "admin" | "env" | ""; noProxy: string[] }>("paas.adminEgress"),
+    adminSetEgress: (o: { url: string | null; noProxy: string[] }) => rpc("paas.adminSetEgress", o),
     setRuntime: (appId: string, patch: Partial<RuntimeConfig>) => rpc<string | null>("paas.setRuntime", appId, patch),
     setBasicAuth: (appId: string, o: { path: string; user: string; password: string } | null) => rpc("paas.setBasicAuth", appId, o),
     setRedirect: (domId: string, o: { target: string; code: 301 | 302; keepPath: boolean } | null) => rpc("paas.setRedirect", domId, o),

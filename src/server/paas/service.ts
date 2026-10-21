@@ -16,6 +16,7 @@ import { getSettings } from "../state";
 import { rid } from "../util";
 import type { AppSpec, DbSpec } from "./driver";
 import { toolsSpec } from "./disks";
+import { egressEnv } from "./egress";
 import { PLAN_LIMITS, runtimeSpec } from "./runtime";
 
 export type AppRow = typeof paasApps.$inferSelect;
@@ -129,6 +130,10 @@ export async function appSpec(db: DB | Tx, app: AppRow): Promise<AppSpec> {
       for (const m of parseDbMap(l.envKey) ?? []) vars[m.env] = dbField(d, open(d.passwordEnc) ?? "", m.field, m.query);
     } else vars[l.envKey] = connectionUrl(d, open(d.passwordEnc) ?? "");
   }
+  // outbound proxy: cluster-internal and Iranian hosts stay direct; the customer's own variables win
+  const mirror = (process.env.PAAS_MIRROR || process.env.MIRROR_URL || "").replace(/^https?:\/\//, "").replace(/[:/].*$/, "");
+  const proxy = await egressEnv(db, app.id, [...links.map(({ d }) => d.host), "." + base, mirror]);
+  for (const [k, v] of Object.entries(proxy)) if (!(k in vars)) vars[k] = v;
   vars.PORT = String(app.port);
   vars.GEREH_APP = app.name;
   if (!("TZ" in vars)) vars.TZ = runtime.timezone;
