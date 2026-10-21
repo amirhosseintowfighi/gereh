@@ -24,15 +24,32 @@ const usable = (m: ResolvedModel) => m.kind === "chat" && m.tools && m.outPrice 
     first such model of the catalog (ordered by staff, strongest first) priced at or below the median, since every
     turn is several metered calls from the customer's wallet */
 export async function assistantModel(db: DB): Promise<ResolvedModel | null> {
+  return (await assistantModels(db))[0] ?? null;
+}
+
+/* a model the provider refused (404 unknown model, 400/422 no tool calling) is skipped for an hour, so one bad
+   catalog entry does not break the assistant: the next candidate answers instead */
+const refused = new Map<string, number>();
+export const refuseModel = (id: string) => { refused.set(id, Date.now() + 3600_000); };
+const isRefused = (id: string) => (refused.get(id) ?? 0) > Date.now();
+
+/** the models to try, best first: the configured one, then a balanced default (the first tool-capable chat model of
+    the catalog priced at or below the median, since every turn is several metered calls), then the rest */
+export async function assistantModels(db: DB, max = 4): Promise<ResolvedModel[]> {
+  const out: ResolvedModel[] = [];
+  const add = (m: ResolvedModel | null | undefined) => { if (m && usable(m) && !isRefused(m.id) && !out.some((x) => x.id === m.id)) out.push(m); };
   for (const id of [process.env.ASSISTANT_MODEL, (await assistantSettings(db)).model]) {
     if (!id) continue;
     const m = await resolveModel(db, id, [], "chat");
-    if (!isAiError(m) && usable(m)) return m;
+    if (!isAiError(m)) add(m);
   }
   const all = await db.select().from(aiModels).where(and(eq(aiModels.active, true), eq(aiModels.kind, "chat"), eq(aiModels.tools, true), gt(aiModels.outPrice, 0), gt(aiModels.context, 100_000))).orderBy(asc(aiModels.position));
-  if (!all.length) return null;
-  const median = [...all].map((m) => m.outPrice).sort((a, b) => a - b)[Math.floor(all.length / 2)];
-  return all.find((m) => m.outPrice <= median) ?? all[0];
+  if (all.length) {
+    const median = [...all].map((m) => m.outPrice).sort((a, b) => a - b)[Math.floor(all.length / 2)];
+    for (const m of all.filter((x) => x.outPrice <= median)) add(m);
+    for (const m of all) add(m);
+  }
+  return out.slice(0, max);
 }
 
 export const MAX_RESULT = 6000;

@@ -95,6 +95,24 @@ describe("assistant: chat stream (simulator)", () => {
     expect(text).not.toContain("api-1"); // another customer's server
   });
 
+  it("a model the provider does not know (404) is skipped and the next one answers", async () => {
+    await asUser();
+    const seen = scripted([{ text: "همه سرویس‌ها سالم‌اند." }]);
+    const base = (await import("@/server/ai/upstream")).aiUpstream();
+    const models: string[] = [];
+    setAiUpstream({ ...base, async chat(req, signal) {
+      models.push(String(req.model));
+      if (models.length === 1) return new Response(JSON.stringify({ error: { message: "model not found" } }), { status: 404 });
+      return base.chat(req, signal);
+    } });
+    const { events } = await chat({ message: "وضعیت سرویس‌هایم چطور است؟" });
+    expect(models).toHaveLength(2);
+    expect(models[0]).not.toBe(models[1]);
+    expect(events.some((e) => e.type === "error")).toBe(false);
+    expect(textOf(events)).toContain("سالم");
+    expect(seen).toHaveLength(1);
+  });
+
   it("meters the turn and charges the wallet", async () => {
     await asUser();
     const before = await balance();

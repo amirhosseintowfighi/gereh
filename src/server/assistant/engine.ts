@@ -15,7 +15,7 @@ import type { Ctx } from "../ctx";
 import { assistantMessages, assistantThreads, paasApps, paasDbs, servers } from "../db/schema";
 import { logActivity, rid } from "../util";
 import { decide, lapsePending, propose } from "./confirm";
-import { assistantModel, errorText, systemPrompt, wrapResult } from "./prompt";
+import { assistantModels, errorText, refuseModel, systemPrompt, wrapResult } from "./prompt";
 import { simPlan, type SimDone } from "./sim";
 import { newThread, ownThread, threadRows, windowOf, type Row, type Thread } from "./threads";
 import { execTool, readOnlyView, toolAllowed, toolByName, toolCtx, toolSpecs, type Quote } from "./tools";
@@ -107,7 +107,13 @@ async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: J
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await up.chat({ model: o.model.upstream || o.model.id, messages: o.messages, tools: o.tools, tool_choice: "auto", stream: true, max_tokens: MAX_OUT, temperature: 0.2, stream_options: { include_usage: true } }, o.signal);
-      if (!res.ok) { const err = new Error(upstreamError(res.status, (await res.text().catch(() => "")).slice(0, 300)).message); (err as { upstream?: boolean }).upstream = true; throw err; }
+      if (!res.ok) {
+        const body = (await res.text().catch(() => "")).slice(0, 300);
+        console.warn("[assistant] " + (o.model.upstream || o.model.id) + " → " + res.status + " " + body);
+        const err = new Error(upstreamError(res.status, body).message);
+        Object.assign(err, { upstream: true, status: res.status });
+        throw err;
+      }
       let usage: ChatUsage | null = null;
       const calls: { id: string; name: string; args: string }[] = [];
       for await (const c of readSSE(res.body!)) {
@@ -162,7 +168,8 @@ export async function runTurn(i: TurnInput): Promise<void> {
     }
   }
 
-  const model = await assistantModel(db);
+  const candidates = await assistantModels(db);
+  let model = candidates[0];
   if (!model) return emit({ type: "error", message: "در حال حاضر مدلی برای دستیار در دسترس نیست؛ کمی بعد دوباره تلاش کنید.", code: "no_model" });
   const readOnly = readOnlyView(ctx);
   // staff viewing a customer pay for their own questions; a team member's use is the account's, like other AI use
@@ -203,6 +210,14 @@ export async function runTurn(i: TurnInput): Promise<void> {
           await db.update(assistantThreads).set({ spent: sql`${assistantThreads.spent} + ${cost}`, updatedAt: new Date() }).where(eq(assistantThreads.id, thread.id));
           charged += cost;
         } else await meter.close("error", { error: (e as Error).message });
+        // the provider does not know this model or refuses tool calls: the next candidate takes the same step
+        const status = (e as { status?: number }).status;
+        if (!stopped && !partial.text && (status === 404 || status === 400 || status === 422) && candidates.indexOf(model) < candidates.length - 1) {
+          refuseModel(model.id);
+          model = candidates[candidates.indexOf(model) + 1];
+          n--;
+          continue;
+        }
         if (!stopped) emit({ type: "error", message: isNetError(e) ? "اتصال به سرویس مدل قطع شد؛ چند لحظه دیگر دوباره تلاش کنید. مبلغی کسر نشد." : (e as Error).message || "سرویس مدل در دسترس نبود؛ مبلغی کسر نشد.", code: "upstream" });
         else if (!i.signal?.aborted) emit({ type: "error", message: "پاسخ بیش از حد طول کشید و متوقف شد.", code: "timeout" });
         return;
