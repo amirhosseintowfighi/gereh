@@ -14,6 +14,7 @@ import { api, useDB } from "@/lib/store";
 import type { PaasDb } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, CopyText, Select, Switch } from "../ui-client";
 
@@ -309,7 +310,8 @@ export function DbImport({ d }: { d: PaasDb }) {
       {d.imports.length > 0 && <ul className="divide-y divide-white/[0.06] mt-4">
         {d.imports.map((x) => (
           <li key={x.id} className="py-2.5 text-xs"><span className="flex items-center gap-2"><Badge tone={x.status === "succeeded" ? "green" : x.status === "failed" ? "red" : "blue"} dot>{({ queued: "در صف", running: "در حال ورود", succeeded: "انجام شد", failed: "ناموفق" } as Record<string, string>)[x.status] ?? x.status}</Badge>{x.at} · {IMPORT_LABEL[x.format as keyof typeof IMPORT_LABEL] ?? x.format} · {fa(x.sizeMb, 1)} مگابایت</span>
-            {x.output && x.status !== "running" && <pre dir="ltr" className="mt-2 text-[11px] text-white/55 whitespace-pre-wrap max-h-32 overflow-y-auto">{x.output}</pre>}</li>
+            {x.output && x.status !== "running" && <pre dir="ltr" className="mt-2 text-[11px] text-white/55 whitespace-pre-wrap max-h-32 overflow-y-auto">{x.output}</pre>}
+            {x.status === "failed" && <div className="mt-2"><ExplainButton compact kind="dbaas" resourceId={d.id} errorRef={"imp-" + x.id} /></div>}</li>
         ))}
       </ul>}
     </Card>
@@ -334,7 +336,7 @@ export function DbActivity({ d }: { d: PaasDb }) {
       <Card title="رویدادها" icon="scroll-text">
         {d.events.length === 0 ? <p className="text-sm text-white/55">هنوز رویدادی ثبت نشده است.</p> : (
           <ul className="space-y-2 max-h-72 overflow-y-auto">
-            {d.events.map((e) => <li key={e.id} className="text-xs flex gap-2"><span className={"mt-1 w-1.5 h-1.5 rounded-full shrink-0 " + (e.level === "error" ? "bg-rose-400" : e.level === "warn" ? "bg-amber-300" : "bg-sky-300")} /><span><span className="text-white/80">{e.message}</span><span className="block text-[10px] text-white/50">{e.at}</span></span></li>)}
+            {d.events.map((e) => <li key={e.id} className="text-xs flex gap-2"><span className={"mt-1 w-1.5 h-1.5 rounded-full shrink-0 " + (e.level === "error" ? "bg-rose-400" : e.level === "warn" ? "bg-amber-300" : "bg-sky-300")} /><span className="min-w-0"><span className="text-white/80">{e.message}</span><span className="block text-[10px] text-white/50">{e.at}</span>{e.level === "error" && <span className="block mt-1"><ExplainButton compact kind="dbaas" resourceId={d.id} errorRef={"ev-" + e.id} label="توضیح" /></span>}</span></li>)}
           </ul>
         )}
       </Card>

@@ -13,6 +13,7 @@ import { HOSTING, TLDS, VPS } from "./catalog";
 import { invGross, invTotal } from "./money";
 import type { EgressMode } from "./paas-egress";
 import type { RuntimeConfig } from "./paas-runtime";
+import { noteRpcError } from "./rpc-errors";
 import type { AiKind } from "./ai";
 import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
@@ -121,9 +122,10 @@ async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   } catch {
     throw new Error("ارتباط با سرور برقرار نشد؛ اتصال اینترنت را بررسی کنید.");
   }
-  const j = (await res.json().catch(() => ({}))) as { result?: T; error?: string };
+  const j = (await res.json().catch(() => ({}))) as { result?: T; error?: string; ref?: string };
   if (!res.ok) {
     if (res.status === 401 && !name.startsWith("auth.")) void refresh();
+    if (j.error) noteRpcError(name, j.error, j.ref);
     throw new Error(j.error || "خطای سرور؛ چند لحظه دیگر دوباره تلاش کنید.");
   }
   if (!READ_ONLY.has(name)) await refresh();

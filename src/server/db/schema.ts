@@ -1881,3 +1881,26 @@ export const paasEgress = pgTable("paas_egress", {
   extraKeys: jsonb("extra_keys").$type<string[]>().notNull().default([]),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/* ---------- AI error explainer «توضیح بده و درستش کن» (0034_ai_explain) ---------- */
+/** one explanation of a customer-visible error, cached by (user, resource, error) for an hour. `actions` are the
+    fixes the server offered and the model chose, with their RPC arguments derived on the server (never the model's). */
+export const aiExplanations = pgTable("ai_explanations", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  /** paas | vps | dbaas | rpc */
+  kind: text("kind").notNull(),
+  resourceId: text("resource_id").notNull(),
+  errorRef: text("error_ref").notNull().default(""),
+  /** sha256 of kind, resource and the normalized error text */
+  errorHash: text("error_hash").notNull(),
+  summary: text("summary").notNull().default(""),
+  cause: text("cause").notNull().default(""),
+  steps: jsonb("steps").$type<string[]>().notNull().default([]),
+  actions: jsonb("actions").$type<{ id: string; label: string; rpc: string; costly: boolean; price?: number; priceNote?: string; input?: { label: string; placeholder?: string; secret?: boolean }; calls: [string, unknown[]][] }[]>().notNull().default([]),
+  applied: jsonb("applied").$type<string[]>().notNull().default([]),
+  charged: money("charged").notNull().default(0),
+  requestId: text("request_id"),
+  simulated: boolean("simulated").notNull().default(false),
+  createdAt: created(),
+}, (t) => [index("ai_explanations_lookup_ix").on(t.userId, t.errorHash, t.createdAt)]);

@@ -9,6 +9,7 @@ import { panelApi, type LogSource, type StatsRange } from "@/lib/vps-panel-api";
 import { useApp } from "../app-context";
 import { DiskLayoutEditor } from "../disk-split";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, IconBtn, Select, Tabs } from "../ui-client";
 import { Loading, useRemote } from "./vps-extras";
@@ -96,6 +97,7 @@ export function LayoutCard({ s }: { s: Server }) {
           </p>
           {v.relayout && <p className="text-[11px] text-sky-100/60 mt-1">درخواست: <span className="tabular">{v.relayout.since}</span></p>}
           {v.relayout?.lastError && <p className="text-xs leading-6 text-amber-200 mt-2">آخرین خطا{v.relayout.errors > 1 ? <> (<span className="tabular">{fa(v.relayout.errors)}</span> بار)</> : ""}: <span dir="auto">{v.relayout.lastError}</span> — دوباره تلاش می‌شود.</p>}
+          {v.relayout?.lastError && <div className="mt-2"><ExplainButton compact kind="vps" resourceId={s.id} errorRef="relayout" /></div>}
           {v.relayout?.cancellable && (
             <div className="mt-3">
               <AsyncButton className={BTN_G + BTN_SM} confirmText="تغییر چیدمان لغو شود؟" onClick={async () => { await panelApi.cancelRelayout(s.id); notify("تغییر چیدمان لغو شد؛ سرور بدون تغییر ماند", "x"); x.reload(); }}>لغو و برگشت به حالت قبل</AsyncButton>
@@ -169,7 +171,10 @@ export function LogsTimeline({ s }: { s: Server }) {
             <li key={i.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 p-3">
               <div className="min-w-0 flex items-start gap-2.5">
                 <Icon name={i.status === "failed" ? "circle-x" : i.status === "running" ? "loader-circle" : "circle-check"} size={16} className={"mt-0.5 shrink-0 " + (i.status === "failed" ? "text-rose-300" : i.status === "running" ? "text-sky-300 animate-spin" : "text-emerald-300")} />
-                <span className="text-sm [overflow-wrap:anywhere]">{i.text}</span>
+                <span className="min-w-0">
+                  <span className="text-sm [overflow-wrap:anywhere]">{i.text}</span>
+                  {i.status === "failed" && i.source !== "sync" && <span className="block mt-1"><ExplainButton compact kind="vps" resourceId={s.id} errorRef={i.id} /></span>}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-[11px] text-white/50 shrink-0"><Badge tone={SRC_BADGE[i.source][0]}>{SRC_BADGE[i.source][1]}</Badge><span className="tabular">{i.at}</span></div>
             </li>

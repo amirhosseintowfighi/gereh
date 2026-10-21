@@ -1,5 +1,6 @@
 /* Client calls for the cloud-server panel's Virtualizor tools (src/server/rpc/vps-panel.ts). Reads return a view
    the component keeps; writes also refresh the shared panel state (tasks, status). */
+import { noteRpcError } from "./rpc-errors";
 import { refresh } from "./store";
 
 export type LayoutView = { allowanceGb: number; usedGb: number; maxDisks: number; disks: { slot: number; sizeGb: number; primary: boolean }[]; billed: { name: string; sizeGb: number }[];
@@ -20,8 +21,8 @@ async function rpc<T = void>(name: string, args: unknown[], write = true): Promi
   } catch {
     throw new Error("ارتباط با سرور برقرار نشد؛ اتصال اینترنت را بررسی کنید.");
   }
-  const j = (await res.json().catch(() => ({}))) as { result?: T; error?: string };
-  if (!res.ok) throw new Error(j.error || "خطای سرور؛ چند لحظه دیگر دوباره تلاش کنید.");
+  const j = (await res.json().catch(() => ({}))) as { result?: T; error?: string; ref?: string };
+  if (!res.ok) { if (j.error) noteRpcError(name, j.error, j.ref); throw new Error(j.error || "خطای سرور؛ چند لحظه دیگر دوباره تلاش کنید."); }
   if (write) await refresh();
   return j.result as T;
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { customAllows } from "@/server/account-extras";
 import { context, teamAllows } from "@/server/ctx";
 import { errorResponse, noStore, sameOrigin } from "@/server/http";
+import { withErrorRef } from "@/server/ai/explain";
 import { registry } from "@/server/rpc";
 
 export async function POST(req: Request, { params }: RouteContext<"/api/rpc/[method]">) {
@@ -9,14 +10,17 @@ export async function POST(req: Request, { params }: RouteContext<"/api/rpc/[met
   if (!sameOrigin(req)) return NextResponse.json({ error: "درخواست نامعتبر است." }, { status: 403 });
   const m = Object.hasOwn(registry, method) ? registry[method] : undefined;
   if (!m) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  let uid = "";
   try {
     const body = (await req.json().catch(() => ({}))) as { args?: unknown };
     const args = m.args.parse(body.args ?? []);
     const ctx = await context();
+    uid = ctx.auth?.uid ?? "";
     if (!teamAllows(ctx.auth?.teamRole, method) || !(await customAllows(ctx.db, ctx.auth, method))) return NextResponse.json({ error: "نقش شما در این حساب اجازه این کار را ندارد." }, { status: 403 });
     const result = await m.run(ctx, args);
     return NextResponse.json({ result: result ?? null }, { headers: noStore });
   } catch (e) {
-    return errorResponse(e);
+    // a signed-in customer's error carries a sealed ref the «توضیح» link of the toast can explain
+    return withErrorRef(errorResponse(e), uid, method);
   }
 }

@@ -9,6 +9,7 @@ import { fa, toman } from "@/lib/format";
 import { api, refresh, useDB, useMyId } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, CodeBlock, Menu, Modal, Select, Switch, Tabs, useMedia } from "../ui-client";
 
@@ -437,6 +438,7 @@ function DeployCard({ v }: { v: BuilderProjectView }) {
           ))}
         </ol>
       )}
+      {failed && d.appId && d.deploymentId && <div className="mt-3"><ExplainButton kind="paas" resourceId={d.appId} errorRef={d.deploymentId} /></div>}
       {d.log && (
         <details className="mt-3 group">
           <summary className="text-[11px] text-white/55 cursor-pointer hover:text-white">لاگ بیلد</summary>
