@@ -1,15 +1,17 @@
 /* The builder without an upstream model (no AI_UPSTREAM_KEY: tests, offline demos): deterministic,
-   good-looking projects chosen from the prompt's keywords (Persian copy for a Persian site, English copy
-   for any other language: the simulator writes no other languages, but the pages still declare the
-   requested lang and dir), keyword-driven edits, fixes for the common build failures, a maintenance
-   diagnosis and the quality self-review. The answer uses the same tagged format as a real model, so it
-   goes through the same parser, validation and billing. */
+   good-looking projects chosen from the prompt's keywords, with copy in the site's language (Persian and
+   English here, German, Arabic, Turkish, French and Spanish in ./sim-copy.ts, English for any other language,
+   while the page still declares the requested lang and dir), keyword-driven edits, fixes for the common build
+   failures, a maintenance diagnosis and the quality self-review. Plans and summaries follow the customer's chat
+   language (Persian, else English). The answer uses the same tagged format as a real model, so it goes through
+   the same parser, validation and billing. */
 import "server-only";
 import type { BuilderStack, QualityFinding } from "@/lib/builder";
 import { baseLang, dirOf } from "@/lib/site-language";
 import { CDN } from "./assets";
 import { render } from "./format";
 import type { Langs, TaskInput } from "./prompt";
+import { EN_SECTIONS, FA_SECTIONS, INTL, PACKS, type IntlCopy, type Pack, type SectionCopy, type Ui } from "./sim-copy";
 
 type Item = { icon: string; name: string; desc: string; price?: number; meta?: string };
 type Field = { name: string; label: string; type: "text" | "tel" | "email" | "date" | "select" | "textarea" | "number"; options?: string[]; required?: boolean };
@@ -40,10 +42,14 @@ const fa = (n: number) => n.toLocaleString("fa-IR");
 const toman = (n: number) => fa(n) + " تومان";
 const TIMES = ["۱۰:۰۰", "۱۱:۰۰", "۱۲:۰۰", "۱۴:۰۰", "۱۵:۰۰", "۱۶:۰۰", "۱۷:۰۰", "۱۸:۰۰", "۱۹:۰۰"];
 
-/* ---------- the two copy languages of the simulator ---------- */
-type Copy = "fa" | "en";
-const copyOf = (lang = "fa"): Copy => (baseLang(lang) === "fa" ? "fa" : "en");
-const UI = {
+/* ---------- the copy languages of the simulator ---------- */
+type Copy = "fa" | "en" | IntlCopy;
+const copyOf = (lang = "fa"): Copy => { const b = baseLang(lang || "fa"); return b === "fa" ? "fa" : (INTL as string[]).includes(b) ? (b as IntlCopy) : "en"; };
+/** plans and summaries: Persian for a Persian-speaking customer, English otherwise */
+const persian = (reply?: string) => baseLang(reply || "fa") === "fa";
+const localeOf = (c: Copy) => (c === "fa" ? "fa-IR" : c === "en" ? "en-US" : PACKS[c].locale);
+const sectionsOf = (c: Copy): SectionCopy => (c === "fa" ? FA_SECTIONS : c === "en" ? EN_SECTIONS : PACKS[c].sections);
+const UI_BASE: Record<"fa" | "en", Ui> = {
   fa: {
     mainNav: "منوی اصلی", mobileNav: "منوی موبایل", cart: "سبد خرید", menu: "منو", skip: "پرش به محتوا", why: (b: string) => "چرا " + b + "؟", reviews: "مشتریان چه می‌گویند", rating: "امتیاز",
     address: "نشانی", contactHours: "تماس و ساعت کاری", rights: "همه حقوق محفوظ است.", choose: "انتخاب کنید", cartEmpty: "سبد خرید خالی است؛ از بخش محصولات انتخاب کنید.",
@@ -59,21 +65,40 @@ const UI = {
     serverError: "Server error; please try again in a moment.", required: "Please fill in all required fields.", phoneServer: "The phone number is not valid.", sending: "Sending…",
   },
 };
-const moneyOf = (c: Copy) => (c === "fa" ? toman : (n: number) => "$" + n.toLocaleString("en-US"));
-const num = (c: Copy) => (n: number) => n.toLocaleString(c === "fa" ? "fa-IR" : "en-US");
+const UI: Record<Copy, Ui> = { ...UI_BASE, de: PACKS.de.ui, ar: PACKS.ar.ui, tr: PACKS.tr.ui, fr: PACKS.fr.ui, es: PACKS.es.ui };
+const moneyOf = (c: Copy) => (c === "fa" ? toman : c === "en" ? (n: number) => "$" + n.toLocaleString("en-US") : (n: number) => PACKS[c].money.pre + n.toLocaleString(PACKS[c].locale) + PACKS[c].money.post);
+const num = (c: Copy) => (n: number) => n.toLocaleString(localeOf(c));
+const quotes = (c: Copy): [string, string] => (c === "fa" ? ["«", "»"] : c === "en" ? ["“", "”"] : PACKS[c].quote);
+const CAFE_RE = /caf[eé]|coffee|کافه|kahve|kafe|مقهى|كافيه|قهوة/i;
 
 function kindOf(prompt: string): Kind["key"] {
   // "coffee shop" is a café, not a store
-  if (/coffee|caf[eé]|bakery|restaurant|bistro/i.test(prompt)) return "restaurant";
-  if (/نوبت|آرایش|سالن|زیبایی|باربر|ناخن|مژه|salon|barber|beauty|hair|nail/i.test(prompt)) return "salon";
-  if (/فروشگاه|لباس|پوشاک|محصول|خرید|کفش|shop|store|cloth|fashion/i.test(prompt)) return "shop";
-  if (/رستوران|کافه|منو|غذا|کافی[‌ ]?شاپ|فست[‌ ]?فود|restaurant|caf[eé]|coffee|food|bakery|menu/i.test(prompt)) return "restaurant";
-  if (/رویداد|همایش|کنفرانس|ورکشاپ|کارگاه|سمینار|ثبت[‌ ]?نام|event|conference|workshop|meetup|summit/i.test(prompt)) return "event";
+  if (/coffee|caf[eé]|bakery|restaurant|bistro|bäckerei|boulangerie|panader[ií]a|kahve|kafe|restoran|lokanta|مطعم|مقهى|كافيه|مخبز/i.test(prompt)) return "restaurant";
+  if (/نوبت|آرایش|سالن|زیبایی|باربر|ناخن|مژه|salon|barber|beauty|hair|nail|friseur|kosmetik|coiff|beauté|peluquer|belleza|kuaför|güzellik|صالون|تجميل|حلاق/i.test(prompt)) return "salon";
+  if (/فروشگاه|لباس|پوشاک|محصول|خرید|کفش|shop|store|cloth|fashion|laden|\bmode\b|kleidung|boutique|vêtement|tienda|ropa|mağaza|giyim|متجر|ملابس|أزياء/i.test(prompt)) return "shop";
+  if (/رستوران|کافه|منو|غذا|کافی[‌ ]?شاپ|فست[‌ ]?فود|restaurant|caf[eé]|coffee|food|bakery|menu|speisekarte|cuisine|comida|yemek|طعام/i.test(prompt)) return "restaurant";
+  if (/رویداد|همایش|کنفرانس|ورکشاپ|کارگاه|سمینار|ثبت[‌ ]?نام|event|conference|workshop|meetup|summit|konferenz|veranstaltung|tagung|conférence|événement|conferencia|evento|konferans|etkinlik|zirve|مؤتمر|فعالية|ملتقى|قمة/i.test(prompt)) return "event";
   return "business";
 }
 
 /** the project's copy in the site's language */
-const kindFor = (prompt: string, lang = "fa"): Kind => (copyOf(lang) === "fa" ? kind(prompt) : kindEn(prompt));
+const kindFor = (prompt: string, lang = "fa"): Kind => { const c = copyOf(lang); return c === "fa" ? kind(prompt) : c === "en" ? kindEn(prompt) : localize(kindEn(prompt), PACKS[c], prompt); };
+
+/** the English kind in another language: its words from the pack, its structure (items, prices, fields) from English */
+function localize(k: Kind, p: Pack, prompt: string): Kind {
+  const base = p.kinds[k.key];
+  const t = k.key === "restaurant" && CAFE_RE.test(prompt) ? { ...base, ...p.cafe } : base;
+  const price = (n?: number) => (n === undefined ? undefined : Math.max(p.money.step, Math.round((n * p.money.rate) / p.money.step) * p.money.step));
+  const items = k.items.map((it, i) => ({ ...it, name: t.items[i]?.[0] ?? it.name, desc: t.items[i]?.[1] ?? it.desc, price: price(it.price), meta: k.key === "salon" && it.meta ? p.minutes(parseInt(it.meta, 10)) : it.meta }));
+  return {
+    ...k, brand: t.brand, title: t.title, hero: t.hero, sub: t.sub, stats: t.stats, itemsTitle: t.itemsTitle, itemsSub: t.itemsSub, itemCta: t.itemCta, items,
+    features: k.features.map(([icon], i) => [icon, t.features[i]?.[0] ?? "", t.features[i]?.[1] ?? ""]),
+    formTitle: t.formTitle, formSub: t.formSub, submit: t.submit, success: t.success,
+    fields: k.fields.map((f) => ({ ...f, label: p.fields[f.name] ?? f.label, ...(f.name === "service" ? { options: items.map((i) => i.name) } : f.name === "ticket" && t.tickets ? { options: t.tickets } : {}) })),
+    testimonials: k.testimonials.map(([, , stars], i) => [t.testimonials[i]?.[0] ?? "", t.testimonials[i]?.[1] ?? "", stars]),
+    address: t.address ?? p.common.address, phone: p.common.phone, hours: t.hours ?? p.common.hours, nav: k.nav.map(([h], i) => [h, t.nav[i] ?? h]),
+  };
+}
 
 function kindEn(prompt: string): Kind {
   const key = kindOf(prompt);
@@ -119,7 +144,7 @@ function kindEn(prompt: string): Kind {
         endpoint: "orders", nav: [["#services", "Products"], ["#why", "Why Nila"], ["#book", "Cart"], ["#reviews", "Reviews"], ["#contact", "Contact"]] };
     }
     case "restaurant": {
-      const cafe = /caf[eé]|coffee|کافه/i.test(prompt);
+      const cafe = CAFE_RE.test(prompt);
       const items: Item[] = cafe ? [
         { icon: "☕", name: "Flat white", desc: "Double ristretto with silky milk", price: 5 }, { icon: "🥐", name: "Butter croissant", desc: "Baked here every morning", price: 4 },
         { icon: "🍰", name: "Cheesecake of the day", desc: "Ask us for today's topping", price: 7 }, { icon: "🧋", name: "Iced latte", desc: "Cold milk, espresso and ice", price: 6 },
@@ -421,7 +446,7 @@ ${vazir ? `  <link rel="stylesheet" href="${CDN.font}">
       <div class="mx-auto max-w-6xl px-4">
         <h2 class="text-center text-3xl font-black text-slate-900">${L.reviews}</h2>
         <div class="mt-12 grid gap-6 md:grid-cols-3">
-          ${k.testimonials.map(([who, t, s]) => `<figure class="rounded-3xl bg-slate-50 p-7 ring-1 ring-slate-100"><div role="img" aria-label="${L.rating}: ${n([...s].length)}/${n(5)}">${s}</div><blockquote class="mt-4 leading-8 text-slate-700">${c === "fa" ? "«" + esc(t) + "»" : "“" + esc(t) + "”"}</blockquote><figcaption class="mt-4 text-sm font-bold text-slate-900">${esc(who)}</figcaption></figure>`).join("\n          ")}
+          ${k.testimonials.map(([who, t, s]) => `<figure class="rounded-3xl bg-slate-50 p-7 ring-1 ring-slate-100"><div role="img" aria-label="${L.rating}: ${n([...s].length)}/${n(5)}">${s}</div><blockquote class="mt-4 leading-8 text-slate-700">${quotes(c)[0] + esc(t) + quotes(c)[1]}</blockquote><figcaption class="mt-4 text-sm font-bold text-slate-900">${esc(who)}</figcaption></figure>`).join("\n          ")}
         </div>
       </div>
     </section>
@@ -449,10 +474,10 @@ body { font-feature-settings: "ss01"; }
 `;
 
 export function appJs(k: Kind, stack: BuilderStack, lang = "fa") {
-  const c = copyOf(lang), L = UI[c], locale = c === "fa" ? "fa-IR" : "en-US";
+  const c = copyOf(lang), L = UI[c], locale = localeOf(c);
   const q = (s: string) => JSON.stringify(s);
   const products = k.key === "shop" ? "const PRODUCTS = " + JSON.stringify(k.items.map((i) => ({ name: i.name, price: i.price ?? 0 }))) + ";\n" : "";
-  const money = c === "fa" ? `(n) => num(n) + " تومان"` : `(n) => "$" + num(n)`;
+  const money = c === "fa" ? `(n) => num(n) + " تومان"` : c === "en" ? `(n) => "$" + num(n)` : `(n) => ${q(PACKS[c].money.pre)} + num(n) + ${q(PACKS[c].money.post)}`;
   const phoneOk = c === "fa" ? `(v) => /^(\\+98|0)?9\\d{9}$/.test(v)` : `(v) => /^\\+?[0-9][0-9 ()-]{6,19}$/.test(v)`;
   return `// ${k.brand}: menu, ${k.key === "shop" ? "cart, " : ""}form
 (function () {
@@ -676,47 +701,55 @@ export function projectFiles(prompt: string, stack: BuilderStack, lang = "fa"): 
 /* ---------- edits ---------- */
 type Section = { re: RegExp; id: string; label: [string, string]; html: (c: Copy) => string };
 const SECTIONS: Section[] = [
-  { re: /سوال|سؤال|پرسش|faq|questions/i, id: "faq", label: ["بخش سؤالات متداول", "an FAQ section"], html: (c) => `
+  { re: /سوال|سؤال|پرسش|faq|questions|fragen|preguntas|sorular|أسئلة/i, id: "faq", label: ["بخش سؤالات متداول", "an FAQ section"], html: (c) => `
     <section id="faq" class="mx-auto max-w-3xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "سؤالات متداول" : "Frequently asked questions"}</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${sectionsOf(c).faq}</h2>
       <div class="mt-10 space-y-3">
-        ${(c === "fa" ? [["چطور زمان را تغییر دهم؟", "کافی است تا ۲۴ ساعت قبل با شماره ما تماس بگیرید."], ["پرداخت چگونه است؟", "پرداخت در محل با کارت یا به‌صورت آنلاین."], ["پارکینگ دارید؟", "بله، پارکینگ عمومی در ۵۰ متری ما قرار دارد."]]
-          : [["How do I change my time?", "Just call us up to 24 hours before."], ["How can I pay?", "By card on site or online."], ["Is there parking?", "Yes, a public car park is 50 meters away."]]).map(([q, a]) => `<details class="group rounded-2xl bg-white p-5 ring-1 ring-slate-100"><summary class="cursor-pointer list-none font-bold text-slate-800">${q}</summary><p class="mt-3 leading-7 text-slate-600">${a}</p></details>`).join("\n        ")}
+        ${sectionsOf(c).qa.map(([q, a]) => `<details class="group rounded-2xl bg-white p-5 ring-1 ring-slate-100"><summary class="cursor-pointer list-none font-bold text-slate-800">${q}</summary><p class="mt-3 leading-7 text-slate-600">${a}</p></details>`).join("\n        ")}
       </div>
     </section>` },
-  { re: /گالری|نمونه[‌ ]?کار|تصاویر|عکس|gallery|portfolio|photos/i, id: "gallery", label: ["گالری نمونه‌کارها", "a portfolio gallery"], html: (c) => `
+  { re: /گالری|نمونه[‌ ]?کار|تصاویر|عکس|gallery|portfolio|photos|galerie|galería|galeri|معرض/i, id: "gallery", label: ["گالری نمونه‌کارها", "a portfolio gallery"], html: (c) => `
     <section id="gallery" class="mx-auto max-w-6xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "نمونه‌کارها" : "Our work"}</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${sectionsOf(c).gallery}</h2>
       <div class="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
-        ${["from-brand-300 to-brand-600", "from-brand-200 to-brand-500", "from-brand-400 to-brand-800", "from-brand-100 to-brand-400"].map((g, i) => `<div class="grid aspect-square place-items-center rounded-3xl bg-gradient-to-br ${g} text-5xl text-white shadow-lg" role="img" aria-label="${c === "fa" ? "نمونه‌کار " + fa(i + 1) : "Sample " + (i + 1)}">${["✨", "🌟", "💫", "⭐"][i]}</div>`).join("\n        ")}
+        ${["from-brand-300 to-brand-600", "from-brand-200 to-brand-500", "from-brand-400 to-brand-800", "from-brand-100 to-brand-400"].map((g, i) => `<div class="grid aspect-square place-items-center rounded-3xl bg-gradient-to-br ${g} text-5xl text-white shadow-lg" role="img" aria-label="${sectionsOf(c).sample + " " + num(c)(i + 1)}">${["✨", "🌟", "💫", "⭐"][i]}</div>`).join("\n        ")}
       </div>
     </section>` },
-  { re: /نقشه|مسیر|لوکیشن|\bmap\b|directions|location/i, id: "map", label: ["بخش نقشه و مسیریابی", "a map and directions section"], html: (c) => `
+  { re: /نقشه|مسیر|لوکیشن|\bmap\b|directions|location|karte|carte|mapa|harita|خريطة/i, id: "map", label: ["بخش نقشه و مسیریابی", "a map and directions section"], html: (c) => `
     <section id="map" class="mx-auto max-w-6xl px-4 py-20">
       <div class="grid gap-6 rounded-[2rem] bg-white p-8 ring-1 ring-slate-100 md:grid-cols-2">
         ${c === "fa" ? `<div><h2 class="text-3xl font-black text-slate-900">مسیریابی</h2><p class="mt-4 leading-8 text-slate-600">با نشان و بلد مستقیم به ما برسید.</p>
         <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://neshan.org/maps" target="_blank" rel="noopener noreferrer">مسیریابی با نشان</a><a class="rounded-xl bg-slate-100 px-5 py-3 font-bold text-slate-700" href="https://balad.ir" target="_blank" rel="noopener noreferrer">مسیریابی با بلد</a></div></div>`
-          : `<div><h2 class="text-3xl font-black text-slate-900">Find us</h2><p class="mt-4 leading-8 text-slate-600">Get directions straight to our door.</p>
-        <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer">Open the map</a></div></div>`}
+          : `<div><h2 class="text-3xl font-black text-slate-900">${sectionsOf(c).map}</h2><p class="mt-4 leading-8 text-slate-600">${sectionsOf(c).mapText}</p>
+        <div class="mt-6 flex flex-wrap gap-3"><a class="rounded-xl bg-brand-600 px-5 py-3 font-bold text-white" href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer">${sectionsOf(c).mapButton}</a></div></div>`}
         <div class="grid min-h-48 place-items-center rounded-3xl bg-gradient-to-br from-brand-100 to-brand-300 text-6xl" aria-hidden="true">📍</div>
       </div>
     </section>` },
-  { re: /خبرنامه|ایمیل|newsletter|subscribe/i, id: "newsletter", label: ["فرم عضویت در خبرنامه", "a newsletter sign-up form"], html: (c) => `
+  { re: /خبرنامه|ایمیل|newsletter|subscribe|abonn|suscrip|bülten|النشرة/i, id: "newsletter", label: ["فرم عضویت در خبرنامه", "a newsletter sign-up form"], html: (c) => `
     <section id="newsletter" class="mx-auto max-w-4xl px-4 py-16">
-      <div class="rounded-[2rem] bg-brand-600 p-8 text-center text-white"><h2 class="text-2xl font-black">${c === "fa" ? "از تخفیف‌ها باخبر شوید" : "Hear about offers first"}</h2><p class="mt-2 text-brand-50">${c === "fa" ? "ماهی یک ایمیل، بدون مزاحمت." : "One email a month, no spam."}</p>
-      <form class="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row" data-newsletter data-done="${c === "fa" ? "عضویت شما ثبت شد ✓" : "You are subscribed ✓"}"><label for="nl" class="sr-only">${c === "fa" ? "ایمیل" : "Email"}</label><input id="nl" type="email" required dir="ltr" autocomplete="email" placeholder="you@example.com" class="flex-1 rounded-xl px-4 py-3 text-base text-slate-800"><button type="submit" class="rounded-xl bg-slate-900 px-5 py-3 font-bold">${c === "fa" ? "عضویت" : "Subscribe"}</button></form></div>
+      <div class="rounded-[2rem] bg-brand-600 p-8 text-center text-white"><h2 class="text-2xl font-black">${sectionsOf(c).newsletter}</h2><p class="mt-2 text-brand-50">${sectionsOf(c).newsletterSub}</p>
+      <form class="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row" data-newsletter data-done="${sectionsOf(c).subscribed}"><label for="nl" class="sr-only">${sectionsOf(c).email}</label><input id="nl" type="email" required dir="ltr" autocomplete="email" placeholder="you@example.com" class="flex-1 rounded-xl px-4 py-3 text-base text-slate-800"><button type="submit" class="rounded-xl bg-slate-900 px-5 py-3 font-bold">${sectionsOf(c).subscribe}</button></form></div>
     </section>` },
-  { re: /قیمت|تعرفه|پلن|پکیج|pricing|plans|packages/i, id: "pricing", label: ["جدول بسته‌ها و قیمت‌ها", "a pricing table"], html: (c) => `
+  { re: /قیمت|تعرفه|پلن|پکیج|pricing|plans|packages|preise|tarifs|precios|fiyat|الأسعار|باقات/i, id: "pricing", label: ["جدول بسته‌ها و قیمت‌ها", "a pricing table"], html: (c) => `
     <section id="pricing" class="mx-auto max-w-6xl px-4 py-20">
-      <h2 class="text-center text-3xl font-black text-slate-900">${c === "fa" ? "بسته‌ها" : "Packages"}</h2>
+      <h2 class="text-center text-3xl font-black text-slate-900">${sectionsOf(c).pricing}</h2>
       <div class="mt-10 grid gap-6 md:grid-cols-3">
-        ${(c === "fa" ? [["پایه", 490_000, "مناسب شروع"], ["ویژه", 990_000, "پرطرفدارترین"], ["کامل", 1_890_000, "همه خدمات"]] : [["Basic", 29, "A good start"], ["Plus", 59, "Most popular"], ["Complete", 99, "Everything included"]]).map(([n, p, d], i) => `<div class="rounded-3xl bg-white p-7 ring-1 ${i === 1 ? "ring-2 ring-brand-500 shadow-xl" : "ring-slate-100"}"><h3 class="text-lg font-extrabold">${n}</h3><p class="text-sm text-slate-500">${d}</p><p class="mt-4 text-3xl font-black text-brand-700">${moneyOf(c)(p as number)}</p><a href="#book" class="mt-6 block rounded-xl bg-brand-600 py-3 text-center font-bold text-white">${c === "fa" ? "انتخاب" : "Choose"}</a></div>`).join("\n        ")}
+        ${sectionsOf(c).plans.map(([n, d], i) => `<div class="rounded-3xl bg-white p-7 ring-1 ${i === 1 ? "ring-2 ring-brand-500 shadow-xl" : "ring-slate-100"}"><h3 class="text-lg font-extrabold">${n}</h3><p class="text-sm text-slate-500">${d}</p><p class="mt-4 text-3xl font-black text-brand-700">${moneyOf(c)(planPrice(c, i))}</p><a href="#book" class="mt-6 block rounded-xl bg-brand-600 py-3 text-center font-bold text-white">${sectionsOf(c).choose}</a></div>`).join("\n        ")}
       </div>
     </section>` },
 ];
+/** the pricing table's prices: Toman for Persian, dollars for English, the pack's currency otherwise */
+function planPrice(c: Copy, i: number) {
+  if (c === "fa") return [490_000, 990_000, 1_890_000][i];
+  const usd = [29, 59, 99][i];
+  if (c === "en") return usd;
+  const m = PACKS[c].money;
+  return Math.round((usd * m.rate) / m.step) * m.step;
+}
+const telOf = (c: Copy) => (c === "fa" ? "02188776655" : c === "en" ? "+14155550136" : PACKS[c].common.phone.replace(/[^\d+]/g, ""));
 
 function editProject(files: Record<string, string>, prompt: string, l: Langs = {}): { files: Record<string, string>; summary: string; plan: string } {
-  const c = copyOf(l.lang), r = copyOf(l.reply ?? l.lang), say = (fa: string, en: string) => (r === "fa" ? fa : en);
+  const c = copyOf(l.lang), say = (fa: string, en: string) => (persian(l.reply ?? l.lang) ? fa : en);
   const htmlPath = files["public/index.html"] !== undefined ? "public/index.html" : files["index.html"] !== undefined ? "index.html" : Object.keys(files).find((p) => p.endsWith(".html"));
   if (!htmlPath) return { files: {}, summary: say("فایل صفحه اصلی پیدا نشد؛ لطفاً دوباره بخواهید پروژه ساخته شود.", "The home page file is missing; please ask for the project to be built again."), plan: say("- بررسی فایل‌ها", "- check the files") };
   let html = files[htmlPath];
@@ -735,8 +768,8 @@ function editProject(files: Record<string, string>, prompt: string, l: Langs = {
     html = html.split(current).join(esc(rename[1]));
     done.push(say("نام کسب‌وکار به «" + rename[1] + "» تغییر کرد", "the business is now called “" + rename[1] + "”"));
   }
-  if (/واتس[‌ ]?اپ|تلگرام|دکمه تماس|تماس فوری|whatsapp|telegram|call button/i.test(prompt) && !html.includes('id="float-contact"')) {
-    html = html.replace("</body>", `  <a id="float-contact" href="tel:${c === "fa" ? "02188776655" : "+14155550136"}" class="fixed bottom-5 start-5 z-50 flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 font-bold text-white shadow-2xl shadow-emerald-300 transition hover:bg-emerald-800"><span aria-hidden="true">📞</span> ${c === "fa" ? "تماس فوری" : "Call us"}</a>\n</body>`);
+  if (/واتس[‌ ]?اپ|تلگرام|دکمه تماس|تماس فوری|whatsapp|telegram|call button|anruf|bouton d.appel|botón de llamada|arama butonu|زر الاتصال/i.test(prompt) && !html.includes('id="float-contact"')) {
+    html = html.replace("</body>", `  <a id="float-contact" href="tel:${telOf(c)}" class="fixed bottom-5 start-5 z-50 flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 font-bold text-white shadow-2xl shadow-emerald-300 transition hover:bg-emerald-800"><span aria-hidden="true">📞</span> ${sectionsOf(c).call}</a>\n</body>`);
     done.push(say("دکمه شناور «تماس فوری» اضافه شد", "a floating call button was added"));
   }
   const add = (s: Section) => { html = html.replace("<!-- sections:end -->", s.html(c).trim() + "\n    <!-- sections:end -->"); done.push(say(s.label[0] + " اضافه شد", s.label[1] + " was added")); };
@@ -760,21 +793,22 @@ function editProject(files: Record<string, string>, prompt: string, l: Langs = {
 /* ---------- fixes for failed deployments ---------- */
 const requires = (src: string) => [...src.matchAll(/require\(\s*["']([^"'./][^"']*)["']\s*\)|from\s+["']([^"'./][^"']*)["']/g)].map((m) => (m[1] ?? m[2]).split("/")[0]).filter((x) => !/^node:|^(path|fs|http|https|crypto|url|os|util|events|stream|zlib|child_process)$/.test(x));
 
-function fixProject(files: Record<string, string>, log: string, stack: BuilderStack): { files: Record<string, string>; summary: string; plan: string } {
+function fixProject(files: Record<string, string>, log: string, stack: BuilderStack, l: Langs = {}): { files: Record<string, string>; summary: string; plan: string } {
+  const fa = persian(l.reply ?? l.lang), say = (p: string, e: string) => (fa ? p : e), lang = l.lang || "fa";
   if (stack === "static") {
-    if (!files["index.html"]) return { files: { "index.html": indexHtml(kind(""), "static") }, plan: "- ساخت صفحه اصلی index.html", summary: "علت خطا: صفحه اصلی سایت (index.html) وجود نداشت و سرور وب چیزی برای نمایش نداشت. یک صفحه اصلی کامل ساختم و دوباره منتشر می‌کنم." };
-    return { files: { "index.html": files["index.html"].replace(/^﻿/, "") }, plan: "- بازنویسی صفحه اصلی", summary: "فایل‌های سایت را بازبینی کردم و صفحه اصلی را دوباره ذخیره کردم تا انتشار دوباره امتحان شود." };
+    if (!files["index.html"]) return { files: { "index.html": indexHtml(kindFor("", lang), "static", lang) }, plan: say("- ساخت صفحه اصلی index.html", "- create the home page index.html"), summary: say("علت خطا: صفحه اصلی سایت (index.html) وجود نداشت و سرور وب چیزی برای نمایش نداشت. یک صفحه اصلی کامل ساختم و دوباره منتشر می‌کنم.", "Cause: the site had no home page (index.html), so the web server had nothing to show. I created a complete home page and am publishing again.") };
+    return { files: { "index.html": files["index.html"].replace(/^﻿/, "") }, plan: say("- بازنویسی صفحه اصلی", "- rewrite the home page"), summary: say("فایل‌های سایت را بازبینی کردم و صفحه اصلی را دوباره ذخیره کردم تا انتشار دوباره امتحان شود.", "I reviewed the site's files and saved the home page again so the deployment can be retried.") };
   }
   const out: Record<string, string> = {};
   const why: string[] = [];
   const server = files["server.js"] ?? "";
   let pkg: { scripts?: Record<string, string>; dependencies?: Record<string, string>; [k: string]: unknown } | null = null;
   try { pkg = JSON.parse(files["package.json"] ?? ""); } catch { pkg = null; }
-  if (!pkg || typeof pkg !== "object") { pkg = { name: "app", version: "1.0.0", private: true }; why.push("فایل package.json خراب بود (JSON نامعتبر)"); }
-  if (!pkg.scripts?.start) { pkg.scripts = { ...(pkg.scripts ?? {}), start: "node server.js" }; why.push("دستور اجرای اپ (اسکریپت start) در package.json تعریف نشده بود"); }
+  if (!pkg || typeof pkg !== "object") { pkg = { name: "app", version: "1.0.0", private: true }; why.push(say("فایل package.json خراب بود (JSON نامعتبر)", "package.json was broken (invalid JSON)")); }
+  if (!pkg.scripts?.start) { pkg.scripts = { ...(pkg.scripts ?? {}), start: "node server.js" }; why.push(say("دستور اجرای اپ (اسکریپت start) در package.json تعریف نشده بود", "package.json had no start script to run the app")); }
   const deps = { ...(pkg.dependencies ?? {}) };
   for (const r of requires(server + "\n" + Object.entries(files).filter(([p]) => p.endsWith(".js") && !p.startsWith("public/")).map(([, c]) => c).join("\n"))) {
-    if (!deps[r]) { deps[r] = r === "express" ? "^4.21.2" : r === "pg" ? "^8.13.1" : "*"; why.push("بسته «" + r + "» استفاده شده اما در وابستگی‌ها نبود"); }
+    if (!deps[r]) { deps[r] = r === "express" ? "^4.21.2" : r === "pg" ? "^8.13.1" : "*"; why.push(say("بسته «" + r + "» استفاده شده اما در وابستگی‌ها نبود", "the package “" + r + "” is used but was not in the dependencies")); }
   }
   pkg.dependencies = deps;
   if (!pkg.engines) pkg.engines = { node: ">=20" };
@@ -782,19 +816,23 @@ function fixProject(files: Record<string, string>, log: string, stack: BuilderSt
   if (pkgText !== files["package.json"]) out["package.json"] = pkgText;
   if (server && !/process\.env\.PORT/.test(server)) {
     out["server.js"] = server.replace(/\.listen\(\s*(\d+)/, ".listen(Number(process.env.PORT) || 8080");
-    why.push("سرور روی پورت ثابت اجرا می‌شد، نه پورت تعیین‌شده توسط گره (PORT)");
+    why.push(say("سرور روی پورت ثابت اجرا می‌شد، نه پورت تعیین‌شده توسط گره (PORT)", "the server listened on a fixed port instead of the one Gereh assigns (PORT)"));
   }
-  if (!server) { out["server.js"] = serverJs(kind("")); why.push("فایل server.js وجود نداشت"); }
-  if (!Object.keys(out).length) { out["server.js"] = server.replace(/\n*$/, "\n"); why.push("در لاگ (" + (log.split("\n").filter(Boolean).pop() ?? "").slice(0, 80) + ") علت روشنی نبود؛ فایل‌ها را بازبینی کردم"); }
-  return { files: out, plan: "- بررسی لاگ بیلد\n" + why.map((w) => "- رفع: " + w).join("\n"), summary: "علت خطا: " + why.join("؛ ") + ". همین موارد را اصلاح کردم و نسخه جدید را دوباره منتشر می‌کنم." };
+  if (!server) { out["server.js"] = serverJs(kindFor("", lang), lang); why.push(say("فایل server.js وجود نداشت", "server.js was missing")); }
+  const last = (log.split("\n").filter(Boolean).pop() ?? "").slice(0, 80);
+  if (!Object.keys(out).length) { out["server.js"] = server.replace(/\n*$/, "\n"); why.push(say("در لاگ (" + last + ") علت روشنی نبود؛ فایل‌ها را بازبینی کردم", "the log (" + last + ") showed no clear cause, so I reviewed the files")); }
+  return fa
+    ? { files: out, plan: "- بررسی لاگ بیلد\n" + why.map((w) => "- رفع: " + w).join("\n"), summary: "علت خطا: " + why.join("؛ ") + ". همین موارد را اصلاح کردم و نسخه جدید را دوباره منتشر می‌کنم." }
+    : { files: out, plan: "- read the build log\n" + why.map((w) => "- fix: " + w).join("\n"), summary: "Cause: " + why.join("; ") + ". I fixed these and am publishing the new version again." };
 }
 
 /* ---------- maintenance diagnosis ---------- */
-function diagnose(files: Record<string, string>, raw: string, stack: BuilderStack): { files: Record<string, string>; summary: string; plan: string } {
+function diagnose(files: Record<string, string>, raw: string, stack: BuilderStack, l: Langs = {}): { files: Record<string, string>; summary: string; plan: string } {
+  const say = (p: string, e: string) => (persian(l.reply ?? l.lang) ? p : e);
   // a routine scan reads like the manual check
   const incident = raw === "scan" ? "manual" : raw;
   const server = files["server.js"];
-  if (/oom/.test(incident)) return { files: {}, plan: "- بررسی مصرف حافظه", summary: "علت احتمالی: مصرف حافظه اپ از سقف پلن فعلی بیشتر شد و سیستم آن را ری‌استارت کرد.\nاثر: چند ثانیه قطعی هنگام ری‌استارت.\nراه‌حل: کد مشکلی ندارد؛ پلن اپ را یک پله بزرگ‌تر کنید (از بخش اپ‌ها › مقیاس) یا ترافیک را زیر نظر بگیرید." };
+  if (/oom/.test(incident)) return { files: {}, plan: say("- بررسی مصرف حافظه", "- check the memory use"), summary: say("علت احتمالی: مصرف حافظه اپ از سقف پلن فعلی بیشتر شد و سیستم آن را ری‌استارت کرد.\nاثر: چند ثانیه قطعی هنگام ری‌استارت.\nراه‌حل: کد مشکلی ندارد؛ پلن اپ را یک پله بزرگ‌تر کنید (از بخش اپ‌ها › مقیاس) یا ترافیک را زیر نظر بگیرید.", "Likely cause: the app used more memory than its plan allows and was restarted.\nImpact: a few seconds of downtime during the restart.\nFix: the code is fine; move the app one plan up (Apps › Scale) or keep an eye on the traffic.") };
   if (stack === "node" && server) {
     const patch: Record<string, string> = {};
     let s = server;
@@ -803,12 +841,16 @@ function diagnose(files: Record<string, string>, raw: string, stack: BuilderStac
     if (/pool = new Pool/.test(s) && !/pool\.on\("error"/.test(s)) s = s.replace(/(pool = new Pool\([^\n]*\);)/, '$1\n  pool.on("error", (err) => console.error("database pool error:", err.message));');
     const handlers = s !== server;
     if (incident !== "manual" && /new Pool\(\{[^}\n]*\}\)/.test(s) && !/connectionTimeoutMillis/.test(s)) s = s.replace(/new Pool\(\{([^}\n]*)\}\)/, (_m, a: string) => "new Pool({ " + a.trim() + ", connectionTimeoutMillis: 5000, idleTimeoutMillis: 30000 })");
-    if (s !== server && !handlers) return { files: { "server.js": s }, plan: "- بررسی لاگ‌ها و رخدادها\n- مهلت زمانی برای اتصال به پایگاه داده", summary: "علت احتمالی: اتصال به پایگاه داده لحظه‌ای قطع شد و درخواست‌ها بدون مهلت زمانی منتظر ماندند تا اپ از پاسخ افتاد و ری‌استارت شد.\nاثر: چند ثانیه قطعی و خطای ۵۰۰ برای چند کاربر.\nراه‌حل: برای اتصال‌ها مهلت زمانی (۵ ثانیه) و آزادسازی اتصال‌های بیکار تعریف کردم تا قطعی لحظه‌ای پایگاه داده اپ را از کار نیندازد. با «اعمال وصله» نسخه جدید منتشر می‌شود." };
+    if (s !== server && !handlers) return { files: { "server.js": s }, plan: say("- بررسی لاگ‌ها و رخدادها\n- مهلت زمانی برای اتصال به پایگاه داده", "- read the logs and events\n- a timeout for database connections"), summary: say("علت احتمالی: اتصال به پایگاه داده لحظه‌ای قطع شد و درخواست‌ها بدون مهلت زمانی منتظر ماندند تا اپ از پاسخ افتاد و ری‌استارت شد.\nاثر: چند ثانیه قطعی و خطای ۵۰۰ برای چند کاربر.\nراه‌حل: برای اتصال‌ها مهلت زمانی (۵ ثانیه) و آزادسازی اتصال‌های بیکار تعریف کردم تا قطعی لحظه‌ای پایگاه داده اپ را از کار نیندازد. با «اعمال وصله» نسخه جدید منتشر می‌شود.", "Likely cause: the database connection dropped for a moment and requests waited without a timeout until the app stopped answering and was restarted.\nImpact: a few seconds of downtime and a 500 error for some users.\nFix: I added a connection timeout (5 seconds) and released idle connections, so a short database outage no longer takes the app down. “Apply patch” publishes the new version.") };
     if (s !== server) patch["server.js"] = s;
-    if (Object.keys(patch).length) return { files: patch, plan: "- بررسی لاگ‌ها و رخدادها\n- افزودن مدیریت خطا و مسیر سلامت", summary: "علت احتمالی: یک خطای مدیریت‌نشده (مثلاً قطع لحظه‌ای اتصال پایگاه داده) کل پردازه را متوقف می‌کند.\nاثر: اپ چند ثانیه از دسترس خارج می‌شود تا دوباره بالا بیاید.\nراه‌حل: مدیریت سراسری خطا و مسیر سلامت /healthz را اضافه کردم تا چنین خطایی فقط ثبت شود و اپ از کار نیفتد. با «اعمال وصله» نسخه جدید منتشر می‌شود." };
-    return { files: {}, plan: "- بررسی لاگ‌ها و رخدادها", summary: (incident === "manual" ? "وضعیت: سالم — اپ پاسخ می‌دهد و رخداد مهمی در لاگ‌ها دیده نشد.\n" : "علت احتمالی: ری‌استارت‌های پراکنده از سمت زیرساخت یا یک درخواست سنگین.\n") + "اثر: " + (incident === "manual" ? "ندارد." : "قطعی کوتاه.") + "\nراه‌حل: کد مدیریت خطا و مسیر سلامت را دارد؛ فعلاً تغییری لازم نیست و عامل نگهداری اپ را زیر نظر دارد." };
+    if (Object.keys(patch).length) return { files: patch, plan: say("- بررسی لاگ‌ها و رخدادها\n- افزودن مدیریت خطا و مسیر سلامت", "- read the logs and events\n- add error handling and a health route"), summary: say("علت احتمالی: یک خطای مدیریت‌نشده (مثلاً قطع لحظه‌ای اتصال پایگاه داده) کل پردازه را متوقف می‌کند.\nاثر: اپ چند ثانیه از دسترس خارج می‌شود تا دوباره بالا بیاید.\nراه‌حل: مدیریت سراسری خطا و مسیر سلامت /healthz را اضافه کردم تا چنین خطایی فقط ثبت شود و اپ از کار نیفتد. با «اعمال وصله» نسخه جدید منتشر می‌شود.", "Likely cause: an unhandled error (for example a brief database disconnect) stops the whole process.\nImpact: the app is unreachable for a few seconds until it comes back up.\nFix: I added global error handling and a /healthz route, so such an error is only logged and the app keeps running. “Apply patch” publishes the new version.") };
+    return { files: {}, plan: say("- بررسی لاگ‌ها و رخدادها", "- read the logs and events"), summary: incident === "manual"
+      ? say("وضعیت: سالم — اپ پاسخ می‌دهد و رخداد مهمی در لاگ‌ها دیده نشد.\nاثر: ندارد.\nراه‌حل: کد مدیریت خطا و مسیر سلامت را دارد؛ فعلاً تغییری لازم نیست و عامل نگهداری اپ را زیر نظر دارد.", "Status: healthy — the app answers and the logs show nothing important.\nImpact: none.\nFix: the code already has error handling and a health route; nothing to change for now, and the maintenance agent keeps watching the app.")
+      : say("علت احتمالی: ری‌استارت‌های پراکنده از سمت زیرساخت یا یک درخواست سنگین.\nاثر: قطعی کوتاه.\nراه‌حل: کد مدیریت خطا و مسیر سلامت را دارد؛ فعلاً تغییری لازم نیست و عامل نگهداری اپ را زیر نظر دارد.", "Likely cause: occasional restarts on the infrastructure side or one heavy request.\nImpact: a short outage.\nFix: the code already has error handling and a health route; nothing to change for now, and the maintenance agent keeps watching the app.") };
   }
-  return { files: {}, plan: "- بررسی وضعیت سایت", summary: incident === "manual" ? "وضعیت: سالم — سایت ایستا پاسخ می‌دهد.\nاثر: ندارد.\nراه‌حل: تغییری لازم نیست." : "علت احتمالی: ری‌استارت سرور وب از سمت زیرساخت.\nاثر: قطعی چندثانیه‌ای.\nراه‌حل: سایت ایستا کدی سمت سرور ندارد؛ تغییری لازم نیست و دوباره خودکار بالا آمده است." };
+  return { files: {}, plan: say("- بررسی وضعیت سایت", "- check the site"), summary: incident === "manual"
+    ? say("وضعیت: سالم — سایت ایستا پاسخ می‌دهد.\nاثر: ندارد.\nراه‌حل: تغییری لازم نیست.", "Status: healthy — the static site answers.\nImpact: none.\nFix: nothing to change.")
+    : say("علت احتمالی: ری‌استارت سرور وب از سمت زیرساخت.\nاثر: قطعی چندثانیه‌ای.\nراه‌حل: سایت ایستا کدی سمت سرور ندارد؛ تغییری لازم نیست و دوباره خودکار بالا آمده است.", "Likely cause: the web server was restarted on the infrastructure side.\nImpact: a few seconds of downtime.\nFix: a static site has no server code; nothing to change, and it came back up by itself.") };
 }
 
 /** the simulated model answer for a task, in the builder format */
@@ -819,7 +861,7 @@ export function simulate(stack: BuilderStack, t: TaskInput): string {
       const files = projectFiles(t.prompt, stack, lang);
       const skills = "skills: frontend-design, i18n-typography, responsive-mobile-first, accessibility-wcag, web-security" + (stack === "node" ? ", node-backend" : "");
       const dir = dirOf(lang) === "rtl" ? "RTL" : "LTR";
-      if (copyOf(t.reply ?? lang) === "fa") return render({
+      if (persian(t.reply ?? lang)) return render({
         plan: ["- طراحی صفحه اصلی «" + k.brand + "» با معرفی، " + k.itemsTitle + " و نظرات مشتریان", "- " + k.formTitle + (stack === "node" ? " با ذخیره در پایگاه داده (API در server.js)" : " با پیام تأیید"), "- نسخه موبایل، زبان سایت " + lang + " و چیدمان " + dir, skills].join("\n"),
         files,
         summary: "«" + k.brand + "» آماده است: " + k.itemsTitle + "، بخش «" + k.formTitle + "» و نظرات مشتریان، با طراحی واکنش‌گرا برای موبایل. " + (stack === "node" ? "اطلاعات فرم پس از انتشار در پایگاه داده ذخیره می‌شود. " : "") + "می‌توانید بنویسید مثلاً «رنگ را سبز کن» یا «بخش سؤالات متداول اضافه کن».",
@@ -831,8 +873,8 @@ export function simulate(stack: BuilderStack, t: TaskInput): string {
       });
     }
     case "edit": return render(editProject(t.files, t.prompt, t));
-    case "fix": return render(fixProject(t.files, t.log, stack));
-    case "maintain": return render(diagnose(t.files, t.incident, stack));
+    case "fix": return render(fixProject(t.files, t.log, stack, t));
+    case "maintain": return render(diagnose(t.files, t.incident, stack, t));
   }
 }
 
@@ -849,7 +891,7 @@ process.on("SIGTERM", () => { console.log("SIGTERM: shutting down"); setTimeout(
 
 /** fixes the findings a careful reviewer would fix mechanically; an answer without <file> blocks when clean */
 export function simulateReview(stack: BuilderStack, files: Record<string, string>, findings: QualityFinding[], l: Langs = {}): string {
-  const lang = l.lang || "fa", dir = dirOf(lang), r = copyOf(l.reply ?? lang);
+  const lang = l.lang || "fa", dir = dirOf(lang), r = persian(l.reply ?? lang) ? "fa" : "en";
   const out: Record<string, string> = {};
   const fixed: string[] = [];
   const edit = (path: string, fn: (s: string) => string, what: string) => {

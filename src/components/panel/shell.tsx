@@ -208,6 +208,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>
       </div>
       {kind === "user" && <AssistantLauncher />}
+      {kind === "admin" && session?.role === "admin" && (!session.actorId || session.actorId === session.userId) && <AssistantLauncher staff />}
     </div>
   );
 }

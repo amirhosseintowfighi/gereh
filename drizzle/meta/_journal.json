@@ -239,6 +239,13 @@
       "when": 1791600035000,
       "tag": "0035_ai_explain",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791600036000,
+      "tag": "0036_assistant_staff",
+      "breakpoints": true
     }
   ]
 }

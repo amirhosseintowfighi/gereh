@@ -8,8 +8,9 @@ import { BILLING, CLOUD_SPECS, HOSTING, LOCS, OSES, VPS, type Plan, type Sku } f
 import { toEnDigits } from "@/lib/format";
 import { addMonths } from "@/lib/jalali";
 import type { DB, Tx } from "../db/client";
-import { dnsRecords, domainContacts, domainExtras, domains, hosting, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users, vpsDisks, vpsLayouts, vpsSync } from "../db/schema";
-import { enqueue } from "../jobs";
+import { dnsRecords, domainContacts, domainExtras, domains, hosting, jobs, osTemplates, planMap, plans, servers, sshKeys, transactions, tickets, ticketMessages, users, vpsDisks, vpsLayouts, vpsSync } from "../db/schema";
+import { enqueue, redact } from "../jobs";
+import { seal } from "../secrets";
 import { getLocations, locationGroup } from "../locations";
 import { providers } from "../providers";
 import { cloudInitFor } from "../apps";
@@ -144,6 +145,7 @@ export async function provisionServer(db: DB, p: Payload) {
     }
   }
 
+  let rootpass = genPassword();
   try {
     if (spec.problems.length) throw new ProvisionError(spec.problems.join("\n"));
     const v = await virt();
@@ -153,7 +155,6 @@ export async function provisionServer(db: DB, p: Payload) {
       catch (e) { throw new ProvisionError("حساب کاربری Virtualizor برای " + u.email + " ساخته نشد: " + errorText(e)); }
       await db.update(users).set({ virtUid }).where(eq(users.id, u.id));
     }
-    let rootpass = genPassword();
     // an earlier attempt may have created the VPS and failed afterwards: adopt it instead of creating a second one
     const existing = await v.findVps(row.hostname, virtUid).catch(() => null);
     let created;
@@ -194,23 +195,37 @@ export async function provisionServer(db: DB, p: Payload) {
         await tx.insert(transactions).values({ id: rid("TX"), userId: u.id, type: "topup", amount: credit, method: "کیف پول", desc: "پیش‌پرداخت سرور ساعتی " + name });
       }
     });
-    await enqueue(db, "provision.server", { phase: "wait", serverId: sid, rootpass, tries: 0 }, { runAt: new Date(Date.now() + 15_000) });
+    // the poll jobs carry the password sealed only (../jobs.ts); scrubRootpass drops it once delivered
+    await enqueue(db, "provision.server", { phase: "wait", serverId: sid, rootpassEnc: rootpass ? seal(rootpass) : "", tries: 0 }, { runAt: new Date(Date.now() + 15_000) });
   } catch (e) {
+    // a hypervisor error never carries the generated password into the row, the job's last_error or the staff notice
+    if (rootpass && e instanceof Error) { e.message = redact(e.message, [rootpass]); e.stack = e.stack && redact(e.stack, [rootpass]); }
     await provisionFailed(db, row.id, e);
     throw e;
   }
 }
 
-/** second phase: poll until the hypervisor reports the VPS running, then hand over credentials */
+/** drops the root password from every provision.server job of this server (delivered, refunded or handed over by hand) */
+export async function scrubRootpass(db: DB | Tx, serverId: string) {
+  await db.update(jobs).set({ payload: sql`${jobs.payload} - 'rootpassEnc' - 'rootpass'` })
+    .where(and(eq(jobs.type, "provision.server"), sql`(${jobs.payload}->>'serverId') = ${serverId}`, sql`((${jobs.payload}->>'rootpassEnc') is not null or (${jobs.payload}->>'rootpass') is not null)`));
+}
+
+/** second phase: poll until the hypervisor reports the VPS running, then hand over credentials.
+    p.rootpass is opened by the worker from the sealed rootpassEnc (or is a legacy job's plain value). */
 export async function waitForBuild(db: DB, p: { serverId: string; rootpass: string; tries: number }) {
   const [s] = await db.select().from(servers).where(eq(servers.id, p.serverId));
-  if (!s || s.status !== "building" || !s.vpsid) return;
+  if (!s || s.status !== "building" || !s.vpsid) {
+    // nothing left to deliver: the password must not outlive the build
+    if (!s || s.status !== "building") await scrubRootpass(db, p.serverId);
+    return;
+  }
   if (!(await (await virt()).buildDone(s.vpsid))) {
-    if (p.tries > 80) { // ~20 minutes
+    if (p.tries > 80) { // ~20 minutes; the sealed password stays on this job for provisioning.retry
       await provisionFailed(db, s.id, new ProvisionError("VPS " + s.vpsid + " پس از ۲۰ دقیقه هنوز آماده نشده است (ساخت در Virtualizor متوقف یا کند است)."));
       return;
     }
-    await enqueue(db, "provision.server", { phase: "wait", serverId: s.id, rootpass: p.rootpass, tries: p.tries + 1 }, { runAt: new Date(Date.now() + 15_000) });
+    await enqueue(db, "provision.server", { phase: "wait", serverId: s.id, rootpassEnc: p.rootpass ? seal(p.rootpass) : "", tries: p.tries + 1 }, { runAt: new Date(Date.now() + 15_000) });
     return;
   }
   await db.update(servers).set({ status: "running", provisionError: null }).where(eq(servers.id, s.id));
@@ -218,6 +233,7 @@ export async function waitForBuild(db: DB, p: { serverId: string; rootpass: stri
   await logActivity(db, s.userId, "server", "سرور " + s.name + " آماده شد");
   await notify(db, s.userId, "server", "سرور " + s.name + " آماده است");
   await sendCredentials(db, s, p.rootpass);
+  await scrubRootpass(db, s.id);
 }
 
 /** emails the delivery details and keeps the root password for its one-time display in the panel (../credentials.ts) */

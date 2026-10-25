@@ -6,14 +6,14 @@
 import "server-only";
 import { and, eq, gte, lt, or, sql } from "drizzle-orm";
 import { costOf, estimateTokens } from "@/lib/ai";
-import type { ToolRisk } from "@/lib/assistant";
+import type { AssistantMode, ToolRisk } from "@/lib/assistant";
 import { PLAN_NUMS, priceSku, type Sku } from "@/lib/catalog";
 import { fa } from "@/lib/format";
 import { invGross } from "@/lib/money";
 import { customAllows } from "../account-extras";
 import { tehranStarts } from "../ai/service";
 import { MAX_OUT, pickModel } from "../builder/engine";
-import { teamAllows, type Ctx } from "../ctx";
+import { teamAllows, type Area, type Ctx } from "../ctx";
 import { builderProjects, invoiceItems, invoices, osTemplates, paasDbs, paasPlans, plans, servers, storagePlans, subWallets, transactions, users } from "../db/schema";
 import { getLocations } from "../locations";
 import { callRoute, MCP_TOOLS } from "../mcp";
@@ -21,6 +21,7 @@ import { registry } from "../rpc";
 import { catalog } from "../rpc/billing";
 import { getSettings } from "../state";
 import { AppError, fail } from "../util";
+import { planLayout } from "../virt/layout";
 
 type Json = Record<string, unknown>;
 type Schema = { type: "object"; properties: Record<string, Json>; required?: string[] };
@@ -30,6 +31,8 @@ export type AssistantTool = {
   risk: (a: Json) => ToolRisk;
   /** the RPC method name whose team permission the tool needs (teamAllows + custom roles) */
   perm: string;
+  /** staff console tools (./staff.ts): the staff areas, any of which allows the tool (isStaff) */
+  areas?: Area[];
   /** the activity chip, e.g. «در حال خواندن وضعیت سرور web-1…» */
   label: (ctx: Ctx, a: Json) => Promise<string>;
   run: (ctx: Ctx, a: Json) => Promise<unknown>;
@@ -39,10 +42,10 @@ export type AssistantTool = {
   quote?: (ctx: Ctx, a: Json) => Promise<Quote>;
 };
 
-const str = (description: string, extra: Json = {}) => ({ type: "string", description, ...extra });
-const S = (v: unknown) => String(v ?? "");
+export const str = (description: string, extra: Json = {}) => ({ type: "string", description, ...extra });
+export const S = (v: unknown) => String(v ?? "");
 const uid = (ctx: Ctx) => ctx.auth!.uid;
-async function rpc<T = unknown>(ctx: Ctx, name: string, ...args: unknown[]): Promise<T> {
+export async function rpc<T = unknown>(ctx: Ctx, name: string, ...args: unknown[]): Promise<T> {
   const m = registry[name];
   return (await m.run(ctx, m.args.parse(args))) as T;
 }
@@ -63,11 +66,11 @@ async function needServer(ctx: Ctx, id: unknown) {
   if (!s) fail("سرور پیدا نشد.", 404);
   return s!;
 }
-const L = (text: string) => async () => text;
+export const L = (text: string) => async () => text;
 
 /* ---------- the MCP tools, with the panel's classification ---------- */
 type Meta = Pick<AssistantTool, "perm" | "label" | "brief"> & { risk: ToolRisk | ((a: Json) => ToolRisk); quote?: AssistantTool["quote"] };
-const plain = (title: string, summary: string, resource: string): Quote => ({ title, summary, resource, cost: null, costNote: "" });
+export const plain = (title: string, summary: string, resource: string): Quote => ({ title, summary, resource, cost: null, costNote: "" });
 
 async function builderQuote(ctx: Ctx, a: Json, title: string): Promise<Quote> {
   const [p] = a.id ? await ctx.db.select().from(builderProjects).where(and(eq(builderProjects.id, S(a.id)), eq(builderProjects.userId, uid(ctx)))) : [];
@@ -172,6 +175,26 @@ async function resizeQuote(ctx: Ctx, a: Json): Promise<Quote> {
   return { title: "ارتقای سرور", summary: "سرور «" + s.name + "» از پلن " + s.plan + " به پلن " + plan.name + " ارتقا می‌یابد (" + PLAN_NUMS[S(a.plan_id)].join("/") + " هسته/گیگ رم/گیگ دیسک). قیمت ماهانه جدید: " + fa(plan.price) + " تومان.", resource: s.name, cost: diff || plan.price - s.price > 0 ? diff : null, costNote: diff ? "مابه‌التفاوت " + fa(days) + " روز باقی‌مانده، به‌صورت صورتحساب." : s.billing === "hourly" ? "از این پس ساعتی با قیمت پلن جدید." : "" };
 }
 
+/** what set_disk_layout would do, with the RPC's own rules (planLayout); a rebuild needs an active OS template and the
+    account owner (the card replaces the typed hostname, which a team member is not trusted to skip) */
+async function layoutPlan(ctx: Ctx, a: Json) {
+  const s = await needServer(ctx, a.server_id);
+  const sizes = Array.isArray(a.sizes) ? a.sizes.map((x) => Number(x)) : [];
+  if (!sizes.length || sizes.some((x) => !Number.isInteger(x) || x < 1 || x > 100_000) || sizes.length > 16) fail("اندازه دیسک‌ها را به گیگابایت (عدد صحیح) بدهید.");
+  const l = await rpc<{ allowanceGb: number; maxDisks: number; disks: { sizeGb: number }[] }>(ctx, "servers.layout", s.id);
+  const before = l.disks.map((d) => d.sizeGb);
+  const mode = planLayout(before, sizes, l.allowanceGb, l.maxDisks);
+  let os = "";
+  if (mode === "rebuild") {
+    if (ctx.auth!.uid !== ctx.auth!.user.id) fail("بازسازی دیسک‌ها (که همه داده‌ها را پاک می‌کند) با دستیار فقط برای صاحب حساب ممکن است؛ از صفحه سرور و با نوشتن hostname انجام دهید.", 403);
+    const tpls = await ctx.db.select({ name: osTemplates.name }).from(osTemplates).where(eq(osTemplates.on, true));
+    if (!S(a.os)) fail("این چیدمان سرور را از نو می‌سازد؛ سیستم‌عاملی را که نصب شود مشخص کنید. گزینه‌ها: " + tpls.map((t) => t.name).join("، "));
+    if (!tpls.some((t) => t.name === S(a.os))) fail("سیستم‌عامل «" + S(a.os) + "» در دسترس نیست. گزینه‌ها: " + tpls.map((t) => t.name).join("، "));
+    os = S(a.os);
+  }
+  return { s, sizes, before, mode, os };
+}
+
 const PANEL: AssistantTool[] = [
   { name: "list_cloud_plans", description: "Cloud server (VPS) plans with cpu, ram, disk, traffic and the monthly price in Toman, plus the locations customers can order in. Use it before recommending or buying a server.",
     inputSchema: { type: "object", properties: {} }, risk: fixed("read"), perm: "servers.list", label: L("در حال خواندن پلن‌ها و قیمت‌های سرور ابری…"), run: cloudPlans,
@@ -253,6 +276,35 @@ const PANEL: AssistantTool[] = [
       await rpc(ctx, "servers.resetRootPassword", S(a.server_id), pass);
       return { ok: true, where: "The new password is shown once on the server's page in the panel (and emailed)." };
     }, brief: done("رمز root عوض شد؛ آن را یک‌بار در صفحه سرور ببینید.") },
+  { name: "get_disk_layout", description: "The disk layout of a cloud server: the plan's disk allowance (GB), each disk (primary first), purchased extra disks, the current OS, and any rebuild in progress.",
+    inputSchema: { type: "object", properties: sid, required: ["server_id"] }, risk: fixed("read"), perm: "servers.layout",
+    label: async (c, a) => "در حال خواندن چیدمان دیسک سرور " + (await serverName(c, a.server_id)) + "…",
+    run: async (ctx, a) => {
+      const s = await needServer(ctx, a.server_id);
+      const l = await rpc<{ allowanceGb: number; disks: { sizeGb: number }[]; billed: { name: string; sizeGb: number }[]; relayout: unknown }>(ctx, "servers.layout", s.id);
+      return { allowance_gb: l.allowanceGb, disks_gb: l.disks.map((d) => d.sizeGb), purchased_extra_disks: l.billed, os: s.os, rebuild_in_progress: l.relayout };
+    },
+    brief: (o) => { const x = o as { allowance_gb: number; disks_gb: number[] }; return "چیدمان " + x.disks_gb.map(fa).join(" + ") + " گیگ (سهم " + fa(x.allowance_gb) + " گیگ)"; } },
+  { name: "set_disk_layout", description: "Changes how a cloud server's disk allowance is split into disks (GB per disk, primary first, summing to the allowance from get_disk_layout). Adding disks from unused allowance (append) or only growing disks (grow) keeps all data. Shrinking or removing a disk REBUILDS the server: it is recreated, ALL data is erased, the OS given in `os` is installed (required then) and the IP is kept when possible. The person must confirm.",
+    inputSchema: { type: "object", properties: { ...sid, sizes: { type: "array", items: { type: "integer" }, description: "GB per disk, primary first; must sum to the allowance" }, os: str("OS template to install when the layout needs a rebuild, e.g. \"Ubuntu 24.04\"") }, required: ["server_id", "sizes"] },
+    risk: fixed("danger"), perm: "servers.setLayout", label: async (c, a) => "تغییر چیدمان دیسک سرور " + (await serverName(c, a.server_id)) + "…",
+    quote: async (c, a) => {
+      const p = await layoutPlan(c, a);
+      const sizes = p.before.map(fa).join(" + ") + " ← " + p.sizes.map(fa).join(" + ");
+      const change = "دیسک‌های سرور «" + p.s.name + "» از " + p.before.map(fa).join(" + ") + " به " + p.sizes.map(fa).join(" + ") + " گیگابایت تغییر می‌کند";
+      if (p.mode === "append") return plain("افزودن دیسک از سهم آزاد", change + ". دیسک‌های تازه از سهم استفاده‌نشده ساخته می‌شوند؛ هیچ داده‌ای پاک نمی‌شود.", p.s.name + " — " + sizes);
+      if (p.mode === "grow") return plain("بزرگ کردن دیسک‌ها", change + ". دیسک‌ها در جای خود بزرگ می‌شوند و داده‌ها حفظ می‌شوند.", p.s.name + " — " + sizes);
+      return plain("بازسازی سرور با چیدمان دیسک جدید",
+        change + ". هشدار: این چیدمان فقط با ساخت دوباره سرور ممکن است؛ سرور از نو ساخته می‌شود و همه داده‌های همه دیسک‌ها برای همیشه پاک می‌شود. سیستم‌عامل " + p.os + " نصب می‌شود و رمز root جدید یک‌بار در صفحه سرور نمایش داده می‌شود. IP فعلی (" + (p.s.ip || "—") + ") در صورت امکان حفظ می‌شود.",
+        p.s.name + " — " + sizes);
+    },
+    run: async (ctx, a) => {
+      const p = await layoutPlan(ctx, a);
+      // the RPC's typed-hostname confirmation is the card the owner just confirmed: the hostname comes from the row, never from the model
+      const r = await rpc<{ mode: string }>(ctx, "servers.setLayout", p.s.id, { sizes: p.sizes, ...(p.mode === "rebuild" ? { os: p.os, confirm: p.s.hostname } : {}) });
+      return { mode: r.mode, sizes_gb: p.sizes, note: r.mode === "rebuild" ? "The server is being recreated; it shows the progress on its page and the new root password is shown there once." : "Applied." };
+    },
+    brief: (o) => { const x = o as { mode: string; sizes_gb: number[] }; return x.mode === "rebuild" ? "بازسازی سرور با دیسک‌های " + x.sizes_gb.map(fa).join(" + ") + " گیگ آغاز شد." : "چیدمان دیسک به " + x.sizes_gb.map(fa).join(" + ") + " گیگ تغییر کرد."; } },
   { name: "transfer_wallet", description: "Moves money between the main wallet (\"\") and the account's project wallets.",
     inputSchema: { type: "object", properties: { from: str("Source wallet id, or \"\" for the main wallet"), to: str("Target wallet id, or \"\" for the main wallet"), amount: { type: "integer", description: "Toman (at least 1000)" } }, required: ["from", "to", "amount"] },
     risk: fixed("danger"), perm: "billing.transfer", label: L("انتقال وجه بین کیف پول‌ها…"),
@@ -291,7 +343,7 @@ export async function execTool(ctx: Ctx, t: AssistantTool, args: Json): Promise<
 
 /** OpenAI tool definitions of what this person may use */
 export async function toolSpecs(ctx: Ctx) {
-  const out = [];
+  const out: ToolSpec[] = [];
   for (const t of TOOLS) {
     // a tool whose risk depends on its arguments is offered when its mildest form is allowed
     const base = t.risk({});
@@ -300,3 +352,16 @@ export async function toolSpecs(ctx: Ctx) {
   }
   return out;
 }
+
+export type ToolSpec = { type: "function"; function: { name: string; description: string; parameters: Schema } };
+/** a tool set and its rules: the customer's panel tools here, the staff console's in ./staff.ts */
+export type Kit = {
+  mode: AssistantMode;
+  byName: (name: string) => AssistantTool | undefined;
+  specs: (ctx: Ctx) => Promise<ToolSpec[]>;
+  allowed: (ctx: Ctx, t: AssistantTool, risk: ToolRisk) => Promise<boolean>;
+  exec: (ctx: Ctx, t: AssistantTool, args: Json) => Promise<unknown>;
+  /** the context labels and quotes are computed in */
+  view: (ctx: Ctx) => Ctx;
+};
+export const customerKit: Kit = { mode: "customer", byName: toolByName, specs: toolSpecs, allowed: toolAllowed, exec: execTool, view: toolCtx };

@@ -2,7 +2,7 @@
    latest turns plus a cheap summary of what fell out of it) and the panel's view. */
 import "server-only";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { ASSISTANT, type AssistantMessageView, type AssistantThreadView, type AssistantToolActivity } from "@/lib/assistant";
+import { ASSISTANT, type AssistantMessageView, type AssistantMode, type AssistantThreadView, type AssistantToolActivity } from "@/lib/assistant";
 import { faDateTime } from "@/lib/jalali";
 import type { Auth } from "../auth";
 import type { DB } from "../db/client";
@@ -15,20 +15,22 @@ export type Row = typeof assistantMessages.$inferSelect;
 /** the person chatting and the account the tools act on */
 export const who = (a: Auth) => ({ userId: a.user.id, accountId: a.uid });
 
-export async function ownThread(db: DB, a: Auth, id: string) {
+/** a thread of this person and account; `mode` keeps the staff console's threads apart from the panel's (omitted:
+    either, for reading and deleting one's own thread by id) */
+export async function ownThread(db: DB, a: Auth, id: string, mode?: AssistantMode) {
   const w = who(a);
-  const [t] = await db.select().from(assistantThreads).where(and(eq(assistantThreads.id, id), eq(assistantThreads.userId, w.userId), eq(assistantThreads.accountId, w.accountId)));
+  const [t] = await db.select().from(assistantThreads).where(and(eq(assistantThreads.id, id), eq(assistantThreads.userId, w.userId), eq(assistantThreads.accountId, w.accountId), mode ? eq(assistantThreads.mode, mode) : undefined));
   return t ?? null;
 }
 
-export async function newThread(db: DB, a: Auth) {
-  const [t] = await db.insert(assistantThreads).values({ id: rid("ast"), ...who(a), title: ASSISTANT.newTitle }).returning();
+export async function newThread(db: DB, a: Auth, mode: AssistantMode = "customer") {
+  const [t] = await db.insert(assistantThreads).values({ id: rid("ast"), ...who(a), title: ASSISTANT.newTitle, mode }).returning();
   return t;
 }
 
-export async function listThreads(db: DB, a: Auth): Promise<AssistantThreadView[]> {
+export async function listThreads(db: DB, a: Auth, mode: AssistantMode = "customer"): Promise<AssistantThreadView[]> {
   const w = who(a);
-  const rows = await db.select().from(assistantThreads).where(and(eq(assistantThreads.userId, w.userId), eq(assistantThreads.accountId, w.accountId))).orderBy(desc(assistantThreads.updatedAt)).limit(100);
+  const rows = await db.select().from(assistantThreads).where(and(eq(assistantThreads.userId, w.userId), eq(assistantThreads.accountId, w.accountId), eq(assistantThreads.mode, mode))).orderBy(desc(assistantThreads.updatedAt)).limit(100);
   return rows.map((t) => ({ id: t.id, title: t.title || ASSISTANT.newTitle, spent: t.spent, updated: faDateTime(t.updatedAt), updatedTs: t.updatedAt.getTime() }));
 }
 

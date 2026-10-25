@@ -1,10 +1,11 @@
 "use client";
 /* «دستیار گره» in the panel: the chat (streamed answers, tool chips, confirmation cards, threads), a floating
-   launcher on every /panel page that opens it in a drawer (a full-screen sheet on phones), and the full page. */
+   launcher on every /panel page that opens it in a drawer (a full-screen sheet on phones), and the full page.
+   On /admin the same drawer is the staff console (mode "staff": its own threads and tools, by staff role). */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ASSISTANT, contextOf, STARTERS, type AssistantContext, type AssistantEvent, type AssistantMessageView, type AssistantThreadView, type AssistantToolActivity } from "@/lib/assistant";
+import { ASSISTANT, contextOf, STAFF_STARTERS, STARTERS, type AssistantContext, type AssistantMode, type AssistantEvent, type AssistantMessageView, type AssistantThreadView, type AssistantToolActivity } from "@/lib/assistant";
 import { BTN_D, BTN_G, BTN_P, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
@@ -18,7 +19,7 @@ type Msg = AssistantMessageView & { error?: string; live?: boolean };
 type Confirm = NonNullable<AssistantMessageView["confirm"]>;
 
 /* ---------- state: one conversation and its stream ---------- */
-function useAssistant(context: AssistantContext | null) {
+function useAssistant(context: AssistantContext | null, mode: AssistantMode = "customer") {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [threads, setThreads] = useState<AssistantThreadView[] | null>(null);
@@ -28,7 +29,7 @@ function useAssistant(context: AssistantContext | null) {
   const tid = useRef<string | null>(null);
   const { notify } = useApp();
 
-  const loadThreads = useCallback(async () => { try { setThreads(await api.assistant.threads()); } catch { setThreads([]); } }, []);
+  const loadThreads = useCallback(async () => { try { setThreads(await api.assistant.threads(mode === "staff" ? "staff" : undefined)); } catch { setThreads([]); } }, [mode]);
   const open = useCallback(async (id: string) => {
     if (abort.current) return;
     try { const v = await api.assistant.thread(id); tid.current = id; setThreadId(id); setMessages(v.messages); } catch (e) { notify((e as Error).message, "circle-alert"); }
@@ -52,7 +53,7 @@ function useAssistant(context: AssistantContext | null) {
     const tool = (id: string, f: (t: AssistantToolActivity) => AssistantToolActivity) => patch((m) => ({ ...m, tools: m.tools.map((t) => (t.id === id ? f(t) : t)) }));
     let error = "";
     try {
-      const res = await fetch("/api/assistant/chat", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ threadId: tid.current, context, ...body }), signal: ctrl.signal });
+      const res = await fetch("/api/assistant/chat", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ threadId: tid.current, context, ...(mode === "staff" ? { mode } : {}), ...body }), signal: ctrl.signal });
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "ارسال ناموفق بود.");
       const reader = res.body.getReader(), dec = new TextDecoder();
       let buf = "";
@@ -98,7 +99,7 @@ function useAssistant(context: AssistantContext | null) {
       void loadThreads();
       void refresh();
     }
-  }, [context, loadThreads]);
+  }, [context, mode, loadThreads]);
 
   const send = useCallback((text: string) => { const t = text.trim(); if (t) void stream({ message: t }, t); }, [stream]);
   const decide = useCallback((c: Confirm, yes: boolean) => {
@@ -107,7 +108,7 @@ function useAssistant(context: AssistantContext | null) {
     void stream(yes ? { confirm: { token, args: c.args } } : { cancel: { token } });
   }, [stream, notify]);
   const stop = useCallback(() => abort.current?.abort(), []);
-  return { threadId, messages, threads, busy, tokens, loadThreads, open, reset, remove, send, decide, stop };
+  return { mode, threadId, messages, threads, busy, tokens, loadThreads, open, reset, remove, send, decide, stop };
 }
 type Assistant = ReturnType<typeof useAssistant>;
 
@@ -178,14 +179,14 @@ function Bubble({ m, a }: { m: Msg; a: Assistant }) {
   );
 }
 
-function Starters({ onPick }: { onPick: (s: string) => void }) {
+function Starters({ onPick, staff }: { onPick: (s: string) => void; staff?: boolean }) {
   return (
     <div className="py-6 text-center">
       <span className="w-14 h-14 mx-auto rounded-2xl grid place-items-center bg-gradient-to-br from-violet-400/30 to-sky-400/20 border border-white/10" aria-hidden="true"><Icon name="sparkles" size={24} /></span>
       <h2 className="font-black text-lg mt-4">{ASSISTANT.name}</h2>
-      <p className="text-white/55 text-[13px] leading-7 mt-1 max-w-sm mx-auto">حساب گره‌تان را با گفتگو مدیریت کنید. کارهای حساس مثل خرید یا حذف فقط بعد از تأیید شما انجام می‌شود.</p>
+      <p className="text-white/55 text-[13px] leading-7 mt-1 max-w-sm mx-auto">{staff ? "کنسول پشتیبانی: جست‌وجوی مشتری، سفارش‌های تحویل‌نشده، کارهای ناموفق، تیکت‌ها و گزارش‌ها به اندازه نقش شما. هر اقدام فقط پس از تأیید شما انجام و در گزارش ممیزی ثبت می‌شود." : "حساب گره‌تان را با گفتگو مدیریت کنید. کارهای حساس مثل خرید یا حذف فقط بعد از تأیید شما انجام می‌شود."}</p>
       <div className="mt-5 flex flex-col gap-2 max-w-sm mx-auto">
-        {STARTERS.map((s) => <button key={s} type="button" onClick={() => onPick(s)} className="text-right text-[13px] leading-6 rounded-xl px-3.5 py-2.5 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/20 transition flex items-center gap-2"><Icon name="chevron-left" size={14} className="text-white/40 shrink-0" />{s}</button>)}
+        {(staff ? STAFF_STARTERS : STARTERS).map((s) => <button key={s} type="button" onClick={() => onPick(s)} className="text-right text-[13px] leading-6 rounded-xl px-3.5 py-2.5 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/20 transition flex items-center gap-2"><Icon name="chevron-left" size={14} className="text-white/40 shrink-0" />{s}</button>)}
       </div>
     </div>
   );
@@ -240,12 +241,12 @@ function Composer({ a, context, onClearContext, autoFocus }: { a: Assistant; con
         <textarea id="assistant-input" ref={ref} rows={1} value={text} style={{ outline: "none" }} autoFocus={autoFocus} dir="auto" maxLength={8000}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
-          placeholder="بپرسید یا بخواهید… (مثلاً «وضعیت سرورهایم»)" className="flex-1 min-w-0 resize-none bg-transparent outline-none focus-visible:outline-none px-2.5 py-2 text-[14px] leading-6 placeholder:text-white/35 max-h-40" />
+          placeholder={a.mode === "staff" ? "بپرسید یا بخواهید… (مثلاً «سفارش‌های تحویل‌نشده»)" : "بپرسید یا بخواهید… (مثلاً «وضعیت سرورهایم»)"} className="flex-1 min-w-0 resize-none bg-transparent outline-none focus-visible:outline-none px-2.5 py-2 text-[14px] leading-6 placeholder:text-white/35 max-h-40" />
         {a.busy
           ? <button type="button" onClick={a.stop} className="w-10 h-10 shrink-0 rounded-xl grid place-items-center bg-white/10 hover:bg-white/15" aria-label="توقف"><Icon name="square" size={15} /></button>
           : <button type="button" onClick={submit} disabled={!text.trim()} className="w-10 h-10 shrink-0 rounded-xl grid place-items-center btn-p disabled:opacity-40" aria-label="ارسال"><Icon name="send" size={16} className="-scale-x-100" /></button>}
       </div>
-      <p className="text-[10px] text-white/35 mt-1.5 px-1">هزینه هر پاسخ از کیف پول کم می‌شود. دستیار ممکن است اشتباه کند؛ اقدامات حساس همیشه تأیید شما را لازم دارند.</p>
+      <p className="text-[10px] text-white/35 mt-1.5 px-1">{a.mode === "staff" ? "هزینه هر پاسخ از کیف پول شخصی شما کم می‌شود. هر اقدام پس از تأیید شما در گزارش ممیزی ثبت می‌شود." : "هزینه هر پاسخ از کیف پول کم می‌شود. دستیار ممکن است اشتباه کند؛ اقدامات حساس همیشه تأیید شما را لازم دارند."}</p>
     </div>
   );
 }
@@ -257,7 +258,7 @@ function Conversation({ a, context, onClearContext, autoFocus }: { a: Assistant;
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-5" aria-live="polite" aria-busy={a.busy}>
-        {a.messages.length === 0 ? <Starters onPick={a.send} /> : a.messages.map((m) => <Bubble key={m.id} m={m} a={a} />)}
+        {a.messages.length === 0 ? <Starters onPick={a.send} staff={a.mode === "staff"} /> : a.messages.map((m) => <Bubble key={m.id} m={m} a={a} />)}
         <div ref={end} />
       </div>
       <Composer a={a} context={context} onClearContext={onClearContext} autoFocus={autoFocus} />
@@ -268,13 +269,13 @@ function Conversation({ a, context, onClearContext, autoFocus }: { a: Assistant;
 /* ---------- the drawer and its launcher ---------- */
 const HIDE_ON = [/^\/panel\/assistant/, /^\/panel\/build\/[^/]+/, /\/console$/];
 
-export function AssistantLauncher() {
+export function AssistantLauncher({ staff = false }: { staff?: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const [dropped, setDropped] = useState<string | null>(null);
-  const ctx = contextOf(path);
+  const ctx = staff ? null : contextOf(path);
   const context = ctx && dropped !== ctx.kind + ":" + ctx.id ? ctx : null;
-  const a = useAssistant(context);
+  const a = useAssistant(context, staff ? "staff" : "customer");
   const [list, setList] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const ref = useDialog<HTMLElement>(open, close);
@@ -283,7 +284,7 @@ export function AssistantLauncher() {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
-  if (HIDE_ON.some((re) => re.test(path)) && !open) return null;
+  if (!staff && HIDE_ON.some((re) => re.test(path)) && !open) return null;
   return (
     <>
       {!open && (
@@ -303,10 +304,10 @@ export function AssistantLauncher() {
               style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
               <header className="h-14 px-3 flex items-center gap-1 border-b border-white/[0.08] shrink-0">
                 <span className="w-8 h-8 rounded-xl grid place-items-center bg-gradient-to-br from-violet-400/30 to-sky-400/20 border border-white/10 mr-1" aria-hidden="true"><Icon name="sparkles" size={15} /></span>
-                <h2 className="font-extrabold text-[15px] flex-1 min-w-0 truncate px-1.5">{list ? "گفتگوها" : ASSISTANT.name}</h2>
+                <h2 className="font-extrabold text-[15px] flex-1 min-w-0 truncate px-1.5">{list ? "گفتگوها" : ASSISTANT.name}{staff && !list && <span className="text-[11px] font-bold text-white/50 mr-1.5">· کنسول کارمندان</span>}</h2>
                 <button type="button" className={ICON_BTN} aria-label="گفتگوهای قبلی" aria-pressed={list} onClick={() => setList((l) => !l)}><Icon name="history" size={17} /></button>
                 <button type="button" className={ICON_BTN} aria-label="گفتگوی جدید" disabled={a.busy} onClick={() => { a.reset(); setList(false); }}><Icon name="plus" size={17} /></button>
-                <Link href="/panel/assistant" className={ICON_BTN} aria-label="باز کردن در صفحه کامل" onClick={close}><Icon name="external-link" size={16} /></Link>
+                {!staff && <Link href="/panel/assistant" className={ICON_BTN} aria-label="باز کردن در صفحه کامل" onClick={close}><Icon name="external-link" size={16} /></Link>}
                 <button type="button" data-close className={ICON_BTN} aria-label="بستن" onClick={close}><Icon name="x" size={18} /></button>
               </header>
               {list ? <div className="flex-1 min-h-0 p-3"><ThreadList a={a} onPicked={() => setList(false)} /></div>

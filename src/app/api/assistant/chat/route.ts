@@ -19,6 +19,8 @@ const Body = z.object({
   context: z.object({ kind: z.enum(["server", "app", "db"]), id: z.string().regex(/^[\w.-]{1,40}$/) }).nullish(),
   confirm: z.object({ token: z.string().min(16).max(64), args: z.record(z.string(), z.unknown()) }).optional(),
   cancel: z.object({ token: z.string().min(16).max(64) }).optional(),
+  /** staff: the operator console on /admin, only for staff in their own session */
+  mode: z.enum(["customer", "staff"]).optional(),
 }).refine((b) => !!b.message || !!b.confirm || !!b.cancel, "پیام را بنویسید.");
 const enc = new TextEncoder();
 
@@ -27,8 +29,11 @@ export async function POST(req: Request) {
   try {
     const ctx = await context();
     const a = needUser(ctx);
-    if (!teamAllows(a.teamRole, "assistant.chat") || !(await customAllows(ctx.db, ctx.auth, "assistant.chat"))) return NextResponse.json({ error: "نقش شما در این حساب اجازه این کار را ندارد." }, { status: 403 });
     const b = Body.parse(await req.json().catch(() => ({})));
+    const staff = b.mode === "staff";
+    if (staff ? !(a.user.role === "admin" && a.uid === a.user.id) : !teamAllows(a.teamRole, "assistant.chat") || !(await customAllows(ctx.db, ctx.auth, "assistant.chat"))) {
+      return NextResponse.json({ error: staff ? "دستیار پنل مدیریت فقط برای کارمندان است." : "نقش شما در این حساب اجازه این کار را ندارد." }, { status: 403 });
+    }
     // per person (a team member or staff member has their own limit)
     await rateLimit(ctx.db, "assistant:" + a.user.id, 20, 60);
     await rateLimit(ctx.db, "assistant-h:" + a.user.id, 200, 3600);
@@ -41,7 +46,7 @@ export async function POST(req: Request) {
         const send = (e: AssistantEvent) => { if (open) try { ctrl.enqueue(enc.encode("data: " + JSON.stringify(e) + "\n\n")); } catch { open = false; } };
         const ping = setInterval(() => { if (open) try { ctrl.enqueue(enc.encode(": ping\n\n")); } catch { open = false; } }, 15_000);
         try {
-          await runTurn({ ctx, threadId: b.threadId ?? null, message: b.message, context: b.context ?? null, confirm: b.confirm as { token: string; args: Record<string, unknown> } | undefined, cancel: b.cancel, signal: abort.signal, emit: send });
+          await runTurn({ ctx, threadId: b.threadId ?? null, message: b.message, context: staff ? null : b.context ?? null, mode: staff ? "staff" : "customer", confirm: b.confirm as { token: string; args: Record<string, unknown> } | undefined, cancel: b.cancel, signal: abort.signal, emit: send });
         } catch (e) {
           console.error("[assistant.chat]", e);
           send({ type: "error", message: "خطای غیرمنتظره؛ دوباره تلاش کنید." });

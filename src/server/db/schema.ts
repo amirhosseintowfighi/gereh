@@ -1895,7 +1895,9 @@ export const assistantThreads = pgTable("assistant_threads", {
   spent: money("spent").notNull().default(0),
   createdAt: created(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
-}, (t) => [index("assistant_threads_user_ix").on(t.userId, t.accountId)]);
+  /** customer: the panel assistant over the account; staff: the operator console in /admin (0036_assistant_staff) */
+  mode: text("mode", { enum: ["customer", "staff"] }).notNull().default("customer"),
+}, (t) => [index("assistant_threads_user_ix").on(t.userId, t.accountId, t.mode)]);
 
 export const assistantMessages = pgTable("assistant_messages", {
   id: serial("id").primaryKey(),

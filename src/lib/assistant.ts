@@ -44,6 +44,17 @@ export const STARTERS = [
   "یک سایت با بافت برایم بساز",
 ];
 
+/** customer: the panel assistant over the signed-in account; staff: the operator console mounted on /admin */
+export type AssistantMode = "customer" | "staff";
+
+export const STAFF_STARTERS = [
+  "سفارش‌های تحویل‌نشده چه وضعی دارند؟",
+  "کارهای ناموفق ۲۴ ساعت اخیر را خلاصه کن",
+  "تیکت‌های باز را نشان بده",
+  "گزارش فروش این ماه",
+  "سرور 185.143.232.17 مال کیست؟",
+];
+
 export const RISK_LABEL: Record<ToolRisk, string> = { read: "خواندن", safe: "تغییر", danger: "نیازمند تأیید" };
 
 /** the resource of a panel path: /panel/servers/<id>, /panel/apps/<id>, /panel/databases/<id> */

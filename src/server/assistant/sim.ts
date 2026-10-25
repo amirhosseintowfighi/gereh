@@ -3,26 +3,27 @@
    the same confirmation rules) and the answer is written in Persian from their results. It only ever reads the
    customer's own message to decide what to do: tool results are summarised, never obeyed. */
 import "server-only";
-import type { AssistantContext } from "@/lib/assistant";
+import type { AssistantContext, AssistantMode } from "@/lib/assistant";
 import { fa } from "@/lib/format";
 import { statusFa } from "./tools";
 
 type Json = Record<string, unknown>;
 export type SimDone = { name: string; args: Json; out: unknown; ok: boolean; summary: string };
 export type SimCall = { name: string; args: Json };
-export type SimInput = { ask: string; earlier: string[]; context: AssistantContext | null; done: SimDone[]; tools: Set<string> };
+export type SimInput = { ask: string; earlier: string[]; context: AssistantContext | null; done: SimDone[]; tools: Set<string>; mode?: AssistantMode };
 
 const norm = (s: string) => s.replace(/[‌‏]/g, " ").replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).toLowerCase();
 const rows = (out: unknown): Json[] => { const d = (out as { data?: unknown })?.data; return Array.isArray(d) ? (d as Json[]) : []; };
 const S = (v: unknown) => String(v ?? "");
 const toman = (n: unknown) => fa(Math.round(Number(n) || 0)) + " تومان";
 
-type Intent = "baft" | "buy" | "suggest" | "delete" | "restart" | "app_error" | "cost" | "status" | "help";
+type Intent = "baft" | "buy" | "suggest" | "delete" | "disk" | "restart" | "app_error" | "cost" | "status" | "help";
 export function intentOf(text: string): Intent {
   const t = norm(text);
   if (/بافت|baft/.test(t) || (/سایت|لندینگ|فروشگاه اینترنتی|وبلاگ/.test(t) && /بساز|طراحی کن|درست کن/.test(t))) return "baft";
   if (/بخر|خرید|سفارش بده|سفارش بزن/.test(t) && /سرور|همین|پلن/.test(t)) return "buy";
   if (/سرور/.test(t) && /پیشنهاد|کدام پلن|چه پلنی|معرفی کن/.test(t)) return "suggest";
+  if (/دیسک|disk/.test(t) && /تقسیم|چیدمان|پارتیشن|layout|split|جدا کن/.test(t)) return "disk";
   if (/حذف|پاک کن/.test(t) && /سرور/.test(t)) return "delete";
   if (/ریستارت|ری استارت|راه ?اندازی مجدد|ریبوت|reboot|restart/.test(t)) return "restart";
   if (/خطا|ارور|error|کار نمی|بالا نمی|مشکل|لاگ|crash/.test(t) && /اپ|app|n8n|سایت|برنامه/.test(t)) return "app_error";
@@ -50,6 +51,7 @@ const has = (done: SimDone[], name: string) => done.find((d) => d.name === name)
 
 /** the next step: tool calls, or the final answer */
 export function simPlan(i: SimInput): { text: string; calls: SimCall[] } {
+  if (i.mode === "staff") return staffPlan(i);
   const intent = intentOf(i.ask);
   const d = i.done;
   const call = (name: string, args: Json = {}): { text: string; calls: SimCall[] } => (i.tools.has(name) ? { text: "", calls: [{ name, args }] } : { text: "این کار با دسترسی فعلی شما در این حساب ممکن نیست.", calls: [] });
@@ -77,6 +79,24 @@ export function simPlan(i: SimInput): { text: string; calls: SimCall[] } {
       }
       const alts = plans.filter((x) => x.id !== best.id).sort((a, b) => Math.abs((a.ram_gb ?? 0) - (best.ram_gb ?? 0)) - Math.abs((b.ram_gb ?? 0) - (best.ram_gb ?? 0))).slice(0, 2);
       return { text: "پیشنهاد من برای " + (w.ram ? fa(w.ram) + " گیگ رم" : "شروع") + " در **" + w.locName + "**:\n\n- " + planLine(best) + "\n\nگزینه‌های نزدیک:\n" + alts.map((a) => "- " + planLine(a)).join("\n") + "\n\nقیمت‌ها بدون مالیات بر ارزش افزوده است و پرداخت ساعتی هم ممکن است. اگر بخواهید بگویید «همین را بخر» تا سفارش را آماده کنم؛ پیش از پرداخت از شما تأیید می‌گیرم.", calls: [] };
+    }
+    case "disk": {
+      const ls = has(d, "list_servers");
+      const here = i.context?.kind === "server" ? i.context.id : "";
+      let target = here && /این سرور|this server/.test(norm(i.ask)) ? here : "";
+      let name = "";
+      if (!target) {
+        if (!ls) return call("list_servers");
+        const s = findServer(ls.out, i.ask) ?? (here ? rows(ls.out).find((x) => x.id === here) : null) ?? (rows(ls.out).length === 1 ? rows(ls.out)[0] : null);
+        if (!s) return { text: "دیسک کدام سرور؟ سرورهای شما: " + rows(ls.out).map((x) => "**" + S(x.name) + "**").join("، "), calls: [] };
+        target = S(s.id); name = S(s.name);
+      }
+      const set = has(d, "set_disk_layout");
+      if (set) return { text: set.summary, calls: [] };
+      const lay = has(d, "get_disk_layout");
+      if (!lay) return call("get_disk_layout", { server_id: target });
+      const o = lay.out as { allowance_gb: number; disks_gb: number[]; os: string };
+      return call("set_disk_layout", { server_id: target, sizes: splitSizes(i.ask, name, o.allowance_gb), os: osIn(i.ask) ?? o.os });
     }
     case "delete": case "restart": {
       const tool = intent === "delete" ? "delete_server" : "server_action";
@@ -141,4 +161,65 @@ function advice(errs: string) {
   if (/permission|denied|EACCES/i.test(errs)) return "خطای دسترسی فایل دیده می‌شود؛ مسیر دیسک و کاربر اجرای اپ را بررسی کنید.";
   if (/port|EADDRINUSE|listen/i.test(errs)) return "اپ روی پورت درست گوش نمی‌دهد؛ پورت تنظیم‌شده اپ را با پورت برنامه یکی کنید.";
   return "برای رفع، تغییرات اخیر کد یا متغیرهای محیطی را بررسی کنید؛ اگر بخواهید می‌توانم اپ را راه‌اندازی مجدد کنم.";
+}
+
+const OS_RE = /(ubuntu|debian|alma(?:linux)?|rocky|centos|windows|اوبونتو|دبیان|ویندوز)\s*[\d.]*/g;
+/** the OS template named in the message, if any */
+function osIn(ask: string): string | null {
+  const t = norm(ask);
+  if (/debian|دبیان/.test(t)) return /\b11\b/.test(t) ? "Debian 11" : "Debian 12";
+  if (/ubuntu|اوبونتو/.test(t)) return /22/.test(t) ? "Ubuntu 22.04" : "Ubuntu 24.04";
+  return null;
+}
+/** the disk sizes the message asks for: explicit sizes summing to the allowance, one size split off the primary,
+    or N equal parts (two by default; the primary takes the remainder) */
+export function splitSizes(ask: string, serverName: string, allowance: number): number[] {
+  let t = norm(ask).replace(OS_RE, " ");
+  if (serverName) t = t.split(norm(serverName)).join(" ");
+  const partsM = /(\d+)\s*(?:قسمت|بخش|دیسک|part)/.exec(t);
+  let parts = /سه (?:قسمت|بخش|دیسک)/.test(t) ? 3 : /چهار (?:قسمت|بخش|دیسک)/.test(t) ? 4 : 2;
+  if (partsM) { parts = Math.min(8, Math.max(2, Number(partsM[1]))); t = t.replace(partsM[0], " "); }
+  const nums = [...t.matchAll(/\d+/g)].map((m) => Number(m[0])).filter((n) => n > 0 && n < allowance + 1);
+  const sum = nums.reduce((a, b) => a + b, 0);
+  if (nums.length > 1 && sum === allowance) return nums;
+  if (nums.length === 1 && nums[0] < allowance) return [allowance - nums[0], nums[0]];
+  const each = Math.floor(allowance / parts);
+  return [allowance - each * (parts - 1), ...Array(parts - 1).fill(each)];
+}
+
+/* ---------- the staff console ---------- */
+type StaffIntent = "undelivered" | "jobs" | "sales" | "tickets" | "server" | "search" | "help";
+export function staffIntentOf(text: string): { intent: StaffIntent; arg: string } {
+  const t = norm(text);
+  const ip = /\b\d{1,3}(?:\.\d{1,3}){3}\b/.exec(t)?.[0] ?? /\bsrv-\d+\b/.exec(t)?.[0];
+  if (/تحویل/.test(t)) return { intent: "undelivered", arg: "" };
+  if (/ناموفق|failed|جاب|job|صف کار|کارهای/.test(t)) return { intent: "jobs", arg: "" };
+  if (/فروش|درآمد|گزارش مالی|revenue|sales/.test(t)) return { intent: "sales", arg: "" };
+  if (/تیکت|ticket/.test(t)) return { intent: "tickets", arg: "" };
+  if (ip) return { intent: "server", arg: ip };
+  const email = /[\w.+-]+@[\w-]+\.[\w.]+/.exec(t)?.[0];
+  if (email || /مشتری|کاربر|جست ?و ?جو|پیدا کن/.test(t)) return { intent: "search", arg: email ?? t.replace(/مشتری|کاربر|را|جست ?و ?جو کن|پیدا کن|بگرد/g, " ").trim().split(/\s+/).slice(-2).join(" ") };
+  return { intent: "help", arg: "" };
+}
+const STAFF_TOOL: Record<Exclude<StaffIntent, "help">, string> = { undelivered: "undelivered_orders", jobs: "failed_jobs", sales: "sales_summary", tickets: "open_tickets", server: "server_details", search: "search_customers" };
+
+function staffPlan(i: SimInput): { text: string; calls: SimCall[] } {
+  const first = i.done[0];
+  if (first) {
+    if (!first.ok) return { text: "انجام نشد: " + first.summary, calls: [] };
+    const o = first.out as Json;
+    const list = (k: string, f: (r: Json) => string) => ((o[k] as Json[] | undefined) ?? []).slice(0, 8).map((r) => "- " + f(r)).join("\n");
+    const body: Record<string, string> = {
+      undelivered_orders: list("orders", (r) => "`" + S(r.order_key) + "` " + S(r.item) + " — " + S(r.customer) + " (" + S(r.stage) + ")" + (r.error ? ": " + S(r.error) : "")),
+      failed_jobs: list("newest", (r) => S(r.type) + " #" + S(r.id) + " (" + S(r.status) + "): " + S(r.error)),
+      open_tickets: list("tickets", (r) => S(r.id) + " «" + S(r.subject) + "» — " + S(r.customer)),
+      search_customers: list("hits", (r) => S(r.label) + " — " + S(r.detail) + " (" + S(r.user_id) + ")"),
+    };
+    return { text: "**" + first.summary + "**" + (body[first.name] ? "\n\n" + body[first.name] : ""), calls: [] };
+  }
+  const { intent, arg } = staffIntentOf(i.ask);
+  if (intent === "help") return { text: "سلام! **دستیار گره** در حالت کنسول پشتیبانی است. می‌توانم مشتری‌ها را جست‌وجو کنم، سفارش‌های تحویل‌نشده و کارهای ناموفق را خلاصه کنم، تیکت‌های باز و گزارش فروش را نشان دهم و جزئیات یک سرور را بخوانم؛ کارهایی مثل تلاش دوباره برای تحویل، تعلیق، تغییر موجودی یا پاسخ تیکت فقط با تأیید شما انجام می‌شود.", calls: [] };
+  const name = STAFF_TOOL[intent];
+  if (!i.tools.has(name)) return { text: "نقش شما در پنل مدیریت به این بخش دسترسی ندارد.", calls: [] };
+  return { text: "", calls: [{ name, args: intent === "server" ? { server: arg } : intent === "search" ? { query: arg } : {} }] };
 }

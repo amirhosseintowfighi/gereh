@@ -5,7 +5,7 @@ import "server-only";
 import { and, eq, lte, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
 import { schedules } from "../db/schema";
-import { claim, complete, enqueue, heartbeat, retry, type JobType } from "../jobs";
+import { claim, complete, enqueue, heartbeat, openPayload, redact, retry, secretValues, type JobType } from "../jobs";
 import { sweepRateLimits } from "../auth";
 import { hourly, overdue, reminders, renewals } from "./billing";
 import { collectUsage, notifySend, purgeOld, reconcile, ticketSla, usageAlerts } from "./ops";
@@ -147,12 +147,15 @@ export const LANES: { name: string; size: number; filter: { only?: JobType[]; ex
 async function runJob(db: DB, job: Awaited<ReturnType<typeof claim>>[number]) {
   const beat = setInterval(() => { heartbeat(db, job.id).catch(() => {}); }, 60_000);
   beat.unref?.();
+  const payload = openPayload(job.type, (job.payload as Record<string, unknown>) ?? {});
+  const secrets = secretValues(job.type, payload);
   try {
-    await withLimit(Promise.resolve(handlers[job.type as JobType](db, (job.payload as Record<string, unknown>) ?? {})), jobLimitMs(job.type), job.type + " #" + job.id);
-    await complete(db, job.id);
+    await withLimit(Promise.resolve(handlers[job.type as JobType](db, payload)), jobLimitMs(job.type), job.type + " #" + job.id);
+    await complete(db, job.id, job.type, payload);
   } catch (e) {
-    const dead = await retry(db, job.id, job.attempts, e instanceof Error ? e.stack || e.message : String(e));
-    console.error("[worker] " + job.type + " #" + job.id + (dead ? " failed permanently" : " will retry"), e);
+    const text = redact(e instanceof Error ? e.stack || e.message : String(e), secrets);
+    const dead = await retry(db, job.id, job.attempts, text);
+    console.error("[worker] " + job.type + " #" + job.id + (dead ? " failed permanently" : " will retry"), secrets.length ? text : e);
   } finally {
     clearInterval(beat);
   }

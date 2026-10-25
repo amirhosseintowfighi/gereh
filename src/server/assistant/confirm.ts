@@ -7,11 +7,12 @@ import { randomBytes } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import type { ConfirmCard } from "@/lib/assistant";
 import { actor, type Ctx } from "../ctx";
-import { assistantActions, assistantMessages } from "../db/schema";
+import { assistantActions, assistantMessages, assistantThreads } from "../db/schema";
 import { AppError, fail, logActivity, logAudit, rid, sha256 } from "../util";
 import { errorText, wrapResult } from "./prompt";
 import { who, type Thread } from "./threads";
-import { execTool, readOnlyView, toolAllowed, toolByName, type AssistantTool, type Quote } from "./tools";
+import { kitFor } from "./staff";
+import { readOnlyView, type AssistantTool, type Quote } from "./tools";
 
 type Json = Record<string, unknown>;
 export const confirmTtl = () => Number(process.env.ASSISTANT_CONFIRM_TTL_MS || 5 * 60_000);
@@ -55,14 +56,18 @@ export async function decide(ctx: Ctx, token: string, args: Json | null, how: "c
   const [a] = token.length >= 16 && token.length <= 64 ? await ctx.db.select().from(assistantActions).where(eq(assistantActions.tokenHash, sha256(token))) : [];
   if (!a || a.userId !== w.userId || a.accountId !== w.accountId) fail("این درخواست تأیید معتبر نیست.", 404);
   const row = a!;
-  const tool = toolByName(row.tool);
+  // the tool set is the thread's: a staff console proposal runs only as a staff tool, a panel one only as a panel tool
+  const [th] = await ctx.db.select({ mode: assistantThreads.mode }).from(assistantThreads).where(eq(assistantThreads.id, row.threadId));
+  const kit = kitFor(th?.mode);
+  const staff = kit.mode === "staff";
+  const tool = kit.byName(row.tool);
   if (how === "confirm") {
     // the arguments the person saw must be exactly the ones proposed; anything else burns the token
     const tampered = !args || argsHash(w.userId, w.accountId, row.tool, args) !== row.argsHash || row.argsHash !== argsHash(row.userId, row.accountId, row.tool, row.args);
-    if (tampered || !tool || readOnlyView(ctx) || !(await toolAllowed(ctx, tool, "danger"))) {
+    if (tampered || !tool || (!staff && readOnlyView(ctx)) || !(await kit.allowed(ctx, tool, "danger"))) {
       await ctx.db.update(assistantActions).set({ status: "cancelled", decidedAt: new Date() }).where(and(eq(assistantActions.id, row.id), eq(assistantActions.status, "pending")));
       if (tampered) fail("مشخصات این اقدام تغییر کرده است؛ برای امنیت لغو شد. دوباره از دستیار بخواهید.", 409);
-      fail(readOnlyView(ctx) ? "در حالت مشاهده حساب مشتری، دستیار فقط می‌خواند و اقدامی انجام نمی‌دهد." : "نقش شما در این حساب اجازه این کار را ندارد.", 403);
+      fail(!staff && readOnlyView(ctx) ? "در حالت مشاهده حساب مشتری، دستیار فقط می‌خواند و اقدامی انجام نمی‌دهد." : "نقش شما در این حساب اجازه این کار را ندارد.", 403);
     }
   }
   // single use: only one request can move it out of pending, and only before it expires
@@ -82,16 +87,21 @@ export async function decide(ctx: Ctx, token: string, args: Json | null, how: "c
     return { id: row.id, threadId: row.threadId, status: "cancelled", summary, tool: row.tool };
   }
   try {
-    const out = await execTool(ctx, tool!, row.args);
+    const out = await kit.exec(ctx, tool!, row.args);
     const summary = tool!.brief(out, row.args);
     await ctx.db.update(assistantActions).set({ result: summary }).where(eq(assistantActions.id, row.id));
     await settleMessage(ctx, row, "done", wrapResult(row.tool, out), summary);
-    await logActivity(ctx.db, auth.uid, "sparkles", "دستیار گره (با تأیید): " + row.summary.slice(0, 160), ctx.ip);
-    if (auth.uid !== auth.user.id) await logAudit(ctx.db, actor(ctx), "دستیار گره: " + row.tool, row.id, ctx.ip);
+    // every staff action is audited as done through the assistant (the RPC adds its own line too)
+    if (staff) await logAudit(ctx.db, actor(ctx), "via assistant (دستیار گره): " + row.tool + " — " + row.summary.slice(0, 160), row.id, ctx.ip);
+    else {
+      await logActivity(ctx.db, auth.uid, "sparkles", "دستیار گره (با تأیید): " + row.summary.slice(0, 160), ctx.ip);
+      if (auth.uid !== auth.user.id) await logAudit(ctx.db, actor(ctx), "دستیار گره: " + row.tool, row.id, ctx.ip);
+    }
     return { id: row.id, threadId: row.threadId, status: "done", summary, tool: row.tool };
   } catch (e) {
     const msg = errorText(e);
     await ctx.db.update(assistantActions).set({ status: "failed", result: msg }).where(eq(assistantActions.id, row.id));
+    if (staff) await logAudit(ctx.db, actor(ctx), "via assistant (دستیار گره): " + row.tool + " ناموفق — " + msg.slice(0, 160), row.id, ctx.ip);
     await settleMessage(ctx, row, "failed", wrapResult(row.tool, { error: msg }), msg);
     return { id: row.id, threadId: row.threadId, status: "failed", summary: msg, tool: row.tool };
   }

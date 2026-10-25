@@ -304,14 +304,14 @@ describe("quality gate: self-review pass", () => {
 });
 
 describe("site language in projects", () => {
-  it("builds what the request asks for: English, Arabic, German or Persian", async () => {
+  it("builds what the request asks for: English, Arabic, German or Persian, with copy in that language", async () => {
     await asUser();
     const cases: [string, string, string, string][] = [
       ["یک سایت انگلیسی برای کافه بساز", "en", "ltr", "Reserve"],
       ["Build a landing page for my coffee shop", "en", "ltr", "Reserve"],
       ["یک سایت نوبت‌دهی برای آرایشگاه", "fa", "rtl", "نوبت"],
-      ["Build a website in German for a bakery", "de", "ltr", "Reserve"],
-      ["یک سایت عربی برای رستوران", "ar", "rtl", "Reserve"],
+      ["Build a website in German for a bakery", "de", "ltr", "Tisch reservieren"],
+      ["یک سایت عربی برای رستوران", "ar", "rtl", "احجز طاولتك"],
     ];
     for (const [prompt, lang, dir, word] of cases) {
       const id = await call<string>("builder.create", { prompt, stack: "static" });

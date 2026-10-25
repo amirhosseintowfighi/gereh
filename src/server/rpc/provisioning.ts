@@ -13,7 +13,7 @@ import { lineAmount, listUndelivered } from "../provisioning";
 import { virt } from "../virt/driver";
 import { retryRelayout } from "../virt/relayout";
 import { addTask, fail, logActivity, logAudit, nextId, notify, rid } from "../util";
-import { NS, errorText, sendCredentials, serverSpec } from "../worker/provision";
+import { NS, errorText, scrubRootpass, sendCredentials, serverSpec } from "../worker/provision";
 
 const key = z.string().max(80).regex(/^[\w-]+:\d+$/);
 const HOST_RE = /^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
@@ -51,7 +51,9 @@ async function retryOne(ctx: Ctx, k: string) {
     // build timed out: poll the hypervisor again with the original root password
     const [w] = await ctx.db.select().from(jobs).where(and(eq(jobs.type, "provision.server"), sql`(${jobs.payload}->>'serverId') = ${o.srv.id}`)).orderBy(desc(jobs.id)).limit(1);
     await ctx.db.update(servers).set({ provisionError: null }).where(eq(servers.id, o.srv.id));
-    await enqueue(ctx.db, "provision.server", { phase: "wait", serverId: o.srv.id, rootpass: (w?.payload as { rootpass?: string } | undefined)?.rootpass ?? "", tries: 0 });
+    // the sealed password is passed on as is; a job queued before sealing had it plain (enqueue seals that one)
+    const wp = (w?.payload ?? {}) as { rootpassEnc?: string; rootpass?: string };
+    await enqueue(ctx.db, "provision.server", { phase: "wait", serverId: o.srv.id, ...(wp.rootpassEnc ? { rootpassEnc: wp.rootpassEnc } : { rootpass: wp.rootpass ?? "" }), tries: 0 });
     return;
   }
   if (o.job) await ctx.db.update(jobs).set({ status: "pending", attempts: 0, runAt: new Date(), lockedAt: null }).where(eq(jobs.id, o.job.id));
@@ -96,6 +98,8 @@ async function deliverServer(ctx: Ctx, o: Awaited<ReturnType<typeof order>>, d: 
   await logActivity(ctx.db, o.userId, "server", "سرور " + info.hostname + " تحویل شد");
   await notify(ctx.db, o.userId, "server", "سرور " + info.hostname + " آماده است");
   if (d.rootpass) await sendCredentials(ctx.db, { id: sid!, userId: o.userId, name: info.hostname, ip: info.ip, hostname: info.hostname }, d.rootpass);
+  // the worker's generated password never reached the customer: no job keeps it
+  await scrubRootpass(ctx.db, sid!);
   return sid!;
 }
 
@@ -176,7 +180,7 @@ export const provisioningRpc = {
           .where(and(eq(jobs.id, o.job.id), sql`(${jobs.payload}->>'resolved') is null`)).returning({ id: jobs.id });
         if (!r.length) fail("این سفارش قبلا بسته شده است.");
       }
-      if (o.srv) await tx.delete(servers).where(eq(servers.id, o.srv.id));
+      if (o.srv) { await tx.delete(servers).where(eq(servers.id, o.srv.id)); await scrubRootpass(tx, o.srv.id); }
       await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, o.userId));
       await tx.insert(transactions).values({ id: rid("TX"), userId: o.userId, type: "refund", amount, method: "کیف پول", desc: "بازگشت وجه سفارش تحویل‌نشده " + o.invoiceId + (item ? " (" + item + ")" : "") });
       await notify(tx, o.userId, "wallet", "مبلغ " + amount.toLocaleString("fa-IR") + " تومان بابت سفارش تحویل‌نشده به کیف پول بازگشت");

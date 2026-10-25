@@ -16,7 +16,12 @@ const confirm = () => import("../assistant/confirm");
 const prompt = () => import("../assistant/prompt");
 
 export const assistantRpc = {
-  "assistant.threads": method(z.tuple([]), async (ctx): Promise<AssistantThreadView[]> => (await threads()).listThreads(ctx.db, needUser(ctx))),
+  /** the panel's threads, or with "staff" the staff console's (staff in their own session only) */
+  "assistant.threads": method(z.tuple([z.enum(["customer", "staff"]).optional()]), async (ctx, [mode]): Promise<AssistantThreadView[]> => {
+    const a = needUser(ctx);
+    if (mode === "staff" && !(a.user.role === "admin" && a.uid === a.user.id)) fail("اجازه این کار را ندارید.", 403);
+    return (await threads()).listThreads(ctx.db, a, mode ?? "customer");
+  }),
 
   "assistant.thread": method(z.tuple([id]), async (ctx, [tid]): Promise<{ id: string; title: string; spent: number; messages: AssistantMessageView[] }> => {
     const t = await threads();

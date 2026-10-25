@@ -5,7 +5,7 @@
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { costOf, estimateTokens } from "@/lib/ai";
-import { ASSISTANT, type AssistantContext, type AssistantEvent } from "@/lib/assistant";
+import { ASSISTANT, type AssistantContext, type AssistantEvent, type AssistantMode } from "@/lib/assistant";
 import { faDate } from "@/lib/jalali";
 import { isAiError } from "../ai/endpoints";
 import { openMeter, panelCaller, upstreamError, type ResolvedModel } from "../ai/service";
@@ -15,10 +15,11 @@ import type { Ctx } from "../ctx";
 import { assistantMessages, assistantThreads, paasApps, paasDbs, servers } from "../db/schema";
 import { logActivity, rid } from "../util";
 import { decide, lapsePending, propose } from "./confirm";
-import { assistantModels, errorText, refuseModel, systemPrompt, wrapResult } from "./prompt";
+import { assistantModels, errorText, refuseModel, staffSystemPrompt, systemPrompt, wrapResult } from "./prompt";
 import { simPlan, type SimDone } from "./sim";
+import { kitFor } from "./staff";
 import { newThread, ownThread, threadRows, windowOf, type Row, type Thread } from "./threads";
-import { execTool, readOnlyView, toolAllowed, toolByName, toolCtx, toolSpecs, type Quote } from "./tools";
+import { readOnlyView, toolCtx, type Quote } from "./tools";
 
 type Json = Record<string, unknown>;
 export const MAX_STEPS = 8;
@@ -33,6 +34,8 @@ class Stopped extends Error {}
 
 export type TurnInput = {
   ctx: Ctx; threadId?: string | null; message?: string; context?: AssistantContext | null;
+  /** staff: the operator console on /admin (the route admits only staff in their own session) */
+  mode?: AssistantMode;
   confirm?: { token: string; args: Json }; cancel?: { token: string };
   signal?: AbortSignal; emit: (e: AssistantEvent) => void;
 };
@@ -75,7 +78,7 @@ function unwrap(content: string): unknown {
 }
 
 /** the simulator's view of the turn so far: the customer's words and what the tools returned */
-function simInput(rows: Row[], context: AssistantContext | null, tools: Set<string>) {
+function simInput(rows: Row[], context: AssistantContext | null, tools: Set<string>, mode: AssistantMode) {
   const last = rows.findLastIndex((r) => r.role === "user");
   const after = rows.slice(last + 1);
   const calls = new Map(after.flatMap((r) => (r.toolCalls ?? []).map((c) => [c.id, c] as const)));
@@ -85,7 +88,7 @@ function simInput(rows: Row[], context: AssistantContext | null, tools: Set<stri
     try { args = JSON.parse(calls.get(r.toolCallId ?? "")?.function.arguments || "{}"); } catch { /* keep {} */ }
     return { name: r.toolName ?? "", args, out: unwrap(r.content), ok: m.status === "ok", summary: m.summary ?? "" };
   });
-  return { ask: rows[last]?.content ?? "", earlier: rows.slice(0, Math.max(0, last)).filter((r) => r.role === "user").map((r) => r.content), context, done, tools };
+  return { ask: rows[last]?.content ?? "", earlier: rows.slice(0, Math.max(0, last)).filter((r) => r.role === "user").map((r) => r.content), context, done, tools, mode };
 }
 
 type StepOut = { text: string; calls: ToolCall[]; usage: ChatUsage | null };
@@ -140,7 +143,9 @@ async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: J
 export async function runTurn(i: TurnInput): Promise<void> {
   const { ctx, emit } = i;
   const db = ctx.db, auth = ctx.auth!;
-  let thread: Thread | null = i.threadId ? await ownThread(db, auth, i.threadId) : null;
+  const mode: AssistantMode = i.mode === "staff" ? "staff" : "customer";
+  const kit = kitFor(mode), staff = mode === "staff";
+  let thread: Thread | null = i.threadId ? await ownThread(db, auth, i.threadId, mode) : null;
   if (i.threadId && !thread) return emit({ type: "error", message: "گفتگو پیدا نشد.", code: "not_found" });
 
   // the person's decision on a proposed action
@@ -148,7 +153,8 @@ export async function runTurn(i: TurnInput): Promise<void> {
     let r;
     try { r = await decide(ctx, (i.confirm ?? i.cancel)!.token, i.confirm?.args ?? null, i.confirm ? "confirm" : "cancel"); } catch (e) { return emit({ type: "error", message: errorText(e), code: "confirm_rejected" }); }
     if (thread && r.threadId !== thread.id) return emit({ type: "error", message: "این تأیید مربوط به گفتگوی دیگری است.", code: "confirm_rejected" });
-    thread = (await ownThread(db, auth, r.threadId))!;
+    thread = await ownThread(db, auth, r.threadId, mode);
+    if (!thread) return emit({ type: "error", message: "گفتگو پیدا نشد.", code: "not_found" });
     emit({ type: "decided", id: r.id, status: r.status, summary: r.summary });
     if (r.status === "cancelled") {
       const [m] = await db.insert(assistantMessages).values({ threadId: thread.id, role: "assistant", content: "باشد، این کار انجام نشد." }).returning({ id: assistantMessages.id });
@@ -158,7 +164,7 @@ export async function runTurn(i: TurnInput): Promise<void> {
   } else {
     const text = (i.message ?? "").trim();
     if (!text) return emit({ type: "error", message: "پیام خالی است.", code: "invalid_request" });
-    if (!thread) { thread = await newThread(db, auth); emit({ type: "thread", id: thread.id, title: thread.title }); }
+    if (!thread) { thread = await newThread(db, auth, mode); emit({ type: "thread", id: thread.id, title: thread.title }); }
     await lapsePending(ctx, thread.id);
     await db.insert(assistantMessages).values({ threadId: thread.id, role: "user", content: text.slice(0, 8000), meta: i.context ? { context: i.context } : {} });
     if (thread.title === ASSISTANT.newTitle || !thread.title) {
@@ -171,10 +177,11 @@ export async function runTurn(i: TurnInput): Promise<void> {
   const candidates = await assistantModels(db);
   let model = candidates[0];
   if (!model) return emit({ type: "error", message: "در حال حاضر مدلی برای دستیار در دسترس نیست؛ کمی بعد دوباره تلاش کنید.", code: "no_model" });
-  const readOnly = readOnlyView(ctx);
-  // staff viewing a customer pay for their own questions; a team member's use is the account's, like other AI use
-  const caller = await panelCaller(db, readOnly ? auth.user.id : auth.uid);
-  const specs = await toolSpecs(ctx);
+  const readOnly = !staff && readOnlyView(ctx);
+  // staff pay for their own questions (in the console, or viewing a customer) from their own wallet; a team
+  // member's use is the account's, like other AI use
+  const caller = await panelCaller(db, readOnly || staff ? auth.user.id : auth.uid);
+  const specs = await kit.specs(ctx);
   const names = new Set(specs.map((s) => s.function.name));
   const abort = new AbortController();
   const onAbort = () => abort.abort();
@@ -188,18 +195,24 @@ export async function runTurn(i: TurnInput): Promise<void> {
       const lastUser = all.findLast((r) => r.role === "user");
       const context = ((lastUser?.meta as { context?: AssistantContext })?.context) ?? null;
       const messages: ChatMessage[] = [
-        { role: "system", content: systemPrompt({ name: auth.user.name, context: await contextLine(toolCtx(ctx), context), summary, readOnly, today: faDate(new Date()) }) },
+        { role: "system", content: staff
+          ? staffSystemPrompt({ name: auth.user.name, role: auth.user.staffRole ?? "viewer", tools: [...names], summary, today: faDate(new Date()) })
+          : systemPrompt({ name: auth.user.name, context: await contextLine(toolCtx(ctx), context), summary, readOnly, today: faDate(new Date()) }) },
         ...toMessages(rows),
       ];
       const inEst = estimateTokens(JSON.stringify(messages).length + JSON.stringify(specs).length);
       const meter = await openMeter(db, { caller, model, format: "panel", stream: true, reserve: costOf(inEst, MAX_OUT, model) });
-      if (isAiError(meter)) { emit({ type: "error", message: meter.message, code: meter.code }); break; }
+      if (isAiError(meter)) {
+        const own = staff && meter.code === "insufficient_balance" ? "موجودی کیف پول شخصی شما (حساب کارمندی) برای هزینه دستیار کافی نیست؛ از مدیر بخواهید آن را شارژ کند." : meter.message;
+        emit({ type: "error", message: own, code: meter.code });
+        break;
+      }
 
       const partial = { text: "" };
       const stall = setTimeout(() => abort.abort(), STEP_TIMEOUT_MS);
       let r: StepOut;
       try {
-        r = await step({ model, messages, tools: specs, signal: abort.signal, sim: () => simPlan(simInput(all, context, names)), onDelta: (d) => emit({ type: "text", delta: d }), partial });
+        r = await step({ model, messages, tools: specs, signal: abort.signal, sim: () => simPlan(simInput(all, staff ? null : context, names, mode)), onDelta: (d) => emit({ type: "text", delta: d }), partial });
       } catch (e) {
         clearTimeout(stall);
         const stopped = e instanceof Stopped || abort.signal.aborted || (e as Error).name === "AbortError";
@@ -234,17 +247,17 @@ export async function runTurn(i: TurnInput): Promise<void> {
 
       for (const c of r.calls) {
         const save = (content: string, meta: Json) => db.insert(assistantMessages).values({ threadId: thread!.id, role: "tool", toolCallId: c.id, toolName: c.function.name.slice(0, 80), content, meta });
-        const t = toolByName(c.function.name);
+        const t = kit.byName(c.function.name);
         let args: Json;
         try { const p = JSON.parse(c.function.arguments || "{}"); args = p && typeof p === "object" && !Array.isArray(p) ? p : {}; } catch { args = { __invalid: true }; }
         const risk = t ? t.risk(args) : "read";
-        if (!t || !names.has(t.name) || args.__invalid || !(await toolAllowed(ctx, t, risk))) {
+        if (!t || !names.has(t.name) || args.__invalid || !(await kit.allowed(ctx, t, risk))) {
           const msg = !t || !names.has(t.name) ? "این ابزار در دسترس نیست." : args.__invalid ? "آرگومان‌های ابزار JSON معتبر نیست." : readOnly ? "در حالت مشاهده حساب مشتری فقط خواندن مجاز است." : "نقش شما در این حساب اجازه این کار را ندارد.";
           await save(wrapResult(c.function.name, { error: msg }), { label: c.function.name, risk, status: "error", summary: msg });
           emit({ type: "tool_result", id: c.id, name: c.function.name, ok: false, summary: msg });
           continue;
         }
-        const label = await t.label(toolCtx(ctx), args).catch(() => t.name);
+        const label = await t.label(kit.view(ctx), args).catch(() => t.name);
         emit({ type: "tool", id: c.id, name: t.name, label, risk });
         if (risk === "danger") {
           if (pending) {
@@ -254,7 +267,7 @@ export async function runTurn(i: TurnInput): Promise<void> {
             continue;
           }
           let q: Quote;
-          try { q = t.quote ? await t.quote(toolCtx(ctx), args) : { title: label, summary: label, resource: "", cost: null, costNote: "" }; } catch (e) {
+          try { q = t.quote ? await t.quote(kit.view(ctx), args) : { title: label, summary: label, resource: "", cost: null, costNote: "" }; } catch (e) {
             const msg = errorText(e);
             await save(wrapResult(t.name, { error: msg }), { label, risk, status: "error", summary: msg });
             emit({ type: "tool_result", id: c.id, name: t.name, ok: false, summary: msg });
@@ -269,11 +282,11 @@ export async function runTurn(i: TurnInput): Promise<void> {
           continue;
         }
         let out: unknown, ok = true, msg = "";
-        try { out = await execTool(ctx, t, args); } catch (e) { ok = false; msg = errorText(e); }
+        try { out = await kit.exec(ctx, t, args); } catch (e) { ok = false; msg = errorText(e); }
         const brief = ok ? t.brief(out, args) : msg;
         await save(wrapResult(t.name, ok ? out : { error: msg }), { label, risk, status: ok ? "ok" : "error", summary: brief });
         emit({ type: "tool_result", id: c.id, name: t.name, ok, summary: brief });
-        if (ok && risk === "safe") await logActivity(db, auth.uid, "sparkles", "دستیار گره: " + label.replace(/…$/, ""), ctx.ip);
+        if (ok && risk === "safe" && !staff) await logActivity(db, auth.uid, "sparkles", "دستیار گره: " + label.replace(/…$/, ""), ctx.ip);
       }
       if (pending) break;
       if (n === MAX_STEPS - 1) {

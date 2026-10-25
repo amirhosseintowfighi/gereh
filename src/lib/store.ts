@@ -449,7 +449,7 @@ export const api = {
   },
   /** «دستیار گره»: the chat itself streams from /api/assistant/chat */
   assistant: {
-    threads: () => rpc<AssistantThreadView[]>("assistant.threads"),
+    threads: (mode?: "customer" | "staff") => rpc<AssistantThreadView[]>("assistant.threads", ...(mode ? [mode] : [])),
     thread: (id: string) => rpc<{ id: string; title: string; spent: number; messages: AssistantMessageView[] }>("assistant.thread", id),
     deleteThread: (id: string) => rpc("assistant.deleteThread", id),
     adminSettings: () => rpc<{ model: string; effective: string; env: boolean; models: { id: string; name: string }[] }>("assistant.adminSettings"),
