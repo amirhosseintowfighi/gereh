@@ -2,6 +2,7 @@
    customers get only their own records, staff get everything. Dates arrive pre-formatted
    in the Jalali calendar (Asia/Tehran) because that is all the UI ever shows. */
 import type { Plan, Sku, Tld } from "./catalog";
+import type { TicketAiState } from "./support-ai";
 
 export type Status = string;
 export type Role = "user" | "admin";
@@ -34,8 +35,9 @@ export type DnsRecord = { id: string; type: string; name: string; value: string;
 export type Domain = { id: string; userId: string; name: string; registered: string; expires: string; autoRenew: boolean; privacy: boolean; locked: boolean; status: Status; ns: string[]; dns: DnsRecord[]; authCode: string };
 export type Invoice = { id: string; userId: string; date: string; due: string; status: Status; items: { desc: string; amount: number }[]; tax: number; official: Official | null; paidAt: string };
 export type Transaction = { id: string; userId: string; date: string; type: "topup" | "payment" | "refund" | "commission" | "usage"; amount: number; method: string; desc: string };
-export type Message = { from: "user" | "staff"; name: string; at: string; text: string };
-export type Ticket = { id: string; userId: string; subject: string; dept: string; priority: string; status: Status; service: string; updated: string; assignee: string; messages: Message[] };
+/** `ai`: an automatic reply of «پشتیبانی AI» (labelled in the thread) */
+export type Message = { from: "user" | "staff"; name: string; at: string; text: string; ai?: boolean };
+export type Ticket = { id: string; userId: string; subject: string; dept: string; priority: string; status: Status; service: string; updated: string; assignee: string; messages: Message[]; ai?: TicketAiState };
 export type Coupon = { id: string; code: string; type: "percent" | "fixed"; value: number; used: number; limit: number; expires: string; active: boolean };
 export type Announcement = { id: string; title: string; body: string; level: "info" | "warning" | "critical"; at: string };
 export type Node = { id: string; loc: string; cpu: number; ram: number; disk: number; vms: number; status: Status; model: string };

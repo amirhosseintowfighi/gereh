@@ -18,7 +18,8 @@ export type JobType =
   | "mail.deliver" | "mail.billing" | "mail.dns" | "mail.daily"
   | "domains.alerts"
   | "vps.billing" | "vps.snapshots"
-  | "builder.watch" | "builder.fix" | "builder.maintain";
+  | "builder.watch" | "builder.fix" | "builder.maintain"
+  | "support.ai";
 
 /* Passwords never sit in jobs.payload in the clear: enqueue() stores each secret field as "<field>Enc" (sealed),
    the worker opens it just before the handler runs (openPayload), and the sealed copy is dropped once it served

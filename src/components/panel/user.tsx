@@ -17,6 +17,7 @@ import { NotifyChannels } from "./channels";
 import { AutoPaySwitch, OfficialInvoiceModal } from "./sales";
 import { TeamTab } from "./team";
 import { PendingCredentials } from "./server-credentials";
+import { AiReplyNote } from "./support-ai";
 import { ServerStateBadge } from "./server-pending";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
@@ -338,15 +339,17 @@ export function UserBilling() {
 export function TicketThread({ t, as = "user" }: { t: Ticket; as?: "user" | "staff" }) {
   const { notify } = useApp();
   const [text, setText] = useState("");
+  const lastAi = t.messages.findLastIndex((m) => m.ai);
   return (
     <div>
       <ol className="space-y-4">
         {t.messages.map((m, i) => (
           <li key={i} className={"flex gap-3 " + (m.from === "staff" ? "flex-row-reverse" : "")}>
-            <span className={"w-9 h-9 rounded-xl grid place-items-center text-sm font-black shrink-0 " + (m.from === "staff" ? "acc-bg" : "tile")} aria-hidden="true">{m.name[0]}</span>
-            <div className={"max-w-[85%] rounded-2xl p-4 " + (m.from === "staff" ? "bg-[#9cc9ff]/[0.08] border border-[#9cc9ff]/20" : "bg-white/[0.04] border border-white/[0.08]")}>
-              <div className="flex flex-wrap items-center gap-3 text-xs"><span className="font-bold">{m.name}</span>{m.from === "staff" && <Badge tone="blue">پشتیبانی گره</Badge>}<span className="text-white/50">{m.at}</span></div>
+            <span className={"w-9 h-9 rounded-xl grid place-items-center text-sm font-black shrink-0 " + (m.from === "staff" ? "acc-bg" : "tile")} aria-hidden="true">{m.ai ? <Icon name="sparkles" size={16} /> : m.name[0]}</span>
+            <div className={"max-w-[85%] rounded-2xl p-4 " + (m.ai ? "bg-violet-400/[0.07] border border-violet-300/20" : m.from === "staff" ? "bg-[#9cc9ff]/[0.08] border border-[#9cc9ff]/20" : "bg-white/[0.04] border border-white/[0.08]")}>
+              <div className="flex flex-wrap items-center gap-3 text-xs"><span className="font-bold">{m.name}</span>{m.ai ? <Badge tone="violet">پاسخ هوش مصنوعی</Badge> : m.from === "staff" && <Badge tone="blue">پشتیبانی گره</Badge>}<span className="text-white/50">{m.at}</span></div>
               <p className="text-sm text-white/80 leading-7 mt-2 whitespace-pre-wrap break-words">{m.text}</p>
+              {m.ai && <AiReplyNote t={t} latest={i === lastAi} as={as} />}
             </div>
           </li>
         ))}

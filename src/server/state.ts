@@ -19,6 +19,7 @@ import { paasState } from "./paas/state";
 import { EMPTY_GEO, geoState } from "./geo/state";
 import { EMPTY_STORAGE, storageState } from "./storage/state";
 import { aiState, EMPTY_AI } from "./ai/state";
+import { ticketAiStates } from "./support-ai/state";
 import { botConfig } from "./channels";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
@@ -93,7 +94,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     db.select().from(t.transactions).where(own(t.transactions.userId)).orderBy(desc(t.transactions.createdAt)),
     db.select().from(t.tickets).where(own(t.tickets.userId)).orderBy(desc(t.tickets.updatedAt)),
     admin ? db.select().from(t.ticketMessages).orderBy(asc(t.ticketMessages.id))
-      : db.select({ id: t.ticketMessages.id, ticketId: t.ticketMessages.ticketId, from: t.ticketMessages.from, name: t.ticketMessages.name, text: t.ticketMessages.text, createdAt: t.ticketMessages.createdAt }).from(t.ticketMessages).innerJoin(t.tickets, eq(t.tickets.id, t.ticketMessages.ticketId)).where(eq(t.tickets.userId, uid)).orderBy(asc(t.ticketMessages.id)),
+      : db.select({ id: t.ticketMessages.id, ticketId: t.ticketMessages.ticketId, from: t.ticketMessages.from, name: t.ticketMessages.name, text: t.ticketMessages.text, createdAt: t.ticketMessages.createdAt, ai: t.ticketMessages.ai }).from(t.ticketMessages).innerJoin(t.tickets, eq(t.tickets.id, t.ticketMessages.ticketId)).where(eq(t.tickets.userId, uid)).orderBy(asc(t.ticketMessages.id)),
     db.select().from(t.announcements).orderBy(desc(t.announcements.createdAt)),
     db.select().from(t.osTemplates).orderBy(asc(t.osTemplates.osid)),
     db.select().from(t.isos),
@@ -122,6 +123,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const group = <T, K extends keyof T>(rows: T[], key: K) => { const m = new Map<T[K], T[]>(); for (const r of rows) { const a = m.get(r[key]); if (a) a.push(r); else m.set(r[key], [r]); } return m; };
   const usageBy = group(samples, "serverId"), fwBy = group(fw, "serverId"), snapBy = group(snaps, "serverId"), bkBy = group(bks, "serverId"), taskBy = group(tasks, "serverId"), dnsBy = group(dns, "domainId");
   const itemsBy = group(items, "invoiceId"), msgBy = group(msgs, "ticketId");
+  const aiBy = await ticketAiStates(db, tickets.map((x) => x.id), admin);
   const servicesBy = new Map<string, number>();
   for (const r of [...servers, ...hosting, ...domains]) servicesBy.set(r.userId, (servicesBy.get(r.userId) || 0) + 1);
 
@@ -160,7 +162,8 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     invoices: invoices.map((i) => ({ id: i.id, userId: i.userId, date: faDate(i.createdAt), due: faDate(i.dueAt), status: i.status, tax: i.taxRate, official: i.official ?? null, paidAt: i.paidAt ? faDateTime(i.paidAt) : "", items: (itemsBy.get(i.id) || []).map((x) => ({ desc: x.desc, amount: x.amount })) })),
     transactions: txs.map((x) => ({ id: x.id, userId: x.userId, date: faDate(x.createdAt), type: x.type, amount: x.amount, method: x.method, desc: x.desc })),
     tickets: tickets.map((x) => ({ id: x.id, userId: x.userId, subject: x.subject, dept: x.dept, priority: x.priority, status: x.status, service: x.service, assignee: x.assignee, updated: faDate(x.updatedAt),
-      messages: (msgBy.get(x.id) || []).map((m) => ({ from: m.from, name: m.name, text: m.text, at: faDateTime(m.createdAt) })) })),
+      messages: (msgBy.get(x.id) || []).map((m) => ({ from: m.from, name: m.name, text: m.text, at: faDateTime(m.createdAt), ...(m.ai ? { ai: true } : {}) })),
+      ...((s) => (s ? { ai: s } : {}))(aiBy.get(x.id)) })),
     sshKeys: keys.map((k) => ({ id: k.id, name: k.name, fingerprint: k.fingerprint, added: faDate(k.createdAt) })),
     apiTokens: tokens.map((k) => ({ id: k.id, name: k.name, scope: k.scope, created: faDate(k.createdAt), lastUsed: k.lastUsedAt ? faDate(k.lastUsedAt) : "—", expires: k.expiresAt ? faDate(k.expiresAt) : "بدون انقضا" })),
     sessions: sess.map((x) => ({ id: x.id.slice(0, 16), device: x.device || "مرورگر", ip: x.ip, place: "", last: ago(x.lastSeenAt), current: x.id === auth.sessionId })),

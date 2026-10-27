@@ -14,6 +14,7 @@ import { AreaChart, AsyncButton, Bars, CopyText, DataTable, ICON_BTN, IconBtn, M
 import { InvoiceModal, TicketThread } from "./user";
 import { UndeliveredCard, VirtDryRun } from "./admin-orders";
 import { UserLink } from "./admin-order-detail";
+import { AiDraftPanel, SupportAiMetricsCard, SupportAiSettingsCard } from "./admin-support-ai";
 
 const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 const amountInput = (v: string) => toEnDigits(v).replace(/\D/g, "");
@@ -257,7 +258,10 @@ export function AdminTickets({ id }: { id?: string }) {
     <div>
       <PageTitle back={["/admin/tickets", "تیکت‌ها"]} title={t.subject} sub={<span className="flex flex-wrap gap-3 items-center"><span className="mono text-xs">{t.id}</span><span>{owner(t.userId)}</span><StatusBadge s={t.status} /></span>} />
       <div className="grid xl:grid-cols-[1fr_300px] gap-4">
-        <Card><TicketThread t={t} as="staff" /></Card>
+        <div className="space-y-4 min-w-0">
+          <AiDraftPanel ticketId={t.id} version={t.messages.length + ":" + (t.ai?.pendingDraft ? 1 : 0) + ":" + (t.ai?.turns ?? 0)} />
+          <Card><TicketThread t={t} as="staff" /></Card>
+        </div>
         <div className="space-y-4">
           <Card title="مدیریت تیکت" icon="settings-2">
             <div className="space-y-4">
@@ -279,10 +283,11 @@ export function AdminTickets({ id }: { id?: string }) {
   return (
     <div>
       <PageTitle title="تیکت‌ها" sub={fa(db.tickets.filter((x) => x.status !== "closed").length) + " تیکت باز"} />
+      <SupportAiMetricsCard />
       <DataTable rows={db.tickets} searchKeys={["subject", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["open", "customer-reply", "answered", "closed"] }, { key: "priority", label: "اولویت", options: ["high", "normal", "low"] }]} onRowClick={(r) => router.push(("/admin/tickets/" + r.id) as never)} pageSize={10}
         columns={[
           { key: "id", label: "شماره", render: (r) => <span className="mono text-xs">{r.id}</span> },
-          { key: "subject", label: "موضوع", render: (r) => <span className="font-bold">{r.subject}</span> },
+          { key: "subject", label: "موضوع", render: (r) => <span className="font-bold">{r.subject}{r.ai?.handled && <span className="mr-2"><Badge tone={r.ai.escalated ? "red" : r.ai.pendingDraft ? "amber" : "violet"}>{r.ai.escalated ? "AI ← انسان" : r.ai.pendingDraft ? "AI پیش‌نویس" : "AI"}</Badge></span>}</span> },
           { key: "owner", label: "مشتری", render: (r) => owner(r.userId) },
           { key: "dept", label: "واحد" }, { key: "priority", label: "اولویت", render: (r) => <StatusBadge s={r.priority} /> },
           { key: "assignee", label: "کارشناس", render: (r) => r.assignee || <span className="text-white/50">—</span> },
@@ -650,8 +655,9 @@ export function AdminSettings() {
   return (
     <div>
       <PageTitle title="تنظیمات سیستم" />
-      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش تنظیمات" options={[{ id: "general", label: "عمومی", icon: "settings-2" }, { id: "finance", label: "مالی و درگاه", icon: "wallet" }, { id: "notify", label: "پیامک و ایمیل", icon: "mail" }, { id: "staff", label: "مدیران و دسترسی", icon: "users" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش تنظیمات" options={[{ id: "general", label: "عمومی", icon: "settings-2" }, { id: "finance", label: "مالی و درگاه", icon: "wallet" }, { id: "notify", label: "پیامک و ایمیل", icon: "mail" }, { id: "staff", label: "مدیران و دسترسی", icon: "users" }, { id: "support-ai", label: "پشتیبانی AI", icon: "sparkles" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
+        {tab === "support-ai" && <SupportAiSettingsCard />}
         {tab === "general" && (
           <Card title="تنظیمات عمومی" icon="settings-2">
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">

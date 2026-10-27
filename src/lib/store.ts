@@ -16,6 +16,7 @@ import type { RuntimeConfig } from "./paas-runtime";
 import { noteRpcError } from "./rpc-errors";
 import type { AiKind } from "./ai";
 import type { AssistantMessageView, AssistantThreadView } from "./assistant";
+import type { SupportAiMetrics, SupportAiRunView, SupportAiSettings } from "./support-ai";
 import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
 import type { AlertMetric, CdnPoint, CdnRule, CdnView, DnsSuggestion, DomainAlertView, TransferView, WhoisView } from "./domains";
@@ -115,7 +116,7 @@ export type StorageGrant = { bucketId: string; perm: "read" | "write" };
 export type StorageListing = { folders: { prefix: string; name: string }[]; objects: { key: string; name: string; size: number; modified: string }[]; next: string | null };
 export type GeoRecordInput = { name: string; type: "A" | "AAAA" | "CNAME" | "TXT" | "MX"; iran: string; world: string; ttl: number; priority: number | null };
 export type PendingCredential = { serverId: string; kind: "root" | "rescue"; username: string; name: string; ip: string; createdAt: string; expiresAt: string; revealed: boolean };
-const READ_ONLY = new Set(["assistant.threads", "assistant.thread", "assistant.adminSettings", "servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.egress", "paas.platformProxy", "paas.adminEgress", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
+const READ_ONLY = new Set(["supportAi.runs", "supportAi.metrics", "supportAi.settings", "assistant.threads", "assistant.thread", "assistant.adminSettings", "servers.pendingCredentials", "servers.revealCredential", "servers.ackCredential", "builder.list", "builder.get", "builder.file", "provisioning.list", "provisioning.dryRun","domains.exportZone", "domains.nsCheck", "domains.extras", "domains.suggestions", "domains.whois", "domains.contact", "domains.transfers", "domains.cdn", "domains.cdnAnalytics", "domains.alerts", "domains.adminTransfers", "dbaas.inspect", "dbaas.stats", "dbaas.userCredentials", "dbaas.panelCredentials", "dbaas.backupLink", "billing.quote", "domains.check", "hosting.sso", "paas.deployment", "paas.logs", "paas.dbCredentials", "paas.adminTest", "paas.job", "paas.scanReport", "paas.runtime", "paas.egress", "paas.platformProxy", "paas.adminEgress", "paas.adminPlanLimits", "paas.adminLogDays", "paas.instances", "paas.consoleRun", "paas.consoleHistory", "paas.disks", "paas.fsList", "paas.fsRead", "paas.fsSearch", "paas.sftpReveal", "paas.diskBackupLink", "paas.logSearch", "paas.envFile", "paas.releases", "paas.metrics", "paas.consoleInput", "paas.consoleResize", "paas.consoleClose", "inquiry.reveal", "inquiry.adminProvider", "geo.adminTest", "ai.adminTest", "ai.adminDefaults", "ai.chats", "ai.chatGet", "ai.logs", "ai.logBody", "ai.report", "storage.objects", "storage.uploadUrl", "storage.downloadUrl", "storage.share", "storage.adminTest", "mail.overview", "mail.domain", "mail.messages", "mail.message", "mail.stats", "mail.smtpReveal", "mail.adminList", "mail.adminTest"]);
 async function rpc<T = void>(name: string, ...args: unknown[]): Promise<T> {
   let res: Response;
   try {
@@ -242,6 +243,9 @@ export const api = {
     create: (t: { subject: string; dept: string; priority: string; service: string; message: string }) => rpc<string>("tickets.create", t),
     reply: (id: string, text: string, from: "user" | "staff" = "user") => rpc("tickets.reply", id, text, from),
     update: (id: string, patch: Partial<Ticket>) => rpc("tickets.update", id, patch),
+    /** under an AI reply: «مشکلم حل شد» / «با پشتیبان انسانی صحبت کنم» */
+    aiResolved: (id: string) => rpc("tickets.aiResolved", id),
+    aiHuman: (id: string) => rpc("tickets.aiHuman", id),
   },
   contact: {
     send: (m: { name: string; email: string; dept: string; subject: string; message: string }) => rpc("contact.send", m),
@@ -454,6 +458,15 @@ export const api = {
     deleteThread: (id: string) => rpc("assistant.deleteThread", id),
     adminSettings: () => rpc<{ model: string; effective: string; env: boolean; models: { id: string; name: string }[] }>("assistant.adminSettings"),
     adminSetModel: (model: string) => rpc("assistant.adminSetModel", model),
+  },
+  /** «پشتیبانی AI» (staff): drafts on a ticket or chat, metrics and settings */
+  supportAi: {
+    runs: (o: { ticketId?: string; chatId?: string }) => rpc<SupportAiRunView[]>("supportAi.runs", o),
+    send: (id: string, text?: string) => rpc("supportAi.send", id, ...(text === undefined ? [] : [text])),
+    reject: (id: string) => rpc("supportAi.reject", id),
+    metrics: (days = 30) => rpc<SupportAiMetrics>("supportAi.metrics", days),
+    settings: () => rpc<{ settings: SupportAiSettings; models: { id: string; name: string }[] }>("supportAi.settings"),
+    saveSettings: (patch: Partial<SupportAiSettings>) => rpc<SupportAiSettings>("supportAi.saveSettings", patch),
   },
   ai: {
     createKey: (k: AiKeyInput) => rpc<string>("ai.createKey", k),

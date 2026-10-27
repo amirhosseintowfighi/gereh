@@ -84,6 +84,8 @@ const handlers: Record<JobType, Handler> = {
   "builder.watch": (db, p) => builderWatch(db, p as never),
   "builder.fix": (db, p) => builderFix(db, p as never),
   "builder.maintain": (db) => builderMaintain(db),
+  // «پشتیبانی AI» on a new ticket or reply (lazy: it reaches the RPC registry through the assistant tools)
+  "support.ai": async (db, p) => (await import("../support-ai/engine")).supportAiJob(db, p as never),
 };
 
 /** periodic jobs: [name, interval in minutes] */

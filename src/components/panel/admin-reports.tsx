@@ -9,7 +9,7 @@ import { AreaChart, Bars, PageTitle, Select, StatCard } from "../ui-client";
 type Month = { month: string; key: string; invoices: number; net: number; vat: number; gross: number; refunds: number; commissions: number; topups: number; online: number; newCustomers: number };
 type Report = {
   finance: { months: Month[]; totals: Omit<Month, "month" | "key">; categories: { name: string; amount: number }[]; topCustomers: { id: string; name: string; email: string; amount: number }[]; gateways: { name: string; amount: number; count: number }[]; outstanding: { count: number; amount: number } };
-  sla: { days: number; tickets: number; answered: number; slaRate: number; overdueNow: string[]; agents: { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number }[] };
+  sla: { days: number; tickets: number; answered: number; slaRate: number; overdueNow: string[]; agents: { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number; ai?: boolean }[] };
 };
 const mil = (n: number) => fa(Math.round(n / 100_000) / 10, 1);
 const dur = (m: number) => (m >= 60 ? fa(Math.round(m / 6) / 10, 1) + " ساعت" : fa(m) + " دقیقه");
@@ -93,7 +93,7 @@ export function AdminReports() {
                   <thead className="text-white/55 text-xs"><tr>{["کارشناس", "پاسخ‌ها", "تیکت‌ها", "اولین پاسخ", "میانگین اولین پاسخ", "در زمان هدف"].map((h) => <th key={h} scope="col" className="text-right font-medium p-3">{h}</th>)}</tr></thead>
                   <tbody className="tabular">{s.agents.map((a) => (
                     <tr key={a.agent} className="border-t border-white/[0.06]">
-                      <th scope="row" className="text-right p-3 font-bold">{a.agent}</th><td className="p-3">{fa(a.replies)}</td><td className="p-3">{fa(a.tickets)}</td><td className="p-3">{fa(a.firstResponses)}</td>
+                      <th scope="row" className="text-right p-3 font-bold">{a.agent}{a.ai && <span className="mr-2"><Badge tone="violet">AI</Badge></span>}</th><td className="p-3">{fa(a.replies)}</td><td className="p-3">{fa(a.tickets)}</td><td className="p-3">{fa(a.firstResponses)}</td>
                       <td className="p-3">{a.firstResponses ? dur(a.avgFirstMin) : "—"}</td><td className="p-3">{a.firstResponses ? fa(Math.round((a.withinSla / a.firstResponses) * 100)) + "٪" : "—"}</td>
                     </tr>
                   ))}</tbody>

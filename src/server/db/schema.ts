@@ -209,6 +209,8 @@ export const ticketMessages = pgTable("ticket_messages", {
   ticketId: text("ticket_id").notNull().references(() => tickets.id, { onDelete: "cascade" }),
   from: text("from", { enum: ["user", "staff"] }).notNull(), name: text("name").notNull(), text: text("text").notNull(),
   createdAt: created(),
+  /** posted by «پشتیبانی AI» without a human (0037_support_ai) */
+  ai: boolean("ai").notNull().default(false),
 });
 
 export const sshKeys = pgTable("ssh_keys", {
@@ -1961,3 +1963,65 @@ export const aiExplanations = pgTable("ai_explanations", {
   simulated: boolean("simulated").notNull().default(false),
   createdAt: created(),
 }, (t) => [index("ai_explanations_lookup_ix").on(t.userId, t.errorHash, t.createdAt)]);
+
+/* ---------- «پشتیبانی AI», the AI first responder (0037_support_ai) ---------- */
+/** one AI run on a ticket or a live chat: the model's (or the simulator's) classification, the customer reply and the
+    staff-only note. `draft` waits for staff (send / edit and send / reject); `auto` was posted to the customer. */
+export const supportAiRuns = pgTable("support_ai_runs", {
+  id: text("id").primaryKey(),
+  ticketId: text("ticket_id").references(() => tickets.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  /** the customer message this run answers (ticket_messages.id or chat_messages.id) */
+  messageId: integer("message_id").notNull().default(0),
+  status: text("status", { enum: ["draft", "auto", "sent", "rejected", "superseded", "skipped", "error"] }).notNull(),
+  category: text("category").notNull().default(""),
+  confidence: real("confidence").notNull().default(0),
+  needsHuman: boolean("needs_human").notNull().default(true),
+  reason: text("reason").notNull().default(""),
+  /** why it was not posted automatically (staff only) */
+  escalation: text("escalation").notNull().default(""),
+  reply: text("reply").notNull().default(""),
+  internalNote: text("internal_note").notNull().default(""),
+  suggestedActions: jsonb("suggested_actions").$type<string[]>().notNull().default([]),
+  model: text("model").notNull().default(""),
+  cost: money("cost").notNull().default(0),
+  simulated: boolean("simulated").notNull().default(false),
+  /** the ticket or chat message the reply became */
+  postedId: integer("posted_id"),
+  decidedBy: text("decided_by").notNull().default(""),
+  edited: boolean("edited").notNull().default(false),
+  decidedAt: ts("decided_at"),
+  createdAt: created(),
+}, (t) => [index("support_ai_runs_ticket_ix").on(t.ticketId, t.createdAt), index("support_ai_runs_chat_ix").on(t.chatId, t.createdAt), index("support_ai_runs_created_ix").on(t.createdAt)]);
+
+/** per ticket or chat (exactly one of the two): AI turns, the customer's «با پشتیبان انسانی» escalation and «مشکلم حل شد»
+    resolution, and whether the first response (for SLA) was an AI auto reply */
+export const supportAiThreads = pgTable("support_ai_threads", {
+  key: text("key").primaryKey(), // "t:<ticket id>" or "c:<chat id>"
+  ticketId: text("ticket_id").references(() => tickets.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),
+  turns: integer("turns").notNull().default(0),
+  autoReplies: integer("auto_replies").notNull().default(0),
+  escalated: boolean("escalated").notNull().default(false),
+  escalatedAt: ts("escalated_at"),
+  resolvedAt: ts("resolved_at"),
+  firstResponseAi: boolean("first_response_ai").notNull().default(false),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("support_ai_threads_ticket_ix").on(t.ticketId)]);
+
+/** AI the platform pays for itself (never a customer's wallet): one row per metered request, by purpose */
+export const platformAiUsage = pgTable("platform_ai_usage", {
+  id: text("id").primaryKey(),
+  /** e.g. "support" */
+  purpose: text("purpose").notNull(),
+  /** what it was for, e.g. a ticket id */
+  ref: text("ref").notNull().default(""),
+  model: text("model").notNull(),
+  status: text("status", { enum: ["success", "error", "cancelled"] }).notNull(),
+  inTokens: integer("in_tokens").notNull().default(0),
+  outTokens: integer("out_tokens").notNull().default(0),
+  estimated: boolean("estimated").notNull().default(false),
+  cost: money("cost").notNull().default(0),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("platform_ai_usage_ix").on(t.purpose, t.createdAt)]);

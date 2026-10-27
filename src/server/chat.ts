@@ -11,6 +11,7 @@ import { plain } from "@/lib/markdown";
 import { rateLimit } from "./auth";
 import type { Ctx } from "./ctx";
 import { chatMessages, chats } from "./db/schema";
+import { enqueue } from "./jobs";
 import { sendEmail } from "./messaging";
 import { getSettings } from "./state";
 import { AppError, fail, rid, sha256 } from "./util";
@@ -19,14 +20,14 @@ export const START = z.object({ name: z.string().trim().min(2).max(60), email: z
 export const SEND = z.object({ text: z.string().trim().min(1).max(2000) });
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** up to two knowledge-base articles whose title/description share words with the question */
-export function suggest(text: string) {
+/** up to `n` knowledge-base articles whose title/description share words with the question */
+export function suggest(text: string, n = 2) {
   const words = text.toLowerCase().split(/[\s،,.?؟!]+/).filter((w) => w.length > 2);
   if (!words.length) return [];
   return KB.map((a) => {
     const hay = (a.title + " " + a.description + " " + plain(a.body)).toLowerCase();
     return { a, score: words.filter((w) => hay.includes(w)).length };
-  }).filter((x) => x.score >= Math.min(2, words.length)).sort((x, y) => y.score - x.score).slice(0, 2).map((x) => x.a);
+  }).filter((x) => x.score >= Math.min(2, words.length)).sort((x, y) => y.score - x.score).slice(0, n).map((x) => x.a);
 }
 
 const readToken = (header: string | null) => {
@@ -55,6 +56,7 @@ export async function startChat(ctx: Ctx, input: z.input<typeof START>, origin: 
       { chatId: id, from: "visitor", author: b.name, text: b.text },
       { chatId: id, from: "system", text: "پیام شما به پشتیبانی رسید؛ معمولاً در چند دقیقه پاسخ می‌دهیم." + (tips.length ? " تا آن موقع شاید این راهنماها کمک کنند: " + tips.map((a) => "[" + a.title + "](/kb/" + a.slug + ")").join("، ") : "") },
     ]);
+    await enqueue(tx, "support.ai", { chatId: id });
   });
   const s = await getSettings(ctx.db);
   void sendEmail(s.supportEmail, "گفتگوی آنلاین جدید: " + b.name, b.name + (email ? " <" + email + ">" : "") + "\n\n" + b.text + "\n\n" + origin + "/admin/chats?id=" + id).catch(() => {});
@@ -74,6 +76,8 @@ export async function visitorSend(ctx: Ctx, header: string | null, input: unknow
   await ctx.db.transaction(async (tx) => {
     await tx.insert(chatMessages).values({ chatId: c.id, from: "visitor", author: c.name, text });
     await tx.update(chats).set({ status: "open", unread: true, lastAt: new Date() }).where(eq(chats.id, c.id));
+    // «پشتیبانی AI» may answer while no staff member has joined (off unless enabled in its settings)
+    if (!c.agent) await enqueue(tx, "support.ai", { chatId: c.id });
   });
 }
 

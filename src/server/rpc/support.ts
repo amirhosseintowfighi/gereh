@@ -29,6 +29,8 @@ export const supportRpc = {
     await ctx.db.insert(tickets).values({ id, userId: a.uid, subject, dept: t.dept, priority: t.priority, service: t.service, status: "open" });
     await ctx.db.insert(ticketMessages).values({ ticketId: id, from: "user", name: me?.name || "کاربر", text: message });
     await enqueue(ctx.db, "tickets.sla", { ticketId: id, kind: "auto-reply" });
+    // «پشتیبانی AI»: the job decides (mode, filters, budget) whether to draft or answer
+    await enqueue(ctx.db, "support.ai", { ticketId: id });
     return id;
   }),
 
@@ -52,7 +54,7 @@ export const supportRpc = {
       await notify(ctx.db, t!.userId, "message-circle", "پاسخ جدید در تیکت " + t!.id);
       await enqueue(ctx.db, "notify.send", { userId: t!.userId, kind: "service", subject: "پاسخ تیکت " + t!.id, text: "به تیکت «" + t!.subject + "» پاسخ داده شد:\n\n" + text });
       await logAudit(ctx.db, actor(ctx), "پاسخ به تیکت", t!.id, ctx.ip);
-    }
+    } else await enqueue(ctx.db, "support.ai", { ticketId: t!.id });
   }),
 
   "tickets.update": method(z.tuple([z.string().max(20), z.object({ status: z.enum(STATUSES).optional(), priority: z.enum(PRIOS).optional(), dept: z.enum(DEPTS).optional(), assignee: z.string().max(80).optional() })]), async (ctx, [tid, patch]) => {

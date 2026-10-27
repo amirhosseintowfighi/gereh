@@ -9,7 +9,7 @@ import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { AI_KIND_LABEL, AI_KIND_PATH, AI_MODELS, costOf, estimateTokens, rulePrice, type AiKind } from "@/lib/ai";
 import { fa } from "@/lib/format";
 import type { DB, Tx } from "../db/client";
-import { aiBodies, aiKeys, aiModels, aiProjects, aiSettings, aiUsage, transactions, users } from "../db/schema";
+import { aiBodies, aiKeys, aiModels, aiProjects, aiSettings, aiUsage, platformAiUsage, transactions, users } from "../db/schema";
 import { rid, sha256 } from "../util";
 import { genId, readChat, readSSE, type ChatRequest, type ChatResult } from "./translate";
 import { aiUpstream, routeHeaders } from "./upstream";
@@ -70,7 +70,9 @@ export async function resolveModel(db: DB, id: string, allowed: string[], kind: 
   return online ? { ...m, id, upstream: (m.upstream || m.id) + ONLINE } : m;
 }
 
-export type Caller = { userId: string; keyId: string | null; dailyCap: number; monthlyCap: number; projectId?: string | null; routing?: string; logBodies?: boolean };
+export type Caller = { userId: string; keyId: string | null; dailyCap: number; monthlyCap: number; projectId?: string | null; routing?: string; logBodies?: boolean;
+  /** the platform pays (platformCaller): no wallet, no customer usage row; spend goes to platform_ai_usage */
+  platform?: { purpose: string; ref: string } };
 export type Format = "openai" | "responses" | "anthropic" | "gemini" | "panel" | "embeddings" | "images" | "speech" | "transcription" | "rerank" | "kb";
 
 /** the caller for an API key: its caps, project, routing and the owner's body-logging choice */
@@ -82,6 +84,32 @@ export async function keyCaller(db: DB, key: AuthedKey): Promise<Caller> {
 export async function panelCaller(db: DB, userId: string): Promise<Caller> {
   const [s] = await db.select({ logBodies: aiSettings.logBodies }).from(aiSettings).where(eq(aiSettings.userId, userId));
   return { userId, keyId: null, dailyCap: 0, monthlyCap: 0, logBodies: !!s?.logBodies };
+}
+
+/** AI the platform runs for itself (e.g. «پشتیبانی AI»): metered like any request, but nobody's wallet is touched.
+    `dailyCap` (Toman per Tehran day, 0 = none) bounds the purpose's spend. */
+export const platformCaller = (purpose: string, ref: string, dailyCap = 0): Caller => ({ userId: "", keyId: null, dailyCap, monthlyCap: 0, platform: { purpose, ref } });
+/** Toman the platform spent on `purpose` since `since` */
+export async function platformSpend(db: DB, purpose: string, since: Date) {
+  const [r] = await db.select({ s: sql<number>`coalesce(sum(${platformAiUsage.cost}), 0)::bigint` }).from(platformAiUsage).where(and(eq(platformAiUsage.purpose, purpose), gte(platformAiUsage.createdAt, since)));
+  return Number(r?.s ?? 0);
+}
+
+async function openPlatformMeter(db: DB, o: { caller: Caller; model: ResolvedModel; reserve: number }): Promise<Meter | AiError> {
+  const { purpose, ref } = o.caller.platform!;
+  if (o.caller.dailyCap && (await platformSpend(db, purpose, tehranStarts().day)) + o.reserve > o.caller.dailyCap) return aiErr(402, "platform_budget_exceeded", "سقف هزینه روزانه هوش مصنوعی این بخش پر شده است.");
+  const requestId = genId("req_");
+  let settled = false;
+  return {
+    requestId, reserve: o.reserve,
+    async close(status, r = {}) {
+      if (settled) return 0;
+      settled = true;
+      const cost = status === "error" ? 0 : r.charged ?? 0;
+      await db.insert(platformAiUsage).values({ id: requestId, purpose, ref: ref.slice(0, 80), model: o.model.id, status, inTokens: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, estimated: !!r.estimated, cost, error: (r.error ?? "").slice(0, 300) });
+      return cost;
+    },
+  };
 }
 
 /** key caps and the project's monthly limit, against the spend so far plus this request's reserve */
@@ -108,6 +136,7 @@ const TOKEN_FORMATS = new Set<Format>(["openai", "responses", "anthropic", "gemi
 /** budgets and the wallet reserve for one request; the caller must close() the meter */
 export async function openMeter(db: DB, o: { caller: Caller; model: ResolvedModel; format: Format; stream?: boolean; reserve: number }): Promise<Meter | AiError> {
   const { caller, model, reserve } = o;
+  if (caller.platform) return openPlatformMeter(db, o);
   const requestId = genId("req_"), t0 = Date.now();
   const log = (status: typeof aiUsage.$inferInsert.status, r: Close) =>
     db.insert(aiUsage).values({

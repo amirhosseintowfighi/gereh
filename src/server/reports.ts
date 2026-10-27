@@ -3,6 +3,7 @@
 import "server-only";
 import { and, eq, gte, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { invGross } from "@/lib/money";
+import { AI_AGENT_NAME } from "@/lib/support-ai";
 import { jalaliToGregorian, TZ } from "@/lib/jalali";
 import type { DB } from "./db/client";
 import { invoiceItems, invoices, payments, ticketMessages, tickets, transactions, users } from "./db/schema";
@@ -105,7 +106,8 @@ export async function financeReport(db: DB, monthsBack = 12, now = new Date()): 
   };
 }
 
-export type AgentRow = { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number };
+/** `ai`: the row of «پشتیبانی AI» auto replies (they count as first responses, marked as AI) */
+export type AgentRow = { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number; ai: boolean };
 /** per staff member over the last `days`: replies, tickets touched, first responses and SLA hit rate */
 export async function slaReport(db: DB, days = 30, now = new Date()) {
   const since = new Date(now.getTime() - days * 86400_000);
@@ -115,7 +117,7 @@ export async function slaReport(db: DB, days = 30, now = new Date()) {
     db.select({ id: tickets.id, priority: tickets.priority, createdAt: tickets.createdAt, firstResponseAt: tickets.firstResponseAt, status: tickets.status }).from(tickets).where(gte(tickets.createdAt, since)),
   ]);
   const agents = new Map<string, AgentRow & { firstMin: number[]; touched: Set<string> }>();
-  const get = (name: string) => agents.get(name) ?? agents.set(name, { agent: name, replies: 0, tickets: 0, firstResponses: 0, avgFirstMin: 0, withinSla: 0, firstMin: [], touched: new Set() }).get(name)!;
+  const get = (name: string) => agents.get(name) ?? agents.set(name, { agent: name, replies: 0, tickets: 0, firstResponses: 0, avgFirstMin: 0, withinSla: 0, ai: name === AI_AGENT_NAME, firstMin: [], touched: new Set() }).get(name)!;
   for (const m of msgs) { const a = get(m.name); a.replies++; a.touched.add(m.ticketId); }
   let breached = 0; let answered = 0; const waiting: string[] = [];
   for (const t of tks) {
@@ -146,6 +148,6 @@ export function financeSheets(r: FinanceReport, sla?: Awaited<ReturnType<typeof 
     { name: "مشتریان برتر", widths: [10, 24, 30, 18], rows: [["شناسه", "نام", "ایمیل", "پرداختی (تومان)"], ...r.topCustomers.map((c) => [c.id, c.name, c.email, c.amount])] },
     { name: "درگاه‌ها", widths: [16, 10, 18], rows: [["درگاه", "تعداد", "مبلغ (تومان)"], ...r.gateways.map((g) => [g.name, g.count, g.amount])] },
   ];
-  if (sla) sheets.push({ name: "پشتیبانی", widths: [20, 10, 10, 14, 18, 14], rows: [["کارشناس", "پاسخ‌ها", "تیکت‌ها", "اولین پاسخ", "میانگین اولین پاسخ (دقیقه)", "در زمان هدف"], ...sla.agents.map((a) => [a.agent, a.replies, a.tickets, a.firstResponses, a.avgFirstMin, a.withinSla])] });
+  if (sla) sheets.push({ name: "پشتیبانی", widths: [20, 10, 10, 14, 18, 14], rows: [["کارشناس", "پاسخ‌ها", "تیکت‌ها", "اولین پاسخ", "میانگین اولین پاسخ (دقیقه)", "در زمان هدف"], ...sla.agents.map((a) => [a.agent + (a.ai ? " (AI)" : ""), a.replies, a.tickets, a.firstResponses, a.avgFirstMin, a.withinSla])] });
   return sheets;
 }

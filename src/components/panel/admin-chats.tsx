@@ -8,6 +8,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty } from "../ui";
 import { AsyncButton, PageTitle, Tabs } from "../ui-client";
+import { AiDraftPanel } from "./admin-support-ai";
 
 /** staff inbox for site live chat; polls every 5s while open */
 export function AdminChats() {
@@ -61,6 +62,8 @@ export function AdminChats() {
             })}
           </ul>
         </Card>
+        <div className="space-y-4 min-w-0">
+        {sel && <AiDraftPanel chatId={sel.id} version={String(sel.messages.length)} />}
         <Card pad="p-0">
           {!sel ? <div className="p-6"><Empty icon="message-circle" title="یک گفتگو را انتخاب کنید" /></div> : (
             <div className="flex flex-col h-[70vh]">
@@ -92,6 +95,7 @@ export function AdminChats() {
             </div>
           )}
         </Card>
+        </div>
       </div>
     </div>
   );
