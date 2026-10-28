@@ -344,6 +344,16 @@ describe("support ai: billing, budget and SLA", () => {
     expect(sla.agents.find((a) => a.agent === AI_AGENT_NAME)?.firstResponses).toBe(1);
   });
 
+  it("a manual staff reply retires the pending draft; sending a draft still marks it sent", async () => {
+    const tid = await open("سرورم خاموش است");
+    expect((await runsOf(tid))[0].status).toBe("draft");
+    await asAdmin();
+    await call("tickets.reply", tid, "سلام، سرور را بررسی کردیم و روشن شد.", "staff");
+    const [r] = await runsOf(tid);
+    expect(r.status).toBe("superseded");
+    expect(await call<SupportAiRunView[]>("supportAi.runs", { ticketId: tid })).not.toContainEqual(expect.objectContaining({ status: "draft" }));
+  });
+
   it("staff reject a draft; the metrics count it all", async () => {
     const a = await open("سرورم خاموش است");
     await open("پولم برگردد");

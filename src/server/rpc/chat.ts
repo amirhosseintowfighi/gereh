@@ -1,8 +1,8 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { actor, method, needStaff } from "../ctx";
-import { chatMessages, chats } from "../db/schema";
+import { chatMessages, chats, supportAiRuns } from "../db/schema";
 import { fail, logAudit } from "../util";
 
 const id = z.string().max(40);
@@ -18,6 +18,8 @@ export const chatRpc = {
       const r = await tx.update(chats).set({ status: "open", unread: false, agent: name, lastAt: new Date() }).where(eq(chats.id, cid)).returning({ id: chats.id });
       if (!r.length) fail("گفتگو پیدا نشد.", 404);
       await tx.insert(chatMessages).values({ chatId: cid, from: "staff", author: name, text });
+      // a human answered: a pending AI draft for this chat is out of date
+      await tx.update(supportAiRuns).set({ status: "superseded", decidedBy: a.user.name, decidedAt: new Date() }).where(and(eq(supportAiRuns.chatId, cid), eq(supportAiRuns.status, "draft")));
     });
   }),
   "chat.read": method(z.tuple([id]), async (ctx, [cid]) => {

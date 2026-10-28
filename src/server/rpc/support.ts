@@ -4,7 +4,7 @@ import { z } from "zod";
 import { EMAIL_RE } from "@/lib/format";
 import { rateLimit } from "../auth";
 import { actor, isStaff, method, needUser } from "../ctx";
-import { domains, inbox, servers, ticketMessages, tickets, users } from "../db/schema";
+import { domains, inbox, servers, supportAiRuns, ticketMessages, tickets, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { fail, logAudit, nextId, notify, rid } from "../util";
 
@@ -54,6 +54,8 @@ export const supportRpc = {
       await notify(ctx.db, t!.userId, "message-circle", "پاسخ جدید در تیکت " + t!.id);
       await enqueue(ctx.db, "notify.send", { userId: t!.userId, kind: "service", subject: "پاسخ تیکت " + t!.id, text: "به تیکت «" + t!.subject + "» پاسخ داده شد:\n\n" + text });
       await logAudit(ctx.db, actor(ctx), "پاسخ به تیکت", t!.id, ctx.ip);
+      // a human answered: a pending AI draft is out of date (sending a draft marks its own run "sent" right after)
+      await ctx.db.update(supportAiRuns).set({ status: "superseded", decidedBy: a.user.name, decidedAt: new Date() }).where(and(eq(supportAiRuns.ticketId, t!.id), eq(supportAiRuns.status, "draft")));
     } else await enqueue(ctx.db, "support.ai", { ticketId: t!.id });
   }),
 
