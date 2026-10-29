@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IP_PRICE, PLAN_NUMS, VPS, locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
@@ -10,6 +10,7 @@ import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
 import { AsyncButton, CopyText, IconBtn, Modal, PageTitle, Select, StrengthBar, Switch, Tabs } from "../ui-client";
+import { MonitorBadgeBar } from "./monitor";
 import { PendingCredentials } from "./server-credentials";
 import { DelayBanner, ServerPending } from "./server-pending";
 import { Ipv6Card, LayoutCard, LogsTimeline, PowerControls, ProcessManager, ServiceManager, SshKeysCard, UsageCharts, VzBackupsCard } from "./vps-panel";
@@ -29,7 +30,9 @@ const READONLY_TABS = new Set(["overview", "traffic", "tasks"]);
 export function ServerDetail({ id }: { id: string }) {
   const db = useDB(); const myId = useMyId();
   const s = db.servers.find((x) => x.id === id && x.userId === myId);
-  const [tab, setTab] = useState("overview");
+  // a deep link to one tab (e.g. «پایش هوشمند» → ?tab=procs)
+  const deep = useSearchParams().get("tab");
+  const [tab, setTab] = useState(deep && TABS.some((x) => x.id === deep) ? deep : "overview");
   // the VPS is being recreated for a new disk layout (a few minutes): the panel is re-read until it is done
   const relayout = s?.status === "relayout";
   useEffect(() => {
@@ -51,6 +54,7 @@ export function ServerDetail({ id }: { id: string }) {
         action={missing ? <Badge tone="red">این سرور در زیرساخت پیدا نمی‌شود؛ تیم فنی در حال بررسی است.</Badge> : suspended ? <Badge tone="red">این سرور معلق است؛ برای رفع تعلیق صورتحساب‌ها را پرداخت کنید.</Badge>
           : relayout ? <span role="status" className="inline-flex items-center gap-2 text-sm text-white/75"><Icon name="loader-circle" size={16} className="animate-spin" />در حال بازسازی دیسک‌ها…</span> : <PowerControls s={s} />} />
       <DelayBanner s={s} />
+      <MonitorBadgeBar kind="server" id={s.id} />
       <PendingCredentials serverId={s.id} />
       <div className="mb-5"><Tabs size="sm" value={cur} onChange={setTab} label="بخش‌های سرور" options={tabs} /></div>
       <div key={cur} className="fade-in" role="tabpanel">

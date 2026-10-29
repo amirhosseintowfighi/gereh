@@ -16,6 +16,7 @@ import { AppLogsPro, AppMetrics, AppReleases, EnvBulk } from "./paas-observe";
 import { AppEvents, AppRuntime, AppUsage, CiTemplates, CloneApp, DeployNoCache, DomainOptions, FailureHint } from "./paas-runtime";
 import { Icon } from "../icon";
 import { ExplainButton } from "./explain";
+import { MonitorBadgeBar } from "./monitor";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
 import { Cost, cpuLabel, DeployPill, EnvEditor, envProblems, type EnvRow, PlanPicker, ramLabel, StatusPill } from "./paas-shared";
@@ -241,6 +242,7 @@ export function AppDetail({ id }: { id: string }) {
             : <><AsyncButton className={BTN_G + BTN_MD} confirmText="همه نمونه‌ها به‌ترتیب ری‌استارت شوند؟" onClick={() => api.paas.power(app.id, "restart")}><Icon name="refresh-cw" size={16} />ری‌استارت</AsyncButton>
               <AsyncButton danger className={BTN_G + BTN_MD} confirmText="اپ خاموش شود؟ تا روشن کردن دوباره، فقط هزینه دیسک محاسبه می‌شود." onClick={() => api.paas.power(app.id, "stop")}><Icon name="pause" size={16} />خاموش</AsyncButton></>)}
         </>} />
+      <MonitorBadgeBar kind="app" id={app.id} />
       <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های اپ" options={TABS} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "overview" && <AppOverview app={app} onLog={setLogDep} />}

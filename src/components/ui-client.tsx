@@ -368,11 +368,12 @@ export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon
   return href ? <Link href={href as never} className={cls + " hover:border-white/20 transition-colors"}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
 
-export function AreaChart({ data, labels, height = 200, unit = "", fmt = (v: number) => fa(Math.round(v)) }: { data: number[]; labels?: string[]; height?: number; unit?: string; fmt?: (v: number) => string }) {
+/** band: an expected range (e.g. a baseline's low and high) drawn behind the line */
+export function AreaChart({ data, labels, height = 200, unit = "", fmt = (v: number) => fa(Math.round(v)), band }: { data: number[]; labels?: string[]; height?: number; unit?: string; fmt?: (v: number) => string; band?: { lo: number[]; hi: number[] } }) {
   const id = "ac" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [hover, setHover] = useState<number | null>(null);
   const w = 600, h = height, pad = 8, n = Math.max(2, data.length);
-  const max = Math.max(...data, 0) * 1.15 || 1;
+  const max = Math.max(...data, ...(band?.hi ?? []), 0) * 1.15 || 1;
   const X = (i: number) => pad + (i * (w - pad * 2)) / (n - 1);
   const Y = (v: number) => h - pad - (v / max) * (h - pad * 2);
   const line = data.map((v, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1)).join(" ");
@@ -383,6 +384,7 @@ export function AreaChart({ data, labels, height = 200, unit = "", fmt = (v: num
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full block" style={{ height }} onMouseMove={onMove} role="img" aria-label={"نمودار " + unit}>
         <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9cc9ff" stopOpacity=".32" /><stop offset="1" stopColor="#9cc9ff" stopOpacity="0" /></linearGradient></defs>
         {[0.25, 0.5, 0.75].map((g) => <line key={g} x1="0" x2={w} y1={h * g} y2={h * g} stroke="rgba(255,255,255,.06)" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />)}
+        {band && band.hi.length === data.length && <path d={band.hi.map((v, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1)).join(" ") + " " + band.lo.map((_, j) => { const i = band.lo.length - 1 - j; return "L" + X(i).toFixed(1) + " " + Y(band.lo[i]).toFixed(1); }).join(" ") + " Z"} fill="rgba(110,231,183,.13)" stroke="rgba(110,231,183,.35)" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />}
         <path d={`${line} L ${X(data.length - 1)} ${h} L ${X(0)} ${h} Z`} fill={`url(#${id})`} />
         <path d={line} fill="none" stroke="#cfe0ff" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
         {hover !== null && <line x1={X(hover)} x2={X(hover)} y1="0" y2={h} stroke="rgba(255,255,255,.25)" vectorEffect="non-scaling-stroke" />}

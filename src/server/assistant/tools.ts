@@ -24,6 +24,7 @@ import { AppError, fail } from "../util";
 import { planLayout } from "../virt/layout";
 import { adviceForAssistant, apply as applyAdvice } from "../advisor/service";
 import { advisorFindings } from "../db/schema";
+import { incidentsForAssistant } from "../monitor/service";
 
 type Json = Record<string, unknown>;
 type Schema = { type: "object"; properties: Record<string, Json>; required?: string[] };
@@ -232,6 +233,9 @@ const PANEL: AssistantTool[] = [
   { name: "cost_advice", description: "The cost advisor («مشاور هزینه»): the account's monthly run-rate, wallet runway and concrete findings (oversized or undersized servers, traffic overruns, idle resources, cheaper AI models, بافت maintenance mode), each with its monthly saving or extra cost in Toman from the real prices, risk, evidence and how it can be applied. Use it for any question about saving money, costs, right-sizing or limits.",
     inputSchema: { type: "object", properties: {} }, risk: fixed("read"), perm: "advisor.report", label: L("در حال بررسی فرصت‌های صرفه‌جویی…"), run: (ctx) => adviceForAssistant(ctx),
     brief: (o) => { const x = o as { findings: unknown[]; potential_monthly_saving_toman: number }; return x.findings.length ? fa(x.findings.length) + " پیشنهاد، صرفه‌جویی ممکن " + fa(x.potential_monthly_saving_toman) + " تومان در ماه" : "پیشنهاد تازه‌ای نیست."; } },
+  { name: "monitoring_incidents", description: "Smart monitoring («پایش هوشمند»): open and recent incidents detected on the customer's cloud servers and apps (crypto-miner pattern, outbound abuse, inbound attack, traffic spike, memory leak, disk filling, crashes or unexpected stops, unusual disk writes, brute force), each with severity, the evidence numbers and time window, a plain-Persian explanation and the available actions. Use it for any question about something wrong, slow, hacked or abnormal on a server or app.",
+    inputSchema: { type: "object", properties: {} }, risk: fixed("read"), perm: "monitor.report", label: L("در حال بررسی هشدارهای پایش هوشمند…"), run: (ctx) => incidentsForAssistant(ctx),
+    brief: (o) => { const x = o as { open_incidents: { severity: string }[] }; return x.open_incidents.length ? fa(x.open_incidents.length) + " رخداد باز (" + fa(x.open_incidents.filter((i) => i.severity === "critical").length) + " بحرانی)" : "رخداد بازی نیست."; } },
   { name: "apply_cost_advice", description: "Applies one finding from cost_advice (by finding_id) whose apply field says apply_cost_advice. The server derives every argument and shows the exact price; the person must confirm. Findings that need the resource name typed (deletions, purchases) can only be applied on /panel/advisor.",
     inputSchema: { type: "object", properties: { finding_id: str("finding_id from cost_advice") }, required: ["finding_id"] }, risk: fixed("danger"), perm: "advisor.apply", label: L("اعمال پیشنهاد مشاور هزینه…"),
     quote: async (c, a) => {

@@ -88,6 +88,8 @@ const handlers: Record<JobType, Handler> = {
   "support.ai": async (db, p) => (await import("../support-ai/engine")).supportAiJob(db, p as never),
   // «مشاور هزینه»: findings for every active customer, one digest for what is new (lazy: it reaches the RPC registry)
   "advisor.weekly": async (db) => (await import("../advisor/service")).advisorWeekly(db),
+  // «پایش هوشمند»: anomaly and abuse detection over the latest samples, events and logs
+  "monitor.scan": async (db) => (await import("../monitor/scan")).monitorScanJob(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
@@ -102,6 +104,7 @@ export const SCHEDULE: [JobType, number][] = [
   ["vps.billing", 60], ["vps.snapshots", 15],
   ["builder.maintain", 5],
   ["advisor.weekly", 7 * 24 * 60],
+  ["monitor.scan", 5],
   // Virtualizor → site (resources, IPs, disks, traffic, status); VIRT_SYNC_MINUTES, default 5
   ["virt.sync", Math.max(1, Math.round(Number(process.env.VIRT_SYNC_MINUTES)) || 5)],
 ];
@@ -120,7 +123,7 @@ export async function tickSchedule(db: DB) {
     must not stop the queue behind it */
 const LONG_JOBS: Partial<Record<JobType, number>> = {
   "dbaas.import": 90, "paas.diskBackup": 60, "paas.backup": 60, "wp.import": 90, "paas.toolsDaily": 30, "paas.daily": 30,
-  "dbaas.init": 20, "builder.maintain": 30, "advisor.weekly": 60, "builder.fix": 15, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
+  "dbaas.init": 20, "builder.maintain": 30, "advisor.weekly": 60, "monitor.scan": 10, "builder.fix": 15, "paas.collect": 10, "virt.reconcile": 20, "virt.sync": 20,
   // recreating a VPS for a new disk layout: create, delete and the address move (the build wait re-queues itself)
   "virt.relayout": 30,
 };

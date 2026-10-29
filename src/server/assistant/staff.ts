@@ -9,6 +9,7 @@ import type { ToolRisk } from "@/lib/assistant";
 import { fa, toEnDigits } from "@/lib/format";
 import { isStaff, type Ctx } from "../ctx";
 import { hosting, jobs, servers, tickets, users, vpsIps } from "../db/schema";
+import { abuseForStaff } from "../monitor/service";
 import { listUndelivered } from "../provisioning";
 import { financeReport } from "../reports";
 import { AppError, fail } from "../util";
@@ -60,6 +61,10 @@ const READ: AssistantTool[] = [
       return { ...sum, user, services: svc.rows.map((r) => ({ kind: r.kind, id: r.id, name: r.name, status: r.status, info: r.info, notes: r.notes ?? [] })) };
     },
     brief: (o) => { const x = o as { user: { name?: string; balance?: number }; services: unknown[] }; return S(x.user.name) + "، موجودی " + toman(Number(x.user.balance) || 0) + "، " + fa(x.services.length) + " سرویس"; } },
+  { name: "abuse_incidents", description: "Smart monitoring («پایش هوشمند») across customers: open critical and abuse incidents (outbound DDoS/spam that can get the platform's IPs blacklisted, crypto miners, attacks), abuse first, with the customer, the resource and its status, the evidence and the staff actions already taken. Suspending or contacting the customer is done on /admin/monitor.",
+    inputSchema: { type: "object", properties: {} }, areas: ["services"], perm: "monitor.adminIncidents", risk: fixed("read"), label: L("در حال خواندن رخدادهای سوءاستفاده…"),
+    run: (ctx) => abuseForStaff(ctx),
+    brief: (o) => { const r = (o as { incidents: { abuse: boolean }[] }).incidents; return r.length ? fa(r.length) + " رخداد بحرانی (" + fa(r.filter((x) => x.abuse).length) + " سوءاستفاده)" : "رخداد بحرانی بازی نیست."; } },
   { name: "undelivered_orders", description: "Paid order lines not yet delivered (servers, hosting, domains, IPs): customer, item, stage (queued, retrying, stuck, failed, building), attempts and the first line of the last error. order_key is used by retry_delivery and manual_deliver.",
     inputSchema: { type: "object", properties: {} }, areas: ["services"], perm: "provisioning.list", risk: fixed("read"), label: L("در حال خواندن سفارش‌های تحویل‌نشده…"),
     run: async (ctx) => ({ orders: (await rpc<{ key: string; kind: string; userId: string; userName: string; email: string; item: string; amount: number; stage: string; attempts: number; ageMin: number; error: string; serverId: string | null }[]>(ctx, "provisioning.list"))

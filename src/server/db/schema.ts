@@ -2074,3 +2074,68 @@ export const advisorState = pgTable("advisor_state", {
   computedAt: ts("computed_at"),
   digestAt: ts("digest_at"),
 });
+
+/* ---------- «پایش هوشمند», smart monitoring and anomaly/security detection (0039_monitor) ---------- */
+/** one incident per resource and detector while it lasts (open or muted); monitor.scan updates it, resolves it after
+    clean scans, and the customer may mute it or mark it «هشدار اشتباه بود» (false_positive). `notified_severity` is the
+    highest severity already sent, so only an escalation notifies again. `abuse`: the platform's IPs are at risk and
+    staff are alerted too. */
+export const monitorIncidents = pgTable("monitor_incidents", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resourceKind: text("resource_kind", { enum: ["server", "app"] }).notNull(),
+  resourceId: text("resource_id").notNull(),
+  resourceName: text("resource_name").notNull().default(""),
+  detector: text("detector").notNull(),
+  severity: text("severity", { enum: ["info", "warn", "critical"] }).notNull(),
+  confidence: real("confidence").notNull().default(0),
+  status: text("status", { enum: ["open", "resolved", "muted", "false_positive"] }).notNull().default("open"),
+  title: text("title").notNull(),
+  evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+  explanation: text("explanation").notNull().default(""),
+  explanationAi: boolean("explanation_ai").notNull().default(false),
+  abuse: boolean("abuse").notNull().default(false),
+  cleanCount: integer("clean_count").notNull().default(0),
+  notifiedSeverity: text("notified_severity").notNull().default(""),
+  notifiedAt: ts("notified_at"),
+  staffNotifiedAt: ts("staff_notified_at"),
+  mutedUntil: ts("muted_until"),
+  feedback: text("feedback").notNull().default(""),
+  feedbackAt: ts("feedback_at"),
+  /** one-click actions taken on it: [{ action, label, by, at }] */
+  taken: jsonb("taken").$type<{ action: string; label: string; by: string; at: string }[]>().notNull().default([]),
+  startedAt: ts("started_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+  resolvedAt: ts("resolved_at"),
+}, (t) => [
+  uniqueIndex("monitor_incidents_live_uq").on(t.resourceKind, t.resourceId, t.detector).where(sql`${t.status} in ('open','muted')`),
+  index("monitor_incidents_user_ix").on(t.userId, t.status),
+  index("monitor_incidents_status_ix").on(t.status, t.severity),
+]);
+
+/** per account (resource_kind = '') the severity threshold per channel; per resource its sensitivity and mute */
+export const monitorSettings = pgTable("monitor_settings", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resourceKind: text("resource_kind").notNull().default(""),
+  resourceId: text("resource_id").notNull().default(""),
+  sensitivity: text("sensitivity", { enum: ["low", "normal", "high"] }).notNull().default("normal"),
+  mutedUntil: ts("muted_until"),
+  prefs: jsonb("prefs").$type<Record<string, string>>().notNull().default({}),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("monitor_settings_uq").on(t.userId, t.resourceKind, t.resourceId)]);
+
+/** the scanner's state per resource ("server:srv-…", "app:app-…"): the last sample seen (resources with nothing new
+    are skipped), the cached hour-of-week baseline, the last hourly trend pass, the last power state and when the
+    miner process check last ran */
+export const monitorScan = pgTable("monitor_scan", {
+  key: text("key").primaryKey(),
+  lastSampleAt: ts("last_sample_at"),
+  baseline: jsonb("baseline").$type<Record<string, unknown> | null>(),
+  baselineAt: ts("baseline_at"),
+  trendAt: ts("trend_at"),
+  lastStatus: text("last_status").notNull().default(""),
+  downSince: ts("down_since"),
+  procAt: ts("proc_at"),
+  scannedAt: ts("scanned_at"),
+});

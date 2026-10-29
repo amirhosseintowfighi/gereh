@@ -3,7 +3,7 @@
    launcher on every /panel page that opens it in a drawer (a full-screen sheet on phones), and the full page.
    On /admin the same drawer is the staff console (mode "staff": its own threads and tools, by staff role). */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ASSISTANT, contextOf, STAFF_STARTERS, STARTERS, type AssistantContext, type AssistantMode, type AssistantEvent, type AssistantMessageView, type AssistantThreadView, type AssistantToolActivity } from "@/lib/assistant";
 import { BTN_D, BTN_G, BTN_P, BTN_SM } from "@/lib/cls";
@@ -228,8 +228,8 @@ function ContextChip({ context, onClear }: { context: AssistantContext; onClear:
   );
 }
 
-function Composer({ a, context, onClearContext, autoFocus }: { a: Assistant; context: AssistantContext | null; onClearContext: () => void; autoFocus?: boolean }) {
-  const [text, setText] = useState("");
+function Composer({ a, context, onClearContext, autoFocus, seed }: { a: Assistant; context: AssistantContext | null; onClearContext: () => void; autoFocus?: boolean; seed?: string }) {
+  const [text, setText] = useState(seed ?? "");
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { const el = ref.current; if (!el) return; el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 160) + "px"; }, [text]);
   const submit = () => { if (a.busy || !text.trim()) return; a.send(text); setText(""); };
@@ -251,7 +251,7 @@ function Composer({ a, context, onClearContext, autoFocus }: { a: Assistant; con
   );
 }
 
-function Conversation({ a, context, onClearContext, autoFocus }: { a: Assistant; context: AssistantContext | null; onClearContext: () => void; autoFocus?: boolean }) {
+function Conversation({ a, context, onClearContext, autoFocus, seed }: { a: Assistant; context: AssistantContext | null; onClearContext: () => void; autoFocus?: boolean; seed?: string }) {
   const end = useRef<HTMLDivElement>(null);
   const last = a.messages.at(-1);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [a.messages.length, last?.content.length, last?.tools.length, last?.confirm?.status]);
@@ -261,7 +261,7 @@ function Conversation({ a, context, onClearContext, autoFocus }: { a: Assistant;
         {a.messages.length === 0 ? <Starters onPick={a.send} staff={a.mode === "staff"} /> : a.messages.map((m) => <Bubble key={m.id} m={m} a={a} />)}
         <div ref={end} />
       </div>
-      <Composer a={a} context={context} onClearContext={onClearContext} autoFocus={autoFocus} />
+      <Composer key={seed ?? ""} a={a} context={context} onClearContext={onClearContext} autoFocus={autoFocus} seed={seed} />
     </div>
   );
 }
@@ -324,6 +324,8 @@ export function AssistantLauncher({ staff = false }: { staff?: boolean }) {
 export function AssistantPage() {
   const a = useAssistant(null);
   const [list, setList] = useState(false);
+  // ?ask=… (e.g. from «پایش هوشمند»): the question is put in the composer for the person to send
+  const seed = useSearchParams().get("ask")?.slice(0, 2000) || undefined;
   return (
     <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-4 h-[calc(100dvh-8rem)] sm:h-[calc(100dvh-10rem)] min-h-[440px]">
       <aside className={"rounded-[1.4rem] bg-white/[0.03] border border-white/[0.08] p-3 min-h-0 " + (list ? "max-lg:fixed max-lg:inset-x-4 max-lg:top-20 max-lg:bottom-4 max-lg:z-50 max-lg:bg-[#0b0d16] max-lg:shadow-2xl" : "max-lg:hidden")} aria-label="گفتگوها">
@@ -336,7 +338,7 @@ export function AssistantPage() {
           <button type="button" className={BTN_G + BTN_SM + " lg:hidden"} onClick={() => setList((l) => !l)} aria-expanded={list}><Icon name="history" size={14} />گفتگوها</button>
           <button type="button" className={BTN_P + BTN_SM} onClick={a.reset} disabled={a.busy}><Icon name="plus" size={14} />جدید</button>
         </header>
-        <Conversation a={a} context={null} onClearContext={() => {}} />
+        <Conversation a={a} context={null} onClearContext={() => {}} seed={seed} />
       </section>
     </div>
   );
