@@ -22,6 +22,8 @@ import { catalog } from "../rpc/billing";
 import { getSettings } from "../state";
 import { AppError, fail } from "../util";
 import { planLayout } from "../virt/layout";
+import { adviceForAssistant, apply as applyAdvice } from "../advisor/service";
+import { advisorFindings } from "../db/schema";
 
 type Json = Record<string, unknown>;
 type Schema = { type: "object"; properties: Record<string, Json>; required?: string[] };
@@ -227,6 +229,24 @@ const PANEL: AssistantTool[] = [
       return { balance_toman: u?.balance ?? 0, month_spent_toman: by.reduce((s, r) => s + r.toman, 0), by_kind: by, unpaid_invoices: open.length, unpaid_total_toman: unpaid };
     },
     brief: (o) => { const x = o as { month_spent_toman: number; balance_toman: number }; return "هزینه این ماه " + fa(x.month_spent_toman) + " تومان، موجودی " + fa(x.balance_toman) + " تومان"; } },
+  { name: "cost_advice", description: "The cost advisor («مشاور هزینه»): the account's monthly run-rate, wallet runway and concrete findings (oversized or undersized servers, traffic overruns, idle resources, cheaper AI models, بافت maintenance mode), each with its monthly saving or extra cost in Toman from the real prices, risk, evidence and how it can be applied. Use it for any question about saving money, costs, right-sizing or limits.",
+    inputSchema: { type: "object", properties: {} }, risk: fixed("read"), perm: "advisor.report", label: L("در حال بررسی فرصت‌های صرفه‌جویی…"), run: (ctx) => adviceForAssistant(ctx),
+    brief: (o) => { const x = o as { findings: unknown[]; potential_monthly_saving_toman: number }; return x.findings.length ? fa(x.findings.length) + " پیشنهاد، صرفه‌جویی ممکن " + fa(x.potential_monthly_saving_toman) + " تومان در ماه" : "پیشنهاد تازه‌ای نیست."; } },
+  { name: "apply_cost_advice", description: "Applies one finding from cost_advice (by finding_id) whose apply field says apply_cost_advice. The server derives every argument and shows the exact price; the person must confirm. Findings that need the resource name typed (deletions, purchases) can only be applied on /panel/advisor.",
+    inputSchema: { type: "object", properties: { finding_id: str("finding_id from cost_advice") }, required: ["finding_id"] }, risk: fixed("danger"), perm: "advisor.apply", label: L("اعمال پیشنهاد مشاور هزینه…"),
+    quote: async (c, a) => {
+      const [f] = await c.db.select().from(advisorFindings).where(and(eq(advisorFindings.id, S(a.finding_id)), eq(advisorFindings.userId, uid(c)), eq(advisorFindings.status, "open")));
+      if (!f) fail("این پیشنهاد پیدا نشد یا دیگر باز نیست.", 404);
+      const act = f!.action as { label?: string; preview?: string; typed?: boolean; calls?: unknown[] } | null;
+      if (!act?.calls?.length) fail("این پیشنهاد اقدام خودکار ندارد.");
+      if (act!.typed) fail("این اقدام هزینه‌بر یا پاک‌کننده است و فقط در صفحه «مشاور هزینه» (/panel/advisor) با نوشتن نام منبع انجام می‌شود.", 403);
+      return { title: act!.label ?? "اعمال پیشنهاد", summary: f!.title + " — " + (act!.preview ?? ""), resource: f!.resourceName, cost: f!.oneTime > 0 ? f!.oneTime : null, costNote: act!.preview ?? "" };
+    },
+    run: async (ctx, a) => {
+      const [f] = await ctx.db.select({ typed: sql<boolean>`coalesce((${advisorFindings.action}->>'typed')::boolean, false)` }).from(advisorFindings).where(and(eq(advisorFindings.id, S(a.finding_id)), eq(advisorFindings.userId, uid(ctx))));
+      if (f?.typed) fail("این اقدام فقط در صفحه «مشاور هزینه» با نوشتن نام منبع انجام می‌شود.", 403);
+      return applyAdvice(ctx, S(a.finding_id), true);
+    }, brief: (o) => S((o as Json).message) },
   { name: "set_server_hostname", description: "Changes a cloud server's hostname (e.g. web1.example.com).",
     inputSchema: { type: "object", properties: { ...sid, hostname: str("New hostname") }, required: ["server_id", "hostname"] }, risk: fixed("safe"), perm: "servers.setHostname",
     label: async (c, a) => "تغییر hostname سرور " + (await serverName(c, a.server_id)) + "…", run: (ctx, a) => rpc(ctx, "servers.setHostname", S(a.server_id), S(a.hostname)), brief: (_o, a) => "hostname به " + S(a.hostname) + " تغییر کرد." },

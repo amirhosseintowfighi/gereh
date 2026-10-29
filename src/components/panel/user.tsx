@@ -1,4 +1,5 @@
 "use client";
+import { AdvisorWidget } from "./advisor";
 import { NotifMatrix, SecurityExtras, TeamExtras } from "./billing-extras";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -58,6 +59,7 @@ export function UserDashboard() {
         <StatCard icon="receipt" label="صورتحساب پرداخت‌نشده" value={unpaid.length} sub={unpaid.length ? toman(unpaid.reduce((s, i) => s + invGross(i, db.settings.tax), 0)) : "همه پرداخت شده"} tone={unpaid.length ? "down" : ""} href="/panel/billing" />
         <StatCard icon="message-circle" label="تیکت‌های باز" value={openT.length} href="/panel/tickets" />
       </div>
+      <AdvisorWidget />
       <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4 mt-4">
         <Card title="ترافیک خروجی ۳۰ روز اخیر" icon="activity" action={<span className="text-xs text-white/55">مجموع {fa(Math.round(traffic.reduce((a, b) => a + b, 0)))} گیگابایت</span>}>
           <AreaChart data={traffic} labels={days} unit="گیگابایت" height={210} />

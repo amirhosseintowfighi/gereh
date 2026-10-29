@@ -1,4 +1,5 @@
 "use client";
+import { AdvisorAdminCard } from "./advisor";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,6 +45,7 @@ export function AdminDashboard() {
           <Bars data={signups} labels={["ش", "ی", "د", "س", "چ", "پ", "ج"]} height={230} />
         </Card>
       </div>
+      <AdvisorAdminCard />
       <div className="grid xl:grid-cols-3 gap-4 mt-4">
         <Card title="سلامت نودها" icon="radio-tower" action={<Link href="/admin/infra" className="text-xs text-white/50 hover:text-white">جزئیات</Link>}>
           <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>

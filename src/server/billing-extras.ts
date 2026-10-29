@@ -49,6 +49,28 @@ export async function saveDoc(db: DB | Tx, key: "vps_prices" | "billing_policy",
 
 /** hourly charge for a monthly price */
 export const perHour = (monthly: number) => Math.max(1, Math.ceil(monthly / 720));
+/** the monthly add-on price of one server, billed hourly (perHour) by the worker's vps.billing: extra IPv4, billed attached
+    disks and snapshot GB beyond the free 10% of the server's disk */
+export function addonMonthly(p: VpsPrices, serverDisk: number, ips: { price: number }[], disks: { sizeGb: number }[], snapshotGb: number) {
+  const parts: string[] = [];
+  let monthly = 0;
+  const paidIps = ips.filter((x) => x.price > 0);
+  if (paidIps.length) { monthly += paidIps.reduce((a, x) => a + x.price, 0); parts.push(paidIps.length.toLocaleString("fa-IR") + " IPv4"); }
+  if (disks.length) { monthly += disks.reduce((a, d) => a + d.sizeGb * p.diskGb, 0); parts.push("دیسک اضافه"); }
+  const billableGb = Math.max(0, snapshotGb - serverDisk * 0.1);
+  if (billableGb > 0) { monthly += billableGb * p.snapshotGb; parts.push("اسنپ‌شات " + billableGb.toFixed(1) + " GB"); }
+  return { monthly, parts };
+}
+/** the hourly charge of an hourly-billed cloud server (worker billing.hourly) */
+export const vpsHourly = (price: number) => Math.max(1, Math.round(price / 720));
+
+/** a plan change on a monthly server (servers.resize, servers.changePlan): the paid days left at the new price, rounded
+    to 1000 Toman; positive is invoiced, negative refunded to the wallet */
+export function prorate(s: { billing: string; paidUntil: Date | null; price: number }, price: number, now = Date.now()) {
+  if (s.billing !== "monthly" || !s.paidUntil) return 0;
+  const days = Math.max(0, Math.ceil((s.paidUntil.getTime() - now) / 86400_000));
+  return Math.round(((price - s.price) * days) / 30 / 1000) * 1000;
+}
 
 /** debits a project wallet linked to the server when it has enough, else the main wallet down to the
     admin's negative grace; records the transaction. All or nothing. */

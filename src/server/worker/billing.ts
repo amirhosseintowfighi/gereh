@@ -6,7 +6,7 @@ import { faDate } from "@/lib/jalali";
 import { invGross } from "@/lib/money";
 import type { DB } from "../db/client";
 import { domains, hosting, invoiceItems, invoices, servers, tlds, users } from "../db/schema";
-import { debit } from "../billing-extras";
+import { debit, vpsHourly } from "../billing-extras";
 import { enqueue } from "../jobs";
 import { createInvoice, settleInvoice } from "../rpc/billing";
 import type { FulfilItem } from "../rpc/fulfil";
@@ -102,7 +102,7 @@ export async function hourly(db: DB) {
   // a server whose disks are being rebuilt (relayout) is still billed, but never suspended mid-rebuild
   const list = await db.select().from(servers).where(and(eq(servers.billing, "hourly"), inArray(servers.status, ["running", "stopped", "relayout"])));
   for (const s of list) {
-    const cost = Math.max(1, Math.round(s.price / 720));
+    const cost = vpsHourly(s.price);
     // a linked project wallet pays first; the main wallet may dip to the admin's negative grace
     const ok = await db.transaction((tx) => debit(tx, s.userId, cost, "مصرف ساعتی سرور " + s.name, { serverId: s.id }));
     if (!ok && s.status !== "relayout") {

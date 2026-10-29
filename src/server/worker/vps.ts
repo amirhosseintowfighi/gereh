@@ -4,7 +4,7 @@ import "server-only";
 import { and, asc, eq, inArray, isNotNull, isNull, like, lte, sql } from "drizzle-orm";
 import { faDate } from "@/lib/jalali";
 import { nextRun } from "@/lib/vps-billing";
-import { budgetAlerts, debit, lowCreditAlerts, monthKey, perHour, vpsPrices } from "../billing-extras";
+import { addonMonthly, budgetAlerts, debit, lowCreditAlerts, monthKey, perHour, vpsPrices } from "../billing-extras";
 import type { DB } from "../db/client";
 import { servers, snapshots, vpsDisks, vpsIps, vpsSnapSchedules, vpsSync, vpsTraffic, vpsTrafficDaily } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -32,16 +32,7 @@ async function addonCharges(db: DB) {
   const sids = [...new Set([...ips.map((x) => x.serverId), ...disks.flatMap((d) => (d.serverId ? [d.serverId] : [])), ...snaps.map((x) => x.serverId)])];
   const list = sids.length ? await db.select().from(servers).where(and(inArray(servers.id, sids), inArray(servers.status, ["running", "stopped", "relayout"]))) : [];
   for (const s of list) {
-    const parts: string[] = [];
-    let monthly = 0;
-    const myIps = ips.filter((x) => x.serverId === s.id && x.price > 0);
-    if (myIps.length) { monthly += myIps.reduce((a, x) => a + x.price, 0); parts.push(myIps.length.toLocaleString("fa-IR") + " IPv4"); }
-    const myDisks = disks.filter((d) => d.serverId === s.id);
-    if (myDisks.length) { monthly += myDisks.reduce((a, d) => a + d.sizeGb * p.diskGb, 0); parts.push("دیسک اضافه"); }
-    const gb = snaps.find((x) => x.serverId === s.id)?.gb ?? 0;
-    // snapshots that only the plan's allowance covers (first 10% of the disk) are free
-    const billableGb = Math.max(0, gb - s.disk * 0.1);
-    if (billableGb > 0) { monthly += billableGb * p.snapshotGb; parts.push("اسنپ‌شات " + billableGb.toFixed(1) + " GB"); }
+    const { monthly, parts } = addonMonthly(p, s.disk, ips.filter((x) => x.serverId === s.id), disks.filter((d) => d.serverId === s.id), snaps.find((x) => x.serverId === s.id)?.gb ?? 0);
     if (monthly <= 0) continue;
     const ok = await db.transaction((tx) => debit(tx, s.userId, perHour(monthly), "افزونه‌های سرور " + s.name + ": " + parts.join("، "), { serverId: s.id }));
     if (!ok) await enqueue(db, "notify.send", { userId: s.userId, kind: "billing", subject: "موجودی کافی برای افزونه‌های سرور نیست", text: "هزینه ساعتی IPv4، دیسک یا اسنپ‌شات‌های سرور " + s.name + " از کیف پول کسر نشد. کیف پول را شارژ کنید تا افزونه‌ها حذف نشوند." }, { dedupe: "addon-low:" + s.id + ":" + new Date().toISOString().slice(0, 10) });

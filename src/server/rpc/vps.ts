@@ -6,7 +6,7 @@ import { z } from "zod";
 import { diskSizeError, PLAN_NUMS, TRAFFIC_STEP_GB, trafficError, type Plan } from "@/lib/catalog";
 import { faDate, faDateTime } from "@/lib/jalali";
 import { nextRun, type VpsExtrasView } from "@/lib/vps-billing";
-import { debit, monthKey, needBudget, perHour, vpsPrices } from "../billing-extras";
+import { debit, monthKey, needBudget, perHour, prorate, vpsPrices } from "../billing-extras";
 import { method, needUser, type Ctx } from "../ctx";
 import { fwGroups, fwGroupServers, plans, servers, snapshots, subWallets, users, vpsDisks, vpsIps, vpsSnapSchedules, vpsTraffic, vpsTrafficDaily, walletLinks } from "../db/schema";
 import { virt } from "../virt/driver";
@@ -263,26 +263,15 @@ export const vpsRpc = {
   "servers.changePlan": method(z.tuple([id, z.string().max(20)]), async (ctx, [sid, planId]) => {
     const s = await server(ctx, sid);
     if (s.status !== "stopped") fail("برای تغییر پلن ابتدا سرور را خاموش کنید.");
-    const [p] = await ctx.db.select().from(plans).where(and(eq(plans.id, planId), eq(plans.kind, "cloud")));
-    const nums = PLAN_NUMS[planId];
-    if (!p || !nums) fail("پلن پیدا نشد.");
-    const plan = p!.data as Plan;
-    if (plan.active === false) fail("این پلن فعلا ارائه نمی‌شود.");
+    const { plan, cpu, ram, disk, price } = await changePlanQuote(ctx.db, s, planId);
     if (plan.name === s.plan) fail("سرور همین حالا روی این پلن است.");
-    const [cpu, ram, planDisk] = nums;
-    // the disk never shrinks: a smaller plan keeps the current disk and pays for the difference; a split disk
-    // (../virt/layout.ts) keeps its other disks and the primary takes the change
-    const cur = await primaryFor(ctx.db, s, 0);
-    const disk = Math.max(planDisk, cur.allowance);
     const lay = await primaryFor(ctx.db, s, disk);
-    const prices = await vpsPrices(ctx.db);
-    const price = plan.price + (disk - planDisk) * prices.diskGb;
     await (await virt()).manage(vps(s), { cores: cpu, ram: ram * 1024, space: lay.primary });
     await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk: lay.primary, price }).where(eq(servers.id, s.id));
     if (lay.split) await saveAllowance(ctx.db, s.id, disk);
     if (s.billing === "monthly" && s.paidUntil) {
       const days = Math.max(0, Math.ceil((s.paidUntil.getTime() - Date.now()) / 86400_000));
-      const diff = Math.round(((price - s.price) * days) / 30 / 1000) * 1000;
+      const diff = prorate(s, price);
       if (diff > 0) {
         const { createInvoice } = await import("./billing");
         await createInvoice(ctx.db, s.userId, [{ desc: "مابه‌التفاوت تغییر پلن " + s.name + " به " + plan.name + " (" + days.toLocaleString("fa-IR") + " روز)", amount: diff }], { dueDays: 3 });
@@ -336,13 +325,33 @@ export const vpsRpc = {
   }),
 };
 
+/** what servers.changePlan sets for a cloud plan: the plan's cpu and RAM, a disk that never shrinks (a smaller plan keeps
+    the current disk, a split disk (../virt/layout.ts) its other disks) and the monthly price with the kept extra GB */
+export async function changePlanQuote(db: Ctx["db"], s: typeof servers.$inferSelect, planId: string) {
+  const [p] = await db.select().from(plans).where(and(eq(plans.id, planId), eq(plans.kind, "cloud")));
+  const nums = PLAN_NUMS[planId];
+  if (!p || !nums) fail("پلن پیدا نشد.");
+  const plan = p!.data as Plan;
+  if (plan.active === false) fail("این پلن فعلا ارائه نمی‌شود.");
+  const [cpu, ram, planDisk] = nums!;
+  const cur = await primaryFor(db, s, 0);
+  const disk = Math.max(planDisk, cur.allowance);
+  const prices = await vpsPrices(db);
+  return { plan, cpu, ram, disk, price: plan.price + (disk - planDisk) * prices.diskGb };
+}
+
+/** traffic for `gb` GB as servers.buyTraffic sells it: the admin's pack when gb is omitted, else 500 GB units at the pack's
+    per-GB price */
+export async function packQuote(db: Ctx["db"], gb?: number) {
+  const p = await vpsPrices(db);
+  return { gb: gb ?? p.packGb, price: gb === undefined ? p.packPrice : (gb / TRAFFIC_STEP_GB) * p.pack500Price };
+}
+
 /** buys traffic from the wallet (the admin's pack, or `gb` in 500 GB units at the same per-GB price) and raises the
     hypervisor limit; the quota stays plan base + this month's packs (../virt/sync.ts) */
 export async function buyPack(db: Ctx["db"], s: typeof servers.$inferSelect, why: string, gb?: number) {
   if (s.bwLimit <= 0) fail("ترافیک این سرور نامحدود است و به بسته نیاز ندارد.");
-  const p = await vpsPrices(db);
-  const size = gb ?? p.packGb;
-  const price = gb === undefined ? p.packPrice : (gb / TRAFFIC_STEP_GB) * p.pack500Price;
+  const { gb: size, price } = await packQuote(db, gb);
   const t = await trafficRow(db, s.id);
   await needBudget(db, s.userId, "vps", price);
   const ok = await db.transaction((tx) => debit(tx, s.userId, price, "بسته ترافیک " + size.toLocaleString("fa-IR") + " گیگابایتی سرور " + s.name + " (" + why + ")", { serverId: s.id }));

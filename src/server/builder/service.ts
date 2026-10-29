@@ -28,6 +28,13 @@ export async function createProject(db: DB, userId: string, o: { prompt: string;
 }
 
 const iso = (d: Date) => faDateTime(d);
+
+/** the AI cost of one routine maintenance scan with the project's model, and of continuous mode for a month */
+export async function maintainCosts(db: DB, p: Pick<Project, "model" | "scanEvery">) {
+  const [m] = await db.select({ inPrice: aiModels.inPrice, outPrice: aiModels.outPrice }).from(aiModels).where(eq(aiModels.id, p.model || BUILDER_DEFAULT_MODEL));
+  const scanCost = m ? costOf(SCAN_TOKENS.in, SCAN_TOKENS.out, m) : 0;
+  return { scanCost, continuousMonthly: scanCost * Math.round((30 * 24 * 60) / p.scanEvery) };
+}
 export const previewPath = (token: string, version?: number | null) => "/api/build/preview/" + token + (version ? ".v" + version : "") + "/index.html";
 
 async function hostOf(db: DB, appIds: string[]) {
@@ -71,14 +78,13 @@ export async function projectView(db: DB, p: Project): Promise<BuilderProjectVie
   }
   const s = summary(p, Object.keys(files).length, hosts);
   const sim = (await paas()).name === "simulator";
-  const [m] = await db.select({ inPrice: aiModels.inPrice, outPrice: aiModels.outPrice }).from(aiModels).where(eq(aiModels.id, p.model || BUILDER_DEFAULT_MODEL));
-  const scanCost = m ? costOf(SCAN_TOKENS.in, SCAN_TOKENS.out, m) : 0;
+  const { scanCost, continuousMonthly } = await maintainCosts(db, p);
   return {
     ...s, model: p.model, previewUrl: previewPath(p.previewToken), appId: p.appId, appName: app?.name ?? null, dbId: p.dbId, deployedVersion: p.deployedVersion,
     liveView: s.liveUrl ? (sim ? previewPath(p.previewToken, p.deployedVersion) : s.liveUrl) : null, simulator: sim,
     selfReview: p.selfReview, language: p.languageSetting, siteLanguage: p.siteLanguage || "fa", siteDir: p.siteDir || dirOf(p.siteLanguage || "fa"),
     autoMaintain: p.autoMaintain, maintainCap: p.maintainCap, maintainSpent: p.maintainSpent, checkedAt: p.checkedAt ? iso(p.checkedAt) : null,
-    maintainMode: p.maintainMode, scanEvery: p.scanEvery, scanCost, continuousMonthly: scanCost * Math.round((30 * 24 * 60) / p.scanEvery),
+    maintainMode: p.maintainMode, scanEvery: p.scanEvery, scanCost, continuousMonthly,
     tree: Object.keys(files).sort().map((path) => ({ path, size: new TextEncoder().encode(files[path]).length })),
     messages: messages.reverse().map((m) => ({ id: m.id, role: m.role, content: m.content, runId: m.runId, at: iso(m.createdAt) })),
     runs: runs.map(runView),

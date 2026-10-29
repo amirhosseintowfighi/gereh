@@ -253,6 +253,13 @@
       "when": 1791600037000,
       "tag": "0037_support_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791600038000,
+      "tag": "0038_advisor",
+      "breakpoints": true
     }
   ]
 }

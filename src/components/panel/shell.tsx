@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { ADVISOR } from "@/lib/advisor";
 import { ASSISTANT } from "@/lib/assistant";
 import { BUILDER } from "@/lib/builder";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM } from "@/lib/cls";
@@ -35,6 +36,7 @@ const USER_NAV: NavItem[] = [
   { href: "/panel/mail", label: "سرویس ایمیل", icon: "mail", group: "سرویس‌ها" },
   { href: "/panel/devops", label: "خدمات دواپس", icon: "workflow", group: "سرویس‌ها" },
   { href: "/panel/billing", label: "صورتحساب و کیف پول", icon: "wallet", group: "حساب" },
+  { href: "/panel/advisor", label: ADVISOR.name, icon: "trending-down", group: "حساب", tag: "AI" },
   { href: "/panel/tickets", label: "تیکت‌ها", icon: "message-circle", group: "حساب" },
   { href: "/panel/keys", label: "SSH و API", icon: "key-round", group: "حساب" },
   { href: "/panel/affiliate", label: "کسب درآمد با معرفی", icon: "gift", group: "حساب" },

@@ -2025,3 +2025,52 @@ export const platformAiUsage = pgTable("platform_ai_usage", {
   error: text("error").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("platform_ai_usage_ix").on(t.purpose, t.createdAt)]);
+
+/* ---------- «مشاور هزینه», the cost and right-sizing advisor (0038_advisor) ---------- */
+/** one recommendation per account and resource (key = "<rule>:<resource id>"), computed by src/server/advisor from usage
+    and the real pricing functions. open → applied (through «اعمال») or ignored (hidden until ignored_until); a finding
+    the engine no longer produces becomes expired. `action` holds the server-derived calls and is never sent to a client. */
+export const advisorFindings = pgTable("advisor_findings", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  rule: text("rule").notNull(),
+  resourceKind: text("resource_kind").notNull().default(""),
+  resourceId: text("resource_id").notNull().default(""),
+  resourceName: text("resource_name").notNull().default(""),
+  title: text("title").notNull(),
+  detail: text("detail").notNull().default(""),
+  evidence: jsonb("evidence").$type<Record<string, unknown>>().notNull().default({}),
+  /** Toman per month saved, or added, by following the recommendation; one_time: charged once now (packs, proration) */
+  saving: money("saving").notNull().default(0),
+  extraCost: money("extra_cost").notNull().default(0),
+  oneTime: money("one_time").notNull().default(0),
+  confidence: real("confidence").notNull().default(0),
+  risk: text("risk", { enum: ["low", "medium", "high"] }).notNull().default("low"),
+  action: jsonb("action").$type<Record<string, unknown> | null>(),
+  status: text("status", { enum: ["open", "applied", "ignored", "expired"] }).notNull().default("open"),
+  ignoredUntil: ts("ignored_until"),
+  notifiedAt: ts("notified_at"),
+  appliedAt: ts("applied_at"),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("advisor_findings_key_uq").on(t.userId, t.key), index("advisor_findings_status_ix").on(t.status, t.userId)]);
+
+/** per account: the last computation (run-rate, runway, resources without enough data), the AI summary and the mute */
+export const advisorState = pgTable("advisor_state", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  runRate: money("run_rate").notNull().default(0),
+  parts: jsonb("parts").$type<{ label: string; amount: number }[]>().notNull().default([]),
+  balance: money("balance").notNull().default(0),
+  burn: money("burn").notNull().default(0),
+  runwayDays: real("runway_days"),
+  insufficient: jsonb("insufficient").$type<{ kind: string; id: string; name: string; days: number; reason: string }[]>().notNull().default([]),
+  summary: text("summary").notNull().default(""),
+  summaryHash: text("summary_hash").notNull().default(""),
+  summarySimulated: boolean("summary_simulated").notNull().default(true),
+  summaryAt: ts("summary_at"),
+  /** no weekly notification or email digest */
+  muted: boolean("muted").notNull().default(false),
+  computedAt: ts("computed_at"),
+  digestAt: ts("digest_at"),
+});

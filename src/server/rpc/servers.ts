@@ -8,6 +8,7 @@ import { CRED_TTL_DAYS, dropCredential, pendingCredentials, pendingRow, stashCre
 import { backups, firewallRules, osTemplates, plans, serverCredentials, servers, snapshots, users } from "../db/schema";
 import { sendEmail } from "../messaging";
 import { open } from "../secrets";
+import { prorate } from "../billing-extras";
 import { createInvoice } from "./billing";
 import { rateLimit } from "../auth";
 import { virt } from "../virt/driver";
@@ -97,8 +98,8 @@ export const serversRpc = {
     await ctx.db.update(servers).set({ plan: plan.name, cpu, ram, disk: lay.primary, price: plan.price }).where(eq(servers.id, s.id));
     if (lay.split) await saveAllowance(ctx.db, s.id, disk);
     const days = s.paidUntil ? Math.max(0, Math.ceil((s.paidUntil.getTime() - Date.now()) / 86400_000)) : 0;
-    const diff = Math.round(((plan.price - s.price) * days) / 30 / 1000) * 1000;
-    if (diff > 0 && s.billing === "monthly") await createInvoice(ctx.db, s.userId, [{ desc: "مابه‌التفاوت ارتقای " + s.name + " به " + plan.name + " (" + days.toLocaleString("fa-IR") + " روز)", amount: diff }], { dueDays: 3 });
+    const diff = prorate(s, plan.price);
+    if (diff > 0) await createInvoice(ctx.db, s.userId, [{ desc: "مابه‌التفاوت ارتقای " + s.name + " به " + plan.name + " (" + days.toLocaleString("fa-IR") + " روز)", amount: diff }], { dueDays: 3 });
     await addTask(ctx.db, s.id, "ارتقا به پلن " + plan.name);
     await log(ctx, s, "trending-up", "ارتقای سرور به پلن " + plan.name);
     await requestSync(ctx.db, s.id);
