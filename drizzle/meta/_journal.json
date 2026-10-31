@@ -267,6 +267,13 @@
       "when": 1791600039000,
       "tag": "0039_monitor",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791600040000,
+      "tag": "0040_dbquery",
+      "breakpoints": true
     }
   ]
 }
