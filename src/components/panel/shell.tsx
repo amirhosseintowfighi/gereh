@@ -6,6 +6,7 @@ import { ADVISOR } from "@/lib/advisor";
 import { ASSISTANT } from "@/lib/assistant";
 import { MONITOR } from "@/lib/monitor";
 import { BUILDER } from "@/lib/builder";
+import { DBQ } from "@/lib/dbquery";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { api, byId, setScope, useDB, useMyId, useSession } from "@/lib/store";
@@ -32,6 +33,7 @@ const USER_NAV: NavItem[] = [
   { href: "/panel/monitor", label: MONITOR.name, icon: "shield-alert", group: "زیرساخت", tag: "AI" },
   { href: "/panel/apps", label: "اپ‌ها", icon: "rocket", group: "گره اپ" },
   { href: "/panel/databases", label: "پایگاه داده", icon: "database", group: "گره اپ" },
+  { href: "/panel/db-ask", label: DBQ.name, icon: "sparkles", group: "گره اپ", tag: "AI" },
   { href: "/panel/wordpress", label: "وردپرس", icon: "layers", group: "گره اپ" },
   { href: "/panel/ai", label: "API هوش مصنوعی", icon: "bot", group: "سرویس‌ها" },
   { href: "/panel/inquiry", label: "API استعلام", icon: "fingerprint", group: "سرویس‌ها" },
@@ -121,7 +123,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const [mobile, setMobile] = useState(false);
   const closeNav = useCallback(() => setMobile(false), []);
   // team members only see the sections their role can use
-  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/build", "/panel/servers", "/panel/monitor", "/panel/apps", "/panel/databases", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
+  const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/build", "/panel/servers", "/panel/monitor", "/panel/apps", "/panel/databases", "/panel/db-ask", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
   const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;

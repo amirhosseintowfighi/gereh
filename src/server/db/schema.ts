@@ -2176,3 +2176,53 @@ export const assistantBotButtons = pgTable("assistant_bot_buttons", {
   usedAt: ts("used_at"),
   createdAt: created(),
 }, (t) => [index("assistant_bot_buttons_action_ix").on(t.actionId)]);
+
+/* ---------- «پرسش از دیتابیس» (natural-language database queries) ---------- */
+/** questions and queries per database, with saved ones; never any result rows */
+export const dbqHistory = pgTable("dbq_history", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dbId: text("db_id").notNull().references(() => paasDbs.id, { onDelete: "cascade" }),
+  database: text("database").notNull(),
+  question: text("question").notNull().default(""),
+  query: text("query").notNull(),
+  explanation: text("explanation").notNull().default(""),
+  chart: jsonb("chart").$type<{ type: "bar" | "line" | "pie" | "table"; x: string; y: string }>().notNull().default({ type: "table", x: "", y: "" }),
+  source: text("source", { enum: ["panel", "assistant"] }).notNull().default("panel"),
+  saved: boolean("saved").notNull().default(false),
+  title: text("title").notNull().default(""),
+  /** the person changed the generated query */
+  edited: boolean("edited").notNull().default(false),
+  simulated: boolean("simulated").notNull().default(false),
+  charged: integer("charged").notNull().default(0),
+  runs: integer("runs").notNull().default(0),
+  lastRowCount: integer("last_row_count"),
+  lastRunAt: ts("last_run_at"),
+  createdAt: created(),
+}, (t) => [index("dbq_history_db_ix").on(t.dbId, t.createdAt), index("dbq_history_user_ix").on(t.userId)]);
+
+/** every executed (or refused) query: a hash of its text, who, where, how many rows and how long; never the rows */
+export const dbqAudit = pgTable("dbq_audit", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  userId: text("user_id").notNull(),
+  /** the person who ran it (a team member, or staff viewing the account) */
+  actorId: text("actor_id").notNull(),
+  dbId: text("db_id").notNull(),
+  database: text("database").notNull(),
+  engine: text("engine").notNull(),
+  queryHash: text("query_hash").notNull(),
+  source: text("source", { enum: ["panel", "assistant", "analysis"] }).notNull(),
+  status: text("status", { enum: ["ok", "error", "rejected"] }).notNull(),
+  rowCount: integer("row_count").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  impersonated: boolean("impersonated").notNull().default(false),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("dbq_audit_db_ix").on(t.dbId, t.createdAt), index("dbq_audit_user_ix").on(t.userId, t.createdAt)]);
+
+/** per database: may sample values go to the model («نمونه داده برای دقت بیشتر», off by default) */
+export const dbqSettings = pgTable("dbq_settings", {
+  dbId: text("db_id").primaryKey().references(() => paasDbs.id, { onDelete: "cascade" }),
+  samples: boolean("samples").notNull().default(false),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});

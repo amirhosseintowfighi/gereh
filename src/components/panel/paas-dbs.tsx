@@ -3,12 +3,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BTN_D, BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
+import { DBQ } from "@/lib/dbquery";
 import { fa, toman } from "@/lib/format";
 import { DB_ENGINES, engineOf, PAAS_NAME_RE, PAAS_RESERVED } from "@/lib/paas";
 import { api, useDB, useMyId } from "@/lib/store";
 import type { PaasDb } from "@/lib/types";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { DbAsk } from "./db-ask";
 import { ExplainButton } from "./explain";
 import { Badge, Card, Empty, Field } from "../ui";
 import { AreaChart, AsyncButton, CopyText, Modal, PageTitle, Select, Switch, Tabs } from "../ui-client";
@@ -105,7 +107,7 @@ function NewDatabase({ open, onClose }: { open: boolean; onClose: () => void }) 
 /* ================= detail ================= */
 const TABS = [
   { id: "overview", label: "اتصال", icon: "plug" }, { id: "backups", label: "پشتیبان‌ها", icon: "archive" },
-  { id: "users", label: "کاربران", icon: "users" }, { id: "data", label: "داده‌ها", icon: "table" }, { id: "panels", label: "پنل وب", icon: "layout-dashboard" },
+  { id: "users", label: "کاربران", icon: "users" }, { id: "data", label: "داده‌ها", icon: "table" }, { id: "ask", label: DBQ.tab, icon: "sparkles" }, { id: "panels", label: "پنل وب", icon: "layout-dashboard" },
   { id: "tuning", label: "پیکربندی", icon: "sliders-horizontal" },
   { id: "resources", label: "منابع", icon: "gauge" }, { id: "settings", label: "تنظیمات", icon: "settings-2" },
 ];
@@ -136,6 +138,7 @@ export function DbDetail({ id }: { id: string }) {
         {tab === "backups" && <DbBackups d={d} />}
         {tab === "users" && <DbUsers d={d} />}
         {tab === "data" && <DbInspector d={d} />}
+        {tab === "ask" && <DbAsk d={d} />}
         {tab === "panels" && <DbPanels d={d} />}
         {tab === "tuning" && <DbTuning d={d} />}
         {tab === "resources" && <DbResources d={d} />}
