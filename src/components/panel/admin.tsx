@@ -1,6 +1,7 @@
 "use client";
 import { AdvisorAdminCard } from "./advisor";
 import { MonitorAdminCard } from "./monitor";
+import { BotAdminCard } from "./assistant-bots";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -716,10 +717,7 @@ export function AdminSettings() {
           </Card>
         )}
         {tab === "notify" && (
-          <Card title="ربات‌های تلگرام و بله" icon="send" className="mt-4">
-            <p className="text-sm text-white/60 leading-7 max-w-3xl">با ربات‌ها مشتریان اعلان‌های حساب را در پیام‌رسان می‌گیرند. در سرور (<code dir="ltr">sudo gereh env</code>) مقادیر <code dir="ltr">BALE_BOT_TOKEN</code>، <code dir="ltr">BALE_BOT_USERNAME</code> و برای تلگرام <code dir="ltr">TELEGRAM_BOT_TOKEN</code>، <code dir="ltr">TELEGRAM_BOT_USERNAME</code> را تنظیم کنید (برای تلگرام از سرور ایران، <code dir="ltr">TELEGRAM_API_BASE</code> را روی یک relay خارج بگذارید)، سپس این دکمه را بزنید.</p>
-            <AsyncButton className={BTN_G + BTN_MD + " mt-4"} onClick={async () => { const r = await api.notify.adminBots(); notify(r.map((x) => (x.kind === "telegram" ? "تلگرام" : "بله") + ": " + (x.ok ? "متصل شد" : x.detail)).join(" — "), "send"); }}><Icon name="send" size={16} />اتصال وب‌هوک ربات‌ها</AsyncButton>
-          </Card>
+          <BotAdminCard />
         )}
         {tab === "staff" && <>
           <Card title="مدیران" icon="users" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setSt({ name: "", email: "", role: "پشتیبانی فنی" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> افزودن مدیر</button>}>

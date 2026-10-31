@@ -2139,3 +2139,40 @@ export const monitorScan = pgTable("monitor_scan", {
   procAt: ts("proc_at"),
   scannedAt: ts("scanned_at"),
 });
+
+/* ---------- «دستیار گره» in Telegram and Bale (0040_assistant_bots) ---------- */
+/** a private Telegram/Bale chat linked to a person (in their own or a team account) through a one-time /start code.
+    The assistant runs there as that person; `credMark` is a hash of their password hash at link time, so changing
+    the password (or suspension, or leaving the team) revokes the link. The owner's link also feeds notifications
+    through its notify_channels row. */
+export const assistantBotChats = pgTable("assistant_bot_chats", {
+  id: text("id").primaryKey(),
+  kind: text("kind", { enum: ["telegram", "bale"] }).notNull(),
+  chatId: text("chat_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  label: text("label").notNull().default(""),
+  threadId: text("thread_id").references(() => assistantThreads.id, { onDelete: "set null" }),
+  /** staff in their own account who switched the chat to the operator console (dangerous staff tools stay refused) */
+  staffMode: boolean("staff_mode").notNull().default(false),
+  notifyChannelId: text("notify_channel_id").references(() => notifyChannels.id, { onDelete: "set null" }),
+  credMark: text("cred_mark").notNull().default(""),
+  lastAt: ts("last_at"),
+  createdAt: created(),
+}, (t) => [uniqueIndex("assistant_bot_chats_chat_uq").on(t.kind, t.chatId), index("assistant_bot_chats_user_ix").on(t.userId, t.accountId)]);
+
+/** an inline «تأیید / لغو» button: the short opaque id in callback_data maps to the sealed one-time confirm token,
+    bound to the chat, the person and the account; single use and expiring with the proposal */
+export const assistantBotButtons = pgTable("assistant_bot_buttons", {
+  id: text("id").primaryKey(),
+  kind: text("kind", { enum: ["telegram", "bale"] }).notNull(),
+  chatId: text("chat_id").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: text("account_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actionId: text("action_id").notNull().references(() => assistantActions.id, { onDelete: "cascade" }),
+  tokenEnc: text("token_enc").notNull(),
+  messageId: text("message_id").notNull().default(""),
+  expiresAt: ts("expires_at").notNull(),
+  usedAt: ts("used_at"),
+  createdAt: created(),
+}, (t) => [index("assistant_bot_buttons_action_ix").on(t.actionId)]);

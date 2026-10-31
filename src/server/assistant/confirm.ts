@@ -49,7 +49,7 @@ async function settleMessage(ctx: Ctx, a: typeof assistantActions.$inferSelect, 
 
 /** confirm (runs the action once) or cancel a proposal; throws a user-facing error for a wrong, used, expired or
     tampered token */
-export async function decide(ctx: Ctx, token: string, args: Json | null, how: "confirm" | "cancel"): Promise<Decision> {
+export async function decide(ctx: Ctx, token: string, args: Json | null, how: "confirm" | "cancel", scrub?: (out: unknown) => unknown): Promise<Decision> {
   const auth = ctx.auth;
   if (!auth) throw new AppError("برای ادامه وارد حساب شوید.", 401);
   const w = who(auth);
@@ -87,7 +87,8 @@ export async function decide(ctx: Ctx, token: string, args: Json | null, how: "c
     return { id: row.id, threadId: row.threadId, status: "cancelled", summary, tool: row.tool };
   }
   try {
-    const out = await kit.exec(ctx, tool!, row.args);
+    const raw = await kit.exec(ctx, tool!, row.args);
+    const out = scrub ? scrub(raw) : raw;
     const summary = tool!.brief(out, row.args);
     await ctx.db.update(assistantActions).set({ result: summary }).where(eq(assistantActions.id, row.id));
     await settleMessage(ctx, row, "done", wrapResult(row.tool, out), summary);

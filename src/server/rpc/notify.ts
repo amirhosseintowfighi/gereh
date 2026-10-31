@@ -2,12 +2,13 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { SITE_URL } from "@/lib/seo";
-import { botConfig, channelSend, checkWebhookUrl, NOTIFY_KINDS, newLinkCode, setBotWebhooks } from "../channels";
+import { BOT_KINDS } from "../bots/api";
+import { channelSend, checkWebhookUrl, NOTIFY_KINDS } from "../channels";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { notifyChannels } from "../db/schema";
 import { seal } from "../secrets";
 import { fail, logActivity, logAudit } from "../util";
+import { botLinkFor } from "./assistant-bots";
 
 const events = z.array(z.enum(NOTIFY_KINDS)).min(1).max(4);
 async function own(ctx: Ctx, id: string) {
@@ -22,13 +23,11 @@ async function room(ctx: Ctx, uid: string) {
 }
 
 export const notifyRpc = {
-  /** deep link that connects the user's Telegram/Bale chat to the account (valid 15 minutes) */
+  /** deep link that connects the person's Telegram/Bale chat (notifications and «دستیار گره»; one-time, 10 minutes) */
   "notify.botLink": method(z.tuple([z.enum(["telegram", "bale"])]), async (ctx, [kind]) => {
     const a = needUser(ctx);
-    const c = botConfig(kind);
-    if (!c.username) fail("ربات " + (kind === "telegram" ? "تلگرام" : "بله") + " هنوز راه‌اندازی نشده است.");
-    await room(ctx, a.uid);
-    return c.link + c.username + "?start=" + (await newLinkCode(ctx.db, a.uid, kind));
+    if (a.uid === a.user.id) await room(ctx, a.uid);
+    return (await botLinkFor(ctx, kind)).url;
   }),
   /** returns the signing secret once */
   "notify.addWebhook": method(z.tuple([z.object({ url: z.string().trim().max(500), label: z.string().trim().max(40).default(""), events })]), async (ctx, [w]) => {
@@ -54,10 +53,12 @@ export const notifyRpc = {
     try { await channelSend(ctx.db, { channelId: c.id, kind: "service", subject: "پیام آزمایشی گره", text: "اتصال اعلان‌ها درست کار می‌کند.", attempt: 4, test: true }); }
     catch (e) { fail("ارسال ناموفق بود: " + (e as Error).message); }
   }),
-  /** staff: points both bots at this site's webhook */
+  /** staff: tests both bots and sets each one's webhook or polling (see assistant.adminBotTest) */
   "notify.adminBots": method(z.tuple([]), async (ctx) => {
     needStaff(ctx, "settings");
-    const r = await setBotWebhooks(SITE_URL);
+    const { applyMode } = await import("../bots/poll");
+    const r = [];
+    for (const kind of BOT_KINDS) r.push({ kind, ...(await applyMode(ctx.db, kind)) });
     await logAudit(ctx.db, actor(ctx), "تنظیم وب‌هوک ربات‌ها", r.map((x) => x.kind + ":" + (x.ok ? "ok" : x.detail)).join(" "), ctx.ip);
     return r;
   }),

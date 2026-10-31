@@ -211,5 +211,11 @@ export function startWorker(getDb: () => Promise<DB>, everyMs = 5000) {
     }
   }, everyMs);
   timer.unref?.();
+  // the Telegram/Bale getUpdates loops: long-lived, beside the lanes (never a job), one process per bot (kv lease)
+  void import("../bots/poll").then((m) => m.startBotPoller(getDb)).catch((e) => console.error("[worker] bot poller", e));
 }
-export const stopWorker = () => { if (timer) clearInterval(timer); timer = null; };
+export const stopWorker = () => {
+  if (timer) clearInterval(timer);
+  timer = null;
+  void import("../bots/poll").then((m) => m.stopBotPoller()).catch(() => {});
+};

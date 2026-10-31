@@ -1,94 +1,25 @@
-/* Notification channels beyond email/SMS: Telegram and Bale bots (Bale speaks the Telegram Bot API)
-   and customer webhooks signed with HMAC-SHA256. Without bot tokens, messages land in the outbox
-   (messaging.ts) like SMS and email do in development. */
+/* Notification channels beyond email/SMS: Telegram and Bale chats (linked through «دستیار گره», ./bots) and
+   customer webhooks signed with HMAC-SHA256. Without bot tokens, messages land in the outbox (messaging.ts) like
+   SMS and email do in development. */
 import "server-only";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { and, eq } from "drizzle-orm";
 import type { DB, Tx } from "./db/client";
-import { kv, notifyChannels, users } from "./db/schema";
+import { notifyChannels, users } from "./db/schema";
+import { botConf, sendText, type BotKind } from "./bots/api";
+import { channelStillLinked } from "./bots/links";
 import { enqueue } from "./jobs";
 import { outbox } from "./messaging";
 import { open } from "./secrets";
 
-export type BotKind = "telegram" | "bale";
+export type { BotKind } from "./bots/api";
 export const NOTIFY_KINDS = ["billing", "service", "security", "news"] as const;
 
-export function botConfig(kind: BotKind) {
-  const up = kind.toUpperCase();
-  return {
-    token: process.env[up + "_BOT_TOKEN"] || "",
-    username: (process.env[up + "_BOT_USERNAME"] || "").replace(/^@/, ""),
-    api: (process.env[up + "_API_BASE"] || (kind === "telegram" ? "https://api.telegram.org" : "https://tapi.bale.ai")).replace(/\/$/, ""),
-    link: kind === "telegram" ? "https://t.me/" : "https://ble.ir/",
-  };
-}
-/** path secret of the bot webhook (/api/bot/<kind>/<secret>) */
-export const botSecret = (kind: BotKind) => createHmac("sha256", process.env.APP_SECRET || "dev").update("bot:" + kind).digest("hex").slice(0, 32);
-
-export async function botSend(kind: BotKind, chatId: string, text: string) {
-  const c = botConfig(kind);
-  if (!c.token) { outbox.unshift({ channel: kind as never, to: chatId, text, at: Date.now() }); return; }
-  const res = await fetch(c.api + "/bot" + c.token + "/sendMessage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000), disable_web_page_preview: true }), signal: AbortSignal.timeout(10_000) });
-  const j = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string };
-  if (!res.ok || !j.ok) throw new Error(kind + ": " + (j.description || "HTTP " + res.status));
-}
-
-/** registers the bot webhooks with Telegram/Bale (staff action) */
-export async function setBotWebhooks(siteUrl: string) {
-  const out: { kind: BotKind; ok: boolean; detail: string }[] = [];
-  for (const kind of ["telegram", "bale"] as BotKind[]) {
-    const c = botConfig(kind);
-    if (!c.token) { out.push({ kind, ok: false, detail: kind.toUpperCase() + "_BOT_TOKEN تنظیم نشده" }); continue; }
-    try {
-      const res = await fetch(c.api + "/bot" + c.token + "/setWebhook", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: siteUrl + "/api/bot/" + kind + "/" + botSecret(kind), allowed_updates: ["message"] }), signal: AbortSignal.timeout(10_000) });
-      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string };
-      out.push({ kind, ok: !!j.ok, detail: j.description || "HTTP " + res.status });
-    } catch (e) { out.push({ kind, ok: false, detail: (e as Error).message }); }
-  }
-  return out;
-}
-
-/* ---------- linking a chat ---------- */
-export async function newLinkCode(db: DB, userId: string, kind: BotKind) {
-  const code = randomBytes(12).toString("base64url");
-  await db.insert(kv).values({ key: "botlink:" + code, value: { userId, kind, exp: Date.now() + 15 * 60_000 } });
-  return code;
-}
-
-/** handles one bot update (message); returns the reply text */
-export async function botUpdate(db: DB, kind: BotKind, update: { message?: { chat?: { id?: number | string }; text?: string } }): Promise<string | null> {
-  const chatId = update.message?.chat?.id;
-  const text = (update.message?.text || "").trim();
-  if (chatId === undefined || !text) return null;
-  const chat = String(chatId);
-  const [cmd, arg] = text.split(/\s+/, 2);
-  if (cmd === "/start" && arg) {
-    const [row] = await db.select().from(kv).where(eq(kv.key, "botlink:" + arg));
-    const v = row?.value as { userId: string; kind: BotKind; exp: number } | undefined;
-    if (!v || v.kind !== kind || v.exp < Date.now()) return "این لینک منقضی شده است. از پنل گره › حساب › اعلان‌ها لینک جدید بگیرید.";
-    await db.delete(kv).where(eq(kv.key, "botlink:" + arg));
-    const [dup] = await db.select({ id: notifyChannels.id }).from(notifyChannels).where(and(eq(notifyChannels.userId, v.userId), eq(notifyChannels.kind, kind), eq(notifyChannels.target, chat)));
-    if (dup) await db.update(notifyChannels).set({ active: true }).where(eq(notifyChannels.id, dup.id));
-    else await db.insert(notifyChannels).values({ id: "ch-" + randomBytes(6).toString("hex"), userId: v.userId, kind, target: chat, label: kind === "telegram" ? "تلگرام" : "بله" });
-    const [u] = await db.select({ name: users.name }).from(users).where(eq(users.id, v.userId));
-    return "✅ اعلان‌های حساب " + (u?.name ?? "") + " از این پس اینجا ارسال می‌شود.\n/balance موجودی کیف پول\n/stop قطع اعلان‌ها";
-  }
-  const linked = await db.select().from(notifyChannels).where(and(eq(notifyChannels.kind, kind), eq(notifyChannels.target, chat), eq(notifyChannels.active, true)));
-  if (cmd === "/stop") {
-    await db.update(notifyChannels).set({ active: false }).where(and(eq(notifyChannels.kind, kind), eq(notifyChannels.target, chat)));
-    return linked.length ? "اعلان‌ها قطع شد. برای اتصال دوباره از پنل گره لینک بگیرید." : "این گفتگو به حسابی متصل نیست.";
-  }
-  if (cmd === "/balance" && linked.length) {
-    const lines: string[] = [];
-    for (const l of linked) {
-      const [u] = await db.select({ name: users.name, balance: users.balance }).from(users).where(eq(users.id, l.userId));
-      if (u) lines.push(u.name + ": " + u.balance.toLocaleString("fa-IR") + " تومان");
-    }
-    return "💰 موجودی کیف پول\n" + lines.join("\n");
-  }
-  return "سلام! من ربات اعلان‌های گره هستم. برای اتصال، در پنل گره › حساب › اعلان‌ها روی «اتصال " + (kind === "telegram" ? "تلگرام" : "بله") + "» بزنید.";
+/** a notification to a linked chat, with the admin's bot settings (Telegram through its proxy) */
+export async function botSend(db: DB, kind: BotKind, chatId: string, text: string) {
+  await sendText(await botConf(db, kind), chatId, text.slice(0, 4000));
 }
 
 /* ---------- webhooks ---------- */
@@ -135,7 +66,11 @@ export async function channelSend(db: DB, p: { channelId: string; kind: string; 
   if (!c || (!c.active && !p.test)) return;
   try {
     if (c.kind === "webhook") await webhookSend(c.target, open(c.secretEnc ?? "") ?? "", { event: p.test ? "test" : "notification." + p.kind, kind: p.kind, subject: p.subject, text: p.text, at: new Date().toISOString() });
-    else await botSend(c.kind, c.target, p.subject + (p.text ? "\n\n" + p.text : ""));
+    else {
+      // a chat whose assistant link was revoked (password change, suspension…) stops receiving too
+      if (!(await channelStillLinked(db, c.id))) return;
+      await botSend(db, c.kind, c.target, p.subject + (p.text ? "\n\n" + p.text : ""));
+    }
     await db.update(notifyChannels).set({ lastStatus: "ok", lastAt: new Date() }).where(eq(notifyChannels.id, c.id));
   } catch (e) {
     await db.update(notifyChannels).set({ lastStatus: (e as Error).message.slice(0, 200), lastAt: new Date() }).where(eq(notifyChannels.id, c.id));

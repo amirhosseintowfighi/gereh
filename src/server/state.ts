@@ -20,7 +20,7 @@ import { EMPTY_GEO, geoState } from "./geo/state";
 import { EMPTY_STORAGE, storageState } from "./storage/state";
 import { aiState, EMPTY_AI } from "./ai/state";
 import { ticketAiStates } from "./support-ai/state";
-import { botConfig } from "./channels";
+import { botFlags } from "./bots/api";
 import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
 import { undeliveredCount } from "./provisioning";
@@ -171,7 +171,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
     channels: (await db.select().from(t.notifyChannels).where(eq(t.notifyChannels.userId, uid))).map((c) => ({
       id: c.id, kind: c.kind, label: c.label, target: c.kind === "webhook" ? c.target : "", events: c.events, active: c.active, lastStatus: c.lastStatus, lastAt: c.lastAt ? faDateTime(c.lastAt) : "",
     })),
-    bots: { telegram: !!botConfig("telegram").username, bale: !!botConfig("bale").username },
+    bots: await botFlags(db),
     twofa: !!me?.twofaSecret,
     notifications: notifs.map((n) => ({ id: n.id, icon: n.icon, text: n.text, read: n.read, at: ago(n.createdAt) })),
     activity: acts.map((a) => ({ id: a.id, icon: a.icon, text: a.text, ip: a.ip, at: faDateTime(a.createdAt) })),

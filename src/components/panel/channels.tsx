@@ -4,6 +4,7 @@ import { BTN_G, BTN_LG, BTN_P, BTN_SM, INPUT } from "@/lib/cls";
 import { api, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
+import { BotLinks } from "./assistant-bots";
 import { Badge, Card, Field } from "../ui";
 import { AsyncButton, CopyText, Modal, Switch } from "../ui-client";
 
@@ -16,13 +17,11 @@ export function NotifyChannels() {
   const [hook, setHook] = useState(false);
   const [secret, setSecret] = useState("");
   const [w, setW] = useState({ url: "", label: "", events: ["billing", "service", "security"] });
-  const link = async (kind: "telegram" | "bale") => { const url = await api.notify.botLink(kind); window.open(url, "_blank", "noopener"); notify("در " + NAME[kind] + " روی Start بزنید", "send"); };
   return (
     <Card title="تلگرام، بله و وب‌هوک" icon="send" pad="p-3 sm:p-4" className="mt-4">
-      <p className="text-sm text-white/60 leading-7 px-1">اعلان‌های حساب (استقرار، قطعی، صورتحساب و…) را در پیام‌رسان یا سیستم خودتان بگیرید.</p>
+      <p className="text-sm text-white/60 leading-7 px-1">اعلان‌های حساب (استقرار، قطعی، صورتحساب و…) را در پیام‌رسان یا سیستم خودتان بگیرید. گفتگوی تلگرام یا بله‌ای که وصل کنید، «دستیار گره» را هم در اختیارتان می‌گذارد.</p>
+      <div className="px-1 mt-3"><BotLinks compact /></div>
       <div className="flex flex-wrap gap-2 mt-3 px-1">
-        {db.bots.telegram && <AsyncButton className={BTN_G + BTN_SM} onClick={() => link("telegram")}><Icon name="send" size={14} />اتصال تلگرام</AsyncButton>}
-        {db.bots.bale && <AsyncButton className={BTN_G + BTN_SM} onClick={() => link("bale")}><Icon name="send" size={14} />اتصال بله</AsyncButton>}
         <button type="button" onClick={() => { setSecret(""); setHook(true); }} className={BTN_G + BTN_SM}><Icon name="plug" size={14} />افزودن وب‌هوک</button>
       </div>
       {db.channels.length > 0 && (

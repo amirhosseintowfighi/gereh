@@ -11,6 +11,7 @@ import { fa, toman } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
 import { api, byId, refresh, useDB } from "@/lib/store";
 import { useApp } from "../app-context";
+import { MessengerButton } from "./assistant-bots";
 import { Icon } from "../icon";
 import { Badge, Card } from "../ui";
 import { AsyncButton, ICON_BTN, Portal, Select, useDialog } from "../ui-client";
@@ -336,6 +337,7 @@ export function AssistantPage() {
           <Icon name="sparkles" size={17} className="acc" />
           <h1 className="font-extrabold text-[15px] flex-1 min-w-0 truncate">{a.threadId ? a.threads?.find((t) => t.id === a.threadId)?.title ?? ASSISTANT.name : ASSISTANT.name}</h1>
           <button type="button" className={BTN_G + BTN_SM + " lg:hidden"} onClick={() => setList((l) => !l)} aria-expanded={list}><Icon name="history" size={14} />گفتگوها</button>
+          <MessengerButton />
           <button type="button" className={BTN_P + BTN_SM} onClick={a.reset} disabled={a.busy}><Icon name="plus" size={14} />جدید</button>
         </header>
         <Conversation a={a} context={null} onClearContext={() => {}} seed={seed} />

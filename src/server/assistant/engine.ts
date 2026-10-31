@@ -38,6 +38,9 @@ export type TurnInput = {
   mode?: AssistantMode;
   confirm?: { token: string; args: Json }; cancel?: { token: string };
   signal?: AbortSignal; emit: (e: AssistantEvent) => void;
+  /** a filter over every tool result before the model (and anything after it) sees it: the messenger bots strip
+      credentials here */
+  scrub?: (out: unknown) => unknown;
 };
 
 /** the page the assistant was opened from, if it is the customer's own resource */
@@ -151,7 +154,7 @@ export async function runTurn(i: TurnInput): Promise<void> {
   // the person's decision on a proposed action
   if (i.confirm || i.cancel) {
     let r;
-    try { r = await decide(ctx, (i.confirm ?? i.cancel)!.token, i.confirm?.args ?? null, i.confirm ? "confirm" : "cancel"); } catch (e) { return emit({ type: "error", message: errorText(e), code: "confirm_rejected" }); }
+    try { r = await decide(ctx, (i.confirm ?? i.cancel)!.token, i.confirm?.args ?? null, i.confirm ? "confirm" : "cancel", i.scrub); } catch (e) { return emit({ type: "error", message: errorText(e), code: "confirm_rejected" }); }
     if (thread && r.threadId !== thread.id) return emit({ type: "error", message: "این تأیید مربوط به گفتگوی دیگری است.", code: "confirm_rejected" });
     thread = await ownThread(db, auth, r.threadId, mode);
     if (!thread) return emit({ type: "error", message: "گفتگو پیدا نشد.", code: "not_found" });
@@ -282,7 +285,7 @@ export async function runTurn(i: TurnInput): Promise<void> {
           continue;
         }
         let out: unknown, ok = true, msg = "";
-        try { out = await kit.exec(ctx, t, args); } catch (e) { ok = false; msg = errorText(e); }
+        try { out = await kit.exec(ctx, t, args); if (i.scrub) out = i.scrub(out); } catch (e) { ok = false; msg = errorText(e); }
         const brief = ok ? t.brief(out, args) : msg;
         await save(wrapResult(t.name, ok ? out : { error: msg }), { label, risk, status: ok ? "ok" : "error", summary: brief });
         emit({ type: "tool_result", id: c.id, name: t.name, ok, summary: brief });

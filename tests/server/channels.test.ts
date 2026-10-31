@@ -2,7 +2,8 @@ import { createHmac } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/bot/[kind]/[secret]/route";
-import { botSecret, checkWebhookUrl, signBody } from "@/server/channels";
+import { botSecret, hookSecret } from "@/server/bots/api";
+import { checkWebhookUrl, signBody } from "@/server/channels";
 import { context } from "@/server/ctx";
 import { notifyChannels } from "@/server/db/schema";
 import { outbox } from "@/server/messaging";
@@ -15,7 +16,7 @@ beforeEach(async () => { await fresh(); process.env.BALE_BOT_USERNAME = "gereh_b
 afterEach(() => { delete process.env.BALE_BOT_USERNAME; });
 const settle = async () => { for (let i = 0; i < 6; i++) if (!(await drain(await db()))) break; };
 const bot = (kind: string, secret: string, text: string, chat = 777) =>
-  POST(new Request("http://x/api/bot/" + kind + "/" + secret, { method: "POST", body: JSON.stringify({ message: { chat: { id: chat }, text } }) }), { params: Promise.resolve({ kind, secret }) } as never);
+  POST(new Request("http://x/api/bot/" + kind + "/" + secret, { method: "POST", headers: { "x-telegram-bot-api-secret-token": hookSecret(kind as "bale") }, body: JSON.stringify({ message: { chat: { id: chat, type: "private" }, text } }) }), { params: Promise.resolve({ kind, secret }) } as never);
 
 describe("notification channels", () => {
   it("links a Bale chat through the bot, then delivers notifications there", async () => {

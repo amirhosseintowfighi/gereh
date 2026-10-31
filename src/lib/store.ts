@@ -16,6 +16,7 @@ import type { RuntimeConfig } from "./paas-runtime";
 import { noteRpcError } from "./rpc-errors";
 import type { AiKind } from "./ai";
 import type { AssistantMessageView, AssistantThreadView } from "./assistant";
+import type { BotAdminView, BotChatView, BotKind, BotLinkView, BotTestResult } from "./assistant-bots";
 import type { SupportAiMetrics, SupportAiRunView, SupportAiSettings } from "./support-ai";
 import type { BuilderProjectSummary, BuilderProjectView, BuilderRunView } from "./builder";
 import type { AiChatFull, AiChatSummary, AiLogFilter, AiLogRow, AiReport, AiState, ClientDB, Coupon, DnsRecord, FwRule, Invoice, Session, StorageCors, Ticket } from "./types";
@@ -497,6 +498,16 @@ export const api = {
     adminSync: () => rpc<{ total: number; added: number }>("ai.adminSync"),
     adminApplyRule: (discount: number) => rpc<number>("ai.adminApplyRule", discount),
     adminTest: (id: string) => rpc<{ ok: boolean; ms: number; detail: string }>("ai.adminTest", id),
+  },
+  /** «دستیار گره» in Telegram and Bale: the person's linked chats; staff: the bots */
+  assistantBots: {
+    link: (kind: BotKind) => rpc<BotLinkView>("assistant.botLink", kind),
+    chats: () => rpc<BotChatView[]>("assistant.botChats"),
+    unlink: (id: string) => rpc("assistant.botUnlink", id),
+    staffMode: (id: string, on: boolean) => rpc("assistant.botStaffMode", id, on),
+    admin: () => rpc<BotAdminView[]>("assistant.adminBots"),
+    save: (kind: BotKind, p: { token?: string | null; proxy?: string | null; mode?: "auto" | "webhook" | "poll"; enabled?: boolean }) => rpc("assistant.adminBotSave", kind, p),
+    test: (kind: BotKind) => rpc<BotTestResult>("assistant.adminBotTest", kind),
   },
   notify: {
     botLink: (kind: "telegram" | "bale") => rpc<string>("notify.botLink", kind),
