@@ -9,7 +9,7 @@ import { AreaChart, Bars, PageTitle, Select, StatCard } from "../ui-client";
 type Month = { month: string; key: string; invoices: number; net: number; vat: number; gross: number; refunds: number; commissions: number; topups: number; online: number; newCustomers: number };
 type Report = {
   finance: { months: Month[]; totals: Omit<Month, "month" | "key">; categories: { name: string; amount: number }[]; topCustomers: { id: string; name: string; email: string; amount: number }[]; gateways: { name: string; amount: number; count: number }[]; outstanding: { count: number; amount: number } };
-  sla: { days: number; tickets: number; answered: number; slaRate: number; overdueNow: string[]; agents: { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number; ai?: boolean }[] };
+  sla: { days: number; tickets: number; answered: number; slaRate: number | null; overdueNow: string[]; agents: { agent: string; replies: number; tickets: number; firstResponses: number; avgFirstMin: number; withinSla: number; ai?: boolean }[] };
 };
 const mil = (n: number) => fa(Math.round(n / 100_000) / 10, 1);
 const dur = (m: number) => (m >= 60 ? fa(Math.round(m / 6) / 10, 1) + " ساعت" : fa(m) + " دقیقه");
@@ -46,7 +46,8 @@ export function AdminReports() {
             <StatCard icon="user-plus" label="مشتری جدید" value={f.totals.newCustomers} sub={"بازگشت وجه " + mil(f.totals.refunds) + " میلیون"} />
           </div>
           <Card title="فروش ماهانه (میلیون تومان، با مالیات)" icon="chart-column">
-            {f.months.length > 6 ? <AreaChart data={f.months.map((m) => m.gross / 1e6)} labels={f.months.map((m) => m.month)} fmt={(v) => fa(Math.round(v * 10) / 10, 1)} unit="میلیون تومان" />
+            {f.months.every((m) => m.gross === 0) ? <Empty icon="chart-column" title="هنوز داده‌ای ثبت نشده" text="در این بازه صورتحساب پرداخت‌شده‌ای نیست؛ نمودار از صورتحساب‌های پرداخت‌شده هر ماه ساخته می‌شود." />
+              : f.months.length > 6 ? <AreaChart data={f.months.map((m) => m.gross / 1e6)} labels={f.months.map((m) => m.month)} fmt={(v) => fa(Math.round(v * 10) / 10, 1)} unit="میلیون تومان" />
               : <Bars data={f.months.map((m) => Math.round(m.gross / 1e5) / 10)} labels={f.months.map((m) => m.month)} fmt={(v) => fa(v, 1)} />}
           </Card>
           <Card title="جزئیات ماهانه" icon="scroll-text" pad="p-0">
@@ -86,7 +87,7 @@ export function AdminReports() {
             </Card>
           </div>
           <Card title={"پشتیبانی در " + fa(s.days) + " روز اخیر"} icon="headset" pad="p-0"
-            action={<div className="flex gap-2"><Badge tone={s.slaRate >= 90 ? "green" : s.slaRate >= 75 ? "amber" : "red"}>{fa(s.slaRate, 1)}٪ در زمان هدف</Badge>{s.overdueNow.length > 0 && <Badge tone="red">{fa(s.overdueNow.length)} تیکت عقب‌افتاده</Badge>}</div>}>
+            action={<div className="flex gap-2">{s.slaRate === null ? <Badge tone="gray">در زمان هدف: هنوز داده‌ای ثبت نشده</Badge> : <Badge tone={s.slaRate >= 90 ? "green" : s.slaRate >= 75 ? "amber" : "red"}>{fa(s.slaRate, 1)}٪ در زمان هدف</Badge>}{s.overdueNow.length > 0 && <Badge tone="red">{fa(s.overdueNow.length)} تیکت عقب‌افتاده</Badge>}</div>}>
             {s.agents.length === 0 ? <div className="p-6"><Empty icon="message-circle" title="پاسخی در این بازه ثبت نشده" /></div> : (
               <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="جدول عملکرد کارشناسان">
                 <table className="w-full text-sm whitespace-nowrap">

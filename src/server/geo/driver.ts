@@ -7,6 +7,7 @@
    (see deploy/geo/README.md).
    Without GEO_PDNS the simulator keeps the rendered zones in memory (dev, tests, demos). */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { GEO_TYPES, type GeoRecordType } from "@/lib/geo";
 
 export type GeoZoneSpec = { domain: string; geo: boolean; failover: boolean; healthPath: string; records: { name: string; type: GeoRecordType; iran: string; world: string; ttl: number; priority: number | null }[] };
@@ -95,5 +96,5 @@ export class SimGeo implements GeoDriver {
 }
 
 let cached: GeoDriver | null = null;
-export const geoDriver = (): GeoDriver => (cached ??= process.env.GEO_PDNS ? new PowerDnsGeo() : new SimGeo());
+export const geoDriver = (): GeoDriver => (cached ??= process.env.GEO_PDNS ? new PowerDnsGeo() : demoMode() ? new SimGeo() : unconfigured<GeoDriver>("Geo DNS (PowerDNS)"));
 export const resetGeoDriver = () => { cached = null; };

@@ -3,6 +3,7 @@
    live stats. Two implementations, picked like paas(): Kubernetes (k8s exec into the database pod,
    Jobs and Ingresses) when PAAS_K8S_API + PAAS_K8S_TOKEN are set, else an in-memory simulator. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createReadStream } from "node:fs";
 import { INSPECT_PAGE, QUERY_LIMIT, type DbGrant, type ImportFormat } from "@/lib/dbaas";
 import type { DbSpec } from "./driver";
@@ -312,7 +313,7 @@ export function bakRestoreSql(db: string, file: string) {
 let cached: DbaasDriver | null = null;
 /** the configured driver (Kubernetes when PAAS_K8S_API + PAAS_K8S_TOKEN are set) */
 export function dbaas(): DbaasDriver {
-  if (!cached) cached = process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeDbaas() : new SimDbaas();
+  if (!cached) cached = process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeDbaas() : demoMode() ? new SimDbaas() : unconfigured<DbaasDriver>("کلاستر پایگاه داده (Kubernetes)");
   return cached;
 }
 export const resetDbaasDriver = () => { cached = null; };

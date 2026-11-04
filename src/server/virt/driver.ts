@@ -4,6 +4,7 @@
    - SimulatorDriver: deterministic in-process stand-in for dev, CI and demos. */
 import "server-only";
 import { VirtualizorError } from "./virtualizor";
+import { demoMode, unconfigured } from "../demo";
 
 export type PowerAction = "start" | "stop" | "restart" | "poweroff";
 /** plid 0 = no Virtualizor plan: the explicit resources are then required. serverGroup is a group name or its numeric id. */
@@ -360,20 +361,21 @@ export class SimulatorDriver implements VirtDriver {
 }
 
 const g = globalThis as typeof globalThis & { __gerehVirt?: VirtDriver; __gerehVirtPinned?: boolean };
-/** the configured driver: env credentials, else the encrypted ones saved in the admin panel, else the simulator */
-/** VIRTUALIZOR_HOST/KEY/PASS in .env take precedence over the panel's connection form */
+/** the configured driver: env credentials, else the encrypted ones saved in the admin panel; without either the
+    simulator in demo mode only (../demo.ts), else a driver that reports Virtualizor as not configured.
+    VIRTUALIZOR_HOST/KEY/PASS in .env take precedence over the panel's connection form */
 export const virtFromEnv = () => !!(process.env.VIRTUALIZOR_HOST && process.env.VIRTUALIZOR_KEY && process.env.VIRTUALIZOR_PASS);
 export async function virt(): Promise<VirtDriver> {
   if (g.__gerehVirt) return g.__gerehVirt;
   const { VirtualizorDriver } = await import("./virtualizor");
   if (virtFromEnv()) return (g.__gerehVirt = new VirtualizorDriver());
-  if (process.env.NODE_ENV === "production" || process.env.VIRTUALIZOR_LIVE === "1") {
+  if (!demoMode() || process.env.NODE_ENV === "production" || process.env.VIRTUALIZOR_LIVE === "1") {
     const [{ getDb }, { getVirt }, { open }] = await Promise.all([import("../db/client"), import("../state"), import("../secrets")]);
     const v = await getVirt(await getDb());
     const pass = open(String(v.passEnc || ""));
     if (v.host && v.key && pass) return (g.__gerehVirt = new VirtualizorDriver({ host: String(v.host), adminPort: Number(v.port) || 4085, key: String(v.key), pass, ...(v.insecure ? { tlsStrict: false } : {}) }));
   }
-  return (g.__gerehVirt = new SimulatorDriver());
+  return (g.__gerehVirt = demoMode() ? new SimulatorDriver() : unconfigured<VirtDriver>("اتصال Virtualizor"));
 }
 /** drop the cached driver after the admin saves new credentials (an injected test driver stays) */
 export const resetVirt = () => { if (!g.__gerehVirtPinned) g.__gerehVirt = undefined; };

@@ -10,7 +10,8 @@ import { DomainInput } from "../home/interactive";
 import { Icon } from "../icon";
 import { PriceTag, Tabs } from "../ui-client";
 
-type Res = Tld & { domain: string; available: boolean };
+/** unknown: the registry could not be asked (not configured or unreachable); never shown as taken or free */
+type Res = Tld & { domain: string; available: boolean; unknown?: boolean };
 type BulkRes = Res | { domain: string; invalid: true };
 
 /** Reads ?q= (client-only); the page renders <DomainSearchView urlQ="" /> as the Suspense fallback so the server HTML is complete. */
@@ -51,8 +52,8 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
       api.domains.check(parsed.name).then((avail) => {
         if (!alive) return;
         const ptld = parsed.tld || ".ir";
-        const free = new Map(avail.map((a) => [a.tld, a.available]));
-        const list = tlds.map((x) => ({ ...x, domain: parsed.name + x.tld, available: !!free.get(x.tld) }));
+        const by = new Map(avail.map((a) => [a.tld, a]));
+        const list = tlds.map((x) => ({ ...x, domain: parsed.name + x.tld, available: !!by.get(x.tld)?.available, unknown: !by.has(x.tld) || !!by.get(x.tld)?.unknown }));
         setResult({ primary: list.find((x) => x.tld === ptld) ?? list[0], others: list.filter((x) => x.tld !== ptld).sort((a, b) => Number(b.available) - Number(a.available) || Number(!!b.hot) - Number(!!a.hot)) });
       }).catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : "بررسی دامنه ناموفق بود."); })
         .finally(() => { if (alive) setLoading(false); });
@@ -75,8 +76,8 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
     Promise.all(names.map(async (n): Promise<BulkRes> => {
       const p = parseDomain(n);
       if (!("name" in p) || !p.name) return { domain: n, invalid: true as const };
-      const avail = await api.domains.check(p.name);
-      return { ...t, domain: p.name + bulkTld, available: !!avail.find((a) => a.tld === bulkTld)?.available };
+      const a = (await api.domains.check(p.name)).find((x) => x.tld === bulkTld);
+      return { ...t, domain: p.name + bulkTld, available: !!a?.available, unknown: !a || !!a.unknown };
     })).then(setBulkRes).catch((e: unknown) => setError(e instanceof Error ? e.message : "بررسی دامنه ناموفق بود.")).finally(() => setLoading(false));
   };
   const order = (d: Res) => addToCart({ t: "domain", name: d.domain, years: 1 });
@@ -124,7 +125,7 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
                 </div>
                 <div>
                   <h2 className="text-2xl sm:text-3xl font-black ltr text-right">{result.primary.domain}</h2>
-                  <div className="text-sm text-white/70 mt-1">{result.primary.available ? "آزاد است و همین حالا قابل ثبت است." : "قبلا ثبت شده است. پسوندهای آزاد را پایین‌تر ببینید."}</div>
+                  <div className="text-sm text-white/70 mt-1">{result.primary.available ? "آزاد است و همین حالا قابل ثبت است." : result.primary.unknown ? "وضعیت این پسوند الان قابل استعلام نیست؛ کمی بعد دوباره امتحان کنید یا با پشتیبانی تماس بگیرید." : "قبلا ثبت شده است. پسوندهای آزاد را پایین‌تر ببینید."}</div>
                 </div>
               </div>
               {result.primary.available && <div className="flex items-center gap-4"><div className="text-left"><PriceTag base={result.primary.reg} suffix="تومان / سال" big={false} /></div>{addBtn(result.primary)}</div>}
@@ -134,12 +135,12 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
                 <li key={d.tld} className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={"w-2 h-2 rounded-full shrink-0 " + (d.available ? "bg-emerald-400" : "bg-white/25")} />
-                    <span className={"font-bold ltr truncate " + (d.available ? "" : "text-white/55 line-through")}>{d.domain}</span>
+                    <span className={"font-bold ltr truncate " + (d.available ? "" : "text-white/55" + (d.unknown ? "" : " line-through"))}>{d.domain}</span>
                     {d.promo && d.available && <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-300/20 text-amber-200 shrink-0 flex items-center gap-1"><Icon name="badge-percent" size={11} />تخفیف</span>}
                   </div>
                   {d.available
                     ? <div className="flex items-center gap-3 shrink-0"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
-                    : <span className="text-xs text-white/55 shrink-0">ثبت شده</span>}
+                    : <span className="text-xs text-white/55 shrink-0">{d.unknown ? "استعلام نشد" : "ثبت شده"}</span>}
                 </li>
               ))}
             </ul>
@@ -152,7 +153,7 @@ export function DomainSearchView({ urlQ }: { urlQ: string }) {
                 <span className={"font-bold ltr truncate " + ("available" in d && d.available ? "" : "text-white/55")}>{d.domain}</span>
                 {"invalid" in d ? <span className="text-xs text-rose-200">نام نامعتبر</span>
                   : d.available ? <div className="flex items-center gap-3"><span className="text-sm text-white/75 hidden sm:inline">{toman(d.reg)}</span>{addBtn(d, true)}</div>
-                  : <span className="text-xs text-white/55">ثبت شده</span>}
+                  : <span className="text-xs text-white/55">{d.unknown ? "استعلام نشد" : "ثبت شده"}</span>}
               </li>
             ))}
           </ul>

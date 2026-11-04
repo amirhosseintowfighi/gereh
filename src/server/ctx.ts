@@ -6,20 +6,20 @@ import type { StaffRole } from "@/lib/types";
 import { readAuth, type Auth } from "./auth";
 import { getDb, type DB } from "./db/client";
 import { kv } from "./db/schema";
+import { demoMode } from "./demo";
 import { seed, upgrade } from "./seed";
 import { AppError } from "./util";
 
 export type Ctx = { db: DB; auth: Auth | null; ip: string; device: string };
 
 let booted: Promise<void> | null = null;
-/** first request on an empty database seeds it (demo data unless NODE_ENV=production and SEED_DEMO≠1) */
+/** first request on an empty database seeds it (demo data only in demo mode, ./demo.ts) */
 export async function db(): Promise<DB> {
   const d = await getDb();
   booted ??= (async () => {
     const [{ n }] = await d.select({ n: count() }).from(kv);
     if (n === 0) {
-      const demo = process.env.SEED_DEMO ? process.env.SEED_DEMO === "1" : process.env.NODE_ENV !== "production";
-      await seed(d, { demo, adminEmail: process.env.ADMIN_EMAIL, adminPassword: process.env.ADMIN_PASSWORD });
+      await seed(d, { demo: demoMode(), adminEmail: process.env.ADMIN_EMAIL, adminPassword: process.env.ADMIN_PASSWORD });
     }
     await upgrade(d);
   })().catch((e) => { booted = null; throw e; });

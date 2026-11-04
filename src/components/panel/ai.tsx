@@ -245,7 +245,7 @@ export function AdminAi() {
   const errors = a.usage.filter((u) => u.status === "error").length;
   return (
     <div>
-      <PageTitle title="API هوش مصنوعی" sub={"مدل‌ها و قیمت‌ها، همگام‌سازی با سرویس‌دهنده و گزارش مصرف. سرویس‌دهنده: " + (a.upstream === "http" ? "متصل (" + "AI_UPSTREAM_URL" + ")" : "شبیه‌ساز — AI_UPSTREAM_KEY تنظیم نشده")} />
+      <PageTitle title="API هوش مصنوعی" sub={"مدل‌ها و قیمت‌ها، همگام‌سازی با سرویس‌دهنده و گزارش مصرف. سرویس‌دهنده: " + (a.upstream === "http" ? "متصل (" + "AI_UPSTREAM_URL" + ")" : "AI_UPSTREAM_KEY تنظیم نشده (فقط در حالت نمایشی: شبیه‌ساز)")} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="activity" label="درخواست امروز" value={a.stats.todayCount} />
         <StatCard icon="wallet" label="درآمد امروز" value={a.stats.todaySpend} suffix="تومان" />

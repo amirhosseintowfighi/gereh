@@ -118,6 +118,8 @@ function SyncLine({ s }: { s: Server }) {
 function Overview({ s }: { s: Server }) {
   const u = s.usage;
   const last = u.at(-1);
+  // monthly traffic only as Virtualizor reported it (synced total, else the latest sample); nothing reported = no number
+  const bw: number | undefined = s.bwUsed ?? last?.bwUsed;
   return <>
     {/* CPU, RAM, network and disk I/O for 1h / 24h / 7d / 30d (collected every 5 minutes, see vps-panel.tsx) */}
     <UsageCharts s={s} />
@@ -132,8 +134,9 @@ function Overview({ s }: { s: Server }) {
         <div className="space-y-5">
           {last ? <Meter label="فضای دیسک" value={last.disk} right={fa(Math.round(last.disk)) + "٪ از " + fa(s.disk) + " گیگ"} /> : <Meter label="فضای دیسک" value={0} right={"— از " + fa(s.disk) + " گیگ"} />}
           {/* quota and usage as synced from Virtualizor (bwLimit = plan + packs, 0 = unlimited) */}
-          {s.bwLimit > 0 ? <Meter label="ترافیک ماهانه" value={s.bwUsed ?? last?.bwUsed ?? 0} max={s.bwLimit} right={fa(Math.round(s.bwUsed ?? last?.bwUsed ?? 0)) + " از " + gbText(s.bwLimit)} />
-            : <Meter label="ترافیک ماهانه" value={0} right={fa(Math.round(s.bwUsed ?? last?.bwUsed ?? 0)) + " گیگ، نامحدود"} />}
+          {bw === undefined ? <Meter label="ترافیک ماهانه" value={0} right={"هنوز داده‌ای ثبت نشده (از Virtualizor)، سهمیه " + (s.bwLimit > 0 ? gbText(s.bwLimit) : "نامحدود")} />
+            : s.bwLimit > 0 ? <Meter label="ترافیک ماهانه" value={bw} max={s.bwLimit} right={fa(Math.round(bw)) + " از " + gbText(s.bwLimit)} />
+            : <Meter label="ترافیک ماهانه" value={0} right={fa(Math.round(bw)) + " گیگ، نامحدود"} />}
           <Meter label="اسنپ‌شات‌ها" value={s.snapshots.length} max={SNAP_LIMIT} right={fa(s.snapshots.length) + " از " + fa(SNAP_LIMIT)} />
         </div>
       </Card>
@@ -142,7 +145,14 @@ function Overview({ s }: { s: Server }) {
   </>;
 }
 
-/* ponytail: demo console. Real one = noVNC over a websockify proxy with a short-lived token (WS /servers/:id/console). */
+/** without a console websocket: the simulated shell in demo mode only (its output is invented), else an honest note */
+function ConsoleFallback({ s }: { s: Server }) {
+  const db = useDB();
+  if (db.settings.demo) return <DemoConsole s={s} />;
+  return <div className="p-6"><Empty icon="monitor-smartphone" title={s.status === "running" ? "کنسول وب الان در دسترس نیست" : "سرور خاموش است"} text={s.status === "running" ? "Virtualizor برای این سرور اتصال کنسول (websocket) برنگرداند؛ از «اتصال مستقیم VNC» با یک برنامه VNC یا از SSH استفاده کنید." : "برای استفاده از کنسول، سرور را روشن کنید."} /></div>;
+}
+
+/* demo mode only: a simulated shell whose output (uptime, df, free) is made up */
 function DemoConsole({ s }: { s: Server }) {
   const [hist, setHist] = useState([{ t: "out", v: s.os + " " + s.name + " tty1" }, { t: "out", v: 'Welcome to Gereh Cloud. Type "help" for commands.' }]);
   const [cmd, setCmd] = useState("");
@@ -191,7 +201,7 @@ function VncPanel({ s }: { s: Server }) {
             <button type="button" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen())?.catch(() => notify("تمام‌صفحه پشتیبانی نمی‌شود", "circle-alert"))} className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 flex items-center gap-1"><Icon name="external-link" size={13} />تمام‌صفحه</button>
           </div>
         </div>
-        <VncScreen s={s} fallback={<DemoConsole s={s} />} />
+        <VncScreen s={s} fallback={<ConsoleFallback s={s} />} />
       </div>
       <div className="space-y-4">
         <Card title="اتصال مستقیم VNC" icon="key-round">

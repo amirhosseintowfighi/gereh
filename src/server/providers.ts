@@ -5,6 +5,7 @@
      .ir domains go through IRNIC's EPP interface, which needs a reseller certificate; until IRNIC_EPP_*
      is configured they use the simulator so the rest of the flow (orders, invoices, DNS) still works. */
 import "server-only";
+import { demoMode, unconfigured } from "./demo";
 import { eq } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { isAvailable } from "@/lib/catalog";
@@ -29,7 +30,7 @@ export interface DnsProvider {
 /** registrant details a registry needs beyond the name (IRNIC handle for .ir) */
 export type Contact = { irnicHandle?: string };
 export interface Registrar {
-  check(name: string, tlds: string[]): Promise<{ tld: string; available: boolean }[]>;
+  check(name: string, tlds: string[]): Promise<{ tld: string; available: boolean; unknown?: boolean }[]>;
   register(domain: string, years: number, ns: string[], contact?: Contact): Promise<{ authCode: string }>;
   renew(domain: string, years: number): Promise<void>;
   /** starts a transfer-in with the losing registrar's EPP code; resolves once the registry accepts it */
@@ -196,9 +197,11 @@ class Router implements Registrar {
   private pick(domain: string) { return /\.ir$/.test(domain) ? this.ir : this.g; }
   async check(name: string, tlds: string[]) {
     const ir = tlds.filter((t) => /\.ir$/.test(t)), g = tlds.filter((t) => !/\.ir$/.test(t));
-    const [a, b] = await Promise.all([ir.length ? this.ir.check(name, ir) : [], g.length ? this.g.check(name, g) : []]);
-    const by = new Map([...a, ...b].map((x) => [x.tld, x]));
-    return tlds.map((t) => by.get(t) ?? { tld: t, available: false });
+    // a registry that cannot be asked answers "unknown" for its TLDs, never a guessed availability
+    const ask = (r: Registrar, list: string[]) => (list.length ? r.check(name, list).catch(() => list.map((tld) => ({ tld, available: false, unknown: true }))) : []);
+    const [a, b] = await Promise.all([ask(this.ir, ir), ask(this.g, g)]);
+    const by = new Map<string, { tld: string; available: boolean; unknown?: boolean }>([...a, ...b].map((x) => [x.tld, x]));
+    return tlds.map((t) => by.get(t) ?? { tld: t, available: false, unknown: true });
   }
   register(d: string, y: number, ns: string[], c?: Contact) { return this.pick(d).register(d, y, ns, c); }
   renew(d: string, y: number) { return this.pick(d).renew(d, y); }
@@ -213,9 +216,12 @@ export type Providers = { hosting: HostingProvider; dns: DnsProvider; registrar:
 const g = globalThis as typeof globalThis & { __gerehProviders?: Providers };
 export async function providers(): Promise<Providers> {
   return (g.__gerehProviders ??= {
-    hosting: process.env.WHM_HOST && process.env.WHM_TOKEN ? new Whm() : new SimHosting(),
-    dns: process.env.PDNS_URL && process.env.PDNS_API_KEY ? new PowerDns() : new SimDns(),
-    registrar: new Router(new SimRegistrar(), process.env.RC_USER_ID && process.env.RC_API_KEY ? new ResellerClub() : new SimRegistrar()),
+    // without credentials: simulators in demo mode only (./demo.ts); in production a clear "not configured"
+    hosting: process.env.WHM_HOST && process.env.WHM_TOKEN ? new Whm() : demoMode() ? new SimHosting() : unconfigured<HostingProvider>("سرور هاست (WHM)"),
+    dns: process.env.PDNS_URL && process.env.PDNS_API_KEY ? new PowerDns() : demoMode() ? new SimDns() : unconfigured<DnsProvider>("سرور DNS (PowerDNS)"),
+    // .ir has no registry integration yet: IRNIC is simulated in demo mode and "not configured" in production
+    registrar: new Router(demoMode() ? new SimRegistrar() : unconfigured<Registrar>("ثبت دامنه ‎.ir (IRNIC)"),
+      process.env.RC_USER_ID && process.env.RC_API_KEY ? new ResellerClub() : demoMode() ? new SimRegistrar() : unconfigured<Registrar>("ثبت‌کننده دامنه (ResellerClub)")),
   });
 }
 export const setProviders = (p: Providers | undefined) => { g.__gerehProviders = p; };

@@ -2,6 +2,7 @@
    AI_UPSTREAM_URL + AI_UPSTREAM_KEY select the real provider; without a key a deterministic simulator
    answers (tests, demos, development), streaming included. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import type { ChatRequest } from "./translate";
 import { contentText } from "./translate";
 
@@ -142,6 +143,6 @@ function simWav(chars: number) {
 }
 
 let cached: Upstream | null = null;
-export const aiUpstream = (): Upstream => (cached ??= process.env.AI_UPSTREAM_KEY ? new HttpUpstream() : new SimUpstream());
+export const aiUpstream = (): Upstream => (cached ??= process.env.AI_UPSTREAM_KEY ? new HttpUpstream() : demoMode() ? new SimUpstream() : unconfigured<Upstream>("سرویس مدل‌های AI"));
 /** tests swap the upstream (e.g. a failing or slow one) */
 export const setAiUpstream = (u: Upstream | null) => { cached = u; };

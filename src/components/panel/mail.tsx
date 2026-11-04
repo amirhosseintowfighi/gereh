@@ -200,7 +200,8 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
             <StatCard icon="circle-alert" label="برگشتی" value={bounced} sub={sent ? fa(Math.round((bounced / sent) * 1000) / 10) + "٪" : ""} tone={sent && bounced / sent > 0.05 ? "down" : ""} />
             <StatCard icon="mail" label="دریافتی" value={sum("received")} />
           </div>
-          <AreaChart data={days.map((x) => x.sent)} labels={days.map((x) => shortDate(x.date))} unit="ارسال" height={180} />
+          {sent === 0 && sum("received") === 0 ? <Empty icon="chart-column" title="هنوز داده‌ای ثبت نشده" text="در این بازه پیامی ارسال یا دریافت نشده است؛ نمودار از رویدادهای واقعی تحویل ساخته می‌شود و با اولین ارسال پر می‌شود." />
+            : <AreaChart data={days.map((x) => x.sent)} labels={days.map((x) => shortDate(x.date))} unit="ارسال" height={180} />}
         </>}
       </Card>
       <Card title="برچسب‌ها (۹۰ روز)" icon="tag" pad="p-3 sm:p-4">

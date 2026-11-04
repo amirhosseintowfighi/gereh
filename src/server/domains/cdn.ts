@@ -14,6 +14,7 @@
    by bumping the cache version in the key.
    Without CDN_DRIVER the simulator keeps what would be applied in memory and makes up traffic. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createHash } from "node:crypto";
 import type { CdnPoint, CdnRule } from "@/lib/domains";
 import { isIpv4, isIpv6 } from "@/lib/domains";
@@ -203,6 +204,8 @@ class NginxEdgeCdn implements CdnDriver {
       range(`sum(increase(nginx_ingress_controller_response_size_sum{${sel}}[1h]))`),
       range(`sum(increase(nginx_ingress_controller_requests{${sel},status=~"5.."}[1h]))`),
     ]);
+    // Prometheus unreachable or no series yet: no data, not a row of zeros
+    if (!req.size && !bytes.size && !err.size) return [];
     return Array.from({ length: hours }, (_, i) => {
       const t = start + i * 3600;
       return { at: new Date(t * 1000).toISOString(), requests: Math.round(req.get(t) ?? 0), cached: 0, bytes: Math.round(bytes.get(t) ?? 0), errors: Math.round(err.get(t) ?? 0), blocked: 0 };
@@ -211,5 +214,5 @@ class NginxEdgeCdn implements CdnDriver {
 }
 
 let cached: CdnDriver | null = null;
-export const cdnDriver = (): CdnDriver => (cached ??= process.env.CDN_DRIVER === "nginx" && process.env.PAAS_K8S_API ? new NginxEdgeCdn() : new SimCdn());
+export const cdnDriver = (): CdnDriver => (cached ??= process.env.CDN_DRIVER === "nginx" && process.env.PAAS_K8S_API ? new NginxEdgeCdn() : demoMode() ? new SimCdn() : unconfigured<CdnDriver>("لبه CDN"));
 export const resetCdnDriver = () => { cached = null; };

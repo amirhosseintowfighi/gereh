@@ -50,7 +50,7 @@ export default function EnHome() {
             {LOCS.map((l) => (
               <li key={l.id} className={GLASS_SOFT + " rounded-2xl p-5"}>
                 <div className="font-extrabold">{LOC_EN[l.id][0]}</div><div className="text-xs text-white/55">{LOC_EN[l.id][1]}</div>
-                <div className="mt-4 text-sm text-white/70 tabular">{l.up}% uptime · {l.ping} ms from Tehran</div>
+                <div className="mt-4 text-sm text-white/70 tabular">~{l.ping} ms from Tehran · <Link href={"/status" as never} className="underline">live status</Link></div>
               </li>
             ))}
           </ul>

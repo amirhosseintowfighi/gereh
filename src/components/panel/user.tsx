@@ -4,10 +4,10 @@ import { MonitorWidget } from "./monitor";
 import { NotifMatrix, SecurityExtras, TeamExtras } from "./billing-extras";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { locLabel } from "@/lib/catalog";
 import { BTN_G, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
-import { fa, hashStr, nowFa, toEnDigits, toman } from "@/lib/format";
+import { fa, nowFa, toEnDigits, toman } from "@/lib/format";
 import { SITE_URL } from "@/lib/seo";
 import { api, byId, gatewayName, invGross, invTotal, useDB, useMyId, type Invoice, type Server, type Ticket } from "@/lib/store";
 import { newSecret, otpauthUrl } from "@/lib/totp";
@@ -21,9 +21,10 @@ import { TeamTab } from "./team";
 import { PendingCredentials } from "./server-credentials";
 import { AiReplyNote } from "./support-ai";
 import { ServerStateBadge } from "./server-pending";
+import { UserTrafficCard } from "./real-data";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Tabs } from "../ui-client";
+import { AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, OtpInput, PageTitle, Select, StatCard, StrengthBar, Tabs } from "../ui-client";
 
 const newBtn = (href: string, label: string) => <Link href={href as never} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> {label}</Link>;
 
@@ -34,9 +35,6 @@ export function UserDashboard() {
   const servers = db.servers.filter((s) => s.userId === myId);
   const unpaid = db.invoices.filter((i) => i.userId === myId && (i.status === "unpaid" || i.status === "overdue"));
   const openT = db.tickets.filter((t) => t.userId === myId && t.status !== "closed");
-  const month = useMemo(() => new Date().toLocaleDateString("fa-IR", { month: "long" }), []);
-  const traffic = useMemo(() => Array.from({ length: 30 }, (_, i) => 120 + Math.sin(i / 3) * 40 + (hashStr("t" + i) % 50)), []);
-  const days = useMemo(() => Array.from({ length: 30 }, (_, i) => fa(i + 1) + " " + month), [month]);
   const services = servers.length + db.hosting.filter((h) => h.userId === myId).length + db.domains.filter((d) => d.userId === myId).length;
   const ann = db.announcements[0];
   const suspendedN = servers.filter((s) => s.status === "suspended").length + db.hosting.filter((h) => h.userId === myId && h.status === "suspended").length;
@@ -63,9 +61,7 @@ export function UserDashboard() {
       <MonitorWidget />
       <AdvisorWidget />
       <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4 mt-4">
-        <Card title="ترافیک خروجی ۳۰ روز اخیر" icon="activity" action={<span className="text-xs text-white/55">مجموع {fa(Math.round(traffic.reduce((a, b) => a + b, 0)))} گیگابایت</span>}>
-          <AreaChart data={traffic} labels={days} unit="گیگابایت" height={210} />
-        </Card>
+        <UserTrafficCard />
         <Card title="اقدام سریع" icon="zap">
           <div className="grid grid-cols-2 gap-2.5">
             {[["server", "سرور جدید", "/vps"], ["globe", "ثبت دامنه", "/domains"], ["wallet", "شارژ کیف پول", "/panel/billing?tab=wallet"], ["message-circle", "تیکت جدید", "/panel/tickets?new=1"]].map(([ic, l, h]) => (
@@ -89,6 +85,7 @@ export function UserDashboard() {
         </Card>
         <Card title="فعالیت‌های اخیر" icon="clock" pad="p-5">
           <ol className="space-y-4">
+            {db.activity.length === 0 && <li><Empty icon="clock" title="هنوز فعالیتی ثبت نشده" text="ورود، سفارش و تغییرات سرویس‌ها این‌جا نمایش داده می‌شود." /></li>}
             {db.activity.slice(0, 6).map((a) => (
               <li key={a.id} className="flex gap-3">
                 <span className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.08] grid place-items-center shrink-0"><Icon name={a.icon} size={15} className="text-white/60" /></span>
@@ -393,7 +390,7 @@ export function UserTickets({ id }: { id?: string }) {
   );
   return (
     <div>
-      <PageTitle title="تیکت‌های پشتیبانی" sub="میانگین زمان پاسخ: ۹ دقیقه" action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> تیکت جدید</button>} />
+      <PageTitle title="تیکت‌های پشتیبانی" sub="درخواست‌های شما و پاسخ‌های کارشناسان پشتیبانی" action={<button type="button" onClick={() => setOpen(true)} className={BTN_P + BTN_MD}><Icon name="plus" size={16} /> تیکت جدید</button>} />
       <DataTable rows={rows} searchKeys={["subject", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["open", "answered", "customer-reply", "closed"] }]} onRowClick={(r) => router.push(("/panel/tickets/" + r.id) as never)} empty="تیکتی ندارید."
         columns={[
           { key: "id", label: "شماره", render: (r) => <span className="mono text-xs">{r.id}</span> },

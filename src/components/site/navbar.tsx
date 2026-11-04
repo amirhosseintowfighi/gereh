@@ -8,6 +8,7 @@ import { fa } from "@/lib/format";
 import { api, useSession } from "@/lib/store";
 import { useApp } from "../app-context";
 import { Wordmark } from "../brand";
+import { DemoBadge } from "../demo-badge";
 import { Icon } from "../icon";
 import { PRODUCTS } from "../providers";
 import { Menu } from "../ui-client";
@@ -65,6 +66,7 @@ export function Navbar() {
       <nav aria-label="منوی اصلی" className={"relative mx-auto max-w-6xl rounded-2xl pl-2 pr-3 sm:pr-4 h-16 flex items-center justify-between gap-2 backdrop-blur-xl border transition-all duration-500 " +
         (scrolled ? "bg-[#05060d]/80 border-white/[0.12] shadow-2xl shadow-black/60" : "bg-white/[0.04] border-white/[0.1]")}>
         <Link href="/" aria-label="گره، صفحه اصلی" className="shrink-0"><Wordmark size={34} sub={false} /></Link>
+        <DemoBadge className="max-sm:hidden" />
 
         <div ref={megaRef} className="hidden lg:flex items-center gap-0.5">
           <button type="button" onClick={() => setMega((m) => !m)} aria-expanded={mega} aria-controls="products-menu" className={linkCls(productActive || mega) + " !flex items-center gap-1"}>

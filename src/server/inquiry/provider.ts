@@ -4,6 +4,7 @@
      provider's actual format once its documentation is in hand.
    - SimProvider: deterministic fake answers for development, demos, tests and the sandbox. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createHash } from "node:crypto";
 import { inquiryDef } from "@/lib/inquiry";
 
@@ -82,7 +83,7 @@ function map(status: number, body: Record<string, unknown> | null): UpstreamResu
 
 let cached: InquiryProvider | null = null;
 export function inquiryProvider(): InquiryProvider {
-  return (cached ??= process.env.INQUIRY_PROVIDER_URL && process.env.INQUIRY_PROVIDER_TOKEN ? new HttpProvider() : new SimProvider());
+  return (cached ??= process.env.INQUIRY_PROVIDER_URL && process.env.INQUIRY_PROVIDER_TOKEN ? new HttpProvider() : demoMode() ? new SimProvider() : unconfigured<InquiryProvider>("ارائه‌دهنده استعلام"));
 }
 export const resetInquiryProvider = () => { cached = null; };
 export const simProvider = new SimProvider();

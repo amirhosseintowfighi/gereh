@@ -30,6 +30,7 @@ import { paasToolsRpc } from "./paas-tools";
 import { wordpressRpc } from "./wordpress";
 import { notifyRpc } from "./notify";
 import { provisioningRpc } from "./provisioning";
+import { realDataRpc } from "./real-data";
 import { serversRpc } from "./servers";
 import { servicesRpc } from "./services";
 import { storageRpc } from "./storage";
@@ -41,4 +42,4 @@ import { vpsPanelRpc } from "./vps-panel";
 import { walletRpc } from "./wallet";
 
 /** every callable method, keyed "group.name" exactly like the client's api.group.name */
-export const registry: Record<string, Method> = { ...authRpc, ...serversRpc, ...servicesRpc, ...domainsRpc, ...billingRpc, ...supportRpc, ...accountRpc, ...adminRpc, ...teamRpc, ...chatRpc, ...blogRpc, ...devopsRpc, ...paasRpc, ...dbaasRpc, ...paasRuntimeRpc, ...paasEgressRpc, ...paasToolsRpc, ...paasStackRpc, ...inquiryMethods, ...geoMethods, ...aiMethods, ...aiPlusMethods, ...wordpressRpc, ...notifyRpc, ...storageRpc, ...mailRpc, ...vpsRpc, ...vpsPanelRpc, ...walletRpc, ...provisioningRpc, ...builderRpc, ...adminDetailRpc, ...assistantRpc, ...assistantBotsRpc, ...explainRpc, ...supportAiRpc, ...advisorRpc, ...monitorRpc, ...dbqueryRpc };
+export const registry: Record<string, Method> = { ...authRpc, ...serversRpc, ...servicesRpc, ...domainsRpc, ...billingRpc, ...supportRpc, ...accountRpc, ...adminRpc, ...teamRpc, ...chatRpc, ...blogRpc, ...devopsRpc, ...paasRpc, ...dbaasRpc, ...paasRuntimeRpc, ...paasEgressRpc, ...paasToolsRpc, ...paasStackRpc, ...inquiryMethods, ...geoMethods, ...aiMethods, ...aiPlusMethods, ...wordpressRpc, ...notifyRpc, ...storageRpc, ...mailRpc, ...vpsRpc, ...vpsPanelRpc, ...walletRpc, ...provisioningRpc, ...builderRpc, ...adminDetailRpc, ...assistantRpc, ...assistantBotsRpc, ...explainRpc, ...supportAiRpc, ...advisorRpc, ...monitorRpc, ...dbqueryRpc, ...realDataRpc };

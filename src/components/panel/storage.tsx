@@ -389,11 +389,13 @@ function Usage({ b }: { b: StorageBucket }) {
         <StatCard icon="arrow-down-up" label="ترافیک ورودی / خروجی (۷ روز)" value={bytes(sum("bytesIn")) + " / " + bytes(sum("bytesOut"))} />
       </div>
       <Card><Meter value={b.usedBytes} max={(plan?.sizeGb ?? 1) * GB} label="حجم پلن" right={bytes(b.usedBytes) + " از " + (plan?.name ?? "")} /><p className="text-[11px] text-white/50 mt-3">{b.usageAt ? "آخرین به‌روزرسانی: " + b.usageAt + " (هر ساعت)" : "آمار مصرف هر ساعت به‌روز می‌شود."}</p></Card>
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Card title="حجم ذخیره‌شده" icon="hard-drive"><Bars data={days.map((d) => row(d)?.sizeBytes ?? 0)} labels={labels} fmt={bytes} /></Card>
-        <Card title="درخواست‌ها" icon="activity"><Bars data={days.map((d) => row(d)?.requests ?? 0)} labels={labels} /></Card>
-        <Card title="ترافیک خروجی" icon="download"><Bars data={days.map((d) => row(d)?.bytesOut ?? 0)} labels={labels} fmt={bytes} /></Card>
-      </div>
+      {b.usage.length === 0 ? <Card><Empty icon="chart-column" title="هنوز داده‌ای ثبت نشده" text="آمار روزانه حجم، درخواست‌ها و ترافیک هر ساعت از سرور ذخیره‌سازی خوانده می‌شود و پس از اولین گزارش این‌جا رسم می‌شود." /></Card> : (
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card title="حجم ذخیره‌شده" icon="hard-drive"><Bars data={days.map((d) => row(d)?.sizeBytes ?? 0)} labels={labels} fmt={bytes} /></Card>
+          <Card title="درخواست‌ها" icon="activity"><Bars data={days.map((d) => row(d)?.requests ?? 0)} labels={labels} /></Card>
+          <Card title="ترافیک خروجی" icon="download"><Bars data={days.map((d) => row(d)?.bytesOut ?? 0)} labels={labels} fmt={bytes} /></Card>
+        </div>
+      )}
     </div>
   );
 }

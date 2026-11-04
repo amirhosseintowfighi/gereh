@@ -19,6 +19,7 @@ import { AdminSearch } from "./admin-user";
 import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { AsyncButton, Menu, useDialog } from "../ui-client";
+import { DemoBadge } from "../demo-badge";
 
 type NavItem = { href: string; label: string; icon: string; group?: string; tag?: string };
 const USER_NAV: NavItem[] = [
@@ -183,6 +184,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             </button>
           </div>
           <div className="flex items-center gap-1.5">
+            <DemoBadge />
             {kind === "user" && <AccountSwitcher />}
             {kind === "admin" && <AdminSearch />}
             {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + BTN_MD + " max-sm:hidden"}><Icon name="arrow-left-right" size={16} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}

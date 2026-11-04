@@ -5,6 +5,7 @@
      uploads to the platform backup bucket (PAAS_BACKUP_S3_*, the MinIO behind the backup-s3 secret)
    - SimTools: an in-memory filesystem per disk and a fake shell (ls, cd, pwd, env, echo, cat…) */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rm, stat } from "node:fs/promises";
 import http from "node:http";
@@ -499,6 +500,6 @@ export class KubeTools implements ToolsDriver {
 let cached: ToolsDriver | null = null;
 /** Kubernetes when PAAS_K8S_API + PAAS_K8S_TOKEN are set, else the simulator */
 export function paasTools(): ToolsDriver {
-  return (cached ??= process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeTools() : new SimTools());
+  return (cached ??= process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeTools() : demoMode() ? new SimTools() : unconfigured<ToolsDriver>("کلاستر گره اپ (Kubernetes)"));
 }
 export const resetToolsDriver = () => { cached = null; };

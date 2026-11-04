@@ -29,6 +29,7 @@ import { confirmPower } from "../virt/power";
 import { runRelayout } from "../virt/relayout";
 import { builderFix, builderWatch } from "../builder/deploy";
 import { builderMaintain } from "../builder/maintain";
+import { statusCheck } from "../status";
 
 type Handler = (db: DB, payload: Record<string, unknown>) => Promise<unknown>;
 const handlers: Record<JobType, Handler> = {
@@ -90,6 +91,8 @@ const handlers: Record<JobType, Handler> = {
   "advisor.weekly": async (db) => (await import("../advisor/service")).advisorWeekly(db),
   // «پایش هوشمند»: anomaly and abuse detection over the latest samples, events and logs
   "monitor.scan": async (db) => (await import("../monitor/scan")).monitorScanJob(db),
+  // /status uptime: real health checks only (../status.ts)
+  "status.check": (db) => statusCheck(db),
 };
 
 /** periodic jobs: [name, interval in minutes] */
@@ -105,6 +108,7 @@ export const SCHEDULE: [JobType, number][] = [
   ["builder.maintain", 5],
   ["advisor.weekly", 7 * 24 * 60],
   ["monitor.scan", 5],
+  ["status.check", 5],
   // Virtualizor → site (resources, IPs, disks, traffic, status); VIRT_SYNC_MINUTES, default 5
   ["virt.sync", Math.max(1, Math.round(Number(process.env.VIRT_SYNC_MINUTES)) || 5)],
 ];

@@ -48,7 +48,7 @@ Usage: sudo bash deploy/install.sh [options]
   --port N               internal app port (default: 3000)
   --node-mirror URL      Node.js download mirror (default: https://nodejs.org/dist)
   --npm-registry URL     npm registry mirror, if registry.npmjs.org is slow or blocked
-  --demo                 fill an empty database with demo data (staging only)
+  --demo                 demo mode: demo data on an empty database and simulated integrations (staging only)
   --no-ssl               skip Let's Encrypt
   --no-firewall          do not touch the firewall
   --no-backup            no daily database backups
@@ -231,7 +231,8 @@ APP_SECRET=$(openssl rand -hex 32)
 # first owner account (used only while the database is empty; change the password in the panel)
 ADMIN_EMAIL=$ADMIN_EMAIL
 ADMIN_PASSWORD=$ADMIN_PASSWORD
-SEED_DEMO=$SEED_DEMO
+# demo mode (staging only): demo data on an empty database, simulators, «حالت نمایشی» badge; 0 = production
+DEMO=$SEED_DEMO
 # Nginx in front of the app sets X-Forwarded-For
 TRUST_PROXY=1
 NEXT_PUBLIC_SITE_URL=$SITE_URL

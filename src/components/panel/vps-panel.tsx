@@ -57,7 +57,7 @@ export function UsageCharts({ s }: { s: Server }) {
     <Card title="نمودار مصرف" icon="chart-line" action={<Tabs size="sm" value={range} onChange={(v) => setRange(v as StatsRange)} label="بازه نمودار" options={RANGES} />}>
       {x.error ? <Empty icon="circle-alert" title="نمودار بارگذاری نشد" text={x.error} />
         : !x.data ? <Loading />
-        : pts.length < 2 ? <Empty icon="chart-line" title="هنوز داده‌ای برای این بازه نیست" text="مصرف هر ۵ دقیقه از Virtualizor خوانده می‌شود؛ نمودار به‌زودی پر می‌شود." />
+        : pts.length < 2 ? <Empty icon="chart-line" title="هنوز داده‌ای ثبت نشده" text="مصرف هر ۵ دقیقه از Virtualizor خوانده می‌شود و نمودار با اولین نمونه‌ها پر می‌شود. تا وقتی Virtualizor آماری برای این سرور برنگرداند، این‌جا عددی نمایش داده نمی‌شود." />
         : <>
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-5">
             {charts.map(([label, icon, data, unit, d]) => (

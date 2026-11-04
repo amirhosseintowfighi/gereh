@@ -11,6 +11,7 @@
    Should the dedicated login be unavailable (an old server, a changed pg_hba), the main login runs the query in the
    same read-only transaction. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createHmac } from "node:crypto";
 import { DBQ_LIMITS, type Cell } from "@/lib/dbquery";
 import type { DbSpec } from "../paas/driver";
@@ -320,7 +321,7 @@ export class KubeRunner implements DbqRunner {
 let cached: DbqRunner | null = null;
 /** the configured runner (Kubernetes when PAAS_K8S_API + PAAS_K8S_TOKEN are set, else the simulator) */
 export async function dbqRunner(): Promise<DbqRunner> {
-  if (!cached) cached = process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeRunner() : new (await import("./sim")).SimRunner();
+  if (!cached) cached = process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN ? new KubeRunner() : demoMode() ? new (await import("./sim")).SimRunner() : unconfigured<DbqRunner>("اجرای کوئری روی کلاستر (Kubernetes)");
   return cached;
 }
 export const setDbqRunner = (r: DbqRunner | null) => { cached = r; };

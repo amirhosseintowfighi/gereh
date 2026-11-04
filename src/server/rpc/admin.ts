@@ -16,6 +16,7 @@ import { getSettings, getVirt, STAFF_ROLE_BY_LABEL } from "../state";
 import { fail, genPassword, logAudit, notify, randomSecret, rid } from "../util";
 import { resetVirt, virt, VirtualizorDriver } from "../virt/driver";
 import { normalizeHost } from "../virt/virtualizor";
+import { demoMode } from "../demo";
 
 const id = z.string().max(40);
 const money = z.number().int().min(0).max(10_000_000_000);
@@ -206,8 +207,8 @@ export const adminRpc = {
     if (!pass) fail("رمز Admin API لازم است.");
     let version = "";
     try {
-      // outside production the simulator answers unless VIRTUALIZOR_LIVE=1 asks for a real connection test
-      version = process.env.NODE_ENV !== "production" && process.env.VIRTUALIZOR_LIVE !== "1"
+      // a local demo (demo mode outside production) answers from the simulator unless VIRTUALIZOR_LIVE=1 asks for a real test
+      version = demoMode() && process.env.NODE_ENV !== "production" && process.env.VIRTUALIZOR_LIVE !== "1"
         ? "Simulator"
         : (await new VirtualizorDriver({ host: cfg.host.trim(), adminPort: cfg.port, key: cfg.key.trim(), pass: pass!, ...(cfg.insecure ? { tlsStrict: false } : {}) }).test()).version;
     } catch (e) {

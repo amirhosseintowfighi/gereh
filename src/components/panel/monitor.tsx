@@ -204,7 +204,7 @@ export function MonitorAdminCard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div><div className="text-xs text-white/55">رخدادهای باز</div><div className="font-black tabular mt-1">{fa(s.open)}</div><div className="text-[11px] text-white/45">{fa(s.critical)} بحرانی</div></div>
         <div><div className="text-xs text-white/55">سوءاستفاده (خطر IP)</div><div className={"font-black tabular mt-1 " + (s.abuse ? "text-rose-300" : "")}>{fa(s.abuse)}</div></div>
-        <div><div className="text-xs text-white/55">هشدار اشتباه (۳۰ روز)</div><div className="font-black tabular mt-1">{fa(Math.round(s.falsePositiveRate * 1000) / 10)}٪</div><div className="text-[11px] text-white/45">{fa(s.feedbackCount)} بازخورد</div></div>
+        <div><div className="text-xs text-white/55">هشدار اشتباه (۳۰ روز)</div><div className="font-black tabular mt-1">{s.byDetector.length ? fa(Math.round(s.falsePositiveRate * 1000) / 10) + "٪" : "—"}</div><div className="text-[11px] text-white/45">{fa(s.feedbackCount)} بازخورد</div></div>
         <div><div className="text-xs text-white/55">هزینه AI امروز</div><div className="font-black tabular mt-1">{toman(s.spendToday)}</div><div className="text-[11px] text-white/45">سقف {toman(s.dailyCap)}</div></div>
       </div>
     </Card>
@@ -243,7 +243,7 @@ export function MonitorAdminPage() {
           <Card title="به تفکیک نوع (۳۰ روز)" icon="list-checks">
             <ul className="space-y-1.5 text-xs">{stats.byDetector.map((d) => <li key={d.detector} className="flex justify-between gap-2"><span className="text-white/70">{d.label}</span><span className="tabular text-white/55">{fa(d.total)} کل · {fa(d.open)} باز · {fa(d.falsePositive)} اشتباه</span></li>)}</ul>
             <div className="mt-4 pt-3 border-t border-white/[0.06] text-xs text-white/60 space-y-2">
-              <div>نرخ هشدار اشتباه (بازخورد مشتری): {fa(Math.round(stats.falsePositiveRate * 1000) / 10)}٪</div>
+              <div>نرخ هشدار اشتباه (بازخورد مشتری): {stats.byDetector.length ? fa(Math.round(stats.falsePositiveRate * 1000) / 10) + "٪" : "هنوز داده‌ای ثبت نشده"}</div>
               <div>هزینه AI توضیح‌ها: امروز {toman(stats.spendToday)}، این ماه {toman(stats.spendMonth)} (سقف روزانه {toman(stats.dailyCap)})</div>
               <label className="flex items-center justify-between gap-2"><span>تعلیق خودکار سرورهای سوءاستفاده‌کننده</span><Switch on={stats.autoSuspendAbuse} label="تعلیق خودکار سوءاستفاده" onChange={saveAuto} /></label>
             </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { GirihField } from "@/components/girih";
-import { Builder, DomainSearchBox, Faq, Hardware, LiveSpark, Network, Newsletter, Performance, QuickStart, Steps, Terminal, Testimonials } from "@/components/home/interactive";
+import { Builder, DomainSearchBox, Faq, Hardware, Network, Newsletter, QuickStart, Steps, Terminal } from "@/components/home/interactive";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { BuilderShowcase } from "@/components/site/builder-sections";
@@ -25,18 +25,19 @@ function Hero() {
   const metrics = [
     { v: 55, s: " ثانیه", l: "تا آنلاین شدن سرور" },
     { v: 7000, s: "", l: "مگابایت بر ثانیه، دیسک NVMe" },
-    { v: 99.99, d: 2, s: "٪", l: "آپتایم تضمینی" },
+    // the monthly commitment in the SLA (/sla), not a measurement; measured uptime is on /status
+    { v: 99.9, d: 1, s: "٪", l: "تعهد آپتایم ماهانه (SLA)" },
   ];
   return (
     <section className="relative overflow-hidden">
       <GirihField />
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-20 grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
         <div>
-          <a href="#network" className="hero-in inline-flex items-center gap-2.5 text-xs text-white/60 hover:text-white transition group">
-            <span className="relative flex w-2 h-2"><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" /><span className="relative w-2 h-2 rounded-full bg-emerald-400" /></span>
-            همه سیستم‌ها عملیاتی هستند
+          <Link href={"/status" as never} className="hero-in inline-flex items-center gap-2.5 text-xs text-white/60 hover:text-white transition group">
+            <Icon name="activity" size={14} className="acc" />
+            وضعیت لحظه‌ای سرویس‌ها
             <Icon name="chevron-left" size={14} className="transition group-hover:-translate-x-0.5" />
-          </a>
+          </Link>
           <Link href={"/build" as never} className="hero-in d2 mt-6 flex w-fit max-w-full items-center gap-2 text-xs sm:text-sm px-3 py-1.5 rounded-full bg-violet-400/10 border border-violet-300/25 text-violet-100 hover:bg-violet-400/20 transition">
             <Icon name="sparkles" size={14} className="text-violet-300 shrink-0" /><span className="min-w-0 truncate"><b>{BUILDER.name}:</b> ایده را بنویسید، AI می‌سازد و منتشر می‌کند</span><Icon name="chevron-left" size={14} className="shrink-0" />
           </Link>
@@ -85,7 +86,6 @@ function Bento() {
               <li key={t} className="flex items-center gap-1.5 text-xs rounded-xl px-3 py-2 bg-white/[0.07] border border-white/[0.12]"><Icon name={ic} size={15} className="acc" />{t}</li>
             ))}
           </ul>
-          <div className="mt-8 rounded-2xl bg-black/20 border border-white/10 p-4"><LiveSpark /></div>
           <div className="mt-auto pt-7 flex items-end justify-between gap-4">
             <div><div className="text-[11px] text-white/50">شروع قیمت از</div><div className="font-black text-xl">{fa(VPS.cloud[0].price)} <span className="text-xs font-normal text-white/50">تومان / ماه</span></div></div>
             <Link href="/vps" className={BTN_P + " px-5 py-3 text-sm"}>مشاهده پلن‌ها <Icon name="arrow-left" size={16} /></Link>
@@ -228,12 +228,10 @@ export default function HomePage() {
       <Hardware />
       <Builder />
       <Network />
-      <Performance />
       <Steps />
       <Features />
       <NewProducts />
       <DevopsTeaser />
-      <Testimonials />
       <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-24">
         <SectionHead title="پرسش‌های رایج" />
         <Faq id="faq" items={HOME_FAQ} />

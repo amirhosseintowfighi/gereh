@@ -13,20 +13,23 @@ import { api, byId, invGross, useDB, type Coupon, type Invoice } from "@/lib/sto
 import { useApp } from "../app-context";
 import { Icon } from "../icon";
 import { Badge, Card, Empty, Field, Meter, STATUS, StatusBadge } from "../ui";
-import { AreaChart, AsyncButton, Bars, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
+import { AsyncButton, CopyText, DataTable, ICON_BTN, IconBtn, Menu, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 import { InvoiceModal, TicketThread } from "./user";
 import { UndeliveredCard, VirtDryRun } from "./admin-orders";
 import { UserLink } from "./admin-order-detail";
 import { AiDraftPanel, SupportAiMetricsCard, SupportAiSettingsCard } from "./admin-support-ai";
+import { AdminCharts, SeedDataCard, useAdminStats } from "./real-data";
+import { dashboardApi } from "@/lib/dashboard";
 
-const MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 const amountInput = (v: string) => toEnDigits(v).replace(/\D/g, "");
 
 /* ================= dashboard ================= */
 export function AdminDashboard() {
   const db = useDB();
-  const revenue = [412, 448, 469, 501, 538, 562, 590, 624, 651, 688, 712, 754];
-  const signups = [84, 96, 91, 120, 134, 128, 151];
+  const stats = useAdminStats();
+  const st = stats.data;
+  const fr = st?.firstResponse;
+  const customers = db.users.filter((u) => u.role !== "admin");
   const openT = db.tickets.filter((t) => t.status === "open" || t.status === "customer-reply");
   const paid = db.invoices.filter((i) => i.status === "paid").reduce((s, i) => s + invGross(i, db.settings.tax), 0);
   return (
@@ -35,26 +38,19 @@ export function AdminDashboard() {
       <UndeliveredCard />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon="trending-up" label="پرداخت‌های ثبت‌شده" value={paid} suffix="تومان" sub="مجموع صورتحساب‌های پرداخت‌شده" tone="up" href="/admin/billing" />
-        <StatCard icon="users" label="کاربران فعال" value={db.users.filter((u) => u.status === "active").length} sub={fa(db.users.length) + " کاربر در مجموع"} href="/admin/users" />
+        <StatCard icon="users" label="مشتریان فعال" value={customers.filter((u) => u.status === "active").length} sub={fa(customers.filter((u) => u.status !== "deleted").length) + " مشتری در مجموع، بدون کارکنان"} href="/admin/users" />
         <StatCard icon="server" label="سرویس‌ها" value={db.servers.length + db.hosting.length + db.domains.length} sub={fa(db.servers.filter((s) => s.status === "running").length) + " سرور در حال اجرا"} href="/admin/services" />
-        <StatCard icon="message-circle" label="تیکت‌های در انتظار" value={openT.length} sub="میانگین پاسخ ۹ دقیقه" tone={openT.length > 5 ? "down" : ""} href="/admin/tickets" />
+        <StatCard icon="message-circle" label="تیکت‌های در انتظار" value={openT.length} sub={!fr ? "" : fr.minutes === null ? "اولین پاسخ: هنوز داده‌ای ثبت نشده" : "میانگین اولین پاسخ " + (fr.minutes >= 60 ? fa(Math.round(fr.minutes / 6) / 10, 1) + " ساعت" : fa(fr.minutes) + " دقیقه") + "، " + fr.period} tone={openT.length > 5 ? "down" : ""} href="/admin/tickets" />
       </div>
-      <div className="grid xl:grid-cols-[1.7fr_1fr] gap-4 mt-4">
-        <Card title="درآمد ۱۲ ماه اخیر" icon="trending-up" action={<span className="text-xs text-white/55">میلیون تومان</span>}>
-          <AreaChart data={revenue} labels={MONTHS} unit="میلیون تومان" height={230} />
-        </Card>
-        <Card title="ثبت‌نام‌های هفته" icon="user-plus">
-          <Bars data={signups} labels={["ش", "ی", "د", "س", "چ", "پ", "ج"]} height={230} />
-        </Card>
-      </div>
+      <AdminCharts x={stats} />
       <AdvisorAdminCard />
       <MonitorAdminCard />
       <div className="grid xl:grid-cols-3 gap-4 mt-4">
         <Card title="سلامت نودها" icon="radio-tower" action={<Link href="/admin/infra" className="text-xs text-white/50 hover:text-white">جزئیات</Link>}>
-          <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>
+          {db.nodes.length === 0 ? <Empty icon="radio-tower" title="هنوز داده‌ای ثبت نشده" text="نودها و بارشان با «همگام‌سازی سرورها» از Virtualizor خوانده می‌شوند؛ پس از اتصال و همگام‌سازی این‌جا نمایش داده می‌شوند." /> : <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>}
         </Card>
         <Card title="آخرین صورتحساب‌ها" icon="receipt" pad="p-3">
-          {db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invGross(i, db.settings.tax))}</div><StatusBadge s={i.status} /></div></div>)}
+          {db.invoices.length === 0 ? <Empty icon="receipt" title="هنوز صورتحسابی صادر نشده" /> : db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invGross(i, db.settings.tax))}</div><StatusBadge s={i.status} /></div></div>)}
         </Card>
         <Card title="صف تیکت" icon="message-circle" pad="p-3">
           {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-right"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/55">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
@@ -440,9 +436,9 @@ export function AdminInfra() {
             <Field label="Server Group ابری در Virtualizor" hint={groups.length ? "از فهرست انتخاب کنید یا بنویسید" : "اول «همگام‌سازی سرورها» را بزنید تا فهرست بیاید"}><input list="virt-groups" value={edit.groupCloud ?? ""} onChange={(e) => setEdit((s) => s && { ...s, groupCloud: e.target.value })} dir="ltr" placeholder="ist-cloud" className={INPUT + " text-left mono"} /></Field>
             <Field label="Server Group اختصاصی" hint="فقط اگر سرور اختصاصی می‌فروشید"><input list="virt-groups" value={edit.groupMetal ?? ""} disabled={!edit.metal} onChange={(e) => setEdit((s) => s && { ...s, groupMetal: e.target.value })} dir="ltr" placeholder="ist-metal" className={INPUT + " text-left mono"} /></Field>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          {/* uptime is never typed in: /status measures it (src/server/status.ts) */}
+          <div className="grid grid-cols-2 gap-4">
             <Field label="پینگ (ms)"><input value={edit.ping} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, ping: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="آپتایم ٪"><input value={edit.up} inputMode="decimal" onChange={(e) => setEdit((s) => s && { ...s, up: Math.min(100, Number(toEnDigits(e.target.value).replace(/[^0-9.]/g, "")) || 0) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
             <Field label="سرعت (Mbps)"><input value={edit.speed} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, speed: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
           </div>
           {([["metal", "سرور اختصاصی در این لوکیشن"], ["foreign", "دیتاسنتر خارج (۱۲٪ افزایش قیمت سرور ابری)"], ["active", "فعال برای سفارش جدید"]] as const).map(([k, label]) => (
@@ -663,6 +659,7 @@ export function AdminSettings() {
       <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش تنظیمات" options={[{ id: "general", label: "عمومی", icon: "settings-2" }, { id: "finance", label: "مالی و درگاه", icon: "wallet" }, { id: "notify", label: "پیامک و ایمیل", icon: "mail" }, { id: "staff", label: "مدیران و دسترسی", icon: "users" }, { id: "support-ai", label: "پشتیبانی AI", icon: "sparkles" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
         {tab === "support-ai" && <SupportAiSettingsCard />}
+        {tab === "general" && <div className="mb-4"><SeedDataCard /></div>}
         {tab === "general" && (
           <Card title="تنظیمات عمومی" icon="settings-2">
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
@@ -707,7 +704,7 @@ export function AdminSettings() {
               <Field label="سرور SMTP"><input value={s.smtpHost} onChange={(e) => setS((x) => ({ ...x, smtpHost: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
               <Field label="پورت SMTP"><input value={s.smtpPort || ""} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, smtpPort: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
             </div>
-            <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await new Promise((r) => setTimeout(r, 600)); notify("ایمیل آزمایشی به " + s.supportEmail + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={async () => {
+            <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await dashboardApi.testEmail(); notify("ایمیل آزمایشی به " + r.to + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={async () => {
                 if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.smtpHost.trim())) throw new Error("آدرس SMTP معتبر نیست.");
                 if (!(s.smtpPort > 0 && s.smtpPort < 65536)) throw new Error("پورت SMTP معتبر نیست.");
                 // the key is encrypted server-side (AES-GCM) and never sent back to the browser

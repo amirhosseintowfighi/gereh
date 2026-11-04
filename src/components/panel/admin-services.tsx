@@ -23,7 +23,7 @@ export function AdminInquiry() {
   const errors = q.calls.filter((c) => c.status === "error").length;
   return (
     <div>
-      <PageTitle title="API استعلام" sub={"سرویس‌ها و قیمت‌ها، درخواست‌های دسترسی و حساب‌های API. سرویس‌دهنده: " + (q.provider === "http" ? "متصل" : "شبیه‌ساز (INQUIRY_PROVIDER_URL تنظیم نشده)")} />
+      <PageTitle title="API استعلام" sub={"سرویس‌ها و قیمت‌ها، درخواست‌های دسترسی و حساب‌های API. سرویس‌دهنده: " + (q.provider === "http" ? "متصل" : "INQUIRY_PROVIDER_URL تنظیم نشده (فقط در حالت نمایشی: شبیه‌ساز)")} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <StatCard icon="activity" label="درخواست امروز" value={q.stats.todayCount} />
         <StatCard icon="wallet" label="درآمد امروز" value={q.stats.todaySpend} suffix="تومان" />
@@ -155,7 +155,7 @@ export function AdminGeo() {
   const mrr = g.zones.filter((z) => z.status !== "suspended").reduce((s, z) => s + (g.plans.find((p) => p.id === z.planId)?.price ?? 0), 0);
   return (
     <div>
-      <PageTitle title="Geo DNS" sub={"دامنه‌ها، همگام‌سازی مدیریت‌شده و پلن‌ها. درایور: " + (g.driver === "powerdns" ? "PowerDNS" : "شبیه‌ساز (GEO_PDNS تنظیم نشده)")}
+      <PageTitle title="Geo DNS" sub={"دامنه‌ها، همگام‌سازی مدیریت‌شده و پلن‌ها. درایور: " + (g.driver === "powerdns" ? "PowerDNS" : "GEO_PDNS تنظیم نشده (فقط در حالت نمایشی: شبیه‌ساز)")}
         action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.geo.adminTest(); setTest(r.driver + ": " + r.detail); }}><Icon name="activity" size={16} />تست نام‌سرورها</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">

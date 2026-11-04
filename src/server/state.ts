@@ -25,6 +25,7 @@ import { EMPTY_INQUIRY, inquiryState } from "./inquiry/state";
 import { gatewaysFor } from "./pay/gateways";
 import { undeliveredCount } from "./provisioning";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
+import { demoMode } from "./demo";
 
 const STAFF_LABEL: Record<string, string> = { owner: "مدیر کل", support: "پشتیبانی فنی", finance: "مالی", sales: "فروش", viewer: "فقط مشاهده" };
 export const staffLabel = (r: string | null | undefined) => STAFF_LABEL[r || "viewer"] || "فقط مشاهده";
@@ -35,8 +36,8 @@ export async function getSettings(db: DB): Promise<Settings> {
   const stored = { ...((row?.value as Partial<Settings> & { smsKeyEnc?: string }) || {}) };
   // the old default apps domain was written back on every settings save; it never went live
   if (stored.paasDomain === "gereh.app") delete stored.paasDomain;
-  const { smsKeyEnc: _secret, payGateway: _derived, ...v } = { ...DEFAULT_SETTINGS, ...stored };
-  return { ...v, payGateway: gatewaysFor(v)[0]?.label ?? "" };
+  const { smsKeyEnc: _secret, payGateway: _derived, demo: _mode, ...v } = { ...DEFAULT_SETTINGS, ...stored } as typeof DEFAULT_SETTINGS & Partial<Settings> & { smsKeyEnc?: string };
+  return { ...v, payGateway: gatewaysFor(v)[0]?.label ?? "", demo: demoMode() };
 }
 /** the stored (encrypted) SMS API key, server-side only */
 export async function getSmsKeySealed(db: DB): Promise<string | null> {
@@ -146,7 +147,9 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
       snapshots: (snapBy.get(s.id) || []).map((x) => ({ id: x.id, name: x.name, size: x.size, at: faDate(x.createdAt) })),
       backupsList: (bkBy.get(s.id) || []).map((x) => ({ id: x.id, size: x.size, at: faDateTime(x.createdAt) })),
       vpsid: s.vpsid || 0, delayed: !!s.provisionError, ...(admin ? { provisionError: s.provisionError ?? "" } : {}), hostname: s.hostname, boot: s.boot, iso: s.iso, rescue: s.rescue,
-      bwLimit: quotaOf(s.bwLimit, trafficBy.get(s.id)?.extraGb ?? 0), bwUsed: +(trafficBy.get(s.id)?.usedGb ?? 0).toFixed(1),
+      bwLimit: quotaOf(s.bwLimit, trafficBy.get(s.id)?.extraGb ?? 0),
+      // the month's traffic only once Virtualizor reported something (a sync, metered days or samples); else no number
+      ...(syncBy.get(s.id)?.syncedAt || (trafficBy.get(s.id)?.usedGb ?? 0) > 0 || usageBy.has(s.id) ? { bwUsed: +(trafficBy.get(s.id)?.usedGb ?? 0).toFixed(1) } : {}),
       ...((sy, lg) => (sy?.syncedAt || lg ? { sync: {
         at: sy?.syncedAt ? faDateTime(sy.syncedAt) : "", last: lg?.text ?? "", lastAt: lg ? faDateTime(lg.createdAt) : "", netSpeed: sy?.netSpeed ?? 0,
         ...(admin ? { node: sy?.node ?? "", error: sy?.lastError ?? "", hint: hints.get(s.id) ?? "" } : {}),

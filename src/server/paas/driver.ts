@@ -4,6 +4,7 @@
    - SimulatorDriver (below): in-process stand-in with realistic timings and logs for dev, CI and demos.
    Long operations are split into start + poll so the worker never blocks on a build. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { engineOf, stackOf, VERSION_ARG } from "@/lib/paas";
 import { versionBuild } from "@/lib/paas-build";
 import type { ComposeService } from "./compose";
@@ -287,7 +288,7 @@ export async function paas(): Promise<PaasDriver> {
   if (process.env.PAAS_K8S_API && process.env.PAAS_K8S_TOKEN) {
     const { KubernetesDriver } = await import("./kubernetes");
     cached = new KubernetesDriver();
-  } else cached = new SimulatorDriver();
+  } else cached = demoMode() ? new SimulatorDriver() : unconfigured<PaasDriver>("کلاستر گره اپ (Kubernetes)");
   return cached;
 }
 export const resetPaasDriver = () => { cached = null; };

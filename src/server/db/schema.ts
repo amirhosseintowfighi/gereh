@@ -2226,3 +2226,13 @@ export const dbqSettings = pgTable("dbq_settings", {
   samples: boolean("samples").notNull().default(false),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/* ---------- real data only: platform health checks for /status (0042_status_checks) ---------- */
+/** one row per component per check run (every 5 minutes): uptime on /status is ok / all of these, never assumed */
+export const statusChecks = pgTable("status_checks", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  component: text("component").notNull(),
+  ok: boolean("ok").notNull(),
+  detail: text("detail").notNull().default(""),
+  createdAt: created(),
+}, (t) => [index("status_checks_ix").on(t.component, t.createdAt)]);

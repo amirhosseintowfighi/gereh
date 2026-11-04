@@ -156,7 +156,7 @@ export function TrafficPanel({ s }: { s: Server }) {
         </div>
         <Card title="ترافیک روزانه" icon="activity">
           <div className="mb-6"><Meter label="سهمیه ماهانه" value={t.quotaGb ? t.usedGb : 0} max={t.quotaGb} right={t.quotaGb ? fa(Math.round(t.usedGb)) + " از " + fa(t.quotaGb) + " گیگابایت" + (t.extraGb ? " (" + fa(t.planGb) + " پلن + " + fa(t.extraGb) + " بسته)" : "") : fa(Math.round(t.usedGb)) + " گیگابایت، نامحدود"} /></div>
-          {t.days.length === 0 ? <Empty icon="activity" title="هنوز داده‌ای ثبت نشده" text="مصرف هر ساعت از Virtualizor خوانده می‌شود." /> : <>
+          {t.days.length === 0 ? <Empty icon="activity" title="هنوز داده‌ای ثبت نشده" text="Virtualizor هنوز آماری برای این ماه برنگردانده است؛ مصرف روزانه هر ساعت از Virtualizor خوانده می‌شود و پس از اولین گزارش این‌جا نمایش داده می‌شود." /> : <>
             <div className="flex items-end gap-[3px] h-48" role="img" aria-label={"ترافیک روزانه، مجموع " + fa(Math.round(t.usedGb)) + " گیگابایت"}>
               {t.days.map((d) => (
                 <div key={d.day} className="group relative flex-1 h-full flex flex-col justify-end gap-[2px]" title={d.day + ": ورودی " + fa(d.inGb, 1) + "، خروجی " + fa(d.outGb, 1) + " گیگ"}>

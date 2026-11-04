@@ -6,6 +6,7 @@
    Without STALWART_URL the simulator keeps everything in memory and the worker invents delivery events
    (dev, tests, demos): nothing ever leaves the machine. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 
 export type OutgoingMail = { id: string; domain: string; envelopeFrom: string; recipients: string[]; raw: string; dkim: { selector: string; privateKey: string } };
 export type MailboxSpec = { address: string; name: string; password?: string; quotaMb: number; active: boolean };
@@ -126,7 +127,7 @@ const transport = () => (smtp ??= import("nodemailer").then((n) => n.createTrans
 }) as unknown as Transport));
 
 let cached: MailDriver | null = null;
-export const mailDriver = (): MailDriver => (cached ??= process.env.STALWART_URL ? new StalwartMail() : new SimMail());
+export const mailDriver = (): MailDriver => (cached ??= process.env.STALWART_URL ? new StalwartMail() : demoMode() ? new SimMail() : unconfigured<MailDriver>("سرور ایمیل (Stalwart)"));
 export const resetMailDriver = () => { cached = null; };
 
 /** public host names customers point their records and clients at */

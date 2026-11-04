@@ -61,6 +61,8 @@ export async function meterTraffic(db: DB) {
     let days: { day: number; inMb: number; outMb: number }[];
     try { days = await v.bandwidth(s.vpsid!, month.replace("-", "")); } catch { continue; }
     const rows = days.map((d) => ({ serverId: s.id, day: month + "-" + String(d.day).padStart(2, "0"), inMb: d.inMb, outMb: d.outMb })).filter((r) => r.day <= today);
+    // Virtualizor reported nothing for this month: no days and no invented 0 GB usage
+    if (!rows.length && !synced.has(s.id)) continue;
     for (const r of rows) await db.insert(vpsTrafficDaily).values(r).onConflictDoUpdate({ target: [vpsTrafficDaily.serverId, vpsTrafficDaily.day], set: { inMb: r.inMb, outMb: r.outMb } });
     const t = await trafficRow(db, s.id);
     const usedGb = synced.has(s.id) ? t.usedGb : rows.reduce((a, r) => a + r.inMb + r.outMb, 0) / 1024;

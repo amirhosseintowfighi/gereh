@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BTN_G, BTN_P, GLASS, GLASS_STRONG } from "@/lib/cls";
 import { useLocs } from "@/lib/use-locs";
 import { CPU_STEPS, DISK_STEP_GB, DISK_STEPS, IP_PRICE, LOCS, OSES, PRESETS, RAM_STEPS, SITE_REC, TB_STEPS, TLDS, TRAFFIC_STEPS_GB, WIN_LICENSE, configLines, configPrice, diskSplitOk, parseDomain } from "@/lib/catalog";
-import { EMAIL_RE, fa, hashStr, toman } from "@/lib/format";
+import { EMAIL_RE, fa, toman } from "@/lib/format";
+import { api } from "@/lib/store";
 import { useApp } from "../app-context";
 import { DiskLayoutEditor } from "../disk-split";
 import { Icon } from "../icon";
@@ -274,31 +275,6 @@ export function Hardware() {
   );
 }
 
-/* ================= live spark (decorative) ================= */
-export function LiveSpark({ h = 70 }: { h?: number }) {
-  const [pts, setPts] = useState(() => Array.from({ length: 32 }, (_, i) => 36 + Math.sin(i / 3) * 12 + (hashStr("s" + i) % 10)));
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    const t = setInterval(() => setPts((p) => [...p.slice(1), Math.max(8, Math.min(92, p[p.length - 1] + (Math.random() - 0.5) * 22))]), 900);
-    return () => clearInterval(t);
-  }, []);
-  const w = 320, step = w / (pts.length - 1);
-  const line = pts.map((v, i) => (i ? "L" : "M") + (i * step).toFixed(1) + " " + (h - (v / 100) * h).toFixed(1)).join(" ");
-  return (
-    <div>
-      <div className="flex items-center justify-between text-[11px] text-white/55 mb-2">
-        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> بار پردازنده، نمونه زنده</span>
-        <span className="font-bold text-white/85 tabular">{fa(Math.round(pts[pts.length - 1]))}٪</span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full" style={{ height: h }} aria-hidden="true">
-        <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7dd3fc" stopOpacity="0.45" /><stop offset="1" stopColor="#7dd3fc" stopOpacity="0" /></linearGradient></defs>
-        <path d={`${line} L ${w} ${h} L 0 ${h} Z`} fill="url(#spk)" />
-        <path d={line} fill="none" stroke="#7dd3fc" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </svg>
-    </div>
-  );
-}
-
 /* ================= server builder ================= */
 function Slider({ icon, label, steps, idx, setIdx, fmt }: { icon: string; label: string; steps: number[]; idx: number; setIdx: (i: number) => void; fmt: string }) {
   const fill = (idx / (steps.length - 1)) * 100;
@@ -429,148 +405,27 @@ export function Builder({ id = "builder" }: { id?: string }) {
   );
 }
 
-/* ================= network status & speed test (illustrative) ================= */
-const uptimeDays = (seed: string) => Array.from({ length: 60 }, (_, i) => { const h = hashStr(seed + i) % 100; return h < 3 ? "warn" : h < 4 ? "down" : "ok"; });
+/* ================= network ================= */
+/** the locations as staff entered them (admin › زیرساخت): no live numbers here; real uptime is on /status */
 export function Network() {
-  const [sel, setSel] = useState("thr");
   const locs = useLocs().filter((l) => l.active !== false);
-  const loc = locs.find((l) => l.id === sel) || locs[0] || LOCS[0];
-  const [pings, setPings] = useState<Record<string, number>>(() => Object.fromEntries(LOCS.map((l) => [l.id, l.ping])));
-  const [hist, setHist] = useState<number[]>(() => Array.from({ length: 30 }, (_, i) => loc.ping + Math.sin(i / 2) * 1.5));
-  const [hover, setHover] = useState<number | null>(null);
-  const [test, setTest] = useState({ phase: "idle", p: 0, mbps: 0 });
-  useEffect(() => {
-    const t = setInterval(() => {
-      const next = Object.fromEntries(LOCS.map((l) => [l.id, Math.max(1, Math.round(l.ping + (Math.random() - 0.5) * (l.ping * 0.25 + 2)))]));
-      setPings(next);
-      setHist((h) => [...h.slice(1), next[loc.id] ?? loc.ping]);
-    }, 1300);
-    return () => clearInterval(t);
-  }, [loc.id, loc.ping]);
-  const choose = (id: string) => {
-    const l = locs.find((x) => x.id === id) || loc;
-    setSel(id); setHist(Array.from({ length: 30 }, (_, i) => l.ping + Math.sin(i / 2) * 1.5)); setTest({ phase: "idle", p: 0, mbps: 0 });
-  };
-  useEffect(() => {
-    if (test.phase !== "run") return;
-    const t = setInterval(() => setTest((s) => {
-      const p = s.p + 4;
-      if (p >= 100) return { phase: "done", p: 100, mbps: Math.round(loc.speed * (0.95 + Math.random() * 0.04)) };
-      return { phase: "run", p, mbps: Math.round(loc.speed * Math.min(1, p / 55) * (0.88 + Math.random() * 0.14)) };
-    }), 70);
-    return () => clearInterval(t);
-  }, [test.phase, loc.speed]);
-  const days = useMemo(() => uptimeDays(sel), [sel]);
-  const maxH = Math.max(...hist) * 1.3 || 1;
-  const w = 300, hh = 60, step = w / (hist.length - 1);
-  const path = hist.map((v, i) => (i ? "L" : "M") + (i * step).toFixed(1) + " " + (hh - (v / maxH) * hh).toFixed(1)).join(" ");
-  const R = 52, C = 2 * Math.PI * R;
   return (
     <section id="network" className="max-w-6xl mx-auto px-4 sm:px-6 pb-24 scroll-mt-28">
-      <SectionHead title="شبکه‌ای که می‌توانید ببینید" sub="وضعیت دیتاسنترها را دنبال کنید و سرعت اتصال را خودتان بسنجید." />
-      <div className="grid lg:grid-cols-[320px_1fr] gap-5">
-        <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
-          {locs.map((l) => (
-            <button type="button" key={l.id} onClick={() => choose(l.id)} aria-pressed={loc.id === l.id}
-              className={"spot rounded-2xl p-4 text-right border backdrop-blur-md transition " + (loc.id === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.06] border-white/15 hover:bg-white/10")}>
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold">{l.label}</span>
-                <span className="relative flex w-2.5 h-2.5" aria-label="عملیاتی"><span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-50" /><span className="relative w-2.5 h-2.5 rounded-full bg-emerald-400" /></span>
-              </div>
-              <div className="text-[11px] text-white/55 mt-1">{l.sub}</div>
-              <div className="mt-3 flex items-baseline gap-1"><span className="font-black text-xl tabular-nums">{fa(pings[l.id] ?? l.ping)}</span><span className="text-[11px] text-white/50">ms</span></div>
-            </button>
-          ))}
-        </div>
-        <div className={GLASS + " rounded-[1.75rem] p-5 sm:p-7"}>
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-sm text-white/60"><Icon name="activity" size={16} className="acc" /> تأخیر شبکه تا {loc.label}</div>
-              <div className="mt-2 flex items-baseline gap-2"><Num value={pings[loc.id] ?? loc.ping} className="text-5xl font-black tabular-nums" /><span className="text-white/50">میلی‌ثانیه</span></div>
-              <svg viewBox={`0 0 ${w} ${hh}`} preserveAspectRatio="none" className="w-full mt-4" style={{ height: 64 }} aria-hidden="true">
-                <path d={path} fill="none" stroke="#7dd3fc" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div className="flex flex-col items-center shrink-0">
-              <div className="relative w-36 h-36">
-                <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden="true">
-                  <circle cx="60" cy="60" r={R} stroke="rgba(255,255,255,.1)" strokeWidth="8" fill="none" />
-                  <circle cx="60" cy="60" r={R} stroke="#9cc9ff" style={{ transition: "stroke-dashoffset .1s linear" }} strokeWidth="8" fill="none" strokeLinecap="round"
-                    strokeDasharray={C} strokeDashoffset={C * (1 - test.p / 100)} />
-                </svg>
-                <div className="absolute inset-0 grid place-items-center text-center" aria-live="polite">
-                  <div><div className="text-2xl font-black tabular-nums">{test.phase === "idle" ? "—" : fa(test.mbps)}</div><div className="text-[11px] text-white/50">مگابیت بر ثانیه</div></div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setTest({ phase: "run", p: 0, mbps: 0 })} disabled={test.phase === "run"} className={BTN_P + " mt-4 px-5 py-2.5 text-sm"}>
-                <Icon name={test.phase === "run" ? "loader-circle" : test.phase === "done" ? "refresh-cw" : "play"} size={16} className={test.phase === "run" ? "animate-spin" : ""} />
-                {test.phase === "run" ? "در حال سنجش" : test.phase === "done" ? "سنجش دوباره" : "تست سرعت"}
-              </button>
-            </div>
-          </div>
-          <div className="mt-8">
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-white/60">آپتایم ۶۰ روز گذشته</span>
-              <span className="font-bold text-emerald-300">{fa(loc.up, 3)}٪</span>
-            </div>
-            <div className="relative flex gap-[3px] h-10 items-stretch" onMouseLeave={() => setHover(null)}>
-              {days.map((d, i) => (
-                <span key={i} onMouseEnter={() => setHover(i)}
-                  className={"flex-1 rounded-[3px] transition-transform origin-bottom " + (hover === i ? "scale-y-110 " : "") + (d === "ok" ? "bg-emerald-400/70 hover:bg-emerald-300" : d === "warn" ? "bg-amber-400/80" : "bg-rose-400/80")} />
-              ))}
-              {hover !== null && (
-                <div className="absolute -top-12 pointer-events-none px-3 py-1.5 rounded-lg bg-[#0a0c14]/95 border border-white/15 text-[11px] whitespace-nowrap"
-                  style={{ right: Math.min(85, Math.max(0, (hover / days.length) * 100 - 6)) + "%" }}>
-                  {fa(days.length - hover)} روز پیش، {days[hover] === "ok" ? "بدون اختلال" : days[hover] === "warn" ? "کندی کوتاه‌مدت" : "قطعی ۴ دقیقه‌ای"}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-between text-[10px] text-white/50 mt-2"><span>۶۰ روز پیش</span><span>امروز</span></div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ================= performance comparison ================= */
-const METRICS = [
-  { id: "ttfb", label: "زمان پاسخ اولیه", unit: "میلی‌ثانیه", gereh: 110, market: 480, better: "low", d: 0 },
-  { id: "load", label: "بارگذاری صفحه", unit: "ثانیه", gereh: 0.9, market: 2.8, better: "low", d: 1 },
-  { id: "io", label: "سرعت دیسک", unit: "مگابایت بر ثانیه", gereh: 6800, market: 520, better: "high", d: 0 },
-];
-export function Performance() {
-  const [m, setM] = useState("ttfb");
-  const [ref, seen] = useInView<HTMLElement>(0.35);
-  const met = METRICS.find((x) => x.id === m)!;
-  const max = Math.max(met.gereh, met.market);
-  const bar = (v: number, mine: boolean) => (
-    <div className="flex items-center gap-4">
-      <span className={"w-28 shrink-0 text-sm " + (mine ? "font-extrabold" : "text-white/55")}>{mine ? "گره" : "میانگین بازار"}</span>
-      <div className="flex-1 h-12 rounded-2xl bg-white/[0.06] overflow-hidden">
-        <div className={"h-full rounded-2xl flex items-center justify-end px-3 text-sm whitespace-nowrap font-black transition-all duration-1000 ease-out " + (mine ? "acc-bg" : "bg-white/20")}
-          style={{ width: seen ? Math.max(14, (v / max) * 100) + "%" : "0%", minWidth: seen ? "4.5rem" : 0 }}><span className={"transition-opacity duration-700 " + (seen ? "" : "opacity-0")}>{fa(v, met.d)}</span></div>
-      </div>
-    </div>
-  );
-  const ratio = met.better === "low" ? met.market / met.gereh : met.gereh / met.market;
-  return (
-    <section ref={ref} className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
-      <div className={GLASS + " rounded-[2rem] p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-10 items-center"}>
-        <div>
-          <h2 className="text-[1.7rem] sm:text-4xl font-black leading-[1.4]">سریع‌تر، با عدد و رقم</h2>
-          <p className="mt-3 text-white/65 leading-8">میانگین اندازه‌گیری روی یک سایت وردپرسی یکسان، در شش ماه گذشته.</p>
-          <div className="mt-8 flex items-baseline gap-2">
-            <span className="text-6xl font-black grad-text"><Num value={seen ? ratio : 0} d={1} /></span>
-            <span className="text-white/60">برابر {met.better === "low" ? "سریع‌تر" : "بیشتر"}</span>
-          </div>
-        </div>
-        <div className="min-w-0">
-          <div className="mb-6 overflow-x-auto no-scrollbar"><Tabs value={m} onChange={setM} label="شاخص" options={METRICS.map((x) => ({ id: x.id, label: x.label }))} /></div>
-          <div className="space-y-3">{bar(met.gereh, true)}{bar(met.market, false)}</div>
-          <div className="text-[11px] text-white/55 mt-4">واحد: {met.unit}، {met.better === "low" ? "عدد کمتر بهتر است" : "عدد بیشتر بهتر است"}</div>
-        </div>
-      </div>
+      <SectionHead title="دیتاسنترهای گره" sub="سرور را نزدیک کاربرانتان بسازید. وضعیت و آپتایم واقعی هر دیتاسنتر، از بررسی‌های خودکار، در صفحه وضعیت سرویس‌ها است." />
+      <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {locs.map((l) => (
+          <li key={l.id} className={GLASS + " rounded-2xl p-5"}>
+            <div className="font-extrabold">{l.label}</div>
+            <div className="text-[11px] text-white/55 mt-1">{l.sub}</div>
+            <dl className="mt-4 space-y-1.5 text-xs">
+              <div className="flex justify-between gap-2"><dt className="text-white/55">پینگ تقریبی از تهران</dt><dd className="tabular">{fa(l.ping)} ms</dd></div>
+              {l.speed > 0 && <div className="flex justify-between gap-2"><dt className="text-white/55">پورت شبکه</dt><dd className="tabular">{fa(l.speed)} Mbps</dd></div>}
+              {l.foreign && <div className="text-white/55">دیتاسنتر خارج از ایران</div>}
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 text-center"><Link href={"/status" as never} className={BTN_G + " px-5 h-11 text-sm"}><Icon name="activity" size={16} />وضعیت و آپتایم واقعی سرویس‌ها</Link></div>
     </section>
   );
 }
@@ -607,40 +462,6 @@ export function Steps() {
   );
 }
 
-/* ================= testimonials ================= */
-const REVIEWS = [
-  { n: "مریم احمدی", r: "مدیر فنی، نوین‌شاپ", q: "بعد از انتقال فروشگاه به سرور ابری گره، زمان بارگذاری صفحه محصول نصف شد. در کمپین یلدا هم بدون حتی یک ثانیه قطعی گذشت." },
-  { n: "رضا کریمی", r: "بنیان‌گذار، داده‌پرداز", q: "پشتیبانی واقعا فنی است. نیمه‌شب تیکت زدم و یک مهندس شبکه در کمتر از ده دقیقه مشکل مسیریابی را پیدا کرد." },
-  { n: "سارا موسوی", r: "توسعه‌دهنده مستقل", q: "پنل ساده و API تمیزی دارد. سرورهای تست را با ترافورم می‌سازم و ساعتی پرداخت می‌کنم؛ دقیقا همان چیزی که می‌خواستم." },
-  { n: "امید رحیمی", r: "مدیر IT، سپهر هلدینگ", q: "سرور اختصاصی EPYC را برای دیتابیس گرفتیم. پایداری در این یک سال بی‌نقص بوده و مدیر حساب‌مان معمولا پیش از ما مشکل را می‌بیند." },
-];
-export function Testimonials() {
-  const [i, setI] = useState(0);
-  const [paused, setPaused] = useState(false);
-  useEffect(() => { if (paused || prefersReducedMotion()) return; const t = setInterval(() => setI((x) => (x + 1) % REVIEWS.length), 5500); return () => clearInterval(t); }, [paused]);
-  const r = REVIEWS[i];
-  return (
-    <section aria-roledescription="carousel" aria-label="نظر مشتریان" className="max-w-4xl mx-auto px-4 sm:px-6 pb-24" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
-      <h2 className="sr-only-focusable">نظر مشتریان گره</h2>
-      <figure className={GLASS + " rounded-[2rem] p-7 sm:p-12 text-center relative overflow-hidden"}>
-        <Icon name="quote" size={44} className="mx-auto acc opacity-80" />
-        <blockquote key={i} className="fade-in mt-6 text-lg sm:text-2xl leading-[2] font-medium text-white/90">{r.q}</blockquote>
-        <figcaption key={"a" + i} className="fade-in mt-8 flex items-center justify-center gap-3">
-          <span className="w-12 h-12 rounded-full acc-bg grid place-items-center font-black" aria-hidden="true">{r.n[0]}</span>
-          <div className="text-right"><div className="font-extrabold">{r.n}</div><div className="text-xs text-white/50 mt-0.5">{r.r}</div></div>
-        </figcaption>
-        <div className="mt-8 flex items-center justify-center gap-4">
-          <button type="button" onClick={() => setI((x) => (x - 1 + REVIEWS.length) % REVIEWS.length)} className="w-10 h-10 rounded-full bg-white/10 border border-white/20 grid place-items-center hover:bg-white/20" aria-label="نظر قبلی"><Icon name="chevron-right" size={18} /></button>
-          <div className="flex">{REVIEWS.map((_, k) => <button type="button" key={k} onClick={() => setI(k)} aria-label={"نظر " + fa(k + 1)} aria-current={k === i} className="group h-6 min-w-6 px-1 grid place-items-center">
-            <span className={"block h-2 rounded-full transition-all duration-500 " + (k === i ? "w-8 acc-bg" : "w-2 bg-white/25 group-hover:bg-white/40")} />
-          </button>)}</div>
-          <button type="button" onClick={() => setI((x) => (x + 1) % REVIEWS.length)} className="w-10 h-10 rounded-full bg-white/10 border border-white/20 grid place-items-center hover:bg-white/20" aria-label="نظر بعدی"><Icon name="chevron-left" size={18} /></button>
-        </div>
-      </figure>
-    </section>
-  );
-}
-
 /* ================= FAQ ================= */
 export function Faq({ items, id }: { items: [string, string][]; id?: string }) {
   const [open, setOpen] = useState(0);
@@ -668,11 +489,14 @@ export function Newsletter() {
   const { notify } = useApp();
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!EMAIL_RE.test(email.trim())) { setErr("یک ایمیل معتبر وارد کنید؛ مثلا name@example.com"); return; }
-    // ponytail: no newsletter backend yet — POST /newsletter when it exists.
-    setErr(""); setEmail(""); notify("عضو خبرنامه شدید؛ اولین ایمیل در راه است", "send");
+    // kept as a contact message (admin › پیام‌ها) until a mailing service exists; nothing is promised beyond that
+    setErr(""); setBusy(true);
+    api.contact.send({ name: "عضویت در خبرنامه", email: email.trim(), dept: "خبرنامه", subject: "عضویت در خبرنامه", message: "درخواست عضویت در خبرنامه از صفحه اصلی: " + email.trim() })
+      .then(() => { setEmail(""); notify("درخواست عضویت ثبت شد", "send"); }, (e: Error) => setErr(e.message)).finally(() => setBusy(false));
   };
   return (
     <form onSubmit={submit} className="mt-10 max-w-md mx-auto" noValidate>
@@ -680,7 +504,7 @@ export function Newsletter() {
       <div className="flex gap-2 rounded-2xl bg-black/25 border border-white/20 p-1.5">
         <input id="nl-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" placeholder="name@example.com" aria-invalid={!!err} aria-describedby={err ? "nl-err" : undefined}
           className="flex-1 min-w-0 bg-transparent outline-none px-3 text-left placeholder:text-white/35" />
-        <button type="submit" className={BTN_P + " px-5 h-11 text-sm"}><Icon name="send" size={16} /> عضویت</button>
+        <button type="submit" disabled={busy} className={BTN_P + " px-5 h-11 text-sm"}><Icon name="send" size={16} /> عضویت</button>
       </div>
       {err && <div id="nl-err" role="alert" className="mt-2 text-xs text-rose-200 flex items-center justify-center gap-1.5"><Icon name="circle-alert" size={14} />{err}</div>}
     </form>

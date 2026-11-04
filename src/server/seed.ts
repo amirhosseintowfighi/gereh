@@ -1,7 +1,8 @@
 /* Seeds an empty database.
    - Always: settings, Virtualizor config, catalog (plans, TLDs, plan map, OS templates, ISOs) and
      the first owner account (ADMIN_EMAIL / ADMIN_PASSWORD).
-   - With demo=true (dev, staging, e2e): the demo customer, sample services, invoices and tickets.
+   - With demo=true, and only in demo mode (./demo.ts: DEMO=1, staging, e2e, tests): the demo customer, sample
+     services, invoices and tickets. Production refuses it; ./demo-seed.ts finds and removes what an old one left.
    Mock dates were written as Jalali strings around 1404/07/14; they are shifted so that day is "today". */
 import "server-only";
 import { eq, notInArray } from "drizzle-orm";
@@ -14,6 +15,7 @@ import { seedInquiry } from "./inquiry/service";
 import { seedMailDemo } from "./mail/demo";
 import { seedMailPlans } from "./mail/service";
 import { DEFAULT_PLANS, seedPlans } from "./paas/service";
+import { demoMode } from "./demo";
 import { seal } from "./secrets";
 import { HOSTING, LOCS, OSES, TLDS, VPS, type Plan } from "@/lib/catalog";
 import { AI_MODELS, rulePrice } from "@/lib/ai";
@@ -80,6 +82,7 @@ export async function upgrade(db: DB) {
 }
 
 export async function seed(db: DB, opts: { demo: boolean; adminEmail?: string; adminPassword?: string }) {
+  if (opts.demo && !demoMode()) throw new Error("the demo seed runs only in demo mode (DEMO=1); refusing on a production install");
   const now = Date.now();
   const anchor = parseJalali("۱۴۰۴/۰۷/۱۴")!.getTime();
   /** mock Jalali date (optionally with " HH:MM") → real Date shifted to today */

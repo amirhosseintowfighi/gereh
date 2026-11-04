@@ -25,7 +25,7 @@ export default async function StatusPage() {
   return (
     <div className="fade-page pb-8">
       <JsonLd data={[breadcrumbLd([["وضعیت سرویس‌ها", "/status"]])]} />
-      <PageHeader icon="activity" crumb="وضعیت سرویس‌ها" title="وضعیت سرویس‌ها" sub="به‌روزرسانی هر دقیقه؛ رخدادها هم به ایمیل مشترکان سرویس‌های درگیر ارسال می‌شود." />
+      <PageHeader icon="activity" crumb="وضعیت سرویس‌ها" title="وضعیت سرویس‌ها" sub="آپتایم فقط از بررسی‌های واقعی هر ۵ دقیقه حساب می‌شود؛ روزهای خاکستری یعنی هنوز بررسی‌ای ثبت نشده است. رخدادها هم به ایمیل مشترکان سرویس‌های درگیر ارسال می‌شود." />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
         <div role="status" className={GLASS + " rounded-2xl p-5 flex items-center gap-4"}>
           <span className={"w-3.5 h-3.5 rounded-full " + LABEL[r.overall][2]} aria-hidden="true" />
@@ -39,10 +39,10 @@ export default async function StatusPage() {
                 <li key={c.id} className="p-3">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-bold text-sm">{c.label}</span>
-                    <span className="flex items-center gap-2 text-xs"><span className={"w-2 h-2 rounded-full " + LABEL[c.health][2]} aria-hidden="true" />{LABEL[c.health][1]}<span className="text-white/60 tabular">{c.uptime.toLocaleString("fa-IR", { maximumFractionDigits: 3 })}٪</span></span>
+                    <span className="flex items-center gap-2 text-xs"><span className={"w-2 h-2 rounded-full " + LABEL[c.health][2]} aria-hidden="true" />{LABEL[c.health][1]}<span className="text-white/60 tabular">{c.uptime === null ? "داده کافی نیست" : c.uptime.toLocaleString("fa-IR", { maximumFractionDigits: 3 }) + "٪"}</span></span>
                   </div>
-                  <div className="mt-2 flex gap-[2px] h-6" role="img" aria-label={"آپتایم ۹۰ روز " + c.label + ": " + c.uptime.toFixed(3) + "٪"}>
-                    {c.days.map((d, i) => <span key={i} className={"flex-1 rounded-[2px] " + (d === "operational" ? "bg-emerald-400/70" : LABEL[d][2])} />)}
+                  <div className="mt-2 flex gap-[2px] h-6" role="img" aria-label={"آپتایم ۹۰ روز " + c.label + ": " + (c.uptime === null ? "داده کافی نیست" : c.uptime.toFixed(3) + "٪")}>
+                    {c.days.map((d, i) => <span key={i} title={d === "nodata" ? "بدون داده" : undefined} className={"flex-1 rounded-[2px] " + (d === "nodata" ? "bg-white/[0.08]" : d === "operational" ? "bg-emerald-400/70" : LABEL[d][2])} />)}
                   </div>
                 </li>
               ))}

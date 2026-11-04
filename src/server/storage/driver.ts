@@ -5,6 +5,7 @@
    - SimulatorDriver (below): in-memory buckets for dev, CI and demos; its presigned and public URLs
      are served by /api/storage/sim. */
 import "server-only";
+import { demoMode, unconfigured } from "../demo";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { StorageCorsRule, StorageLifecycle } from "../db/schema";
 import { encPath } from "./sigv4";
@@ -144,7 +145,7 @@ export async function storage(): Promise<StorageDriver> {
   if (s3Configured()) {
     const { S3Driver } = await import("./s3");
     cached = new S3Driver();
-  } else cached = new SimulatorDriver();
+  } else cached = demoMode() ? new SimulatorDriver() : unconfigured<StorageDriver>("فضای ذخیره‌سازی (S3/MinIO)");
   return cached;
 }
 export const resetStorageDriver = () => { cached = null; };

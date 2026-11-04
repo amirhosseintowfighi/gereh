@@ -25,7 +25,7 @@ export function AdminStorage() {
   const list = s.buckets.filter((b) => !q || b.name.includes(q.toLowerCase()) || (owner(b.userId)?.name ?? "").includes(q) || (owner(b.userId)?.email ?? "").includes(q.toLowerCase()));
   return (
     <div>
-      <PageTitle title="فضای ذخیره‌سازی ابری" sub={"باکت‌های مشتریان و پلن‌ها. درایور: " + (s.driver === "s3" ? "MinIO / S3" : "شبیه‌ساز (STORAGE_S3_* تنظیم نشده)")}
+      <PageTitle title="فضای ذخیره‌سازی ابری" sub={"باکت‌های مشتریان و پلن‌ها. درایور: " + (s.driver === "s3" ? "MinIO / S3" : "STORAGE_S3_* تنظیم نشده (فقط در حالت نمایشی: شبیه‌ساز)")}
         action={<AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await api.storage.adminTest(); setTest(r.driver + ": " + r.version); }}><Icon name="activity" size={16} />تست اتصال</AsyncButton>} />
       {test && <p role="status" className="mb-4 text-sm text-white/75" dir="auto">{test}</p>}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">

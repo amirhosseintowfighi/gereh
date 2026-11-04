@@ -7,6 +7,8 @@ import { IconTile, SectionHead } from "@/components/ui";
 import { Counter } from "@/components/ui-client";
 import { BTN_G, BTN_P, GLASS, GLASS_SOFT, GLASS_STRONG } from "@/lib/cls";
 import { breadcrumbLd, ORG_ID, pageMeta, SITE_URL } from "@/lib/seo";
+import { db } from "@/server/ctx";
+import { publicFacts } from "@/server/dashboard";
 
 export const metadata = pageMeta({
   title: "درباره گره؛ زیرساخت ابری از خانواده ویرگول",
@@ -27,9 +29,16 @@ const TIMELINE = [
   ["۱۴۰۳", "حضور در اروپا", "افتتاح لوکیشن‌های فرانکفورت و آمستردام برای کسب‌وکارهای بین‌المللی."],
 ];
 const TEAM = [["ک", "کاوه نوری", "مدیر زیرساخت"], ["ش", "شیما کاظمی", "مدیر مالی و عملیات"], ["پ", "پویا تهرانی", "سرپرست شبکه"], ["ن", "نازنین صادقی", "سرپرست پشتیبانی"]];
-const STATS: [number, string, string, number?][] = [[12000, "+", "کسب‌وکار فعال"], [4, "", "دیتاسنتر"], [99.99, "٪", "آپتایم سال گذشته", 2], [9, " دقیقه", "میانگین پاسخ"]];
+// figures counted from the database on each request (never typed in); uptime lives on /status
+export const dynamic = "force-dynamic";
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const f = await publicFacts(await db());
+  const STATS: [number, string, string][] = [
+    ...(f.customers > 0 ? [[f.customers, "", "مشتری فعال"] as [number, string, string]] : []),
+    [f.locations, "", "دیتاسنتر"],
+    ...(f.firstResponseMin !== null ? [[f.firstResponseMin, " دقیقه", "میانگین اولین پاسخ تیکت، ۹۰ روز اخیر"] as [number, string, string]] : []),
+  ];
   return (
     <div className="fade-page pb-10">
       <JsonLd data={[breadcrumbLd([["درباره ما", "/about"]]), { "@type": "AboutPage", name: "درباره گره", url: SITE_URL + "/about", about: { "@id": ORG_ID } }]} />
@@ -44,12 +53,16 @@ export default function AboutPage() {
             </div>
           </div>
           <dl className="grid grid-cols-2 gap-3">
-            {STATS.map(([v, s, l, d]) => (
+            {STATS.map(([v, s, l]) => (
               <div key={l} className={"spot rounded-[1.4rem] p-6 flex flex-col-reverse " + GLASS}>
                 <dt className="text-sm text-white/50 mt-2">{l}</dt>
-                <dd className="text-3xl sm:text-4xl font-black silver tabular"><Counter to={v} d={d || 0} suffix={s} /></dd>
+                <dd className="text-3xl sm:text-4xl font-black silver tabular"><Counter to={v} suffix={s} /></dd>
               </div>
             ))}
+            <Link href={"/status" as never} className={"spot rounded-[1.4rem] p-6 flex flex-col justify-end hover:border-white/30 " + GLASS}>
+              <span className="text-lg font-black flex items-center gap-2"><Icon name="activity" size={18} className="acc" />آپتایم واقعی</span>
+              <span className="text-sm text-white/50 mt-2">از بررسی‌های خودکار، در صفحه وضعیت</span>
+            </Link>
           </dl>
         </section>
 

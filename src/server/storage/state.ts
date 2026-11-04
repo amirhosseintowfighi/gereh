@@ -30,7 +30,8 @@ export async function storageState(db: DB, o: { uid: string; admin: boolean }): 
     buckets: buckets.map((b) => ({
       id: b.id, userId: b.userId, name: b.name, planId: b.planId, access: b.access, status: b.status, suspendReason: b.suspendReason, versioning: b.versioning, cors: b.cors, lifecycle: b.lifecycle,
       usedBytes: b.usedBytes, objects: b.objects, hourly: bucketHourly(planMap.get(b.planId)), at: faDate(b.createdAt), usageAt: b.usageAt ? faDateTime(b.usageAt) : "",
-      publicBase: d.publicUrl(b.name, ""), cname: cnameTarget(b.name),
+      // no S3 configured (production without credentials): no public address rather than a broken state
+      publicBase: d.name === ("unconfigured" as string) ? "" : d.publicUrl(b.name, ""), cname: cnameTarget(b.name),
       domains: domains.filter((x) => x.bucketId === b.id).map((x) => ({ id: x.id, host: x.host, status: x.status, ssl: x.ssl, checked: x.checkedAt ? faDateTime(x.checkedAt) : "" })),
       usage: usage.filter((u) => u.bucketId === b.id).map((u) => ({ day: u.day, sizeBytes: u.sizeBytes, objects: u.objects, requests: u.requests, bytesIn: u.bytesIn, bytesOut: u.bytesOut })),
     })),

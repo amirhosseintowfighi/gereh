@@ -281,6 +281,13 @@
       "when": 1791600041000,
       "tag": "0041_dbquery",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791600042000,
+      "tag": "0042_status_checks",
+      "breakpoints": true
     }
   ]
 }

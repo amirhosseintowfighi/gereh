@@ -165,6 +165,8 @@ export type Settings = {
   paasDomain: string;
   /** label of the gateway that will actually take online payments ("" = none available) */
   payGateway?: string;
+  /** demo mode (src/server/demo.ts): the panel shows the «حالت نمایشی» badge */
+  demo?: boolean;
 };
 
 export type ClientDB = {

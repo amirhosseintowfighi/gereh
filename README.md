@@ -8,8 +8,10 @@ Website, customer panel, admin panel and backend for **Gereh**, a Persian (RTL) 
 
 ```bash
 npm ci
-npm run dev          # http://localhost:3000 — embedded in-memory database seeded with demo data
+npm run dev          # http://localhost:3000 — demo mode (.env.development: DEMO=1), in-memory database with demo data
 ```
+
+**Demo mode vs production** (one rule, `src/server/demo.ts`): demo mode is on only with `DEMO=1` (or the older `SEED_DEMO=1` / `NEXT_PUBLIC_DEMO=1`) and in the test suite. Only then does the demo seed run, do simulators stand in for missing integrations, and does the header show «حالت نمایشی». Anything else is production: every figure comes from real records or real measurements, empty data says so, and an integration without credentials reports that it is not configured. Admin › تنظیمات › «داده‌های نمونه» finds (and, with typed confirmation, removes) rows an old demo seed left in a database.
 
 Demo logins use the password `Demo1234!`:
 
@@ -21,7 +23,7 @@ Demo logins use the password `Demo1234!`:
 
 **Server install:** on a fresh Ubuntu/Debian server run `sudo bash deploy/install.sh`. It sets up Node.js, PostgreSQL, a systemd service, Nginx, SSL, the firewall and daily backups, and installs the `gereh` command for updates with automatic rollback, backups and restores. See [`deploy/README.md`](deploy/README.md).
 
-To configure manually instead, copy `.env.example` to `.env` and set at least `DATABASE_URL`, `APP_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Any integration without credentials falls back to a simulator: Virtualizor, Zarinpal/IDPay, Kavenegar SMS, SMTP, WHM/cPanel, PowerDNS and ResellerClub. Payments use a test gateway, which is disabled in production. Messages go to an in-memory outbox.
+To configure manually instead, copy `.env.example` to `.env` and set at least `DATABASE_URL`, `APP_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. In demo mode any integration without credentials falls back to a simulator (Virtualizor, Kubernetes, S3, Zarinpal/IDPay, WHM/cPanel, PowerDNS, ResellerClub, AI and inquiry providers) and payments use a test gateway; in production each of them reports that it is not configured. Messages go to an in-memory outbox.
 
 | Script | What it does |
 |---|---|

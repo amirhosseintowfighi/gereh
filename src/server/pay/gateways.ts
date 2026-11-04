@@ -4,6 +4,7 @@
    - IDPay v1.1:  IDPAY_API_KEY      (IDPAY_SANDBOX=1 adds X-SANDBOX)
    - Simulator:   used when neither is configured; /pay/sim plays the gateway's part. */
 import "server-only";
+import { demoMode } from "../demo";
 
 export type GatewayId = "zarinpal" | "idpay" | "sim";
 export type StartReq = { paymentId: string; amount: number; callback: string; description: string; mobile?: string; email?: string };
@@ -84,13 +85,13 @@ export function gatewaysFor(settings: { gateways: Record<string, boolean> }): Ga
   if (settings.gateways.zarinpal && process.env.ZARINPAL_MERCHANT) out.push(new Zarinpal());
   if (settings.gateways.idpay && process.env.IDPAY_API_KEY) out.push(new IdPay());
   const anyReal = !!(process.env.ZARINPAL_MERCHANT || process.env.IDPAY_API_KEY);
-  const simAllowed = process.env.NODE_ENV !== "production" || process.env.PAY_SIMULATOR === "1";
+  const simAllowed = demoMode() || process.env.PAY_SIMULATOR === "1";
   if (!anyReal && simAllowed && (settings.gateways.zarinpal || settings.gateways.idpay)) out.push(new SimGateway());
   return out;
 }
 export function gatewayById(id: string): Gateway | null {
   if (id === "zarinpal" && process.env.ZARINPAL_MERCHANT) return new Zarinpal();
   if (id === "idpay" && process.env.IDPAY_API_KEY) return new IdPay();
-  if (id === "sim" && (process.env.NODE_ENV !== "production" || process.env.PAY_SIMULATOR === "1")) return new SimGateway();
+  if (id === "sim" && (demoMode() || process.env.PAY_SIMULATOR === "1")) return new SimGateway();
   return null;
 }

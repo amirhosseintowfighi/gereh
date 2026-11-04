@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BTN_G, BTN_P } from "@/lib/cls";
 import { toman } from "@/lib/format";
+import { demoMode } from "@/server/demo";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "درگاه آزمایشی", robots: { index: false, follow: false } };
 
 /** stands in for the bank page when no real gateway is configured (dev, CI, demos) */
 export default async function SimGateway({ searchParams }: PageProps<"/pay/sim">) {
-  if (process.env.NODE_ENV === "production" && process.env.PAY_SIMULATOR !== "1") notFound();
+  if (!demoMode() && process.env.PAY_SIMULATOR !== "1") notFound();
   const q = await searchParams;
   const authority = String(q.authority || ""), cb = String(q.cb || ""), amount = Number(q.amount || 0);
   // only our own callback path is allowed as the return target

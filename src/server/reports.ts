@@ -62,7 +62,8 @@ export async function financeReport(db: DB, monthsBack = 12, now = new Date()): 
       .where(and(inArray(transactions.type, ["refund", "commission", "topup"]), gte(transactions.createdAt, from), lt(transactions.createdAt, to))),
     db.select({ amount: payments.amount, gateway: payments.gateway, at: payments.verifiedAt }).from(payments)
       .where(and(eq(payments.status, "paid"), gte(payments.verifiedAt, from), lt(payments.verifiedAt, to))),
-    db.select({ at: users.createdAt }).from(users).where(and(eq(users.role, "user"), gte(users.createdAt, from), lt(users.createdAt, to))),
+    // new customers: customer accounts only, without staff and deleted accounts (like the dashboard's sign-ups)
+    db.select({ at: users.createdAt }).from(users).where(and(eq(users.role, "user"), ne(users.status, "deleted"), gte(users.createdAt, from), lt(users.createdAt, to))),
     db.select({ id: invoices.id, tax: invoices.taxRate }).from(invoices).where(inArray(invoices.status, ["unpaid", "overdue"])),
   ]);
 
@@ -134,7 +135,8 @@ export async function slaReport(db: DB, days = 30, now = new Date()) {
   }
   const rows: AgentRow[] = [...agents.values()].map(({ firstMin, touched, ...a }) => ({ ...a, tickets: touched.size, avgFirstMin: firstMin.length ? Math.round(firstMin.reduce((s, x) => s + x, 0) / firstMin.length) : 0 }))
     .sort((a, b) => b.replies - a.replies);
-  return { days, agents: rows, tickets: tks.length, answered, slaRate: answered ? Math.round(((answered - breached) / answered) * 1000) / 10 : 100, overdueNow: waiting };
+  return { days, agents: rows, tickets: tks.length, answered, // no answered ticket = no rate (never an assumed 100%)
+    slaRate: answered ? Math.round(((answered - breached) / answered) * 1000) / 10 : null, overdueNow: waiting };
 }
 
 /** workbook for the finance export: summary by month, product mix, top customers, gateways */

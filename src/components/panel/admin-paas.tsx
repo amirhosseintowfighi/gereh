@@ -154,9 +154,9 @@ function Platform() {
   return (
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       <Card title="اتصال به کلاستر" icon="radio-tower">
-        <div className="flex items-center gap-2 mb-3"><span className="text-sm">درایور فعلی:</span>{sim ? <Badge tone="amber" dot>شبیه‌ساز</Badge> : <Badge tone="green" dot>Kubernetes</Badge>}</div>
+        <div className="flex items-center gap-2 mb-3"><span className="text-sm">درایور فعلی:</span>{sim ? <Badge tone="amber" dot>{db.paasDriver === "simulator" ? "شبیه‌ساز (حالت نمایشی)" : "تنظیم نشده"}</Badge> : <Badge tone="green" dot>Kubernetes</Badge>}</div>
         <p className="text-sm text-white/65 leading-7">
-          {sim ? "هنوز به کلاستر وصل نیست؛ اپ‌ها شبیه‌سازی می‌شوند (برای توسعه و دمو). برای اتصال واقعی، متغیرهای PAAS_K8S_API و PAAS_K8S_TOKEN را در فایل env سرور بگذارید و سرویس را ری‌استارت کنید (راهنما: deploy/paas/README.md)."
+          {sim ? "هنوز به کلاستر وصل نیست؛ تا وصل نشود ساخت اپ ممکن نیست (فقط در حالت نمایشی شبیه‌سازی می‌شوند). برای اتصال واقعی، متغیرهای PAAS_K8S_API و PAAS_K8S_TOKEN را در فایل env سرور بگذارید و سرویس را ری‌استارت کنید (راهنما: deploy/paas/README.md)."
             : "اپ‌ها روی کلاستر Kubernetes بیلد و اجرا می‌شوند. هر مشتری یک namespace جدا دارد."}
         </p>
         <AsyncButton className={BTN_G + BTN_SM + " mt-4"} onClick={async () => {
