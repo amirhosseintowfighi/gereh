@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
   // native/WASM drivers load at runtime from node_modules instead of being bundled
-  serverExternalPackages: ["@electric-sql/pglite", "postgres", "undici", "nodemailer"],
+  serverExternalPackages: ["@electric-sql/pglite", "postgres", "undici", "nodemailer", "ws"],
   typedRoutes: true,
   async headers() {
     return [

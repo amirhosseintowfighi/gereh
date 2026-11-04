@@ -41,7 +41,7 @@ export function bridge(ws: WebSocket, t: Ticket) {
   tcp.setTimeout(15_000, () => end("VNC " + t.h + ":" + t.p + " did not answer"));
   tcp.on("connect", () => tcp.setTimeout(0));
   tcp.on("data", (b) => { if (ws.readyState === ws.OPEN) ws.send(b); });
-  tcp.on("error", (e) => end("VNC " + t.h + ":" + t.p + ": " + (e as NodeJS.ErrnoException).code));
+  tcp.on("error", (e) => { console.warn("[vnc-proxy] " + t.h + ":" + t.p + " " + (e as NodeJS.ErrnoException).code); end("VNC " + t.h + ":" + t.p + ": " + (e as NodeJS.ErrnoException).code); });
   tcp.on("close", () => end());
   ws.on("message", (m) => { if (!tcp.destroyed) tcp.write(Buffer.isBuffer(m) ? m : Buffer.from(m as ArrayBuffer)); });
   ws.on("close", () => end());
@@ -57,8 +57,9 @@ export function startVncProxy() {
   wss.on("connection", (ws, req) => {
     const m = /^\/vnc\/([^/?#]+)/.exec(req.url ?? "");
     const t = m ? readTicket(decodeURIComponent(m[1])) : null;
-    if (!t) { ws.close(4001, "ticket invalid or expired"); return; }
+    if (!t) { console.warn("[vnc-proxy] refused a console ticket (invalid or expired)"); ws.close(4001, "ticket invalid or expired"); return; }
     bridge(ws, t);
   });
+  wss.on("listening", () => console.log("[vnc-proxy] listening on 127.0.0.1:" + VNC_PROXY_PORT));
   server = wss;
 }
