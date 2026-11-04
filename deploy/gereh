@@ -136,8 +136,11 @@ prune_releases() {
 # installs made before the web console bridge have no /vnc/ location: add it (as a snippet included before
 # "location / {" in the site's server blocks, the HTTPS one certbot made included), then reload Nginx
 ensure_vnc_nginx() {
-  local site=/etc/nginx/sites-available/gereh snip=/etc/nginx/snippets/gereh-vnc.conf
-  [[ -f $site ]] || return 0
+  local site snip=/etc/nginx/snippets/gereh-vnc.conf
+  # the site's server blocks are the ones proxying to the app (the file may not be called "gereh")
+  site=$(grep -l "proxy_pass http://gereh_app" /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null | head -1)
+  [[ -n $site ]] && site=$(readlink -f "$site")
+  [[ -n $site && -f $site ]] || { warn "پیکربندی Nginx سایت پیدا نشد؛ مسیر کنسول (/vnc/) اضافه نشد."; return 0; }
   mkdir -p /etc/nginx/snippets
   cat > "$snip" <<NGINX
 # written by «gereh update»: noVNC WebSocket → the app's VNC bridge on 127.0.0.1:${VNC_PROXY_PORT:-6081}
@@ -156,7 +159,7 @@ NGINX
     cp "$site" "$site.bak-vnc"
     sed -i 's|^\(\s*\)location / {|\1include /etc/nginx/snippets/gereh-vnc.conf;\n\1location / {|' "$site"
   fi
-  if nginx -t >/dev/null 2>&1; then systemctl reload nginx
+  if nginx -t >/dev/null 2>&1; then systemctl reload nginx; say "مسیر کنسول (/vnc/) در $site فعال است."
   else
     [[ -f $site.bak-vnc ]] && cp "$site.bak-vnc" "$site"
     warn "افزودن مسیر کنسول به Nginx ناموفق بود؛ پیکربندی قبلی برگردانده شد (sudo nginx -t)."
@@ -410,6 +413,7 @@ case ${1:-help} in
   logs) shift; journalctl -u "$SERVICE" --no-pager -n 200 "$@" ;;
   restart|stop|start) need_root; systemctl "$1" "$SERVICE"; [[ $1 == stop ]] || { health 60 && say "انجام شد."; } ;;
   version) cat "$CURRENT/.release-commit" 2>/dev/null || echo unknown ;;
+  vnc-nginx) need_root; ensure_vnc_nginx ;;
   help|-h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "دستور ناشناخته: $1 (gereh help)" ;;
 esac
