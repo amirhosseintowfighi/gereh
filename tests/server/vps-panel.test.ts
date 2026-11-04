@@ -193,7 +193,7 @@ describe("disk layout", () => {
     const tasks = await d.select().from(serverTasks).where(eq(serverTasks.serverId, SRV));
     expect(tasks.some((t) => t.action.startsWith("چیدمان دیسک ۱۶۰→۶۰+۱۰۰"))).toBe(true);
     expect(tasks.filter((t) => t.status === "running")).toHaveLength(0);
-    expect(outbox.find((m) => m.subject?.startsWith("تغییر چیدمان دیسک"))!.text).toContain("رمز root جدید");
+    expect(outbox.find((m) => m.subject?.startsWith("تغییر چیدمان دیسک"))!.text).toContain("رمز جدید");
     // the sync sees exactly this layout on the new VPS: nothing to log
     await virtSync(d, { all: true });
     expect((await d.select().from(vpsSyncLog).where(eq(vpsSyncLog.serverId, SRV))).filter((l) => l.field === "disk" || l.field === "ip")).toHaveLength(0);

@@ -37,7 +37,7 @@ describe("one-time root password in the panel", () => {
   it("reinstall: stored sealed, listed without the password, revealed once by the owner, gone after «ذخیره کردم»", async () => {
     await asUser();
     await call("servers.reinstall", SRV, "Debian 12");
-    const pass = mailed("نصب مجدد", /رمز root جدید: (\S+)/);
+    const pass = mailed("نصب مجدد", /رمز جدید: (\S+)/);
     const [r] = await rows();
     expect(r.passEnc).toMatch(/^v1\./);
     expect(r.passEnc).not.toContain(pass);
@@ -62,6 +62,16 @@ describe("one-time root password in the panel", () => {
     expect((await rows())[0]).toMatchObject({ passEnc: null });
     expect((await rows())[0].acknowledgedAt).not.toBeNull();
     expect(await fails("servers.revealCredential", SRV, "root")).toContain("رمزی برای نمایش نیست");
+  });
+
+  it("a Windows image: the login is Administrator in the panel and the email", async () => {
+    await asUser();
+    await call("servers.reinstall", SRV, "Windows Server 2022");
+    const mail = outbox.filter((m) => m.subject?.startsWith("نصب مجدد")).at(-1)!.text;
+    expect(mail).toContain("کاربر: Administrator");
+    expect((await pending())[0].username).toBe("Administrator");
+    await call("servers.reinstall", SRV, "Debian 12");
+    expect((await pending())[0].username).toBe("root");
   });
 
   it("only the owner (or a team member who manages servers) sees it; never another customer or staff", async () => {
@@ -149,7 +159,7 @@ describe("one-time root password in the panel", () => {
     await call("servers.setLayout", SRV, { sizes: [60, 100], os: "Debian 12", confirm: s.hostname });
     expect(await pending(SRV)).toEqual([]);
     await runJobs();
-    const pass = mailed("تغییر چیدمان دیسک", /رمز root جدید: (\S+)/);
+    const pass = mailed("تغییر چیدمان دیسک", /رمز جدید: (\S+)/);
     expect(await call("servers.revealCredential", SRV, "root")).toBe(pass);
   });
 });

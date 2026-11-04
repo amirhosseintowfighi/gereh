@@ -1,4 +1,5 @@
 "use client";
+import { loginUser } from "@/lib/os-login";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -165,7 +166,7 @@ function DemoConsole({ s }: { s: Server }) {
   const on = s.status === "running";
   return (
     <div className="rounded-b-[14px] bg-[#020306] overflow-hidden" dir="ltr">
-      <div className="flex items-center justify-between px-4 h-10 border-b border-white/[0.07] text-[11px] text-white/55 mono"><span>root@{s.name} — VNC console</span><span className={on ? "text-emerald-300" : "text-rose-300"}>{on ? "● connected" : "● offline"}</span></div>
+      <div className="flex items-center justify-between px-4 h-10 border-b border-white/[0.07] text-[11px] text-white/55 mono"><span>{loginUser(s.os)}@{s.name} — VNC console</span><span className={on ? "text-emerald-300" : "text-rose-300"}>{on ? "● connected" : "● offline"}</span></div>
       <div ref={ref} className="mono text-[12.5px] leading-6 p-4 h-80 overflow-auto whitespace-pre-wrap" onClick={() => input.current?.focus()}>
         {hist.map((h, i) => <div key={i} className={h.t === "in" ? "text-white" : "text-white/60"}>{h.t === "in" && <span className="text-[#9cc9ff]">root@{s.name}:~# </span>}{h.v}</div>)}
         {on ? <div className="flex"><span className="text-[#9cc9ff]">root@{s.name}:~#&nbsp;</span><input ref={input} value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} className="flex-1 bg-transparent outline-none text-white mono" aria-label="فرمان کنسول" autoComplete="off" spellCheck={false} /></div>
@@ -186,7 +187,6 @@ function VncPanel({ s }: { s: Server }) {
         <div className="flex items-center justify-between px-4 h-10 bg-white/[0.04] border-b border-white/[0.08] text-xs">
           <span className="flex items-center gap-2 text-white/60"><Icon name="monitor-smartphone" size={15} />کنسول VNC (noVNC)</span>
           <div className="flex gap-1">
-            <button type="button" disabled={s.status !== "running"} onClick={() => notify("Ctrl+Alt+Del ارسال شد", "keyboard")} className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 ltr disabled:opacity-40">Ctrl+Alt+Del</button>
             <Link href={`/panel/servers/${s.id}/console`} target="_blank" className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 flex items-center gap-1"><Icon name="external-link" size={13} />پنجره جدا</Link>
             <button type="button" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen())?.catch(() => notify("تمام‌صفحه پشتیبانی نمی‌شود", "circle-alert"))} className="px-2.5 h-7 rounded-md hover:bg-white/10 text-white/60 flex items-center gap-1"><Icon name="external-link" size={13} />تمام‌صفحه</button>
           </div>
@@ -223,12 +223,12 @@ function ServerAccess({ s }: { s: Server }) {
         <Field label="نام میزبان کامل (FQDN)" hint="بعد از ری‌استارت در سیستم‌عامل اعمال می‌شود."><input value={host} onChange={(e) => setHost(e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const h = host.trim().toLowerCase(); if (!/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/.test(h)) throw new Error("hostname معتبر نیست."); await api.servers.setHostname(s.id, h); setHost(h); notify("hostname تغییر کرد"); }}>ذخیره</AsyncButton></div>
       </Card>
-      <Card title="رمز root" icon="key-round">
+      <Card title={"رمز " + loginUser(s.os)} icon="key-round">
         <Field label="رمز جدید" hint="سرور برای اعمال رمز ری‌استارت می‌شود.">
           <div className="flex gap-2"><input value={pw} onChange={(e) => setPw(e.target.value)} dir="ltr" autoComplete="new-password" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setPw(genPassword())} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div>
           <StrengthBar value={pw} />
         </Field>
-        <div className="mt-4 flex justify-end"><AsyncButton confirmText="سرور برای تغییر رمز ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { await api.servers.resetRootPassword(s.id, pw); setPw(""); notify("رمز root تغییر کرد", "key-round"); }}>تغییر رمز</AsyncButton></div>
+        <div className="mt-4 flex justify-end"><AsyncButton confirmText="سرور برای تغییر رمز ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { await api.servers.resetRootPassword(s.id, pw); setPw(""); notify("رمز " + loginUser(s.os) + " تغییر کرد", "key-round"); }}>تغییر رمز</AsyncButton></div>
       </Card>
       <Card title="نصب کنترل‌پنل و اپلیکیشن" icon="layout-dashboard" className="lg:col-span-2">
         <p className="text-sm text-white/50 mb-4">نصب خودکار روی سیستم‌عامل فعلی. داده‌های موجود حفظ می‌شود، ولی بهتر است روی سرور تازه نصب شود.</p>

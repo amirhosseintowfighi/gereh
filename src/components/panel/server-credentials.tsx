@@ -37,7 +37,7 @@ function CredentialCard({ c, onDone }: { c: PendingCredential; onDone: () => voi
     setPass(p);
     return p;
   };
-  const title = (c.kind === "root" ? "رمز root جدید سرور " : "رمز حالت ریسکیو سرور ") + c.name;
+  const title = (c.kind === "root" ? "رمز " + c.username + " جدید سرور " : "رمز حالت ریسکیو سرور ") + c.name;
   return (
     <Card title={title} icon="key-round" action={<Badge tone="amber">فقط یک بار نمایش داده می‌شود</Badge>} className="border-amber-300/30 bg-amber-400/[0.05]">
       <dl className="grid sm:grid-cols-3 gap-3 text-sm">

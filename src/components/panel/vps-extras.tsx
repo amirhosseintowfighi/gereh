@@ -200,8 +200,9 @@ function TrafficBuy({ sid, prices, onDone }: { sid: string; prices: VpsExtrasVie
 }
 
 /* ---------- console (noVNC) ---------- */
-const NOVNC = "https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/core/rfb.js";
-type Rfb = { scaleViewport: boolean; disconnect(): void; sendCtrlAltDel(): void; addEventListener(t: string, f: (e: { detail?: { clean?: boolean } }) => void): void };
+// noVNC ships with the site (npm @novnc/novnc, MPL-2.0): a CDN may be filtered for customers, and the npm build has
+// no ESM core/ folder for a browser import anyway
+type Rfb = { scaleViewport: boolean; disconnect(): void; sendCtrlAltDel(): void; addEventListener(t: string, f: (e: { detail?: { clean?: boolean; reason?: string } }) => void): void };
 /** the real console when the hypervisor exposes a websocket; otherwise the fallback (simulator) */
 export function VncScreen({ s, fallback }: { s: Server; fallback: React.ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
@@ -210,18 +211,25 @@ export function VncScreen({ s, fallback }: { s: Server; fallback: React.ReactNod
   const [msg, setMsg] = useState("");
   useEffect(() => {
     if (s.status !== "running") return;
-    let live = true;
+    let live = true, opened = false;
     (async () => {
       try {
         const v = await vpsApi.vnc(s.id);
         if (!live) return;
         if (!v.ws) { setState("fallback"); return; }
-        const mod = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ NOVNC)) as { default: new (el: HTMLElement, url: string, o: object) => Rfb };
+        // an https page may not open a plain ws:// socket (mixed content): say so instead of failing silently
+        if (location.protocol === "https:" && v.ws.startsWith("ws://")) { setState("error"); setMsg("آدرس کنسول (" + v.ws + ") رمزنگاری‌نشده است و مرورگر از صفحه https به آن وصل نمی‌شود؛ مدیر سایت باید VIRTUALIZOR_NOVNC_URL را روی wss تنظیم کند."); return; }
+        const mod = (await import("@novnc/novnc/lib/rfb")) as unknown as { default: new (el: HTMLElement, url: string, o: object) => Rfb };
         if (!live || !box.current) return;
         const r = new mod.default(box.current, v.ws, { credentials: { password: v.password } });
         r.scaleViewport = true;
-        r.addEventListener("connect", () => setState("connected"));
-        r.addEventListener("disconnect", (e) => { setState(e.detail?.clean ? "idle" : "error"); setMsg(e.detail?.clean ? "" : "اتصال کنسول قطع شد."); });
+        r.addEventListener("connect", () => { opened = true; setState("connected"); setMsg(""); });
+        r.addEventListener("securityfailure", (e) => { setState("error"); setMsg("رمز VNC پذیرفته نشد" + (e.detail?.reason ? " (" + e.detail.reason + ")" : "") + "؛ از تب کنسول رمز VNC را دوباره تنظیم کنید."); });
+        r.addEventListener("disconnect", (e) => {
+          if (e.detail?.clean) { setState("idle"); setMsg(""); return; }
+          setState("error");
+          setMsg(opened ? "اتصال کنسول قطع شد." : "اتصال به سرور کنسول (" + new URL(v.ws).host + ") برقرار نشد. معمولاً یکی از این‌هاست: پورت noVNC روی Virtualizor در فایروال بسته است، گواهی SSL آن معتبر نیست، یا VNC روی خود Virtualizor از کار افتاده است.");
+        });
         rfb.current = r;
       } catch (e) { if (live) { setState("error"); setMsg((e as Error).message); } }
     })();

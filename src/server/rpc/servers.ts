@@ -1,4 +1,5 @@
 import "server-only";
+import { loginUser } from "@/lib/os-login";
 import { and, count, eq, notLike } from "drizzle-orm";
 import { z } from "zod";
 import { PLAN_NUMS, type Plan } from "@/lib/catalog";
@@ -118,7 +119,7 @@ export const serversRpc = {
     await stashCredential(ctx.db, { serverId: s.id, userId: s.userId, password: pass });
     await dropCredential(ctx.db, s.id, "rescue");
     const [owner] = await ctx.db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
-    if (owner) await sendEmail(owner.email, "نصب مجدد " + s.name, "سیستم‌عامل " + tpl!.name + " روی " + s.name + " (" + s.ip + ") نصب شد.\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
+    if (owner) await sendEmail(owner.email, "نصب مجدد " + s.name, "سیستم‌عامل " + tpl!.name + " روی " + s.name + " (" + s.ip + ") نصب شد.\nکاربر: " + loginUser(tpl!.name) + "\nرمز جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
   }),
 
   "servers.remove": method(z.tuple([id]), async (ctx, [sid]) => {

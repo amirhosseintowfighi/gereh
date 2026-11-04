@@ -3,6 +3,7 @@
    A server order gets its `servers` row ("provisioning", no vpsid) before Virtualizor is called, so the
    customer always sees what they paid for; a failure is stored on the row and opens one staff ticket. */
 import "server-only";
+import { loginUser, remoteAccess } from "@/lib/os-login";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { BILLING, CLOUD_SPECS, HOSTING, LOCS, OSES, VPS, type Plan, type Sku } from "@/lib/catalog";
 import { toEnDigits } from "@/lib/format";
@@ -239,9 +240,11 @@ export async function waitForBuild(db: DB, p: { serverId: string; rootpass: stri
 /** emails the delivery details and keeps the root password for its one-time display in the panel (../credentials.ts) */
 export async function sendCredentials(db: DB | Tx, s: { id: string; userId: string; name: string; ip: string; hostname: string }, rootpass: string) {
   await stashCredential(db, { serverId: s.id, userId: s.userId, password: rootpass });
+  const [row] = await db.select({ os: servers.os }).from(servers).where(eq(servers.id, s.id));
+  const user = loginUser(row?.os);
   await enqueue(db, "notify.send", { userId: s.userId, kind: "service", subject: "سرور " + s.name + " آماده است",
-    text: "سرور شما آماده است.\n\nآدرس IP: " + s.ip + "\nنام میزبان: " + s.hostname + "\nکاربر: root\n" +
-      (rootpass ? "رمز: " + rootpass + "\n\nلطفا پس از ورود رمز را تغییر دهید. این رمز فقط یک بار ارسال می‌شود." : "\nرمز root را از پنل گره، بخش «دسترسی و اپلیکیشن» تنظیم کنید."), secret: true });
+    text: "سرور شما آماده است.\n\nآدرس IP: " + s.ip + "\nنام میزبان: " + s.hostname + "\nکاربر: " + user + "\nاتصال: " + remoteAccess(row?.os) + "\n" +
+      (rootpass ? "رمز: " + rootpass + "\n\nلطفا پس از ورود رمز را تغییر دهید. این رمز فقط یک بار ارسال می‌شود." : "\nرمز " + user + " را از پنل گره، بخش «دسترسی و اپلیکیشن» تنظیم کنید."), secret: true });
 }
 
 export async function provisionHosting(db: DB, p: Payload) {

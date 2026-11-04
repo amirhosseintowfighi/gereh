@@ -7,6 +7,7 @@ import { and, eq, gt, isNotNull, isNull, lt } from "drizzle-orm";
 import type { DB, Tx } from "./db/client";
 import { serverCredentials, servers } from "./db/schema";
 import { seal } from "./secrets";
+import { loginUser } from "@/lib/os-login";
 
 export const CRED_TTL_DAYS = 7;
 export type CredKind = "root" | "rescue";
@@ -14,7 +15,13 @@ export type CredKind = "root" | "rescue";
 export async function stashCredential(db: DB | Tx, p: { serverId: string; userId: string; kind?: CredKind; password: string; username?: string }) {
   if (!p.password) return;
   const now = new Date(), kind = p.kind ?? "root";
-  const v = { passEnc: seal(p.password), username: p.username ?? "root", createdAt: now, expiresAt: new Date(now.getTime() + CRED_TTL_DAYS * 86400_000), revealedAt: null, acknowledgedAt: null };
+  // the login that goes with the password: Administrator on a Windows image (read after any reinstall saved the OS)
+  let username = p.username;
+  if (!username) {
+    const [s] = kind === "root" ? await db.select({ os: servers.os }).from(servers).where(eq(servers.id, p.serverId)) : [];
+    username = kind === "root" ? loginUser(s?.os) : "root";
+  }
+  const v = { passEnc: seal(p.password), username, createdAt: now, expiresAt: new Date(now.getTime() + CRED_TTL_DAYS * 86400_000), revealedAt: null, acknowledgedAt: null };
   await db.insert(serverCredentials).values({ serverId: p.serverId, userId: p.userId, kind, ...v })
     .onConflictDoUpdate({ target: [serverCredentials.serverId, serverCredentials.kind], set: { userId: p.userId, ...v } });
 }

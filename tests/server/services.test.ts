@@ -42,7 +42,7 @@ describe("servers: ownership and state", () => {
     await call("servers.reinstall", "srv-1042", "Debian 12");
     const { outbox } = await import("@/server/messaging");
     expect(outbox[0]).toMatchObject({ channel: "email", to: "demo@gereh.net" });
-    expect(outbox[0].text).toMatch(/رمز root جدید: \S{16}/);
+    expect(outbox[0].text).toMatch(/رمز جدید: \S{16}/);
   });
 
   it("resize refuses shrinking the disk", async () => {

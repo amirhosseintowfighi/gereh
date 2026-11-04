@@ -9,6 +9,7 @@
    Until it is done the server is "relayout": the usage poll and the sync leave it alone, and the customer can only
    watch. Billing is unchanged. */
 import "server-only";
+import { loginUser } from "@/lib/os-login";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
 import { dropCredential, stashCredential } from "../credentials";
@@ -239,6 +240,6 @@ async function finish(db: DB, s: Server, r: Row) {
   // the rescue password belonged to the old VPS
   await dropCredential(db, s.id, "rescue");
   const [owner] = await db.select({ email: users.email }).from(users).where(eq(users.id, s.userId));
-  if (owner) await sendEmail(owner.email, "تغییر چیدمان دیسک " + s.name, "دیسک‌های " + s.name + " (" + ip + ") به " + after + " گیگابایت تغییر کرد و " + r.os + " دوباره نصب شد." + ipNote + "\nرمز root جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
+  if (owner) await sendEmail(owner.email, "تغییر چیدمان دیسک " + s.name, "دیسک‌های " + s.name + " (" + ip + ") به " + after + " گیگابایت تغییر کرد و " + r.os + " دوباره نصب شد." + ipNote + "\nکاربر: " + loginUser(r.os) + "\nرمز جدید: " + pass + "\nپس از ورود رمز را تغییر دهید.");
   await requestSync(db, s.id);
 }

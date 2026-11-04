@@ -202,7 +202,9 @@ export function detectServer(s: ServerInput): Result {
         // Mb/s averaged over an hour → GB in that hour
         const rate = mean(recent.map((p) => p.netIn + p.netOut)) * 0.45, avg = tr.usedGb / tr.elapsedHours;
         const projected = tr.usedGb + rate * tr.leftHours, before = tr.usedGb + avg * tr.leftHours;
-        if (projected > tr.quota && before <= tr.quota && rate >= t.rateJump * k * avg) add({
+        // an outbound-abuse incident already covers this traffic: one alert per cause, not two
+        const abuse = hits.some((h) => h.detector === "outbound_abuse");
+        if (!abuse && projected > tr.quota && before <= tr.quota && rate >= t.rateJump * k * avg) add({
           detector: "traffic_burn", severity: tr.autoBuy ? "info" : "warn", confidence: 0.7,
           evidence: {
             lines: [
