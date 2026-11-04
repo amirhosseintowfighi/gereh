@@ -133,6 +133,36 @@ prune_releases() {
   return 0
 }
 
+# installs made before the web console bridge have no /vnc/ location: add it (as a snippet included before
+# "location / {" in the site's server blocks, the HTTPS one certbot made included), then reload Nginx
+ensure_vnc_nginx() {
+  local site=/etc/nginx/sites-available/gereh snip=/etc/nginx/snippets/gereh-vnc.conf
+  [[ -f $site ]] || return 0
+  mkdir -p /etc/nginx/snippets
+  cat > "$snip" <<NGINX
+# written by «gereh update»: noVNC WebSocket → the app's VNC bridge on 127.0.0.1:${VNC_PROXY_PORT:-6081}
+location /vnc/ {
+    proxy_pass http://127.0.0.1:${VNC_PROXY_PORT:-6081};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+}
+NGINX
+  if ! grep -qE "location /vnc/|gereh-vnc\.conf" "$site"; then
+    cp "$site" "$site.bak-vnc"
+    sed -i 's|^\(\s*\)location / {|\1include /etc/nginx/snippets/gereh-vnc.conf;\n\1location / {|' "$site"
+  fi
+  if nginx -t >/dev/null 2>&1; then systemctl reload nginx
+  else
+    [[ -f $site.bak-vnc ]] && cp "$site.bak-vnc" "$site"
+    warn "افزودن مسیر کنسول به Nginx ناموفق بود؛ پیکربندی قبلی برگردانده شد (sudo nginx -t)."
+  fi
+}
+
 cmd_deploy() { # first release (installer) and updates
   need_root
   local ref="" prev new
@@ -146,6 +176,7 @@ cmd_deploy() { # first release (installer) and updates
   switch_to "$new"
   if health 60; then
     prune_releases
+    ensure_vnc_nginx || true
     # this command itself ships with each release: new subcommands (e.g. «gereh jobs») arrive with the update
     if [[ -f $new/deploy/gereh ]] && bash -n "$new/deploy/gereh" 2>/dev/null; then install -m 755 "$new/deploy/gereh" /usr/local/bin/gereh; fi
     say "نسخه $(cat "$new/.release-commit" 2>/dev/null) فعال شد."

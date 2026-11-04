@@ -1,6 +1,7 @@
 /* Cloud-server extras: additional IPv4 with PTR, network reset, extra disks, snapshot schedules,
    the noVNC console, traffic packs, plan changes while stopped and reusable firewall groups. */
 import "server-only";
+import { vncProxyOn, vncTicket } from "../vnc-proxy";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, like, sql } from "drizzle-orm";
 import { z } from "zod";
 import { diskSizeError, PLAN_NUMS, TRAFFIC_STEP_GB, trafficError, type Plan } from "@/lib/catalog";
@@ -240,8 +241,11 @@ export const vpsRpc = {
   "servers.vnc": method(z.tuple([id]), async (ctx, [sid]) => {
     const s = await server(ctx, sid);
     if (s.status !== "running") fail("سرور خاموش است؛ برای کنسول آن را روشن کنید.");
-    const v = await (await virt()).vnc(vps(s));
+    const d = await virt();
+    const v = await d.vnc(vps(s));
     await log(ctx, s.userId, "monitor-smartphone", "باز کردن کنسول VNC " + s.name);
+    // the browser cannot speak to a raw VNC port: it goes through the site's own bridge (../vnc-proxy.ts)
+    if (d.name === "virtualizor" && v.port && vncProxyOn() && process.env.VIRTUALIZOR_NOVNC_URL === undefined) return { ...v, ws: "/vnc/" + encodeURIComponent(vncTicket(v.host, v.port, ctx.auth!.uid)) };
     return v;
   }),
 

@@ -44,6 +44,19 @@ const LISTING = { vs: { 3300: { vpsid: "3300", uid: "7", hostname: "web-prod-1.g
 beforeEach(async () => { await fresh(); calls.length = 0; reply = () => ({}); });
 afterEach(() => setVirt(undefined));
 
+describe("web console through the site's bridge", () => {
+  it("a real Virtualizor console is handed out as a /vnc/ ticket for that node port, never the raw port", async () => {
+    reply = (u) => (act(u) === "vnc" ? { info: { ip: "81.12.80.195", port: 5927, password: "vncpw" } } : {});
+    setVirt(real());
+    await asUser();
+    const v = await call<{ ws: string; host: string; port: number; password: string }>("servers.vnc", SRV);
+    expect(v).toMatchObject({ host: "81.12.80.195", port: 5927, password: "vncpw" });
+    expect(v.ws).toMatch(/^\/vnc\//);
+    const { readTicket } = await import("@/server/vnc-proxy");
+    expect(readTicket(decodeURIComponent(v.ws.slice(5)))).toMatchObject({ h: "81.12.80.195", p: 5927, u: "u1" });
+  });
+});
+
 describe("power state: the running VPS that kept flipping to off", () => {
   it("a status answer without the VPS means unknown: neither the usage poll nor the sync writes «off»", async () => {
     // the deployment's symptom: vs_status ignored, the act=vs listing comes back for every call, with no status

@@ -217,6 +217,8 @@ export function VncScreen({ s, fallback }: { s: Server; fallback: React.ReactNod
         const v = await vpsApi.vnc(s.id);
         if (!live) return;
         if (!v.ws) { setState("fallback"); return; }
+        // a site path (the site's own console bridge) becomes a socket on this host, wss on an https page
+        if (v.ws.startsWith("/")) v.ws = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + v.ws;
         // an https page may not open a plain ws:// socket (mixed content): say so instead of failing silently
         if (location.protocol === "https:" && v.ws.startsWith("ws://")) { setState("error"); setMsg("آدرس کنسول (" + v.ws + ") رمزنگاری‌نشده است و مرورگر از صفحه https به آن وصل نمی‌شود؛ مدیر سایت باید VIRTUALIZOR_NOVNC_URL را روی wss تنظیم کند."); return; }
         const mod = (await import("@novnc/novnc/lib/rfb")) as unknown as { default: new (el: HTMLElement, url: string, o: object) => Rfb };
@@ -228,7 +230,7 @@ export function VncScreen({ s, fallback }: { s: Server; fallback: React.ReactNod
         r.addEventListener("disconnect", (e) => {
           if (e.detail?.clean) { setState("idle"); setMsg(""); return; }
           setState("error");
-          setMsg(opened ? "اتصال کنسول قطع شد." : "اتصال به سرور کنسول (" + new URL(v.ws).host + ") برقرار نشد. معمولاً یکی از این‌هاست: پورت noVNC روی Virtualizor در فایروال بسته است، گواهی SSL آن معتبر نیست، یا VNC روی خود Virtualizor از کار افتاده است.");
+          setMsg(opened ? "اتصال کنسول قطع شد." : (e.detail?.reason ? "کنسول وصل نشد: " + e.detail.reason + ". " : "اتصال کنسول برقرار نشد. ") + "معمولاً یعنی پورت VNC سرور (" + v.host + ":" + v.port + ") از سرور سایت در دسترس نیست (فایروال نود) یا VNC این سرور در Virtualizor خاموش است.");
         });
         rfb.current = r;
       } catch (e) { if (live) { setState("error"); setMsg((e as Error).message); } }
