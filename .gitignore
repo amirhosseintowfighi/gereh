@@ -48,3 +48,6 @@ next-env.d.ts
 
 !.env.example
 !.env.development
+
+# agent worktrees (local checkouts, never committed)
+.claude/worktrees/
