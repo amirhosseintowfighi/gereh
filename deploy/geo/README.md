@@ -43,8 +43,10 @@ webserver-allow-from=127.0.0.1,SITE_SERVER_IP
 
 ## ۲. پایگاه داده
 
-- **ns1:** کاربر و پایگاه داده `pdns` را بسازید و جدول‌ها را از `/usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql` بسازید.
+- **ns1:** کاربر و پایگاه داده `pdns` را بسازید و جدول‌ها را از فایل schema بسته بسازید (مسیرش: `dpkg -L pdns-backend-pgsql | grep schema.pgsql.sql`؛ در Ubuntu 24.04 معمولاً `/usr/share/pdns-backend-pgsql/schema/schema.pgsql.sql`).
 - **ns2:** جدول نسازید. PostgreSQL را با `pg_basebackup -R` به replica از ns1 تبدیل کنید. اتصال دو سرور را با WireGuard یا تونل SSH امن کنید.
+
+نکته Ubuntu: `systemd-resolved` روی `127.0.0.53:53` گوش می‌دهد. در `pdns.conf` بنویسید `local-address=<IP عمومی سرور>` (یا در `/etc/systemd/resolved.conf` بگذارید `DNSStubListener=no` و `systemctl restart systemd-resolved`).
 
 ## ۳. دیواره آتش
 
@@ -64,6 +66,17 @@ GEO_NAMESERVERS=ns1.gereh.net,ns2.gereh.net
 اگر ns2 پایگاه داده مستقل دارد (replica نیست)، هر دو را بدهید: `GEO_PDNS=http://NS1:8081|KEY1,http://NS2:8081|KEY2`. در این حالت رکوردهای `PDNS_URL` فقط روی ns1 نوشته می‌شوند، پس راه پیشنهادی همان replica است.
 
 در پنل ثبت‌کننده gereh.net، `ns1.gereh.net` و `ns2.gereh.net` را به‌عنوان Child Nameserver (Glue) با IPهایشان ثبت کنید.
+
+## Reverse DNS (PTR) برای IPهای گره
+
+وقتی صاحب بازه IP در RIPE برای `32.12.81.in-addr.arpa` شیء `domain` با `nserver: ns1.gereh.net` و `nserver: ns2.gereh.net` ثبت کرد:
+
+```bash
+pdnsutil create-zone 32.12.81.in-addr.arpa ns1.gereh.net
+pdnsutil add-record 32.12.81.in-addr.arpa @ NS ns2.gereh.net.
+pdnsutil add-record 32.12.81.in-addr.arpa 171 PTR mx.gereh.net.
+dig -x 81.12.32.171 +short @ns1.gereh.net
+```
 
 ## ۵. تست
 
