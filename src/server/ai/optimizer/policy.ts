@@ -1,6 +1,7 @@
 /* Budget / policy: what the optimizer may do, per feature, model, plan and request type.
-   The public customer API (feature "api") only gets prompt caching unless the customer opts in (key
-   setting or x-gereh-optimize: 1); internal features are optimized by default. Overrides layer on top in
+   Whether customers' requests (public API, playground) are optimized is the admin's choice alone
+   (admin › API هوش مصنوعی › بهینه‌ساز توکن): on by default at the balanced level, and invisible to the
+   customer — they are billed on, and shown, the size of the request they sent. Overrides layer on top in
    this order: feature defaults → admin feature override → admin model override (model id prefix) →
    admin plan override → request type (a JSON-mode request keeps its system prompt's exact layout). */
 import type { Feature, Level, Policy } from "./types";
@@ -19,9 +20,9 @@ export const LEVELS: Record<Level, Partial<Policy>> = {
 };
 
 export const FEATURE_DEFAULTS: Record<Feature, Partial<Policy>> = {
-  // customers' own requests: caching only; with opt-in, the balanced level
-  api: { ...LEVELS[0], expectedReuse: 0.6 },
-  playground: { ...LEVELS[0], expectedReuse: 0.2 },
+  // customers' own requests: the balanced level, the last 6 turns always verbatim
+  api: { ...LEVELS[2], recentTurns: 6, summarizeOverTokens: 8000, expectedReuse: 0.6 },
+  playground: { ...LEVELS[2], recentTurns: 6, summarizeOverTokens: 8000, expectedReuse: 0.2 },
   "panel-chat": { ...LEVELS[2], recentTurns: 6, maxInputTokens: 24_000, summarizeOverTokens: 6000, expectedReuse: 0.7 },
   // long histories with many tool results
   assistant: { ...LEVELS[2], recentTurns: 2, maxToolLines: 40, maxToolChars: 3000, maxInputTokens: 30_000, summarizeOverTokens: 5000, expectedReuse: 0.8 },
@@ -35,8 +36,6 @@ export const FEATURE_DEFAULTS: Record<Feature, Partial<Policy>> = {
   "model-test": { ...LEVELS[0], cache: false },
   benchmark: { ...LEVELS[2] },
 };
-/** the level a public-API customer gets when they opt in */
-export const OPT_IN: Partial<Policy> = { ...LEVELS[2], recentTurns: 6, summarizeOverTokens: 8000 };
 
 export type PolicyOverrides = {
   features?: Partial<Record<Feature, Partial<Policy>>>;
@@ -44,7 +43,7 @@ export type PolicyOverrides = {
   models?: Record<string, Partial<Policy>>;
   plans?: Record<string, Partial<Policy>>;
 };
-export type PolicyInput = { feature: Feature; model?: string; plan?: string; optIn?: boolean; requestType?: { json?: boolean; tools?: boolean }; call?: Partial<Policy> };
+export type PolicyInput = { feature: Feature; model?: string; plan?: string; requestType?: { json?: boolean; tools?: boolean }; call?: Partial<Policy> };
 
 const clamp = (p: Policy): Policy => ({
   ...p,
@@ -65,15 +64,12 @@ const layer = (p: Partial<Policy> | undefined): Partial<Policy> => ({ ...levelOf
 
 export function resolvePolicy(i: PolicyInput, o: PolicyOverrides = {}): Policy {
   let p: Policy = { ...BASE, ...FEATURE_DEFAULTS[i.feature] };
-  if (i.feature === "api" && i.optIn) p = { ...p, ...OPT_IN };
-  // an admin override of "api" applies to opted-in customers only: without opt-in only caching is ever done
   const fo = o.features?.[i.feature];
-  if (fo && (i.feature !== "api" || i.optIn)) p = { ...p, ...layer(fo) };
+  if (fo) p = { ...p, ...layer(fo) };
   if (i.model && o.models) for (const [prefix, mo] of Object.entries(o.models)) if (prefix && i.model.startsWith(prefix)) p = { ...p, ...layer(mo) };
   if (i.plan && o.plans?.[i.plan]) p = { ...p, ...layer(o.plans[i.plan]) };
   if (i.call) p = { ...p, ...layer(i.call) };
   if (i.requestType?.json) p = { ...p, nearDedupe: false, sections: false };
-  if (i.feature === "api" && !i.optIn) p = { ...p, ...LEVELS[0], translate: false };
   return clamp(p);
 }
 

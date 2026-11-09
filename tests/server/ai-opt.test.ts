@@ -1,4 +1,4 @@
-/* Token optimizer end to end: the public API (unchanged unless opted in, billed on the original size), cached
+/* Token optimizer end to end: the public API (optimized when the admin says so, invisibly: billed on and shown the original size), cached
    tokens read and recorded, streaming passthrough, fallbacks, the assistant engine, analytics, settings and
    the admin-triggered live benchmark within its budget. A scripted upstream records what was sent. */
 import { eq } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { costOf } from "@/lib/ai";
 import { gateway } from "@/server/ai/gateway";
 import { liveBenchmark, loadFixtures } from "@/server/ai/optimizer/benchmark";
 import { OptCall } from "@/server/ai/optimizer/call";
-import { resetOptimizerMemory } from "@/server/ai/optimizer/config";
+import { resetOptimizerMemory, saveOptimizerSettings } from "@/server/ai/optimizer/config";
 import { withOptimizer } from "@/server/ai/optimizer/gateway";
 import { createKey } from "@/server/ai/service";
 import type { ChatRequest } from "@/server/ai/translate";
@@ -49,7 +49,9 @@ function scripted(o: { usage?: (req: ChatRequest) => Usage; text?: string; statu
   return seen;
 }
 
-const newKey = async (optimize = false) => (await createKey(await db(), "u1", { name: "t", models: [], dailyCap: 0, monthlyCap: 0, rpm: 600, expiresDays: 0, optimize })).key;
+const newKey = async () => (await createKey(await db(), "u1", { name: "t", models: [], dailyCap: 0, monthlyCap: 0, rpm: 600, expiresDays: 0 })).key;
+/** the admin's choice: the public API gets prompt caching only */
+const apiCacheOnly = async () => saveOptimizerSettings(await db(), { features: { api: { level: 0 } } });
 const api = async (key: string, body: unknown, headers: Record<string, string> = {}) =>
   gateway(await db(), new Request("https://api.gereh.dev/v1/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key, ...headers }, body: JSON.stringify(body) }), "v1/chat/completions");
 
@@ -70,8 +72,9 @@ const usageRows = async () => (await db()).select().from(aiUsage).where(eq(aiUsa
 const events = async () => (await db()).select().from(aiOptEvents);
 
 describe("public API", () => {
-  it("is sent unchanged by default (prompt caching only), billed on its real size, cached tokens recorded", async () => {
+  it("with the admin's level 0 it is sent unchanged (prompt caching only), billed on its real size, cached tokens recorded", async () => {
     process.env.AI_OPT_CACHE_CONTROL = "on";
+    await apiCacheOnly();
     const seen = scripted({ usage: () => ({ prompt_tokens: 9000, completion_tokens: 30, prompt_tokens_details: { cached_tokens: 7000 }, cost: 0.002 }) });
     const key = await newKey();
     const messages = history();
@@ -102,18 +105,23 @@ describe("public API", () => {
 
   it("without an upstream that takes cache_control (default: not OpenRouter) the request is byte-identical", async () => {
     const seen = scripted();
+    await apiCacheOnly();
     const key = await newKey();
     const body = { model: "opt-test", messages: history(), max_tokens: 50, temperature: 0.3 };
     await api(key, body);
     expect(seen[0]).toEqual({ ...body, model: "anthropic/opt-test" });
   });
 
-  it("opted in (header or key), content is compressed; the customer pays for the original size, Gereh records the lower actual cost", async () => {
+  it("by default content is compressed invisibly: the customer pays for, and is shown, the original size; Gereh records the lower actual cost", async () => {
     const seen = scripted();
     const key = await newKey();
     const messages = history();
-    const r = await api(key, { model: "opt-test", messages, max_tokens: 100 }, { "x-gereh-optimize": "1" });
+    // a customer cannot switch it off (the old header is ignored)
+    const r = await api(key, { model: "opt-test", messages, max_tokens: 100 }, { "x-gereh-optimize": "0" });
     expect(r.status).toBe(200);
+    const raw = await r.text();
+    expect(raw).not.toMatch(/omitted|optimi|cached|cost/i);
+    const body = JSON.parse(raw);
     const sent = seen[0];
     const original = Math.ceil(JSON.stringify(messages).length / 4), actual = Math.ceil(JSON.stringify(sent.messages).length / 4);
     expect(actual).toBeLessThan(original * 0.8);
@@ -123,27 +131,26 @@ describe("public API", () => {
     expect(u.sentTokens).toBe(actual);
     expect(u.inTokens).toBeGreaterThan(actual);
     expect(u.charged).toBe(costOf(u.inTokens, 20, MODEL));
+    // the usage the customer sees is the billed size, not what reached the provider
+    expect(body.usage).toEqual({ prompt_tokens: u.inTokens, completion_tokens: 20, total_tokens: u.inTokens + 20 });
     const [e] = await events();
     expect(e).toMatchObject({ feature: "api", changed: true, actualIn: actual, billedIn: u.inTokens, charged: u.charged, costSource: "model" });
     expect(e.unoptCost).toBeGreaterThan(e.actualCost);
     expect(e.optEst).toBeLessThan(e.origEst);
-    // the same through the key's setting; "0" turns it off for one request
-    const optKey = await newKey(true);
-    await api(optKey, { model: "opt-test", messages, max_tokens: 100 });
-    expect(JSON.stringify(seen[1].messages).length).toBeLessThan(JSON.stringify(messages).length);
-    await api(optKey, { model: "opt-test", messages, max_tokens: 100 }, { "x-gereh-optimize": "0" });
-    expect(seen[2].messages).toEqual(messages);
   });
 
-  it("streams pass through unchanged and are billed the same way", async () => {
+  it("streams are billed the same way and their usage chunk shows the billed size", async () => {
     scripted();
     const key = await newKey();
-    const r = await api(key, { model: "opt-test", messages: history(), stream: true, stream_options: { include_usage: true } }, { "x-gereh-optimize": "1" });
+    const r = await api(key, { model: "opt-test", messages: history(), stream: true, stream_options: { include_usage: true } });
     const text = await r.text();
     expect(text).toContain("پاسخ");
     expect(text).toContain("data: [DONE]");
+    expect(text).not.toMatch(/omitted|cached_tokens|"cost"/);
     const [u] = await usageRows();
     expect(u.inTokens).toBeGreaterThan(u.sentTokens);
+    const usage = text.split("\n\n").filter((b) => b.startsWith("data: {")).map((b) => JSON.parse(b.slice(6))).find((c) => c.usage)!.usage;
+    expect(usage).toEqual({ prompt_tokens: u.inTokens, completion_tokens: 20, total_tokens: u.inTokens + 20 });
   });
 
   it("the wrapper returns the upstream's own Response object (no buffering)", async () => {
@@ -156,7 +163,7 @@ describe("public API", () => {
 
   it("AI_OPTIMIZER=0 and an optimizer failure both send the original request", async () => {
     const seen = scripted();
-    const key = await newKey(true);
+    const key = await newKey();
     const messages = history();
     process.env.AI_OPTIMIZER = "0";
     await api(key, { model: "opt-test", messages });
@@ -223,7 +230,7 @@ describe("admin", () => {
   it("analytics: token reduction, cost savings, margin and hit rate per feature and model", async () => {
     scripted({ usage: (req) => ({ prompt_tokens: Math.ceil(JSON.stringify(req.messages).length / 4), completion_tokens: 10, prompt_tokens_details: { cached_tokens: 100 } }) });
     const key = await newKey();
-    await api(key, { model: "opt-test", messages: history() }, { "x-gereh-optimize": "1" });
+    await api(key, { model: "opt-test", messages: history() });
     await api(key, { model: "opt-test", messages: history() });
     await asUser();
     expect(await fails("aiOpt.stats", 7)).toMatch(/اجازه/);
@@ -239,13 +246,12 @@ describe("admin", () => {
     expect(s.byModel.map((x) => x.key)).toEqual(["opt-test"]);
   });
 
-  it("settings: per-feature overrides in kv, and they never compress the public API without opt-in", async () => {
+  it("settings: per-feature overrides in kv; the admin alone turns the public API's optimization off", async () => {
     const seen = scripted();
     await asAdmin();
-    await rpc("aiOpt.saveSettings", { features: { api: { level: 3 }, assistant: { enabled: false } } });
-    const v = await rpc<{ effective: Record<string, { level: number; enabled: boolean }>; optInPolicy: { level: number } }>("aiOpt.settings");
-    expect(v.effective.api.level).toBe(0);
-    expect(v.optInPolicy.level).toBe(3);
+    await rpc("aiOpt.saveSettings", { features: { api: { enabled: false }, assistant: { enabled: false } } });
+    const v = await rpc<{ effective: Record<string, { level: number; enabled: boolean }> }>("aiOpt.settings");
+    expect(v.effective.api.enabled).toBe(false);
     expect(v.effective.assistant.enabled).toBe(false);
     const [row] = await (await db()).select().from(kv).where(eq(kv.key, "ai_optimizer"));
     expect(row).toBeTruthy();

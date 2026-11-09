@@ -12,7 +12,7 @@ import { MCP_TOOLS } from "@/server/mcp";
 import { drain } from "@/server/worker";
 import { asUser, call, db, fails, fresh } from "./helpers";
 
-beforeAll(() => { process.env.PAAS_SIM_BUILD_SECONDS = "0"; process.env.PAAS_POLL_MS = "0"; });
+beforeAll(() => { process.env.PAAS_SIM_BUILD_SECONDS = "0"; process.env.PAAS_POLL_MS = "0"; process.env.BUILDER_BRIEF = "0"; /* the brief has its own tests (builder-brief) */ });
 beforeEach(async () => { await fresh(); setAiUpstream(null); });
 afterEach(() => setAiUpstream(null));
 

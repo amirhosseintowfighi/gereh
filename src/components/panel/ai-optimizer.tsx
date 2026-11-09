@@ -58,7 +58,7 @@ function FeatureSettings({ view, onSaved }: { view: OptSettingsView; onSaved: ()
           <Field label="cache_control"><Select label="cache_control" value={cacheControl} onChange={(v) => setCacheControl(v as typeof cacheControl)} options={[{ value: "auto", label: "خودکار (فقط OpenRouter)" + (view.openRouter ? " — فعال" : "") }, { value: "on", label: "روشن" }, { value: "off", label: "خاموش" }]} /></Field>
           <Field label="نرخ دلار (تومان) برای usage.cost"><input inputMode="numeric" value={usdToman} onChange={(e) => setUsdToman(e.target.value.replace(/[^\d]/g, ""))} className={INPUT_BASE + " h-9 w-36 tabular"} /></Field>
         </div>
-        <p className="text-[11px] text-white/50 leading-6">API عمومی (کلیدهای gk-) بدون رضایت مشتری فقط کش پرامپت می‌گیرد؛ تنظیم این ردیف فقط برای مشتریانی است که فشرده‌سازی را روشن کرده‌اند. ترجمه فارسی→انگلیسی {view.translateConfigured ? "پیکربندی شده است (AI_OPT_TRANSLATE_URL)" : "پیکربندی نشده است (AI_OPT_TRANSLATE_URL خالی)"}.</p>
+        <p className="text-[11px] text-white/50 leading-6">روشن یا خاموش بودن بهینه‌سازی API عمومی (کلیدهای gk-) و زمین بازی فقط با شماست (ردیف «api»)؛ مشتری چیزی از آن نمی‌بیند: همان پاسخ مدل را می‌گیرد و حجم ورودی‌ای که در پاسخ و صورت‌حساب می‌بیند حجم درخواست خودش است. سطح ۰ یعنی فقط کش پرامپت. ترجمه فارسی→انگلیسی {view.translateConfigured ? "پیکربندی شده است (AI_OPT_TRANSLATE_URL)" : "پیکربندی نشده است (AI_OPT_TRANSLATE_URL خالی)"}.</p>
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="سیاست هر بخش">
           <table className="w-full text-xs min-w-[720px]">
             <thead><tr className="text-white/55 text-right">{["بخش", "روشن", "سطح", "نوبت‌های کامل اخیر", "سقف ورودی (توکن)", "کش", "ترجمه"].map((h) => <th key={h} scope="col" className="text-right font-medium p-2">{h}</th>)}</tr></thead>
@@ -66,7 +66,7 @@ function FeatureSettings({ view, onSaved }: { view: OptSettingsView; onSaved: ()
               <tr key={f} className="border-t border-white/[0.06]">
                 <td className="p-2 font-bold">{OPT_FEATURE_LABEL[f] ?? f}</td>
                 <td className="p-2"><Switch on={p.enabled} onChange={(v) => patch(f, { enabled: v })} label={"روشن " + f} /></td>
-                <td className="p-2 w-40"><Select label={"سطح " + f} value={String(f === "api" ? view.optInPolicy.level : p.level)} onChange={(v) => patch(f, { level: Number(v) as OptPolicy["level"] })} options={OPT_LEVEL_LABEL.map((l, i) => ({ value: String(i), label: l }))} /></td>
+                <td className="p-2 w-40"><Select label={"سطح " + f} value={String(p.level)} onChange={(v) => patch(f, { level: Number(v) as OptPolicy["level"] })} options={OPT_LEVEL_LABEL.map((l, i) => ({ value: String(i), label: l }))} /></td>
                 <td className="p-2"><input inputMode="numeric" value={String(p.recentTurns)} onChange={(e) => patch(f, { recentTurns: Math.max(1, Number(e.target.value.replace(/[^\d]/g, "")) || 1) })} aria-label={"نوبت‌های اخیر " + f} className={INPUT_BASE + " h-8 w-16 tabular"} /></td>
                 <td className="p-2"><input inputMode="numeric" value={String(p.maxInputTokens)} onChange={(e) => patch(f, { maxInputTokens: Number(e.target.value.replace(/[^\d]/g, "")) || 0 })} aria-label={"سقف ورودی " + f} className={INPUT_BASE + " h-8 w-24 tabular"} /></td>
                 <td className="p-2"><Switch on={p.cache} onChange={(v) => patch(f, { cache: v })} label={"کش " + f} /></td>

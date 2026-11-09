@@ -22,7 +22,6 @@ const keyFields = z.object({
   routing: z.enum(["", "price", "throughput", "latency"]).optional(),
   projectId: z.string().max(40).nullable().optional(),
   /** opt in to content optimization of this key's requests (default off: prompt caching only) */
-  optimize: z.boolean().optional(),
 });
 
 async function checkProject(ctx: Parameters<typeof needUser>[0], uid: string, projectId: string | null | undefined) {

@@ -29,7 +29,7 @@ Without an `OptCall` the feature is `playground`: prompt caching only, content u
 | `context.ts` | history: the latest user message, everything after it and the last N turns stay verbatim; older exact duplicates and long tool results (head + tail + key lines, `[… N lines omitted from tool result X …]`) ; deterministic summary of old turns (verbatim sentences: decisions, facts with numbers/ids and constraints, open questions, active tasks, references). The verbatim window moves in blocks of 4 turns so the summarized prefix stays byte-stable for caching |
 | `markdown.ts` | repeated paragraphs (marker), heading chunks, BM25 section selection against the latest user message, `[section: heading path]` citations, one marker per omitted run listing every omitted title; sections with security/hard rules are always kept |
 | `language.ts` | optional Persian→English adapter (LibreTranslate-compatible, local only), see below |
-| `estimator.ts` | per-script heuristic (Persian/Arabic, Latin, digits, punctuation/code, CJK) + per-model calibration (EMA of actual ÷ estimate, `ai_opt_calibration`). No tokenizer library is in node_modules, so none is used |
+| `estimator.ts` | BPE tokenizer (`gpt-tokenizer`, o200k_base) + per-model calibration (EMA of actual ÷ estimate, `ai_opt_calibration`) for providers with other tokenizers; a per-script heuristic for texts over 400k characters |
 | `validator.ts` | deterministic integrity check per changed message: *rewrite* steps must keep every protected block byte-identical and every span, number, date, URL, identifier, negation and condition word; *extract* steps may keep only whole verbatim lines/sentences around explicit markers. A failing message reverts to its previous state and is counted |
 | `cache.ts` | stable-prefix rules, `cache_control` breakpoints per model family (configurable list, minimum size, read/write multipliers), cost check, prefix hash |
 | `policy.ts` | per feature / model prefix / plan / request type; level 0–3, recent turns, max input tokens, tool-result limits, summary, sections, near-dedupe, cache, translate, time budget |
@@ -43,8 +43,8 @@ Without an `OptCall` the feature is `playground`: prompt caching only, content u
 
 | Feature | Default | Notes |
 |---|---|---|
-| `api` (public API, gk- keys) | level 0: caching only | content is never altered unless the customer opts in: key setting «فشرده‌سازی محتوای درخواست» or header `x-gereh-optimize: 1` (`0` turns a key's opt-in off for one request). Opted in: level 2. Admin overrides of `api` apply only to opted-in requests |
-| `playground` | level 0 | the panel playground (customer's own test) |
+| `api` (public API, gk- keys) | level 2, 6 recent turns verbatim | the admin's choice alone (row `api` in admin › بهینه‌ساز توکن: off, or level 0 = caching only). Customers have no switch and see nothing of it: same answer, and the usage they are shown and billed is the size of the request they sent |
+| `playground` | level 2 | the panel playground, same rule |
 | `panel-chat` | level 2, 6 recent turns, 24k budget | the panel chat history (stored messages are untouched) |
 | `assistant` | level 2, 2 recent turns (its own 30-row window already limits the history), 30k budget | long tool results |
 | `builder` (بافت) | level 1 | skills blocks are instructions: no section selection |
@@ -75,9 +75,8 @@ A JSON-mode request (`response_format`) never gets near-dedupe or section select
 ## Billing: who gets the savings
 
 * The customer pays `costOf(originalInputTokens, outputTokens)`, exactly today's formula.
-* `originalInputTokens` = the provider's `prompt_tokens` when content was not changed (always the case for the
-  public API without opt-in), or `prompt_tokens + calibrated(estimate(original) − estimate(optimized))` when
-  the optimizer removed content. Both estimates use the same heuristic, and the difference is corrected by the
+* `originalInputTokens` = the provider's `prompt_tokens` when content was not changed, or `prompt_tokens + calibrated(estimate(original) − estimate(optimized))` when
+  the optimizer removed content. Both are counted with the same tokenizer, and the difference is corrected by the
   model's calibration factor (learned from real usage), so it is not inflated.
 * `prompt_tokens` includes cached tokens (OpenAI/OpenRouter convention), so cache reads are billed to the
   customer at the normal input price: the cache discount stays with Gereh.
@@ -163,7 +162,7 @@ Staff RPCs (group `aiOpt`, `src/server/rpc/ai-opt.ts`):
 * `aiOpt.benchStart(modelId, budgetUsd, judge)` — starts a live run in the background (one at a time);
 * `aiOpt.benchList()` — the last 20 runs and their reports.
 
-Public API: header `x-gereh-optimize: 1 | 0`; key field `optimize` in `ai.createKey` / `ai.updateKey`.
+Public API: nothing. There is no customer-facing switch, header or key field (migration 0044 dropped the short-lived `ai_keys.optimize`). The usage in answers (JSON and the stream's usage chunk) carries the billed input size; provider cost and cache details are never shown.
 
 ## Install / deploy
 
@@ -216,7 +215,7 @@ default policy. Every integrity check passed (validator, latest message, tools, 
 | workload | feature / policy | original (est.) | optimized (est.) | reduction | steps |
 |---|---|---:|---:|---:|---|
 | public API (default) | api:L0 | 5803 | 5803 | 0% | — (cache only) |
-| tool calls (public API, opted in) | api:L2 | 5803 | 5803 | 0% | — (all within the 6 recent turns) |
+| tool calls (public API) | api:L2 | 5803 | 5803 | 0% | — (all within the 6 recent turns) |
 | assistant history + tool results | assistant:L2 | 12003 | 6154 | 48.7% | toolShrink×1, duplicate×5 |
 | long Markdown (handbook in system) | panel-chat:L2 | 4404 | 2972 | 32.5% | system×1 |
 | English chat | panel-chat:L2 | 1776 | 1298 | 26.9% | system×1, whitespace×8, repeated×7 |
@@ -231,10 +230,27 @@ Reading: savings come from long histories with repeated or long tool results, du
 and repeated boilerplate; short conversations, code and the latest message are left alone by design. Real
 billed numbers come from the live benchmark and from `ai_opt_events` in production.
 
+## بافت (the builder)
+
+* **«طرح حرفه‌ای» (`src/server/builder/enhance.ts`):** a new project's request under 700 characters is first
+  turned into a professional build brief by a short call (English, fixed sections, every concrete detail of the
+  request kept verbatim, at most ~280 words). The build gets the customer's words and the brief; where they
+  differ, the customer's words win. Charged with the run, like the self-review. Any failure builds from the
+  request as written. `BUILDER_BRIEF=0` turns it off; `BUILDER_BRIEF_MODEL` picks the model.
+* **Prompt cache:** the system prompt holds only the task's core skills, so it is identical between runs of the
+  same kind, stack and language and the provider's cache serves it; skills the request's words bring in lead the
+  user message.
+* **Focused edits:** an edit of a project over 40k characters sends in full only the files the request concerns
+  (up to 36k characters: named files, entry files, word matches) and an outline of the rest (size, title,
+  headings, ids, functions, routes). Site-wide requests (colors, fonts, header/footer, menu, language, every
+  page…) still send everything. A file the model saw only as an outline is never written or deleted.
+* **Focused review:** an edit's self-review sees the files the run changed and those with errors, not the whole
+  project.
+
 ## Known limits
 
-* The estimator is a heuristic until calibration has samples for a model; the billed "removed" tokens use the
-  calibrated difference of two estimates.
+* The tokenizer is OpenAI's o200k; for other providers the billed "removed" tokens use the calibrated
+  difference of two counts until calibration has samples for that model.
 * Section selection only applies to system prompts and older user messages; a large document in the latest
   user message is never cut.
 * The time budget is checked between steps; a single very large message can overrun it slightly before the
@@ -248,9 +264,9 @@ billed numbers come from the live benchmark and from `ai_opt_events` in producti
 **بهینه‌ساز توکن** لایه‌ای درون برنامه است که پیش از هر فراخوانی مدل (از مسیر `aiUpstream().chat`) درخواست را
 کوچک‌تر می‌کند و کش پرامپت را اعمال می‌کند؛ صرفه‌جویی برای گره است.
 
-* **API عمومی (کلیدهای gk-):** محتوای پیام مشتری هرگز تغییر نمی‌کند؛ فقط کش پرامپت (برای مدل‌های Anthropic و
-  Gemini از راه OpenRouter) اعمال می‌شود. فشرده‌سازی فقط با رضایت مشتری است: تنظیم کلید یا هدر
-  `x-gereh-optimize: 1`.
+* **API عمومی (کلیدهای gk-):** روشن یا خاموش بودن فقط با مدیر است (ردیف «api»؛ پیش‌فرض: روشن، سطح متعادل).
+  مشتری کلید، هدر یا گزینه‌ای برای آن ندارد و چیزی از آن نمی‌بیند: همان پاسخ مدل برمی‌گردد و حجم ورودی‌ای که
+  در پاسخ و صورت‌حساب می‌بیند حجم درخواست خودش است.
 * **بخش‌های داخلی** (دستیار گره، بافت، پشتیبانی AI، توضیح خطا، مشاور هزینه، پایش، پرسش از دیتابیس، چت پنل):
   به‌طور پیش‌فرض روشن، با سیاست جدا برای هر بخش.
 * **صورت‌حساب:** مشتری بر پایه حجم ورودی اصلی درخواست پرداخت می‌کند (همان فرمول `costOf`)؛ تخفیف کش هم نزد گره
@@ -259,6 +275,10 @@ billed numbers come from the live benchmark and from `ai_opt_events` in producti
   نفی و تعریف ابزارها هرگز تغییر نمی‌کنند؛ هر بخشی که حذف شود نشانگر صریح دارد و هر تغییر اعتبارسنجی می‌شود و
   در صورت شکست به متن اصلی برمی‌گردد. متن پیام‌ها هیچ‌جا ثبت نمی‌شود.
 * **ترجمه فارسی→انگلیسی:** اختیاری و خاموش؛ فقط با سرویس محلی LibreTranslate، با بررسی صرفه، وفاداری و اطمینان.
+* **بافت:** درخواست کوتاه برای پروژه جدید اول به «طرح حرفه‌ای» تبدیل می‌شود (`BUILDER_BRIEF=0` خاموشش می‌کند)؛
+  پرامپت سیستم ثابت می‌ماند تا کش شود؛ ویرایش پروژه‌های بزرگ فقط فایل‌های مربوط را کامل می‌فرستد و بازبینی فقط
+  فایل‌های تغییرکرده را می‌بیند.
+* **شمارش توکن:** با کتابخانه `gpt-tokenizer` و کالیبراسیون برای هر مدل.
 * **بازگشت:** `AI_OPTIMIZER=0` همه‌چیز را خاموش می‌کند.
 * **محک:** آفلاین (تخمینی) و زنده (فقط با دستور مدیر، با سقف ۵ دلار برای هر اجرا).
 * **مدیریت:** API هوش مصنوعی › «بهینه‌ساز توکن».

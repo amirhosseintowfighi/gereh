@@ -23,7 +23,7 @@ export async function prepare(req: ChatRequest, call: OptCall): Promise<{ req: C
     const s = await optimizerSettings(db);
     if (!s.enabled) return { req, report: { ...emptyReport(call.feature, model), fallback: "disabled" } };
     const json = !!req.response_format && (req.response_format as { type?: string }).type !== "text";
-    const policy = resolvePolicy({ feature: call.feature, model, plan: call.o.plan, optIn: call.o.optIn, requestType: { json, tools: !!req.tools?.length }, call: { budgetMs: budgetMsDefault(), ...(call.o.policy ?? {}) } }, overridesOf(s));
+    const policy = resolvePolicy({ feature: call.feature, model, plan: call.o.plan, requestType: { json, tools: !!req.tools?.length }, call: { budgetMs: budgetMsDefault(), ...(call.o.policy ?? {}) } }, overridesOf(s));
     const family = familyOf(model, familiesOf(s));
     const url = process.env.AI_OPT_TRANSLATE_URL;
     const r = await optimizeRequest(req, { ...policy, expectedReuse: expectedReuse(call.feature, family?.name ?? "", policy.expectedReuse) }, {

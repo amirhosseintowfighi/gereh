@@ -230,11 +230,10 @@ describe("cache", () => {
 });
 
 describe("policy", () => {
-  it("the public API gets caching only unless the customer opts in; admin overrides never change that", () => {
-    const over = { features: { api: { level: 3 as const } } };
-    expect(resolvePolicy({ feature: "api" }, over)).toMatchObject({ level: 0, summarize: false, translate: false, cache: true });
-    expect(resolvePolicy({ feature: "api", optIn: true }, over).level).toBe(3);
-    expect(resolvePolicy({ feature: "api", optIn: true }).level).toBe(2);
+  it("the public API is optimized at the balanced level by default; only the admin changes that", () => {
+    expect(resolvePolicy({ feature: "api" })).toMatchObject({ enabled: true, level: 2, recentTurns: 6, cache: true });
+    expect(resolvePolicy({ feature: "api" }, { features: { api: { level: 0 } } })).toMatchObject({ level: 0, summarize: false, cache: true });
+    expect(resolvePolicy({ feature: "api" }, { features: { api: { enabled: false } } }).enabled).toBe(false);
   });
   it("internal features are on by default, with per-feature, model, plan and request-type layers", () => {
     expect(resolvePolicy({ feature: "assistant" })).toMatchObject({ level: 2, summarize: true, recentTurns: 2 });
@@ -333,9 +332,9 @@ describe("optimizeRequest", () => {
     const off = await optimizeRequest(req, { ...policy, enabled: false }, { feature: "assistant", model: "m" });
     expect(off).toMatchObject({ req, report: { fallback: "disabled" } });
   });
-  it("level 0 (the public API default) leaves content alone and only adds cache breakpoints", async () => {
+  it("level 0 (the admin's caching-only choice) leaves content alone and only adds cache breakpoints", async () => {
     const req = longHistory();
-    const p = resolvePolicy({ feature: "api" });
+    const p = resolvePolicy({ feature: "api" }, { features: { api: { level: 0 } } });
     const { req: out, report } = await optimizeRequest(req, p, { feature: "api", model: req.model, family: familyOf(req.model), explicitCache: true });
     expect(report.changed).toBe(false);
     expect(report.cache.breakpoints).toBeGreaterThan(0);

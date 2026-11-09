@@ -62,5 +62,16 @@ ${skills.map((s) => renderSkill(s, ctx)).join("\n")}
 </skills>`;
 }
 
+/** skills a request's words brought in, placed before the task in the user message (the system prompt keeps
+    the core skills only, so it stays the same between runs and the provider's prompt cache serves it) */
+export function extraSkillsBlock(skills: Skill[], ctx: SkillCtx) {
+  if (!skills.length) return "";
+  return `# Additional skills for this request
+These skills are house standards too, exactly like the ones in the system prompt: follow them, check your files against their checklists, and list their ids on the "skills:" line of <plan>.
+<skills>
+${skills.map((s) => renderSkill(s, ctx)).join("\n")}
+</skills>`;
+}
+
 /** the checklists only (for the review pass) */
 export const checklists = (skills: Skill[]) => skills.map((s) => s.id + ":\n" + s.checklist.map((c) => "- " + c).join("\n")).join("\n");

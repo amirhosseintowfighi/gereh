@@ -107,8 +107,6 @@ export type AiKeyRow = {
   id: string; name: string; prefix: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; status: "active" | "disabled" | "revoked"; expires: string; lastUsed: string; created: string; spentToday: number; spentMonth: number;
   /** days until expiry (0 = never) */
   expiresIn: number; ips: string[]; routing: "" | "price" | "throughput" | "latency"; projectId: string | null; requestsMonth: number;
-  /** the customer opted in to content optimization for this key */
-  optimize: boolean;
 };
 export type AiChatSummary = { id: string; title: string; model: string; kbId: string | null; at: string };
 export type AiChatFull = { id: string; title: string; model: string; system: string; temperature: number; kbId: string | null; messages: { id: number; role: "user" | "assistant"; content: string; charged: number; attachments: { name: string; type: "image" | "text" }[]; at: string }[] };

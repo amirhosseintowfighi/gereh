@@ -23,9 +23,8 @@ export const aiOptRpc = {
     const s = await optimizerSettings(ctx.db);
     return {
       settings: s, envEnabled: envEnabled(), openRouter: isOpenRouter(), cacheControlActive: explicitCacheAllowed(s), translateConfigured: !!process.env.AI_OPT_TRANSLATE_URL,
-      // the effective policy of every feature with the current overrides (the public API: as without opt-in, and with it)
+      // the effective policy of every feature with the current overrides
       effective: Object.fromEntries(OPT_FEATURES.map((f) => [f, resolvePolicy({ feature: f }, { features: s.features, models: s.models, plans: s.plans })])),
-      optInPolicy: resolvePolicy({ feature: "api", optIn: true }, { features: s.features }),
       defaults: FEATURE_DEFAULTS,
     };
   }),

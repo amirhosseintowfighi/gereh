@@ -20,6 +20,7 @@
     "@electric-sql/pglite": "^0.5.8",
     "@novnc/novnc": "1.5.0",
     "drizzle-orm": "^0.45.3",
+    "gpt-tokenizer": "3.4.0",
     "next": "16.3.8",
     "nodemailer": "^10.0.15",
     "postgres": "^3.4.9",

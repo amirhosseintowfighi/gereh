@@ -104,7 +104,7 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
   );
 }
 
-const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0, ips: [], routing: "", projectId: null, optimize: false };
+const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0, ips: [], routing: "", projectId: null };
 const KEY_STATUS: Record<AiKeyRow["status"], [string, "green" | "amber" | "red"]> = { active: ["فعال", "green"], disabled: ["غیرفعال", "amber"], revoked: ["باطل شده", "red"] };
 
 function Keys() {
@@ -147,7 +147,7 @@ function Keys() {
 function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; models: AiModelRow[]; onClose: () => void; onCreated: (key: string) => void }) {
   const { notify } = useApp();
   const projects = useDB().ai.projects;
-  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: -1, ips: edit.ips, routing: edit.routing, projectId: edit.projectId, optimize: edit.optimize } : EMPTY_KEY);
+  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: -1, ips: edit.ips, routing: edit.routing, projectId: edit.projectId } : EMPTY_KEY);
   const [ips, setIps] = useState(f.ips.join("\n"));
   const [limit, setLimit] = useState(!!edit?.models.length);
   const toggle = (id: string) => setF({ ...f, models: f.models.includes(id) ? f.models.filter((m) => m !== id) : [...f.models, id] });
@@ -168,16 +168,12 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
           <span>محدود به مدل‌های خاص<span className="block text-[11px] text-white/50">خاموش یعنی همه مدل‌های فعال</span></span>
           <Switch on={limit} onChange={(v) => { setLimit(v); if (!v) setF({ ...f, models: [] }); }} label="محدود به مدل‌های خاص" />
         </div>
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm">
-          <span>فشرده‌سازی محتوای درخواست<span className="block text-[11px] text-white/50 leading-5">خاموش (پیش‌فرض): پیام‌های شما دست‌نخورده فرستاده می‌شوند و فقط کش پرامپت اعمال می‌شود. روشن: تاریخچه طولانی و نتایج قدیمی ابزارها خلاصه می‌شوند؛ آخرین پیام، کد و JSON دست نمی‌خورند. هزینه همچنان بر پایه حجم ورودی اصلی درخواست است. برای یک درخواست: هدر x-gereh-optimize: 1</span></span>
-          <Switch on={!!f.optimize} onChange={(v) => setF({ ...f, optimize: v })} label="فشرده‌سازی محتوای درخواست" />
-        </div>
         {limit && <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.08] p-2 grid sm:grid-cols-2 gap-1">
           {models.map((m) => <label key={m.id} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/[0.04] cursor-pointer"><input type="checkbox" checked={f.models.includes(m.id)} onChange={() => toggle(m.id)} />{m.name}</label>)}
         </div>}
         <AsyncButton disabled={f.name.trim().length < 2 || (limit && !f.models.length)} className={BTN_P + BTN_LG + " w-full"} onClick={async () => {
           const ipList = ips.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
-          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, optimize: !!f.optimize, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
+          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
           else onCreated(await api.ai.createKey({ ...f, name: f.name.trim(), ips: ipList }));
         }}>{edit ? "ذخیره" : "ساخت کلید"}</AsyncButton>
       </div>

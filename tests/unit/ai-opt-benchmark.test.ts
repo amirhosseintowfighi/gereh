@@ -11,7 +11,7 @@ const fixtures = readdirSync(dir).filter((f) => f.endsWith(".json")).sort().map(
 describe("offline benchmark", () => {
   it("covers every workload shape", () => {
     const ids = fixtures.map((f) => f.id);
-    for (const id of ["persian-support", "english-chat", "mixed-fa-en", "markdown-doc", "assistant-history", "builder-project", "json-heavy", "code-heavy", "multimodal", "tool-calls", "api-default"]) expect(ids).toContain(id);
+    for (const id of ["persian-support", "english-chat", "mixed-fa-en", "markdown-doc", "assistant-history", "builder-project", "json-heavy", "code-heavy", "multimodal", "tool-calls"]) expect(ids).toContain(id);
   });
 
   it("passes every integrity check and is deterministic", async () => {
@@ -28,9 +28,6 @@ describe("offline benchmark", () => {
     }
     expect(a.map((r) => [r.id, r.optTokens])).toEqual(b.map((r) => [r.id, r.optTokens]));
     const byId = Object.fromEntries(a.map((r) => [r.id, r]));
-    // the public API without opt-in reaches the provider unchanged
-    expect(byId["api-default"].optTokens).toBe(byId["api-default"].origTokens);
-    expect(byId["api-default"].steps).toEqual({});
     // the long shapes are where the savings are
     expect(byId["assistant-history"].reductionPct).toBeGreaterThan(15);
     expect(byId["markdown-doc"].reductionPct).toBeGreaterThan(30);

@@ -1,9 +1,8 @@
 {
   "id": "tool-calls",
-  "workload": "tool calls (public API, opted in)",
+  "workload": "tool calls (public API)",
   "feature": "api",
-  "optIn": true,
-  "description": "8 tool round-trips with 48-hour JSON results; the customer opted in (x-gereh-optimize: 1)",
+  "description": "8 tool round-trips with 48-hour JSON results",
   "request": {
     "messages": [
       {

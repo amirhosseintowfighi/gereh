@@ -111,7 +111,7 @@ export async function liveBenchmark(db: DB, o: { model: LiveModel; budgetUsd: nu
   let spent = 0, stopped = false;
   for (const fx of fixtures) {
     const base: ChatRequest = { ...fx.request, model: upstreamModel, max_tokens: MAX_OUT, temperature: 0, stream: false };
-    const call = new OptCall(fx.feature, { optIn: fx.optIn });
+    const call = new OptCall(fx.feature);
     const prepared = await prepare(base, call);
     const est = call.report ?? prepared.report;
     // pre-check: both sides at full output, plus the judge, must fit what is left

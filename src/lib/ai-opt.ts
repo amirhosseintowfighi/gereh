@@ -27,7 +27,7 @@ export type OptSettings = {
   cacheControl: "auto" | "on" | "off"; families: Record<string, { minTokens?: number; write?: number; read?: number }>;
   translate: { minSavingTokens: number; minConfidence: number; timeoutMs: number; includeLatest: boolean }; usdToman: number; benchMaxUsd: number;
 };
-export type OptSettingsView = { settings: OptSettings; envEnabled: boolean; openRouter: boolean; cacheControlActive: boolean; translateConfigured: boolean; effective: Record<string, OptPolicy>; optInPolicy: OptPolicy };
+export type OptSettingsView = { settings: OptSettings; envEnabled: boolean; openRouter: boolean; cacheControlActive: boolean; translateConfigured: boolean; effective: Record<string, OptPolicy> };
 export type OfflineRow = { id: string; workload: string; feature: string; policy: string; origTokens: number; optTokens: number; reductionPct: number; steps: Record<string, number>; validatorFailures: number; pass: boolean; latencyMs: number };
 export type BenchRow = {
   id: string; model: string; status: "running" | "done" | "budget" | "failed"; budgetUsd: number; spentUsd: number; error: string; createdAt: string; finishedAt: string | null;

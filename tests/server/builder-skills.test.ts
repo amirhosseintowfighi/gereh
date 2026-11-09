@@ -12,7 +12,7 @@ import { SKILLS, selectSkills, skillCtx, skillTokens } from "@/server/builder/sk
 import { aiUsage, builderRuns, users } from "@/server/db/schema";
 import { asUser, call, db, fresh } from "./helpers";
 
-beforeEach(async () => { await fresh(); setAiUpstream(null); });
+beforeEach(async () => { await fresh(); setAiUpstream(null); process.env.BUILDER_BRIEF = "0"; /* the brief has its own tests (builder-brief) */ });
 afterEach(() => { setAiUpstream(null); delete process.env.BUILDER_SKILLS_BUDGET; delete process.env.BUILDER_SELF_REVIEW; });
 
 type Site = { lang: string; dir: "rtl" | "ltr" };

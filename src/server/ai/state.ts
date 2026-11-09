@@ -47,7 +47,7 @@ export async function aiState(db: DB, o: { uid: string; admin: boolean }): Promi
         id: k.id, name: k.name, prefix: k.prefix, models: k.models, dailyCap: k.dailyCap, monthlyCap: k.monthlyCap, rpm: k.rpm, status: k.status,
         expires: k.expiresAt ? faDate(k.expiresAt) : "", expiresIn: k.expiresAt ? Math.max(1, Math.ceil((k.expiresAt.getTime() - Date.now()) / 86400_000)) : 0,
         lastUsed: k.lastUsedAt ? faDateTime(k.lastUsedAt) : "", created: faDate(k.createdAt), spentToday: Number(s?.today ?? 0), spentMonth: Number(s?.month ?? 0), requestsMonth: s?.n ?? 0,
-        ips: k.ips, routing: (k.routing || "") as AiState["keys"][number]["routing"], projectId: k.projectId, optimize: k.optimize,
+        ips: k.ips, routing: (k.routing || "") as AiState["keys"][number]["routing"], projectId: k.projectId,
       };
     }),
     usage: usage.map(({ u, keyName }) => ({ id: u.id, userId: o.admin ? u.userId : "", keyName: keyName ?? (u.keyId ? "" : "پنل"), model: u.model, format: u.format, stream: u.stream, status: u.status, inTokens: u.inTokens, outTokens: u.outTokens, units: u.units, finish: u.finish, charged: u.charged, estimated: u.estimated, latencyMs: u.latencyMs, error: o.admin ? u.error : "", at: faDateTime(u.createdAt) })),

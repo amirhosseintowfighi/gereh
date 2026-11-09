@@ -14,7 +14,7 @@ import { rid, sha256 } from "../util";
 import { OptCall } from "./optimizer/call";
 import { recordOptEvent } from "./optimizer/record";
 import type { Feature } from "./optimizer/types";
-import { genId, readChat, readSSE, type ChatRequest, type ChatResult, type ChatUsage } from "./translate";
+import { genId, readChat, readSSE, readUsage, type ChatRequest, type ChatResult, type ChatUsage } from "./translate";
 import { aiUpstream, routeHeaders } from "./upstream";
 
 export const seedAiModels = (db: DB | Tx) =>
@@ -26,14 +26,14 @@ export const seedAiModels = (db: DB | Tx) =>
 const ALNUM = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 const token = (n: number) => [...randomBytes(n)].map((b) => ALNUM[b % ALNUM.length]).join("");
 
-export type KeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips?: string[]; routing?: string; projectId?: string | null; optimize?: boolean };
+export type KeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips?: string[]; routing?: string; projectId?: string | null };
 /** creates a key; the full key is returned once and only its hash is stored */
 export async function createKey(db: DB | Tx, userId: string, k: KeyInput) {
   const key = "gk-" + token(40), id = rid("AK");
   await db.insert(aiKeys).values({
     id, userId, name: k.name, hash: sha256(key), prefix: key.slice(0, 7) + "…" + key.slice(-4), models: k.models,
     dailyCap: k.dailyCap, monthlyCap: k.monthlyCap, rpm: k.rpm, expiresAt: k.expiresDays ? new Date(Date.now() + k.expiresDays * 86400_000) : null,
-    ips: k.ips ?? [], routing: k.routing ?? "", projectId: k.projectId ?? null, optimize: !!k.optimize,
+    ips: k.ips ?? [], routing: k.routing ?? "", projectId: k.projectId ?? null,
   });
   return { id, key };
 }
@@ -74,8 +74,6 @@ export async function resolveModel(db: DB, id: string, allowed: string[], kind: 
 }
 
 export type Caller = { userId: string; keyId: string | null; dailyCap: number; monthlyCap: number; projectId?: string | null; routing?: string; logBodies?: boolean;
-  /** the customer opted in to content optimization (key setting or x-gereh-optimize: 1); otherwise the public API gets prompt caching only */
-  optimize?: boolean;
   /** the platform pays (platformCaller): no wallet, no customer usage row; spend goes to platform_ai_usage */
   platform?: { purpose: string; ref: string } };
 export type Format = "openai" | "responses" | "anthropic" | "gemini" | "panel" | "embeddings" | "images" | "speech" | "transcription" | "rerank" | "kb";
@@ -83,7 +81,7 @@ export type Format = "openai" | "responses" | "anthropic" | "gemini" | "panel" |
 /** the caller for an API key: its caps, project, routing and the owner's body-logging choice */
 export async function keyCaller(db: DB, key: AuthedKey): Promise<Caller> {
   const [s] = await db.select({ logBodies: aiSettings.logBodies }).from(aiSettings).where(eq(aiSettings.userId, key.userId));
-  return { userId: key.userId, keyId: key.id, dailyCap: key.dailyCap, monthlyCap: key.monthlyCap, projectId: key.projectId, routing: key.routing, logBodies: !!s?.logBodies, optimize: key.optimize };
+  return { userId: key.userId, keyId: key.id, dailyCap: key.dailyCap, monthlyCap: key.monthlyCap, projectId: key.projectId, routing: key.routing, logBodies: !!s?.logBodies };
 }
 /** the caller for the panel (web chat, playgrounds, knowledge base): wallet only */
 export async function panelCaller(db: DB, userId: string): Promise<Caller> {
@@ -213,8 +211,9 @@ export async function runChat(c: Ctx): Promise<RunResult> {
   const meter = await openMeter(db, { caller, model, format: c.format, stream: !!c.chat.stream, reserve: costOf(inEst, outMax, model) });
   if ("http" in meter) return { kind: "error", error: meter };
   const requestId = meter.requestId;
-  // the customer's own request: never altered unless they opted in (policy.ts); billed on its original size
-  const opt = new OptCall(c.feature ?? (caller.keyId ? "api" : "playground"), { optIn: !!caller.optimize });
+  // the admin decides whether customers' requests are optimized (policy.ts); either way the customer is billed on, and
+  // shown, the size of the request they sent — the optimization is invisible to them
+  const opt = new OptCall(c.feature ?? (caller.keyId ? "api" : "playground"));
   const settle = (status: "success" | "error" | "cancelled", r: ChatResult | null, outChars: number, error = "") => {
     if (status === "error") return meter.close("error", { error });
     const estimated = !r?.usage;
@@ -224,6 +223,13 @@ export async function runChat(c: Ctx): Promise<RunResult> {
       finish: r ? (r.toolCalls.length ? "tool_calls" : r.finish) : "",
       request: c.chat.messages, response: r ? r.text + (r.toolCalls.length ? "\n" + JSON.stringify(r.toolCalls) : "") : "",
     });
+  };
+
+  /** usage as the customer sees it: the billed (original) input size, never the optimized one or cache details */
+  const shownUsage = (u: ChatResult["usage"]): ChatResult["usage"] => {
+    if (!u) return u;
+    const prompt = opt.billedIn(u, inEst);
+    return { prompt_tokens: prompt, completion_tokens: u.completion_tokens };
   };
 
   const upstreamReq: ChatRequest = { ...c.chat, model: model.upstream || model.id, ...(c.chat.stream ? { stream_options: { include_usage: true } } : {}) };
@@ -246,27 +252,36 @@ export async function runChat(c: Ctx): Promise<RunResult> {
     if (!j || !Array.isArray(j.choices)) { await settle("error", null, 0, "bad upstream body"); return { kind: "error", error: aiErr(502, "upstream_error", "پاسخ نامعتبر از سرویس‌دهنده؛ مبلغی کسر نشد.") }; }
     const r = readChat(j);
     const charged = await settle("success", r, r.text.length + r.toolCalls.reduce((n, t) => n + t.function.arguments.length, 0));
-    return { kind: "json", body: c.render.json(r, model.id), requestId, charged };
+    return { kind: "json", body: c.render.json({ ...r, usage: shownUsage(r.usage) }, model.id), requestId, charged };
   }
 
   const tx = c.render.stream(), enc = new TextEncoder();
+  // the customer's stream carries the usage they are billed on; the meter keeps the upstream's real usage
+  let realUsage: ChatResult["usage"] = null;
+  const result = (): ChatResult => { const r = tx.result(); return { ...r, usage: realUsage ?? r.usage }; };
   const outChars = () => { const r = tx.result(); return r.text.length + r.toolCalls.reduce((n, t) => n + t.function.arguments.length, 0); };
   const body = res.body!;
   const stream = new ReadableStream<Uint8Array>({
     async start(ctrl) {
       try {
-        for await (const chunk of readSSE(body)) { const s = tx.push(chunk); if (s) ctrl.enqueue(enc.encode(s)); }
+        for await (const chunk of readSSE(body)) {
+          const u = chunk.usage ? readUsage(chunk.usage) : null;
+          if (u) realUsage = u;
+          const shown = shownUsage(u);
+          const s = tx.push(shown ? { ...chunk, usage: { ...shown, total_tokens: shown.prompt_tokens + shown.completion_tokens } } : chunk);
+          if (s) ctrl.enqueue(enc.encode(s));
+        }
         ctrl.enqueue(enc.encode(tx.end()));
-        await settle("success", tx.result(), outChars());
+        await settle("success", result(), outChars());
         ctrl.close();
       } catch (e) {
         // the customer went away, or the upstream broke mid-answer: bill what was produced
-        const r = tx.result();
+        const r = result();
         await settle(r.text || r.toolCalls.length ? "cancelled" : "error", r, outChars(), (e as Error).message);
         try { ctrl.close(); } catch { /* already closed */ }
       }
     },
-    async cancel() { abort.abort(); const r = tx.result(); await settle(r.text || r.toolCalls.length ? "cancelled" : "error", r, outChars(), "client cancelled"); },
+    async cancel() { abort.abort(); const r = result(); await settle(r.text || r.toolCalls.length ? "cancelled" : "error", r, outChars(), "client cancelled"); },
   });
   return { kind: "stream", stream, requestId };
 }

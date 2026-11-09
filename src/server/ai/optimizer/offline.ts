@@ -6,7 +6,7 @@ import { resolvePolicy } from "./policy";
 import type { ChatMessage, ChatRequest, Feature } from "./types";
 
 export type Fixture = {
-  id: string; workload: string; feature: Feature; optIn?: boolean; description: string;
+  id: string; workload: string; feature: Feature; description: string;
   request: Pick<ChatRequest, "messages"> & { tools?: Record<string, unknown>[] };
   check: { kind: "tool" | "json" | "code" | "contains" | "exact" | "free"; expect?: string[] };
 };
@@ -22,7 +22,7 @@ const calls = (msgs: ChatMessage[]) => JSON.stringify(msgs.flatMap((m) => m.tool
 
 export async function offlineOne(fx: Fixture): Promise<OfflineResult> {
   const req: ChatRequest = { model: "benchmark-model", ...fx.request };
-  const policy = resolvePolicy({ feature: fx.feature, optIn: fx.optIn, call: { budgetMs: 2000 } });
+  const policy = resolvePolicy({ feature: fx.feature, call: { budgetMs: 2000 } });
   const { req: out, report } = await optimizeRequest(req, policy, { feature: fx.feature, model: "benchmark-model" });
   const latest = req.messages.map((m) => m.role).lastIndexOf("user");
   const outLatest = out.messages.map((m) => m.role).lastIndexOf("user");

@@ -1,15 +1,31 @@
-/* Token estimator. No tokenizer library ships in node_modules, so the baseline is a per-script heuristic
-   (Persian/Arabic, Latin, digits, punctuation/code, CJK), and a per-model calibration factor
-   (actual prompt_tokens / estimate, an EMA stored in ai_opt_calibration) corrects it from real usage.
-   The same heuristic estimates the original and the optimized request, so their difference — what the
-   optimizer removed — is calibrated with the same factor. */
+/* Token estimator. Text is counted with a real BPE tokenizer (gpt-tokenizer, o200k_base — the encoding of
+   current OpenAI models, and a close stand-in for other providers' tokenizers), and a per-model calibration
+   factor (actual prompt_tokens / estimate, an EMA stored in ai_opt_calibration) corrects it for each model
+   from real usage. A per-script heuristic remains for very large texts (to stay inside the optimizer's time
+   budget) and as a fallback. The same counter measures the original and the optimized request, so their
+   difference — what the optimizer removed — is calibrated with the same factor. */
+import { countTokens } from "gpt-tokenizer/encoding/o200k_base";
 import { segments } from "./analyzer";
 import type { ChatMessage, ChatRequest } from "./types";
+
+/** texts longer than this are estimated by the heuristic (BPE on megabytes would eat the time budget) */
+export const BPE_MAX_CHARS = 400_000;
+const NO_SPECIAL = { disallowedSpecial: new Set<string>() };
+
+/** tokens of a text: the BPE count, or the heuristic for huge texts */
+export function estimateText(text: string): number {
+  if (!text) return 0;
+  if (text.length <= BPE_MAX_CHARS) {
+    try { return countTokens(text, NO_SPECIAL); } catch { /* heuristic below */ }
+  }
+  return heuristicText(text);
+}
 
 /** characters per token by script; code letters split into more tokens than prose */
 export const CHARS_PER_TOKEN = { fa: 2.6, latin: 4.2, latinCode: 3.3, digit: 2.6, space: 8, punct: 1.7, cjk: 1.0, other: 2.0 };
 
-export function estimateText(text: string): number {
+/** the per-script heuristic (Persian/Arabic, Latin, digits, punctuation/code, CJK) */
+export function heuristicText(text: string): number {
   if (!text) return 0;
   let t = 0;
   for (const s of segments(text)) {

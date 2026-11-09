@@ -847,8 +847,6 @@ export const aiKeys = pgTable("ai_keys", {
   /** upstream routing preference sent as a header: "" | price | throughput | latency */
   routing: text("routing").notNull().default(""),
   projectId: text("project_id"),
-  /** the customer opted in to content optimization of this key's requests (0043); off = prompt caching only */
-  optimize: boolean("optimize").notNull().default(false),
 }, (t) => [uniqueIndex("ai_key_hash_uq").on(t.hash), index("ai_key_user_ix").on(t.userId)]);
 
 export const aiUsage = pgTable("ai_usage", {

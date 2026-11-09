@@ -22,7 +22,8 @@ import { readSSE, readUsage, type ChatMessage, type ChatUsage } from "../ai/tran
 import { aiUpstream } from "../ai/upstream";
 import { rid } from "../util";
 import { parseOutput, streamedPaths, streamedPlan } from "./format";
-import { reviewMessages, skillsFor, taskMessages, type Langs, type TaskInput } from "./prompt";
+import { wantsBrief, writeBrief } from "./enhance";
+import { focusFiles, reviewMessages, skillsFor, taskMessages, type Langs, type TaskInput } from "./prompt";
 import { checkFiles, errorsOf, qualityLog } from "./quality";
 import { simulate, simulateReview } from "./sim";
 import type { Skill } from "./skills";
@@ -210,7 +211,8 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   if (o.kind === "generate" || (o.kind === "edit" && !Object.keys(files).length)) task = { kind: "generate", prompt, ...langs };
   else if (o.kind === "edit") {
     const hist = await db.select({ content: builderMessages.content }).from(builderMessages).where(and(eq(builderMessages.projectId, p.id), eq(builderMessages.role, "user"))).orderBy(desc(builderMessages.id)).limit(6);
-    task = { kind: "edit", prompt, files, history: hist.map((h) => h.content.slice(0, 400)).reverse(), ...langs };
+    // a larger project: only the files the request concerns go in full, the rest as an outline
+    task = { kind: "edit", prompt, files, history: hist.map((h) => h.content.slice(0, 400)).reverse(), outlineOnly: focusFiles(files, prompt), ...langs };
   } else if (o.kind === "fix") {
     const f = (o.context?.failure ?? "") as FailureKind | "";
     task = { kind: "fix", files, log: o.context?.log ?? "", failure: f, explain: f && FAILURES[f] ? FAILURES[f].title + ": " + FAILURES[f].explain : "", ...langs };
@@ -229,6 +231,18 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
     if (message) await db.insert(builderMessages).values({ projectId: p.id, role: "assistant", content: message, runId });
     return r;
   };
+
+  // a short idea becomes a professional brief first («طرح حرفه‌ای», ./enhance.ts); charged with the run
+  let briefCost = 0, briefIn = 0, briefOut = 0;
+  if (task.kind === "generate" && wantsBrief(prompt) && aiUpstream().name !== "sim") {
+    emit({ type: "status", text: baseLang(langs.reply) === "fa" ? "در حال تبدیل درخواست به طرح حرفه‌ای…" : "Turning your request into a professional brief…" });
+    const b = await writeBrief(db, { userId: o.userId, model: (await pickModel(db, process.env.BUILDER_BRIEF_MODEL || p.model)) ?? model, stack: p.stack, prompt, lang: langs.lang, signal: o.signal });
+    if (b) {
+      briefCost = b.charged; briefIn = b.inTokens; briefOut = b.outTokens;
+      if (b.brief) task = { ...task, brief: b.brief };
+      if (briefCost) await db.update(builderProjects).set({ spent: sql`${builderProjects.spent} + ${briefCost}` }).where(eq(builderProjects.id, p.id));
+    }
+  }
 
   const messages = taskMessages(p.stack, task, skills);
   const inEst = estimateTokens(JSON.stringify(messages).length);
@@ -291,15 +305,18 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   const log: string[] = [];
   const next = { ...files };
   const patch: Record<string, string | null> = {};
+  // files the model only saw as an outline are never overwritten from a guess
+  const unseen = new Set(task.kind === "edit" ? task.outlineOnly ?? [] : []);
   for (const [path, content] of Object.entries(parsed.files)) {
     const bad = pathError(path);
     if (bad) { log.push("رد شد: " + bad); continue; }
+    if (unseen.has(path)) { log.push("رد شد: " + path + " (این فایل در این مرحله به مدل نشان داده نشده بود)"); continue; }
     patch[path] = content;
     next[path] = content;
   }
-  for (const path of parsed.deletes) if (path in next) { patch[path] = null; delete next[path]; }
+  for (const path of parsed.deletes) if (path in next && !unseen.has(path)) { patch[path] = null; delete next[path]; }
   if (parsed.truncated.length) log.push("پاسخ مدل ناقص بود؛ این فایل‌ها نوشته نشد: " + parsed.truncated.join("، "));
-  const base = { inTokens: inT, outTokens: outT, cost: charged, model: model.id };
+  const base = { inTokens: inT + briefIn, outTokens: outT + briefOut, cost: charged + briefCost, model: model.id };
   const fail = async (msg: string) => {
     const run = await finish("failed", { ...base, log: [...log, msg].join("\n"), summary: parsed.summary.slice(0, 4000) }, msg);
     await db.update(builderProjects).set({ status: restore }).where(eq(builderProjects.id, p.id));
@@ -317,7 +334,10 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
     quality = checkFiles(next, p.stack, site);
     if (reviewEnabled() && p.selfReview && (task.kind === "generate" || (task.kind === "edit" && errorsOf(quality) > 0))) {
       const before = { score: quality.score, errors: errorsOf(quality), warnings: quality.findings.length - errorsOf(quality) };
-      const rv = await selfReview(db, { p, userId: o.userId, files: next, skills, report: quality, langs, signal: o.signal, emit });
+      // an edit's review sees the files this run changed and those with errors, not the whole project again
+      const look = task.kind === "edit" ? new Set([...Object.keys(patch).filter((k) => patch[k] !== null), ...quality.findings.filter((f) => f.severity === "error").map((f) => f.file)]) : null;
+      const reviewFiles = look ? Object.fromEntries(Object.entries(next).filter(([k]) => look.has(k))) : next;
+      const rv = await selfReview(db, { p, userId: o.userId, files: Object.keys(reviewFiles).length ? reviewFiles : next, skills, report: quality, langs, signal: o.signal, emit });
       reviewCost = rv.charged;
       if (reviewCost) await db.update(builderProjects).set({ spent: sql`${builderProjects.spent} + ${reviewCost}` }).where(eq(builderProjects.id, p.id));
       const fixed = { ...next, ...rv.patch };
