@@ -3,7 +3,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { domainOf, parseAddress } from "@/lib/mail";
+import { domainOf, isHouseDomain, parseAddress } from "@/lib/mail";
 import type { DB } from "../db/client";
 import { mailDomains, mailEvents, mailMessages, mailPlans, mailSmtpUsers, users } from "../db/schema";
 import { rid } from "../util";
@@ -53,7 +53,7 @@ export async function mtaHook(db: DB, b: HookBody): Promise<HookReply> {
   if (dom.status === "suspended") return reject(554, "5.7.1", dom.suspendReason === "credit" ? "Sending suspended: no credit" : "Sending suspended");
   if (dom.mode === "live" && dom.status !== "active") return reject(451, "4.7.1", "DNS records not verified yet");
   const [[plan], [owner], used] = await Promise.all([db.select().from(mailPlans).where(eq(mailPlans.id, dom.planId)), db.select({ balance: users.balance }).from(users).where(eq(users.id, dom.userId)), usageOf(db, dom.id)]);
-  if ((owner?.balance ?? 0) <= 0) return reject(554, "5.7.1", "Sending suspended: no credit");
+  if ((owner?.balance ?? 0) <= 0 && !isHouseDomain(dom.domain)) return reject(554, "5.7.1", "Sending suspended: no credit");
   if (plan && (used.today + to.length > plan.dailyLimit || used.month + to.length > plan.monthlyLimit)) return reject(452, "4.5.3", "Sending limit reached");
   const p = parseMime(raw);
   const id = rid("msg"), dev = dom.mode === "dev";

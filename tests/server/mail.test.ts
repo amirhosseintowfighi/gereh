@@ -44,6 +44,20 @@ const stranger = async () => { jar.clear(); await call("auth.register", { name: 
 const settle = async () => { for (let i = 0; i < 5; i++) if (!(await drain(await db()))) break; };
 
 describe("mail domains", () => {
+  it("Gereh's own domains: customers cannot add them; staff can, with no credit needed and no billing", async () => {
+    await asUser();
+    expect(await fails("mail.create", { domain: "gereh.net", planId: "mail-start" })).toContain("متعلق به گره");
+    await asAdmin();
+    const d = await db();
+    const [admin] = await d.select().from(users).where(eq(users.email, "admin@gereh.net"));
+    await d.update(users).set({ balance: 0 }).where(eq(users.id, admin.id));
+    const { id } = await call<{ id: string }>("mail.create", { domain: "gereh.net", planId: "mail-start" });
+    expect(id).toBeTruthy();
+    await mailBilling(d);
+    expect((await d.select().from(transactions).where(eq(transactions.userId, admin.id))).filter((t) => t.desc.includes("ایمیل"))).toHaveLength(0);
+    expect((await d.select().from(mailDomains).where(eq(mailDomains.id, id)))[0].suspendReason).toBe("");
+  });
+
   it("generates a sealed DKIM key and the five DNS records", async () => {
     await asUser();
     expect(await fails("mail.create", { domain: "not a domain", planId: "mail-start" })).toContain("دامنه");

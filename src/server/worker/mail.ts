@@ -2,7 +2,7 @@
    delivery of queued messages, 90-day log retention and mailbox usage. */
 import "server-only";
 import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
-import { LOG_DAYS } from "@/lib/mail";
+import { isHouseDomain, LOG_DAYS } from "@/lib/mail";
 import type { DB } from "../db/client";
 import { mailDomains, mailMailboxes, mailMessages, mailPlans, transactions, users } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -15,7 +15,8 @@ export const mailDeliver = (db: DB, p: { id: string }) => deliverMessage(db, p);
 /** hourly: one wallet charge per customer for all their mail domains; no credit → sending suspended */
 export async function mailBilling(db: DB) {
   const plans = new Map((await db.select().from(mailPlans)).map((p) => [p.id, p]));
-  const doms = await db.select().from(mailDomains).where(ne(mailDomains.suspendReason, "staff"));
+  // Gereh's own domains are never billed
+  const doms = (await db.select().from(mailDomains).where(ne(mailDomains.suspendReason, "staff"))).filter((d) => !isHouseDomain(d.domain));
   const byUser = new Map<string, typeof doms>();
   for (const d of doms) byUser.set(d.userId, [...(byUser.get(d.userId) ?? []), d]);
   for (const [uid, list] of byUser) {

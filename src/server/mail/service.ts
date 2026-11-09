@@ -6,7 +6,7 @@ import { resolveCname, resolveMx, resolveTxt } from "node:dns/promises";
 import { and, asc, count, eq, gte, inArray, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 import { hourlyOf } from "@/lib/paas";
-import { domainOf, MAIL_PLAN_DEFAULTS, mailRecords, MAX_ATTACHMENTS_BYTES, MAX_RECIPIENTS, parseAddress, TAG_RE, tehranPeriods, type MailRecord } from "@/lib/mail";
+import { domainOf, isHouseDomain, MAIL_PLAN_DEFAULTS, mailRecords, MAX_ATTACHMENTS_BYTES, MAX_RECIPIENTS, parseAddress, TAG_RE, tehranPeriods, type MailRecord } from "@/lib/mail";
 import type { DB, Tx } from "../db/client";
 import { dnsRecords, domains, mailAliases, mailBlocks, mailDomains, mailEvents, mailMailboxes, mailMessages, mailPlans, mailRules, mailSmtpUsers, users, type MailDnsCheck } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -187,7 +187,7 @@ export async function queueMessage(db: DB, dom: MailDomainRow, input: SendInput,
   if (dom.mode === "live" && dom.status !== "active") bad("رکوردهای DKIM، SPF و Return-Path هنوز تأیید نشده‌اند؛ تا آن زمان فقط حالت DEV در دسترس است.", 409);
   const [u] = await db.select({ balance: users.balance, status: users.status }).from(users).where(eq(users.id, dom.userId));
   if (!u || u.status === "suspended") bad("حساب کاربری معلق است.", 403);
-  if (u!.balance <= 0) bad("موجودی کیف پول تمام شده و ارسال متوقف است؛ کیف پول را شارژ کنید.", 402);
+  if (u!.balance <= 0 && !isHouseDomain(dom.domain)) bad("موجودی کیف پول تمام شده و ارسال متوقف است؛ کیف پول را شارژ کنید.", 402);
   const [plan] = await db.select().from(mailPlans).where(eq(mailPlans.id, dom.planId));
   const used = await usageOf(db, dom.id);
   if (plan && used.today + all.length > plan.dailyLimit) bad("سقف ارسال روزانه پلن (" + plan.dailyLimit.toLocaleString("fa-IR") + " گیرنده) پر شده است.", 429);

@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, or, sql } from "drizzle
 import { z } from "zod";
 import { faDate, faDateTime } from "@/lib/jalali";
 import { DOMAIN_RE } from "@/lib/geo";
-import { DMARC_DEFAULT, EMAIL_ADDR_RE, LOCAL_RE, LOG_DAYS, parseAddress } from "@/lib/mail";
+import { DMARC_DEFAULT, EMAIL_ADDR_RE, isHouseDomain, LOCAL_RE, LOG_DAYS, parseAddress } from "@/lib/mail";
 import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { mailAliases, mailBlocks, mailDomains, mailEvents, mailMailboxes, mailMessages, mailPlans, mailRules, mailSmtpUsers, users } from "../db/schema";
 import { enqueue } from "../jobs";
@@ -165,13 +165,15 @@ export const mailRpc = {
     const a = needUser(ctx);
     const domain = i.domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.$/, "");
     if (!DOMAIN_RE.test(domain)) fail("نام دامنه معتبر نیست (مثل example.ir یا mail.example.ir).");
-    if (/(^|\.)gereh\.(net|dev)$/.test(domain)) fail("این دامنه متعلق به گره است.");
+    // Gereh's own domains: staff only, and free (the platform's mail: support@, no-reply@ …)
+    const house = isHouseDomain(domain);
+    if (house && a.user.role !== "admin") fail("این دامنه متعلق به گره است.");
     const [taken] = await ctx.db.select({ id: mailDomains.id }).from(mailDomains).where(eq(mailDomains.domain, domain));
     if (taken) fail("این دامنه قبلاً در سرویس ایمیل ثبت شده است.");
     const [{ n }] = await ctx.db.select({ n: count() }).from(mailDomains).where(eq(mailDomains.userId, a.uid));
     if (n >= 20) fail("حداکثر ۲۰ دامنه ایمیل در هر حساب؛ برای بیشتر با پشتیبانی تماس بگیرید.");
     const plan = await planOf(ctx, i.planId);
-    await needCredit(ctx, a.uid, plan.price);
+    if (!house) await needCredit(ctx, a.uid, plan.price);
     const dkim = await newDkim(), key = newApiKey();
     const did = rid("mail");
     await mailDriver().addDomain(domain);
@@ -207,7 +209,7 @@ export const mailRpc = {
     if (n > next.mailboxes) fail("این دامنه " + n.toLocaleString("fa-IR") + " صندوق دارد و پلن " + next.name + " حداکثر " + next.mailboxes.toLocaleString("fa-IR") + "؛ ابتدا صندوق‌های اضافه را حذف کنید.");
     const [{ big }] = await ctx.db.select({ big: count() }).from(mailMailboxes).where(and(eq(mailMailboxes.domainId, d.id), sql`${mailMailboxes.quotaMb} > ${next.quotaMb}`));
     if (big) fail("فضای برخی صندوق‌ها از سقف پلن " + next.name + " بیشتر است؛ ابتدا فضای آن‌ها را کم کنید.");
-    if (next.price > (cur?.price ?? 0)) await needCredit(ctx, a.uid, next.price);
+    if (next.price > (cur?.price ?? 0) && !isHouseDomain(d.domain)) await needCredit(ctx, a.uid, next.price);
     await ctx.db.update(mailDomains).set({ planId: next.id }).where(eq(mailDomains.id, d.id));
     await logActivity(ctx.db, a.uid, "gauge", "تغییر پلن ایمیل " + d.domain + " به " + next.name, ctx.ip);
   }),

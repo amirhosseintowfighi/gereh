@@ -25,6 +25,8 @@ export const MAIL_RECORD_LABEL: Record<string, string> = { dkim: "DKIM", spf: "S
 export const MAX_ATTACHMENTS_BYTES = 10 * 1024 * 1024;
 export const MAX_RECIPIENTS = 50;
 export const LOG_DAYS = 90;
+/** Gereh's own domains (gereh.net, gereh.dev and their subdomains): only staff add them, and they are never billed */
+export const isHouseDomain = (domain: string) => /(^|\.)gereh\.(net|dev)$/i.test(domain);
 
 export const EMAIL_ADDR_RE = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
 export const LOCAL_RE = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/;
