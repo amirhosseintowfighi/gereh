@@ -12,6 +12,20 @@ const COLS: [string, [string, string, string][]][] = [
   ["گره", [["building-2", "درباره ما", "/about"], ["message-circle", "تماس با ما", "/contact"], ["file-text", "قوانین استفاده", "/terms"], ["shield-check", "حریم خصوصی", "/privacy"], ["gauge", "توافق سطح خدمات", "/sla"]]],
 ];
 
+/* اینماد (Enamad trust seal): the exact link and image the registry issued; it checks the referrer, so both keep
+   referrerPolicy="origin" and the image loads from trustseal.enamad.ir as is */
+const ENAMAD = { id: "8614680", code: "rjPwZ3HGFtYWrV6kSJ75wVY1zNzR64Ps" };
+function Enamad() {
+  const q = "?id=" + ENAMAD.id + "&Code=" + ENAMAD.code;
+  return (
+    <a referrerPolicy="origin" target="_blank" rel="noopener" href={"https://trustseal.enamad.ir/" + q} aria-label="نماد اعتماد الکترونیکی (اینماد)"
+      className="mt-4 inline-flex items-center justify-center rounded-2xl bg-white p-1.5 w-[92px] h-[92px] hover:opacity-90 transition">
+      {/* eslint-disable-next-line @next/next/no-img-element -- the seal must load from Enamad's own server */}
+      <img referrerPolicy="origin" src={"https://trustseal.enamad.ir/logo.aspx" + q} alt="نماد اعتماد الکترونیکی" width={80} height={80} style={{ cursor: "pointer" }} {...{ code: ENAMAD.code }} />
+    </a>
+  );
+}
+
 export function Footer() {
   return (
     <footer className="px-3 sm:px-6 pb-6">
@@ -32,6 +46,7 @@ export function Footer() {
               <span className="text-right leading-5"><span className="block text-[11px] text-white/55">گره، عضوی از خانواده</span><span className="block text-sm font-bold">ویرگول</span></span>
               <Icon name="arrow-up-right" size={15} className="text-white/50 group-hover:text-white transition mr-1" />
             </a>
+            <Enamad />
           </div>
           {COLS.map(([h, items]) => (
             <nav key={h} aria-label={h}>
