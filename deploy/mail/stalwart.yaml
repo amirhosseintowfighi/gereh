@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: stalwart
-          image: stalwartlabs/stalwart:v0.11.8
+          image: stalwartlabs/mail-server:v0.11.8
           env:
             # first-boot admin password for the management API (user "admin")
             - name: STALWART_ADMIN_PASSWORD
