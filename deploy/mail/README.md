@@ -8,6 +8,21 @@ worker invents delivery events.
 
 ## 1. Run Stalwart
 
+Use **v0.15.x** (`stalwartlabs/stalwart:v0.15.5`): Gereh talks to Stalwart's REST management API
+(`/api/principal`), which v0.16 and later removed in favour of a JMAP management API; the web admin needs
+at least v0.13. A fresh install needs no migration (data of an earlier test install: delete it first).
+
+Single VPS (recommended; the site reaches the admin API over the network):
+
+```sh
+docker run -d --name stalwart --restart unless-stopped \
+  -p 25:25 -p 465:465 -p 587:587 -p 993:993 -p 80:80 -p 443:443 -p 8080:8080 \
+  -v /var/lib/stalwart:/opt/stalwart --memory 3g --log-opt max-size=50m --log-opt max-file=5 \
+  stalwartlabs/stalwart:v0.15.5
+```
+
+Kubernetes:
+
 ```sh
 kubectl create namespace gereh-mail
 kubectl -n gereh-mail create secret generic stalwart --from-literal=admin-password="$(openssl rand -base64 24)"
