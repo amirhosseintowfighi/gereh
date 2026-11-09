@@ -11,6 +11,7 @@ import { fa, toEnDigits } from "@/lib/format";
 import { isAiError } from "../ai/endpoints";
 import { explainModel } from "../ai/explain";
 import { openMeter, platformCaller, resolveModel, type ResolvedModel } from "../ai/service";
+import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
 import type { DB, Tx } from "../db/client";
@@ -109,13 +110,14 @@ export async function writeSummary(db: DB, uid: string, list: Finding[]): Promis
   const meter = await openMeter(db, { caller: platformCaller(PURPOSE, uid, (await advisorSettings(db)).dailyCap), model, format: "panel", reserve: costOf(inEst, MAX_OUT, model) });
   if (isAiError(meter)) return template;
   try {
-    const res = await up.chat({ model: model.upstream || model.id, messages, max_tokens: MAX_OUT, temperature: 0.2 }, AbortSignal.timeout(30_000));
+    const opt = new OptCall("advisor");
+    const res = await up.chat({ model: model.upstream || model.id, messages, max_tokens: MAX_OUT, temperature: 0.2 }, AbortSignal.timeout(30_000), undefined, opt);
     if (!res.ok) throw new Error("upstream " + res.status);
     const r = readChat((await res.json()) as Record<string, unknown>);
-    const inT = r.usage?.prompt_tokens ?? inEst, outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
+    const inT = opt.billedIn(r.usage, inEst), outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
     const text = r.text.trim().slice(0, 1500);
     const honest = !!text && onlyKnownNumbers(text, list);
-    const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.finish, error: honest ? "" : "rejected: unknown numbers" });
+    const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.finish, error: honest ? "" : "rejected: unknown numbers", usage: r.usage, opt });
     return honest ? { text, simulated: false, cost } : { ...template, cost };
   } catch (e) {
     await meter.close("error", { error: (e as Error).message });

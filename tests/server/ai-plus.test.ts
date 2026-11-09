@@ -336,7 +336,10 @@ describe("AI plus: knowledge base, web chat, embedding playground", () => {
     const img = { name: "a.png", type: "image" as const, data: "data:image/png;base64,iVBORw0KGgo=" };
     expect(await chatSend(await db(), "u1", id, "what is this?", [img])).toMatchObject({ http: 400 });
     const vis = await rpc<string>("ai.chatCreate", { model: VISION, system: "", temperature: 1, kbId: null });
-    expect(await chatSend(await db(), "u1", vis, "what is this?", [img])).toBeInstanceOf(Response);
+    const seen = await chatSend(await db(), "u1", vis, "what is this?", [img]);
+    expect(seen).toBeInstanceOf(Response);
+    // read the answer to its end, so its metering finishes before the next test closes the database
+    await (seen as Response).text();
     expect(await chatSend(await db(), "u2", id, "not mine", [])).toMatchObject({ http: 404 });
     await rpc("ai.chatDelete", id);
     expect(await (await db()).select().from(aiChatMessages).where(eq(aiChatMessages.chatId, id))).toHaveLength(0);

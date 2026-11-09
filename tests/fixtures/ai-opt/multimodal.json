@@ -1,0 +1,127 @@
+{
+  "id": "multimodal",
+  "workload": "multimodal",
+  "feature": "panel-chat",
+  "description": "Screenshots (image parts) with Persian text; images must pass untouched",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You describe screenshots of the Gereh panel for support."
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "این تصویر صفحه 1 پنل است. چه خطایی می‌بینی؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "در تصویر 1 پیام «اتصال به سرور برقرار نشد» دیده می‌شود. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. "
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "این تصویر صفحه 2 پنل است. چه خطایی می‌بینی؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "در تصویر 2 پیام «اتصال به سرور برقرار نشد» دیده می‌شود. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. "
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "این تصویر صفحه 3 پنل است. چه خطایی می‌بینی؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "در تصویر 3 پیام «اتصال به سرور برقرار نشد» دیده می‌شود. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. "
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "این تصویر صفحه 4 پنل است. چه خطایی می‌بینی؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "در تصویر 4 پیام «اتصال به سرور برقرار نشد» دیده می‌شود. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. "
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "این تصویر صفحه 5 پنل است. چه خطایی می‌بینی؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "در تصویر 5 پیام «اتصال به سرور برقرار نشد» دیده می‌شود. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. این خطا معمولاً یعنی اتصال اینترنت یا فایروال مسیر را بسته است. "
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "و این تصویر آخر؟"
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "check": {
+    "kind": "free"
+  }
+}

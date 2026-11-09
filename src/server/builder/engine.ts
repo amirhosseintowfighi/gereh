@@ -17,7 +17,8 @@ import type { DB } from "../db/client";
 import { aiModels, builderMessages, builderProjects, builderRuns, builderVersions } from "../db/schema";
 import { isAiError } from "../ai/endpoints";
 import { openMeter, panelCaller, resolveModel, upstreamError, type ResolvedModel } from "../ai/service";
-import { readSSE, type ChatMessage, type ChatUsage } from "../ai/translate";
+import { OptCall } from "../ai/optimizer/call";
+import { readSSE, readUsage, type ChatMessage, type ChatUsage } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
 import { rid } from "../util";
 import { parseOutput, streamedPaths, streamedPlan } from "./format";
@@ -92,7 +93,7 @@ const simDelay = () => Number(process.env.BUILDER_SIM_DELAY_MS ?? (process.env.N
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** text deltas of one answer (upstream SSE, or the simulator) and the usage when reported */
-async function* answer(model: ResolvedModel, messages: ChatMessage[], sim: () => string, maxOut: number, signal: AbortSignal): AsyncGenerator<{ delta?: string; usage?: ChatUsage }> {
+async function* answer(model: ResolvedModel, messages: ChatMessage[], sim: () => string, maxOut: number, signal: AbortSignal, opt?: OptCall): AsyncGenerator<{ delta?: string; usage?: ChatUsage }> {
   const up = aiUpstream();
   if (up.name === "sim") {
     const text = sim(), step = 480, wait = simDelay();
@@ -103,23 +104,23 @@ async function* answer(model: ResolvedModel, messages: ChatMessage[], sim: () =>
     }
     return;
   }
-  const res = await up.chat({ model: model.upstream || model.id, messages, stream: true, max_tokens: maxOut, temperature: 0.4, stream_options: { include_usage: true } }, signal);
+  const res = await up.chat({ model: model.upstream || model.id, messages, stream: true, max_tokens: maxOut, temperature: 0.4, stream_options: { include_usage: true } }, signal, undefined, opt);
   if (!res.ok) throw new Error(upstreamError(res.status, (await res.text().catch(() => "")).slice(0, 300)).message);
   for await (const c of readSSE(res.body!)) {
     if (signal.aborted) throw new Stopped();
     const delta = (c.choices as { delta?: { content?: string } }[] | undefined)?.[0]?.delta?.content;
-    const usage = c.usage as ChatUsage | undefined;
+    const usage = readUsage(c.usage) ?? undefined;
     if (delta || usage) yield { delta: delta || undefined, usage: usage || undefined };
   }
 }
 
 /** one whole answer; a dropped upstream connection ("terminated", "fetch failed", a reset socket)
     restarts it, up to NET_RETRIES times: long international streams from the server are cut now and then */
-async function streamAnswer(o: { model: ResolvedModel; messages: ChatMessage[]; sim: () => string; maxOut: number; signal: AbortSignal; emit: (e: BuilderEvent) => void; onText?: (text: string) => void }) {
+async function streamAnswer(o: { model: ResolvedModel; messages: ChatMessage[]; sim: () => string; maxOut: number; signal: AbortSignal; emit: (e: BuilderEvent) => void; onText?: (text: string) => void; opt?: OptCall }) {
   let text = "", usage: ChatUsage | null = null;
   for (let attempt = 0; ; attempt++) {
     try {
-      for await (const c of answer(o.model, o.messages, o.sim, o.maxOut, o.signal)) {
+      for await (const c of answer(o.model, o.messages, o.sim, o.maxOut, o.signal, o.opt)) {
         if (c.usage) usage = c.usage;
         if (!c.delta) continue;
         text += c.delta;
@@ -166,9 +167,10 @@ async function selfReview(db: DB, o: { p: Project; userId: string; files: Record
   o.signal?.addEventListener("abort", onAbort);
   const stall = setTimeout(() => abort.abort(), REVIEW_TIMEOUT_MS);
   try {
-    const { text, usage } = await streamAnswer({ model, messages, sim: () => simulateReview(o.p.stack, o.files, o.report.findings, o.langs), maxOut: REVIEW_OUT, signal: abort.signal, emit: o.emit });
-    const inT = usage?.prompt_tokens ?? inEst, outT = usage?.completion_tokens ?? estimateTokens(text.length);
-    const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !usage, finish: "stop", request: messages.slice(-1), response: text });
+    const opt = new OptCall("builder");
+    const { text, usage } = await streamAnswer({ model, messages, sim: () => simulateReview(o.p.stack, o.files, o.report.findings, o.langs), maxOut: REVIEW_OUT, signal: abort.signal, emit: o.emit, opt });
+    const inT = opt.billedIn(usage, inEst), outT = usage?.completion_tokens ?? estimateTokens(text.length);
+    const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !usage, finish: "stop", request: messages.slice(-1), response: text, usage, opt });
     const parsed = parseOutput(text);
     const patch: Record<string, string> = {};
     for (const [path, content] of Object.entries(parsed.files)) if (!pathError(path) && content.trim() && content !== o.files[path]) patch[path] = content;
@@ -246,9 +248,11 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   const stall = setTimeout(() => abort.abort(), AGENT_TIMEOUT_MS);
   let text = "", usage: ChatUsage | null = null, plan = "";
   const seen = new Set<string>();
+  // skills blocks and project files: the safe policy "builder", billed on the original size
+  const opt = new OptCall("builder");
   try {
     const r = await streamAnswer({
-      model, messages, sim: () => simulate(p.stack, task), maxOut: MAX_OUT, signal: abort.signal, emit,
+      model, messages, sim: () => simulate(p.stack, task), maxOut: MAX_OUT, signal: abort.signal, emit, opt,
       onText: (t) => {
         if (t.length < text.length) { plan = ""; } // a retry started over
         text = t;
@@ -278,8 +282,8 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   }
   o.signal?.removeEventListener("abort", onAbort);
 
-  const inT = usage?.prompt_tokens ?? inEst, outT = usage?.completion_tokens ?? estimateTokens(text.length);
-  const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !usage, finish: "stop", request: messages.slice(-1), response: text });
+  const inT = opt.billedIn(usage, inEst), outT = usage?.completion_tokens ?? estimateTokens(text.length);
+  const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !usage, finish: "stop", request: messages.slice(-1), response: text, usage, opt });
   await db.update(builderProjects).set({ spent: sql`${builderProjects.spent} + ${charged}` }).where(eq(builderProjects.id, p.id));
   if (o.kind === "maintain") await db.update(builderProjects).set({ maintainSpent: sql`${builderProjects.maintainSpent} + ${charged}` }).where(eq(builderProjects.id, p.id));
 

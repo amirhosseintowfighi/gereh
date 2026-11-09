@@ -100,6 +100,9 @@ export async function gateway(d: DB, req: Request, path: string): Promise<Respon
     if (req.method !== "POST") return fail(format, aiErr(404, "not_found", "مسیر پشتیبانی نمی‌شود. مستندات: https://gereh.net/docs/ai-api"));
     if (Number(req.headers.get("content-length") || 0) > MAX_BODY) return fail(format, aiErr(413, "request_too_large", "حجم درخواست بیش از ۱۶ مگابایت است."));
     const caller = await keyCaller(d, key);
+    // content optimization is opt-in per request (x-gereh-optimize: 1) or per key; "0" turns a key's opt-in off for one request
+    const optHeader = req.headers.get("x-gereh-optimize");
+    if (optHeader === "1" || optHeader === "0") caller.optimize = optHeader === "1";
     const done = (r: Out) => (isAiError(r) ? fail(format, r) : r);
     if (Object.hasOwn(MULTIPART, path)) {
       const form = await req.formData().catch(() => null);

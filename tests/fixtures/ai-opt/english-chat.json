@@ -1,0 +1,85 @@
+{
+  "id": "english-chat",
+  "workload": "English",
+  "feature": "panel-chat",
+  "description": "English panel chat, 8 earlier technical turns with numbers and repeated boilerplate",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful DevOps assistant on the Gereh panel.  Answer   concisely.\n\n\n\nAlways include the exact commands when relevant.\nAlways include the exact commands when relevant.\nNever suggest disabling TLS verification."
+      },
+      {
+        "role": "user",
+        "content": "Question 1: how should I configure Postgres connection pooling for an app that handles about 300 requests per second? We run version 1.0.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For Postgres connection pooling at around 300 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 64 and keep a 20% headroom.\n2. Do not raise timeouts above 30 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 1.0.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 2: how should I configure Redis eviction policy for an app that handles about 450 requests per second? We run version 2.2.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For Redis eviction policy at around 450 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 128 and keep a 20% headroom.\n2. Do not raise timeouts above 35 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 2.2.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 3: how should I configure Docker image size for an app that handles about 600 requests per second? We run version 3.4.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For Docker image size at around 600 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 192 and keep a 20% headroom.\n2. Do not raise timeouts above 40 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 3.4.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 4: how should I configure Nginx rate limiting for an app that handles about 750 requests per second? We run version 4.6.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For Nginx rate limiting at around 750 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 256 and keep a 20% headroom.\n2. Do not raise timeouts above 45 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 4.6.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 5: how should I configure Kubernetes liveness probes for an app that handles about 900 requests per second? We run version 5.8.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For Kubernetes liveness probes at around 900 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 320 and keep a 20% headroom.\n2. Do not raise timeouts above 50 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 5.8.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 6: how should I configure S3 lifecycle rules for an app that handles about 1050 requests per second? We run version 6.10.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For S3 lifecycle rules at around 1050 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 384 and keep a 20% headroom.\n2. Do not raise timeouts above 55 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 6.10.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 7: how should I configure TLS certificate renewal for an app that handles about 1200 requests per second? We run version 7.12.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For TLS certificate renewal at around 1200 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 448 and keep a 20% headroom.\n2. Do not raise timeouts above 60 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 7.12.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Question 8: how should I configure cron job monitoring for an app that handles about 1350 requests per second? We run version 8.14.0 in production."
+      },
+      {
+        "role": "assistant",
+        "content": "For cron job monitoring at around 1350 req/s, start with conservative defaults and measure.\n\n1. Set the limit to 512 and keep a 20% headroom.\n2. Do not raise timeouts above 65 seconds unless you see queueing.\n3. We decided to monitor the p95 latency for one week before changing anything else.\n\nIf the error rate goes over 1%, roll back to version 8.14.0.\n\nKeep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. Keep in mind that every environment differs, so treat these numbers as a starting point and verify them under real load. "
+      },
+      {
+        "role": "user",
+        "content": "Thanks. Now summarize which of these settings matter most for a small VPS with 2 GB RAM."
+      }
+    ]
+  },
+  "check": {
+    "kind": "free"
+  }
+}

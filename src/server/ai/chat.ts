@@ -69,7 +69,7 @@ export async function chatSend(db: DB, userId: string, chatId: string, content: 
 
   let tx: ChatStream | null = null;
   const run = await runChat({
-    db, caller, model, format: "panel",
+    db, caller, model, format: "panel", feature: "panel-chat",
     chat: { model: model.id, messages, stream: true, temperature: chat.temperature, max_tokens: 4096 },
     render: { json: (r) => r, stream: () => (tx = new ChatStream(model.id, false)) },
   });

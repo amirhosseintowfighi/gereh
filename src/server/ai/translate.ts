@@ -10,7 +10,10 @@ type J = Record<string, unknown>;
 export type ChatMessage = { role: "system" | "user" | "assistant" | "tool"; content?: unknown; tool_calls?: ToolCall[]; tool_call_id?: string; name?: string };
 export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type ChatRequest = J & { model: string; messages: ChatMessage[]; stream?: boolean; max_tokens?: number; tools?: J[]; tool_choice?: unknown };
-export type ChatUsage = { prompt_tokens: number; completion_tokens: number };
+/** the upstream's token usage. prompt_tokens includes cached tokens (OpenAI/OpenRouter convention);
+    cached_tokens, cache_write_tokens and cost (the provider's charge, e.g. OpenRouter credits in USD) are
+    present only when the provider reports them */
+export type ChatUsage = { prompt_tokens: number; completion_tokens: number; cached_tokens?: number; cache_write_tokens?: number; cost?: number };
 /** a finished chat answer, reduced to what the other formats need */
 export type ChatResult = { id: string; text: string; toolCalls: ToolCall[]; finish: string; usage: ChatUsage | null };
 
@@ -216,14 +219,36 @@ export function chatToGemini(r: ChatResult, model: string): J {
 
 /* ======================= chat answers and streams ======================= */
 
+/** an upstream usage object → ChatUsage (null without prompt_tokens). Reads the cache details OpenAI,
+    OpenRouter and Anthropic-style providers report: prompt_tokens_details.cached_tokens /
+    cache_write_tokens, cache_read_input_tokens / cache_creation_input_tokens, and cost. */
+export function readUsage(v: unknown): ChatUsage | null {
+  const u = obj(v);
+  if (typeof u.prompt_tokens !== "number") return null;
+  const d = obj(u.prompt_tokens_details);
+  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x > 0 ? x : 0);
+  const out: ChatUsage = { prompt_tokens: u.prompt_tokens, completion_tokens: Number(u.completion_tokens) || 0 };
+  const cached = n(d.cached_tokens) || n(u.cache_read_input_tokens);
+  const write = n(d.cache_write_tokens) || n(d.cache_creation_tokens) || n(u.cache_creation_input_tokens);
+  if (cached) out.cached_tokens = Math.min(cached, u.prompt_tokens);
+  if (write) out.cache_write_tokens = write;
+  if (typeof u.cost === "number" && Number.isFinite(u.cost) && u.cost >= 0) out.cost = u.cost;
+  return out;
+}
+/** usage as customers see it: token counts only (never the provider's cost or cache details) */
+export const publicUsage = (v: unknown) => {
+  const u = obj(v);
+  return { prompt_tokens: Number(u.prompt_tokens) || 0, completion_tokens: Number(u.completion_tokens) || 0, total_tokens: Number(u.total_tokens) || (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0) };
+};
+
 /** a non-streamed OpenAI chat completion → ChatResult */
 export function readChat(resp: J): ChatResult {
-  const ch = obj(arr(resp.choices)[0]), msg = obj(ch.message), u = obj(resp.usage);
+  const ch = obj(arr(resp.choices)[0]), msg = obj(ch.message);
   return {
     id: str(resp.id) || genId("chatcmpl-"), text: contentText(msg.content),
     toolCalls: arr(msg.tool_calls).map(obj).map((c) => ({ id: str(c.id) || genId("call_"), type: "function", function: { name: str(obj(c.function).name), arguments: str(obj(c.function).arguments) || "{}" } })),
     finish: str(ch.finish_reason) || "stop",
-    usage: typeof u.prompt_tokens === "number" ? { prompt_tokens: u.prompt_tokens, completion_tokens: Number(u.completion_tokens) || 0 } : null,
+    usage: readUsage(resp.usage),
   };
 }
 
@@ -233,8 +258,8 @@ export class ChatAccumulator {
   calls: { id: string; name: string; args: string }[] = [];
   add(chunk: J) {
     if (!this.id && str(chunk.id)) this.id = str(chunk.id);
-    const u = obj(chunk.usage);
-    if (typeof u.prompt_tokens === "number") this.usage = { prompt_tokens: u.prompt_tokens, completion_tokens: Number(u.completion_tokens) || 0 };
+    const u = readUsage(chunk.usage);
+    if (u) this.usage = u;
     const ch = obj(arr(chunk.choices)[0]), d = obj(ch.delta);
     const text = contentText(d.content);
     const calls: { index: number; id?: string; name?: string; args?: string }[] = [];
@@ -372,7 +397,8 @@ export class ChatStream {
     const hasChoices = arr(chunk.choices).length > 0;
     // the usage-only chunk we asked for is forwarded only when the customer asked for it too
     if (!hasChoices && !this.keepUsage) return "";
-    return sse(null, { ...chunk, model: this.model });
+    // the provider's cost and cache details stay with Gereh
+    return sse(null, { ...chunk, model: this.model, ...(chunk.usage ? { usage: publicUsage(chunk.usage) } : {}) });
   }
   end(): string { return "data: [DONE]\n\n"; }
   result() { return this.acc.result(); }

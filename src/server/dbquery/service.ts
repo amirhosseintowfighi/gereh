@@ -18,6 +18,7 @@ import { customAllows } from "../account-extras";
 import { isAiError } from "../ai/endpoints";
 import { redact } from "../ai/explain";
 import { openMeter, panelCaller, resolveModel, type ResolvedModel } from "../ai/service";
+import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
 import { assistantModels, refuseModel } from "../assistant/prompt";
@@ -198,7 +199,8 @@ async function callModel(x: Access, messages: ChatMessage[], sim: string | null,
     const meter = await openMeter(x.ctx.db, { caller, model: m, format: "panel", reserve: fee(m, inEst, MAX_OUT) });
     if (isAiError(meter)) return fail(meter.message, meter.http);
     try {
-      const res = await up.chat({ model: m.upstream || m.id, messages, max_tokens: MAX_OUT, temperature: 0 }, AbortSignal.timeout(60_000));
+      const opt = new OptCall("dbquery");
+      const res = await up.chat({ model: m.upstream || m.id, messages, max_tokens: MAX_OUT, temperature: 0 }, AbortSignal.timeout(60_000), undefined, opt);
       if (!res.ok) {
         const detail = (await res.text().catch(() => "")).slice(0, 200);
         await meter.close("error", { error: "upstream " + res.status + " " + detail });
@@ -208,8 +210,8 @@ async function callModel(x: Access, messages: ChatMessage[], sim: string | null,
       }
       const r = readChat((await res.json()) as Record<string, unknown>);
       if (!accept(r.text)) { await meter.close("error", { error: "unusable answer: " + r.text.slice(0, 120) }); continue; }
-      const inT = r.usage?.prompt_tokens ?? inEst, outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
-      const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: fee(m, inT, outT), estimated: !r.usage, finish: r.finish, request: messages, response: r.text });
+      const inT = opt.billedIn(r.usage, inEst), outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
+      const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: fee(m, inT, outT), estimated: !r.usage, finish: r.finish, request: messages, response: r.text, usage: r.usage, opt });
       return { text: r.text, charged, simulated: false };
     } catch (e) {
       await meter.close("error", { error: (e as Error).message });

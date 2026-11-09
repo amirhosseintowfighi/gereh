@@ -11,7 +11,10 @@ import { fa } from "@/lib/format";
 import type { DB, Tx } from "../db/client";
 import { aiBodies, aiKeys, aiModels, aiProjects, aiSettings, aiUsage, platformAiUsage, transactions, users } from "../db/schema";
 import { rid, sha256 } from "../util";
-import { genId, readChat, readSSE, type ChatRequest, type ChatResult } from "./translate";
+import { OptCall } from "./optimizer/call";
+import { recordOptEvent } from "./optimizer/record";
+import type { Feature } from "./optimizer/types";
+import { genId, readChat, readSSE, type ChatRequest, type ChatResult, type ChatUsage } from "./translate";
 import { aiUpstream, routeHeaders } from "./upstream";
 
 export const seedAiModels = (db: DB | Tx) =>
@@ -23,14 +26,14 @@ export const seedAiModels = (db: DB | Tx) =>
 const ALNUM = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 const token = (n: number) => [...randomBytes(n)].map((b) => ALNUM[b % ALNUM.length]).join("");
 
-export type KeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips?: string[]; routing?: string; projectId?: string | null };
+export type KeyInput = { name: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; expiresDays: number; ips?: string[]; routing?: string; projectId?: string | null; optimize?: boolean };
 /** creates a key; the full key is returned once and only its hash is stored */
 export async function createKey(db: DB | Tx, userId: string, k: KeyInput) {
   const key = "gk-" + token(40), id = rid("AK");
   await db.insert(aiKeys).values({
     id, userId, name: k.name, hash: sha256(key), prefix: key.slice(0, 7) + "…" + key.slice(-4), models: k.models,
     dailyCap: k.dailyCap, monthlyCap: k.monthlyCap, rpm: k.rpm, expiresAt: k.expiresDays ? new Date(Date.now() + k.expiresDays * 86400_000) : null,
-    ips: k.ips ?? [], routing: k.routing ?? "", projectId: k.projectId ?? null,
+    ips: k.ips ?? [], routing: k.routing ?? "", projectId: k.projectId ?? null, optimize: !!k.optimize,
   });
   return { id, key };
 }
@@ -71,6 +74,8 @@ export async function resolveModel(db: DB, id: string, allowed: string[], kind: 
 }
 
 export type Caller = { userId: string; keyId: string | null; dailyCap: number; monthlyCap: number; projectId?: string | null; routing?: string; logBodies?: boolean;
+  /** the customer opted in to content optimization (key setting or x-gereh-optimize: 1); otherwise the public API gets prompt caching only */
+  optimize?: boolean;
   /** the platform pays (platformCaller): no wallet, no customer usage row; spend goes to platform_ai_usage */
   platform?: { purpose: string; ref: string } };
 export type Format = "openai" | "responses" | "anthropic" | "gemini" | "panel" | "embeddings" | "images" | "speech" | "transcription" | "rerank" | "kb";
@@ -78,7 +83,7 @@ export type Format = "openai" | "responses" | "anthropic" | "gemini" | "panel" |
 /** the caller for an API key: its caps, project, routing and the owner's body-logging choice */
 export async function keyCaller(db: DB, key: AuthedKey): Promise<Caller> {
   const [s] = await db.select({ logBodies: aiSettings.logBodies }).from(aiSettings).where(eq(aiSettings.userId, key.userId));
-  return { userId: key.userId, keyId: key.id, dailyCap: key.dailyCap, monthlyCap: key.monthlyCap, projectId: key.projectId, routing: key.routing, logBodies: !!s?.logBodies };
+  return { userId: key.userId, keyId: key.id, dailyCap: key.dailyCap, monthlyCap: key.monthlyCap, projectId: key.projectId, routing: key.routing, logBodies: !!s?.logBodies, optimize: key.optimize };
 }
 /** the caller for the panel (web chat, playgrounds, knowledge base): wallet only */
 export async function panelCaller(db: DB, userId: string): Promise<Caller> {
@@ -95,7 +100,7 @@ export async function platformSpend(db: DB, purpose: string, since: Date) {
   return Number(r?.s ?? 0);
 }
 
-async function openPlatformMeter(db: DB, o: { caller: Caller; model: ResolvedModel; reserve: number }): Promise<Meter | AiError> {
+async function openPlatformMeter(db: DB, o: { caller: Caller; model: ResolvedModel; reserve: number; format: Format }): Promise<Meter | AiError> {
   const { purpose, ref } = o.caller.platform!;
   if (o.caller.dailyCap && (await platformSpend(db, purpose, tehranStarts().day)) + o.reserve > o.caller.dailyCap) return aiErr(402, "platform_budget_exceeded", "سقف هزینه روزانه هوش مصنوعی این بخش پر شده است.");
   const requestId = genId("req_");
@@ -106,7 +111,8 @@ async function openPlatformMeter(db: DB, o: { caller: Caller; model: ResolvedMod
       if (settled) return 0;
       settled = true;
       const cost = status === "error" ? 0 : r.charged ?? 0;
-      await db.insert(platformAiUsage).values({ id: requestId, purpose, ref: ref.slice(0, 80), model: o.model.id, status, inTokens: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, estimated: !!r.estimated, cost, error: (r.error ?? "").slice(0, 300) });
+      await db.insert(platformAiUsage).values({ id: requestId, purpose, ref: ref.slice(0, 80), model: o.model.id, status, inTokens: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, estimated: !!r.estimated, cost, error: (r.error ?? "").slice(0, 300), sentTokens: r.usage?.prompt_tokens ?? 0, cachedTokens: r.usage?.cached_tokens ?? 0 });
+      if (r.opt) await recordOptEvent(db, { requestId, status, format: o.format, model: o.model, call: r.opt, usage: r.usage, billedIn: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, charged: cost, answer: typeof r.response === "string" ? r.response : undefined });
       return cost;
     },
   };
@@ -124,7 +130,11 @@ async function checkBudgets(db: DB, caller: Caller, reserve: number): Promise<Ai
   return null;
 }
 
-export type Close = { inTokens?: number; outTokens?: number; units?: number; charged?: number; estimated?: boolean; error?: string; finish?: string; request?: unknown; response?: unknown };
+export type Close = { inTokens?: number; outTokens?: number; units?: number; charged?: number; estimated?: boolean; error?: string; finish?: string; request?: unknown; response?: unknown;
+  /** the upstream's usage as reported (cached tokens, provider cost); inTokens is what was billed */
+  usage?: ChatUsage | null;
+  /** the optimizer call: its report goes to ai_opt_events with Gereh's actual cost */
+  opt?: OptCall };
 export type Meter = {
   requestId: string; reserve: number;
   /** settles once: refund of the reserve on error, otherwise the real cost (capped at what the wallet holds), then the log row */
@@ -143,6 +153,7 @@ export async function openMeter(db: DB, o: { caller: Caller; model: ResolvedMode
       id: requestId, userId: caller.userId, keyId: caller.keyId, projectId: caller.projectId ?? null, model: model.id, format: o.format, stream: !!o.stream, status,
       inTokens: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, units: r.units ?? 0, estimated: !!r.estimated, charged: r.charged ?? 0, billed: !r.charged,
       latencyMs: Date.now() - t0, error: (r.error ?? "").slice(0, 300), finish: (r.finish ?? "").slice(0, 40),
+      sentTokens: r.usage?.prompt_tokens ?? 0, cachedTokens: r.usage?.cached_tokens ?? 0,
     });
   const budget = await checkBudgets(db, caller, reserve);
   if (budget) return budget;
@@ -170,6 +181,7 @@ export async function openMeter(db: DB, o: { caller: Caller; model: ResolvedMode
         if (!ok) charged = reserve; // the gateway absorbs the overrun rather than overdrawing the wallet
       }
       await log(status, { ...r, charged });
+      if (r.opt) await recordOptEvent(db, { requestId, status, format: o.format, model, call: r.opt, usage: r.usage, billedIn: r.inTokens ?? 0, outTokens: r.outTokens ?? 0, charged, answer: typeof r.response === "string" ? r.response : undefined });
       if (caller.logBodies && (r.request !== undefined || r.response !== undefined)) {
         const clip = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v ?? "")).slice(0, 64_000);
         await db.insert(aiBodies).values({ id: requestId, userId: caller.userId, request: clip(r.request), response: clip(r.response) }).onConflictDoNothing();
@@ -186,7 +198,9 @@ export type Renderer = {
   stream(): { push(chunk: Record<string, unknown>): string; end(): string; result(): ChatResult };
 };
 
-type Ctx = { db: DB; caller: Caller; model: ResolvedModel; format: Format; chat: ChatRequest; render: Renderer };
+type Ctx = { db: DB; caller: Caller; model: ResolvedModel; format: Format; chat: ChatRequest; render: Renderer;
+  /** whose request this is (optimizer policy); default: "api" for a key, "playground" for the panel */
+  feature?: Feature };
 export type RunResult = { kind: "json"; body: unknown; requestId: string; charged: number } | { kind: "stream"; stream: ReadableStream<Uint8Array>; requestId: string } | { kind: "error"; error: AiError };
 
 const inputChars = (chat: ChatRequest) => JSON.stringify(chat.messages).length + (chat.tools ? JSON.stringify(chat.tools).length : 0);
@@ -199,12 +213,14 @@ export async function runChat(c: Ctx): Promise<RunResult> {
   const meter = await openMeter(db, { caller, model, format: c.format, stream: !!c.chat.stream, reserve: costOf(inEst, outMax, model) });
   if ("http" in meter) return { kind: "error", error: meter };
   const requestId = meter.requestId;
+  // the customer's own request: never altered unless they opted in (policy.ts); billed on its original size
+  const opt = new OptCall(c.feature ?? (caller.keyId ? "api" : "playground"), { optIn: !!caller.optimize });
   const settle = (status: "success" | "error" | "cancelled", r: ChatResult | null, outChars: number, error = "") => {
     if (status === "error") return meter.close("error", { error });
     const estimated = !r?.usage;
-    const inT = r?.usage?.prompt_tokens ?? inEst, outT = r?.usage?.completion_tokens ?? estimateTokens(outChars);
+    const inT = opt.billedIn(r?.usage, inEst), outT = r?.usage?.completion_tokens ?? estimateTokens(outChars);
     return meter.close(status, {
-      inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated, error,
+      inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated, error, usage: r?.usage ?? null, opt,
       finish: r ? (r.toolCalls.length ? "tool_calls" : r.finish) : "",
       request: c.chat.messages, response: r ? r.text + (r.toolCalls.length ? "\n" + JSON.stringify(r.toolCalls) : "") : "",
     });
@@ -214,7 +230,7 @@ export async function runChat(c: Ctx): Promise<RunResult> {
   const abort = new AbortController();
   let res: Response;
   try {
-    res = await aiUpstream().chat(upstreamReq, abort.signal, routeHeaders(caller.routing));
+    res = await aiUpstream().chat(upstreamReq, abort.signal, routeHeaders(caller.routing), opt);
   } catch (e) {
     await settle("error", null, 0, (e as Error).message);
     return { kind: "error", error: aiErr(502, "upstream_unavailable", "سرویس‌دهنده مدل در دسترس نیست؛ مبلغی کسر نشد. چند لحظه بعد دوباره تلاش کنید.") };

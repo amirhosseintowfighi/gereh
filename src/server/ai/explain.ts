@@ -30,6 +30,7 @@ import { virt } from "../virt/driver";
 import { isAiError } from "./endpoints";
 import { simulateExplain, type SimFacts } from "./explain-sim";
 import { openMeter, panelCaller, resolveModel, type ResolvedModel } from "./service";
+import { OptCall } from "./optimizer/call";
 import { readChat, type ChatMessage } from "./translate";
 import { aiUpstream } from "./upstream";
 
@@ -364,14 +365,15 @@ export async function explainError(ctx: Ctx, kind: ExplainKind, resourceId: stri
     charged = await meter.close("success", { inTokens: inEst, outTokens: outT, charged: fee(inEst, outT), estimated: true, finish: "stop" });
   } else {
     try {
-      const res = await up.chat({ model: model!.upstream || model!.id, messages, max_tokens: MAX_OUT, temperature: 0.2 }, AbortSignal.timeout(45_000));
+      const opt = new OptCall("explain");
+      const res = await up.chat({ model: model!.upstream || model!.id, messages, max_tokens: MAX_OUT, temperature: 0.2 }, AbortSignal.timeout(45_000), undefined, opt);
       if (!res.ok) throw new Error("upstream " + res.status + " " + (await res.text().catch(() => "")).slice(0, 200));
       const r = readChat((await res.json()) as Record<string, unknown>);
       const parsed = parseAnswer(r.text);
-      const inT = r.usage?.prompt_tokens ?? inEst, outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
+      const inT = opt.billedIn(r.usage, inEst), outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
       if (!parsed) throw new Error("unusable answer: " + r.text.slice(0, 120));
       answer = parsed; simulated = false;
-      charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: fee(inT, outT), estimated: !r.usage, finish: r.finish, request: messages, response: r.text });
+      charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: fee(inT, outT), estimated: !r.usage, finish: r.finish, request: messages, response: r.text, usage: r.usage, opt });
     } catch (e) {
       // the rule-based answer still helps; a failed or unusable model call costs nothing
       await meter.close("error", { error: (e as Error).message });

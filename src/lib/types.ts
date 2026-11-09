@@ -100,11 +100,15 @@ export type InquiryState = {
   accounts: { userId: string; name: string; email: string; accountNo: number; status: "active" | "suspended"; calls30: number; spend30: number }[];
   provider: string;
 };
-export type AiModelRow = { id: string; name: string; vendor: string; inPrice: number; outPrice: number; context: number; vision: boolean; active: boolean; refIn: number; refOut: number; upstream: string; kind: "chat" | "embedding" | "image" | "tts" | "stt" | "rerank"; unitPrice: number };
+export type AiModelRow = { id: string; name: string; vendor: string; inPrice: number; outPrice: number; context: number; vision: boolean; active: boolean; refIn: number; refOut: number; upstream: string; kind: "chat" | "embedding" | "image" | "tts" | "stt" | "rerank"; unitPrice: number;
+  /** Gereh's upstream cost per 1M tokens (staff only; 0 for customers and when unknown) */
+  costIn: number; costOut: number };
 export type AiKeyRow = {
   id: string; name: string; prefix: string; models: string[]; dailyCap: number; monthlyCap: number; rpm: number; status: "active" | "disabled" | "revoked"; expires: string; lastUsed: string; created: string; spentToday: number; spentMonth: number;
   /** days until expiry (0 = never) */
   expiresIn: number; ips: string[]; routing: "" | "price" | "throughput" | "latency"; projectId: string | null; requestsMonth: number;
+  /** the customer opted in to content optimization for this key */
+  optimize: boolean;
 };
 export type AiChatSummary = { id: string; title: string; model: string; kbId: string | null; at: string };
 export type AiChatFull = { id: string; title: string; model: string; system: string; temperature: number; kbId: string | null; messages: { id: number; role: "user" | "assistant"; content: string; charged: number; attachments: { name: string; type: "image" | "text" }[]; at: string }[] };

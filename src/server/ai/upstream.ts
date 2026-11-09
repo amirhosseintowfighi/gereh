@@ -3,13 +3,17 @@
    answers (tests, demos, development), streaming included. */
 import "server-only";
 import { demoMode, unconfigured } from "../demo";
+import type { OptCall } from "./optimizer/call";
+import { withOptimizer } from "./optimizer/gateway";
 import type { ChatRequest } from "./translate";
 import { contentText } from "./translate";
 
 export type Upstream = {
   name: "http" | "sim";
-  /** returns the raw fetch Response (JSON, or SSE when req.stream) */
-  chat(req: ChatRequest, signal?: AbortSignal, headers?: Record<string, string>): Promise<Response>;
+  /** returns the raw fetch Response (JSON, or SSE when req.stream). Through aiUpstream() the request is
+      first optimized with the policy of `call`'s feature (src/server/ai/optimizer); without one only
+      prompt caching applies. `call.report` says what was done. */
+  chat(req: ChatRequest, signal?: AbortSignal, headers?: Record<string, string>, call?: OptCall): Promise<Response>;
   models(): Promise<{ id: string }[]>;
   /** JSON POST to another OpenAI-compatible path: embeddings, images/generations, audio/speech, rerank */
   post?(path: string, body: Record<string, unknown>, signal?: AbortSignal, headers?: Record<string, string>): Promise<Response>;
@@ -142,7 +146,10 @@ function simWav(chars: number) {
   return b;
 }
 
-let cached: Upstream | null = null;
-export const aiUpstream = (): Upstream => (cached ??= process.env.AI_UPSTREAM_KEY ? new HttpUpstream() : demoMode() ? new SimUpstream() : unconfigured<Upstream>("سرویس مدل‌های AI"));
-/** tests swap the upstream (e.g. a failing or slow one) */
-export const setAiUpstream = (u: Upstream | null) => { cached = u; };
+let cached: Upstream | null = null, wrapped: Upstream | null = null;
+/** the provider as it is, without the optimizer (the live benchmark sends originals through it) */
+export const rawUpstream = (): Upstream => (cached ??= process.env.AI_UPSTREAM_KEY ? new HttpUpstream() : demoMode() ? new SimUpstream() : unconfigured<Upstream>("سرویس مدل‌های AI"));
+/** the provider behind the token optimizer: what every call site uses */
+export const aiUpstream = (): Upstream => (wrapped ??= withOptimizer(rawUpstream()));
+/** tests swap the upstream (e.g. a failing or slow one); it is wrapped like the real one */
+export const setAiUpstream = (u: Upstream | null) => { cached = u; wrapped = null; };

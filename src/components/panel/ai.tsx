@@ -13,6 +13,7 @@ import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, Bars, CodeBlock, CopyText, Modal, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { AiSettingsCard, EmbedPlayground, KnowledgeBases, Projects, RequestLogs, UsageReport, WebChat } from "./ai-plus";
 import { UserLink } from "./admin-order-detail";
+import { AdminOptimizer } from "./ai-optimizer";
 import { AssistantModelCard } from "./assistant";
 
 const USAGE_STATUS: Record<string, [string, "green" | "blue" | "amber" | "red" | "gray"]> = {
@@ -103,7 +104,7 @@ function QuickStart({ onKeys }: { onKeys: () => void }) {
   );
 }
 
-const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0, ips: [], routing: "", projectId: null };
+const EMPTY_KEY: AiKeyInput = { name: "", models: [], dailyCap: 0, monthlyCap: 0, rpm: 120, expiresDays: 0, ips: [], routing: "", projectId: null, optimize: false };
 const KEY_STATUS: Record<AiKeyRow["status"], [string, "green" | "amber" | "red"]> = { active: ["فعال", "green"], disabled: ["غیرفعال", "amber"], revoked: ["باطل شده", "red"] };
 
 function Keys() {
@@ -146,7 +147,7 @@ function Keys() {
 function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; models: AiModelRow[]; onClose: () => void; onCreated: (key: string) => void }) {
   const { notify } = useApp();
   const projects = useDB().ai.projects;
-  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: -1, ips: edit.ips, routing: edit.routing, projectId: edit.projectId } : EMPTY_KEY);
+  const [f, setF] = useState<AiKeyInput>(edit ? { name: edit.name, models: edit.models, dailyCap: edit.dailyCap, monthlyCap: edit.monthlyCap, rpm: edit.rpm, expiresDays: -1, ips: edit.ips, routing: edit.routing, projectId: edit.projectId, optimize: edit.optimize } : EMPTY_KEY);
   const [ips, setIps] = useState(f.ips.join("\n"));
   const [limit, setLimit] = useState(!!edit?.models.length);
   const toggle = (id: string) => setF({ ...f, models: f.models.includes(id) ? f.models.filter((m) => m !== id) : [...f.models, id] });
@@ -167,12 +168,16 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
           <span>محدود به مدل‌های خاص<span className="block text-[11px] text-white/50">خاموش یعنی همه مدل‌های فعال</span></span>
           <Switch on={limit} onChange={(v) => { setLimit(v); if (!v) setF({ ...f, models: [] }); }} label="محدود به مدل‌های خاص" />
         </div>
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm">
+          <span>فشرده‌سازی محتوای درخواست<span className="block text-[11px] text-white/50 leading-5">خاموش (پیش‌فرض): پیام‌های شما دست‌نخورده فرستاده می‌شوند و فقط کش پرامپت اعمال می‌شود. روشن: تاریخچه طولانی و نتایج قدیمی ابزارها خلاصه می‌شوند؛ آخرین پیام، کد و JSON دست نمی‌خورند. هزینه همچنان بر پایه حجم ورودی اصلی درخواست است. برای یک درخواست: هدر x-gereh-optimize: 1</span></span>
+          <Switch on={!!f.optimize} onChange={(v) => setF({ ...f, optimize: v })} label="فشرده‌سازی محتوای درخواست" />
+        </div>
         {limit && <div className="max-h-48 overflow-y-auto rounded-xl border border-white/[0.08] p-2 grid sm:grid-cols-2 gap-1">
           {models.map((m) => <label key={m.id} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-white/[0.04] cursor-pointer"><input type="checkbox" checked={f.models.includes(m.id)} onChange={() => toggle(m.id)} />{m.name}</label>)}
         </div>}
         <AsyncButton disabled={f.name.trim().length < 2 || (limit && !f.models.length)} className={BTN_P + BTN_LG + " w-full"} onClick={async () => {
           const ipList = ips.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
-          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
+          if (edit) { await api.ai.updateKey(edit.id, { name: f.name.trim(), models: f.models, dailyCap: f.dailyCap, monthlyCap: f.monthlyCap, rpm: f.rpm, ips: ipList, routing: f.routing, projectId: f.projectId, optimize: !!f.optimize, ...(f.expiresDays >= 0 ? { expiresDays: f.expiresDays } : {}) }); notify("محدودیت‌ها ذخیره شد", "circle-check"); onClose(); }
           else onCreated(await api.ai.createKey({ ...f, name: f.name.trim(), ips: ipList }));
         }}>{edit ? "ذخیره" : "ساخت کلید"}</AsyncButton>
       </div>
@@ -228,7 +233,7 @@ function UsageList({ admin = false }: { admin?: boolean }) {
               <span className="text-sm tabular text-left">{u.charged ? toman(u.charged) : "رایگان"}</span>
               <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge><Badge>{AI_FORMAT_LABEL[u.format] ?? u.format}</Badge>{u.stream && <Badge tone="blue">stream</Badge>}{u.keyName && <span>{u.keyName}</span>}{admin && <UserLink id={u.userId} className="ltr" />}</span>
               <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{u.at}</span>
-              <span className="col-span-2 text-[11px] text-white/50">{fa(u.inTokens)} ورودی · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
+              <span className="col-span-2 text-[11px] text-white/50">حجم ورودی درخواست {fa(u.inTokens)} توکن · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
             </li>
           ); })}
         </ul>
@@ -253,8 +258,9 @@ export function AdminAi() {
         <StatCard icon="triangle-alert" label="خطا در آخرین درخواست‌ها" value={errors} tone={errors ? "down" : ""} sub={"از " + fa(a.usage.length) + " درخواست اخیر"} />
       </div>
       <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="بخش" options={[
-        { id: "models", label: "مدل‌ها و قیمت", icon: "tag" }, { id: "usage", label: "آخرین درخواست‌ها", icon: "activity" },
+        { id: "models", label: "مدل‌ها و قیمت", icon: "tag" }, { id: "usage", label: "آخرین درخواست‌ها", icon: "activity" }, { id: "optimizer", label: "بهینه‌ساز توکن", icon: "zap" },
       ]} /></div>
+      {tab === "optimizer" && <AdminOptimizer />}
       {tab === "models" && <AdminModels />}
       {tab === "usage" && <div className="space-y-4">
         {a.stats.daily.length > 1 && <Card title="درآمد روزانه" icon="chart-column"><Bars data={a.stats.daily.map((d) => d.spend)} labels={a.stats.daily.map((d) => d.day.split("/").slice(-2).join("/"))} height={140} fmt={(v) => toman(v)} /></Card>}
@@ -293,9 +299,9 @@ function AdminModels() {
 
 function AdminModelRow({ m }: { m: AiModelRow }) {
   const { notify } = useApp();
-  const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut), unitPrice: String(m.unitPrice) });
+  const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut), unitPrice: String(m.unitPrice), costIn: String(m.costIn), costOut: String(m.costOut) });
   const [test, setTest] = useState<{ ok: boolean; ms: number; detail: string } | null>(null);
-  const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut || num(f.unitPrice) !== m.unitPrice;
+  const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut || num(f.unitPrice) !== m.unitPrice || num(f.costIn) !== m.costIn || num(f.costOut) !== m.costOut;
   const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT_BASE + " h-9 text-xs" + (ltr ? " text-left font-mono" : "")} /></Field>;
   return (
     <details className="rounded-2xl bg-white/[0.03] border border-white/[0.07] group">
@@ -314,11 +320,13 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
           {inp("refIn", "مرجع ورودی")}
           {inp("refOut", "مرجع خروجی")}
           {inp("unitPrice", "قیمت واحد (تصویر/دقیقه/۱۰۰۰ جست‌وجو)")}
+          {inp("costIn", "هزینه واقعی ورودی نزد سرویس‌دهنده (ت/1M)")}
+          {inp("costOut", "هزینه واقعی خروجی نزد سرویس‌دهنده (ت/1M)")}
           <Field label="نوع مدل"><Select label={"نوع " + m.id} value={m.kind} onChange={async (v) => { try { await api.ai.adminModel(m.id, { kind: v as AiKind }); } catch (e) { notify((e as Error).message, "circle-alert"); } }} options={AI_KINDS.map((k) => ({ value: k, label: AI_KIND_LABEL[k] }))} /></Field>
           <div className="flex items-end gap-2 pb-1"><Switch on={m.vision} onChange={async (v) => { await api.ai.adminModel(m.id, { vision: v }); }} label={"ورودی تصویر " + m.id} /><span className="text-xs text-white/60">ورودی تصویر</span></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <AsyncButton disabled={!dirty} className={BTN_P + BTN_SM} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
+          <AsyncButton disabled={!dirty} className={BTN_P + BTN_SM} onClick={async () => { await api.ai.adminModel(m.id, { name: f.name.trim(), upstream: f.upstream.trim(), inPrice: num(f.inPrice), outPrice: num(f.outPrice), refIn: num(f.refIn), refOut: num(f.refOut), unitPrice: num(f.unitPrice), costIn: num(f.costIn), costOut: num(f.costOut) }); notify("مدل ذخیره شد", "circle-check"); }}>ذخیره</AsyncButton>
           <AsyncButton className={BTN_G + BTN_SM} onClick={async () => setTest(await api.ai.adminTest(m.id))}><Icon name="zap" size={14} />تست اتصال</AsyncButton>
         </div>
         {test && <p className={"text-xs leading-6 " + (test.ok ? "text-emerald-300" : "text-rose-300")} dir="auto">{test.ok ? "موفق" : "ناموفق"} · {fa(test.ms)}ms · {test.detail}</p>}

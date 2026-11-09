@@ -9,7 +9,8 @@ import { ASSISTANT, type AssistantContext, type AssistantEvent, type AssistantMo
 import { faDate } from "@/lib/jalali";
 import { isAiError } from "../ai/endpoints";
 import { openMeter, panelCaller, upstreamError, type ResolvedModel } from "../ai/service";
-import { readSSE, type ChatMessage, type ChatUsage, type ToolCall } from "../ai/translate";
+import { OptCall } from "../ai/optimizer/call";
+import { readSSE, readUsage, type ChatMessage, type ChatUsage, type ToolCall } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
 import type { Ctx } from "../ctx";
 import { assistantMessages, assistantThreads, paasApps, paasDbs, servers } from "../db/schema";
@@ -97,7 +98,7 @@ function simInput(rows: Row[], context: AssistantContext | null, tools: Set<stri
 type StepOut = { text: string; calls: ToolCall[]; usage: ChatUsage | null };
 
 /** one model answer, streamed: the upstream with tools (a dropped connection before any text retries), or the simulator */
-async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: Json[]; signal: AbortSignal; sim: () => ReturnType<typeof simPlan>; onDelta: (d: string) => void; partial: { text: string } }): Promise<StepOut> {
+async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: Json[]; signal: AbortSignal; sim: () => ReturnType<typeof simPlan>; onDelta: (d: string) => void; partial: { text: string }; opt: OptCall }): Promise<StepOut> {
   const up = aiUpstream();
   if (up.name === "sim") {
     const r = o.sim(), wait = simDelay();
@@ -112,7 +113,7 @@ async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: J
   }
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await up.chat({ model: o.model.upstream || o.model.id, messages: o.messages, tools: o.tools, tool_choice: "auto", stream: true, max_tokens: MAX_OUT, temperature: 0.2, stream_options: { include_usage: true } }, o.signal);
+      const res = await up.chat({ model: o.model.upstream || o.model.id, messages: o.messages, tools: o.tools, tool_choice: "auto", stream: true, max_tokens: MAX_OUT, temperature: 0.2, stream_options: { include_usage: true } }, o.signal, undefined, o.opt);
       if (!res.ok) {
         const body = (await res.text().catch(() => "")).slice(0, 300);
         console.warn("[assistant] " + (o.model.upstream || o.model.id) + " → " + res.status + " " + body);
@@ -124,7 +125,7 @@ async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: J
       const calls: { id: string; name: string; args: string }[] = [];
       for await (const c of readSSE(res.body!)) {
         if (o.signal.aborted) throw new Stopped();
-        if (c.usage) usage = c.usage as ChatUsage;
+        if (c.usage) usage = readUsage(c.usage) ?? usage;
         const delta = (c.choices as { delta?: { content?: string; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[] | undefined)?.[0]?.delta;
         if (delta?.content) { o.partial.text += delta.content; o.onDelta(delta.content); }
         for (const t of delta?.tool_calls ?? []) {
@@ -212,10 +213,12 @@ export async function runTurn(i: TurnInput): Promise<void> {
       }
 
       const partial = { text: "" };
+      // long histories and tool results: optimized (policy "assistant"), billed on the original size
+      const opt = new OptCall("assistant");
       const stall = setTimeout(() => abort.abort(), STEP_TIMEOUT_MS);
       let r: StepOut;
       try {
-        r = await step({ model, messages, tools: specs, signal: abort.signal, sim: () => simPlan(simInput(all, staff ? null : context, names, mode)), onDelta: (d) => emit({ type: "text", delta: d }), partial });
+        r = await step({ model, messages, tools: specs, signal: abort.signal, sim: () => simPlan(simInput(all, staff ? null : context, names, mode)), onDelta: (d) => emit({ type: "text", delta: d }), partial, opt });
       } catch (e) {
         clearTimeout(stall);
         const stopped = e instanceof Stopped || abort.signal.aborted || (e as Error).name === "AbortError";
@@ -240,8 +243,8 @@ export async function runTurn(i: TurnInput): Promise<void> {
       }
       clearTimeout(stall);
       const argChars = r.calls.reduce((s, c) => s + c.function.arguments.length + c.function.name.length, 0);
-      const inT = r.usage?.prompt_tokens ?? inEst, outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length + argChars);
-      const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.calls.length ? "tool_calls" : "stop", request: messages.slice(-1), response: r.text });
+      const inT = opt.billedIn(r.usage, inEst), outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length + argChars);
+      const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.calls.length ? "tool_calls" : "stop", request: messages.slice(-1), response: r.text, usage: r.usage, opt });
       charged += cost;
       const [saved] = await db.insert(assistantMessages).values({ threadId: thread.id, role: "assistant", content: r.text, toolCalls: r.calls.length ? r.calls : null, inTokens: inT, outTokens: outT, cost }).returning({ id: assistantMessages.id });
       lastId = saved.id;

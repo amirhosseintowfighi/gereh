@@ -1,0 +1,383 @@
+{
+  "id": "assistant-history",
+  "workload": "assistant history + tool results",
+  "feature": "assistant",
+  "description": "10 turns of tool calls: 120-line logs, 40-invoice and 25-server JSON results",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are دستیار گره, the Gereh assistant. Use the tools to read the customer's account. Never run an action without the customer's confirmation.\nAnswer in Persian."
+      },
+      {
+        "role": "user",
+        "content": "فاکتورهای این ماه را بیاور (1)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_1",
+            "type": "function",
+            "function": {
+              "name": "app_logs",
+              "arguments": "{\"id\":\"srv-4820\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_1",
+        "content": "2026-11-01T10:00:10Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-02T11:01:11Z INFO [web] GET /api/products 200 27ms\n2026-11-03T12:02:12Z INFO [web] GET /api/products 200 34ms\n2026-11-04T13:03:13Z INFO [web] GET /api/products 200 41ms\n2026-11-05T14:04:14Z INFO [web] GET /api/products 200 48ms\n2026-11-06T15:05:15Z INFO [web] GET /api/products 200 55ms\n2026-11-07T16:00:16Z INFO [web] GET /api/products 200 62ms\n2026-11-01T17:01:17Z INFO [web] GET /api/products 200 69ms\n2026-11-02T18:02:18Z INFO [web] GET /api/products 200 76ms\n2026-11-03T19:03:19Z WARN [web] GET /api/products 200 83ms\n2026-11-04T10:04:20Z INFO [web] GET /api/products 200 90ms\n2026-11-05T11:05:21Z INFO [web] GET /api/products 200 97ms\n2026-11-06T12:00:22Z INFO [web] GET /api/products 200 104ms\n2026-11-07T13:01:23Z INFO [web] GET /api/products 200 111ms\n2026-11-01T14:02:24Z INFO [web] GET /api/products 200 118ms\n2026-11-02T15:03:25Z INFO [web] GET /api/products 200 125ms\n2026-11-03T16:04:26Z INFO [web] GET /api/products 200 132ms\n2026-11-04T17:05:27Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-05T18:00:28Z WARN [web] GET /api/products 200 146ms\n2026-11-06T19:01:29Z INFO [web] GET /api/products 200 153ms\n2026-11-07T10:02:30Z INFO [web] GET /api/products 200 160ms\n2026-11-01T11:03:31Z INFO [web] GET /api/products 200 167ms\n2026-11-02T12:04:32Z INFO [web] GET /api/products 200 174ms\n2026-11-03T13:05:33Z INFO [web] GET /api/products 200 181ms\n2026-11-04T14:00:34Z INFO [web] GET /api/products 200 188ms\n2026-11-05T15:01:35Z INFO [web] GET /api/products 200 195ms\n2026-11-06T16:02:36Z INFO [web] GET /api/products 200 22ms\n2026-11-07T17:03:37Z WARN [web] GET /api/products 200 29ms\n2026-11-01T18:04:38Z INFO [web] GET /api/products 200 36ms\n2026-11-02T19:05:39Z INFO [web] GET /api/products 200 43ms\n2026-11-03T10:00:40Z INFO [web] GET /api/products 200 50ms\n2026-11-04T11:01:41Z INFO [web] GET /api/products 200 57ms\n2026-11-05T12:02:42Z INFO [web] GET /api/products 200 64ms\n2026-11-06T13:03:43Z INFO [web] GET /api/products 200 71ms\n2026-11-07T14:04:44Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-01T15:05:45Z INFO [web] GET /api/products 200 85ms\n2026-11-02T16:00:46Z WARN [web] GET /api/products 200 92ms\n2026-11-03T17:01:47Z INFO [web] GET /api/products 200 99ms\n2026-11-04T18:02:48Z INFO [web] GET /api/products 200 106ms\n2026-11-05T19:03:49Z INFO [web] GET /api/products 200 113ms\n2026-11-06T10:04:50Z INFO [web] GET /api/products 200 120ms\n2026-11-07T11:05:51Z INFO [web] GET /api/products 200 127ms\n2026-11-01T12:00:52Z INFO [web] GET /api/products 200 134ms\n2026-11-02T13:01:53Z INFO [web] GET /api/products 200 141ms\n2026-11-03T14:02:54Z INFO [web] GET /api/products 200 148ms\n2026-11-04T15:03:55Z WARN [web] GET /api/products 200 155ms\n2026-11-05T16:04:56Z INFO [web] GET /api/products 200 162ms\n2026-11-06T17:05:57Z INFO [web] GET /api/products 200 169ms\n2026-11-07T18:00:58Z INFO [web] GET /api/products 200 176ms\n2026-11-01T19:01:59Z INFO [web] GET /api/products 200 183ms\n2026-11-02T10:02:10Z INFO [web] GET /api/products 200 190ms\n2026-11-03T11:03:11Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-04T12:04:12Z INFO [web] GET /api/products 200 24ms\n2026-11-05T13:05:13Z INFO [web] GET /api/products 200 31ms\n2026-11-06T14:00:14Z WARN [web] GET /api/products 200 38ms\n2026-11-07T15:01:15Z INFO [web] GET /api/products 200 45ms\n2026-11-01T16:02:16Z INFO [web] GET /api/products 200 52ms\n2026-11-02T17:03:17Z INFO [web] GET /api/products 200 59ms\n2026-11-03T18:04:18Z INFO [web] GET /api/products 200 66ms\n2026-11-04T19:05:19Z INFO [web] GET /api/products 200 73ms\n2026-11-05T10:00:20Z INFO [web] GET /api/products 200 80ms\n2026-11-06T11:01:21Z INFO [web] GET /api/products 200 87ms\n2026-11-07T12:02:22Z INFO [web] GET /api/products 200 94ms\n2026-11-01T13:03:23Z WARN [web] GET /api/products 200 101ms\n2026-11-02T14:04:24Z INFO [web] GET /api/products 200 108ms\n2026-11-03T15:05:25Z INFO [web] GET /api/products 200 115ms\n2026-11-04T16:00:26Z INFO [web] GET /api/products 200 122ms\n2026-11-05T17:01:27Z INFO [web] GET /api/products 200 129ms\n2026-11-06T18:02:28Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-07T19:03:29Z INFO [web] GET /api/products 200 143ms\n2026-11-01T10:04:30Z INFO [web] GET /api/products 200 150ms\n2026-11-02T11:05:31Z INFO [web] GET /api/products 200 157ms\n2026-11-03T12:00:32Z WARN [web] GET /api/products 200 164ms\n2026-11-04T13:01:33Z INFO [web] GET /api/products 200 171ms\n2026-11-05T14:02:34Z INFO [web] GET /api/products 200 178ms\n2026-11-06T15:03:35Z INFO [web] GET /api/products 200 185ms\n2026-11-07T16:04:36Z INFO [web] GET /api/products 200 192ms\n2026-11-01T17:05:37Z INFO [web] GET /api/products 200 199ms\n2026-11-02T18:00:38Z INFO [web] GET /api/products 200 26ms\n2026-11-03T19:01:39Z INFO [web] GET /api/products 200 33ms\n2026-11-04T10:02:40Z INFO [web] GET /api/products 200 40ms\n2026-11-05T11:03:41Z WARN [web] GET /api/products 200 47ms\n2026-11-06T12:04:42Z INFO [web] GET /api/products 200 54ms\n2026-11-07T13:05:43Z INFO [web] GET /api/products 200 61ms\n2026-11-01T14:00:44Z INFO [web] GET /api/products 200 68ms\n2026-11-02T15:01:45Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-03T16:02:46Z INFO [web] GET /api/products 200 82ms\n2026-11-04T17:03:47Z INFO [web] GET /api/products 200 89ms\n2026-11-05T18:04:48Z INFO [web] GET /api/products 200 96ms\n2026-11-06T19:05:49Z INFO [web] GET /api/products 200 103ms\n2026-11-07T10:00:50Z WARN [web] GET /api/products 200 110ms\n2026-11-01T11:01:51Z INFO [web] GET /api/products 200 117ms\n2026-11-02T12:02:52Z INFO [web] GET /api/products 200 124ms\n2026-11-03T13:03:53Z INFO [web] GET /api/products 200 131ms\n2026-11-04T14:04:54Z INFO [web] GET /api/products 200 138ms\n2026-11-05T15:05:55Z INFO [web] GET /api/products 200 145ms\n2026-11-06T16:00:56Z INFO [web] GET /api/products 200 152ms\n2026-11-07T17:01:57Z INFO [web] GET /api/products 200 159ms\n2026-11-01T18:02:58Z INFO [web] GET /api/products 200 166ms\n2026-11-02T19:03:59Z WARN [web] GET /api/products 200 173ms\n2026-11-03T10:04:10Z INFO [web] GET /api/products 200 180ms\n2026-11-04T11:05:11Z INFO [web] GET /api/products 200 187ms\n2026-11-05T12:00:12Z ERROR [web] upstream timed out after 30000ms on GET /api/orders\n2026-11-06T13:01:13Z INFO [web] GET /api/products 200 21ms\n2026-11-07T14:02:14Z INFO [web] GET /api/products 200 28ms\n2026-11-01T15:03:15Z INFO [web] GET /api/products 200 35ms\n2026-11-02T16:04:16Z INFO [web] GET /api/products 200 42ms\n2026-11-03T17:05:17Z INFO [web] GET /api/products 200 49ms\n2026-11-04T18:00:18Z WARN [web] GET /api/products 200 56ms\n2026-11-05T19:01:19Z INFO [web] GET /api/products 200 63ms\n2026-11-06T10:02:20Z INFO [web] GET /api/products 200 70ms\n2026-11-07T11:03:21Z INFO [web] GET /api/products 200 77ms\n2026-11-01T12:04:22Z INFO [web] GET /api/products 200 84ms\n2026-11-02T13:05:23Z INFO [web] GET /api/products 200 91ms\n2026-11-03T14:00:24Z INFO [web] GET /api/products 200 98ms\n2026-11-04T15:01:25Z INFO [web] GET /api/products 200 105ms\n2026-11-05T16:02:26Z INFO [web] GET /api/products 200 112ms\n2026-11-06T17:03:27Z WARN [web] GET /api/products 200 119ms\n2026-11-07T18:04:28Z INFO [web] GET /api/products 200 126ms\n2026-11-01T19:05:29Z ERROR [web] upstream timed out after 30000ms on GET /api/orders"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. رکوردها درست هستند."
+      },
+      {
+        "role": "user",
+        "content": "رکوردهای DNS دامنه example.ir را ببین (2)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_2",
+            "type": "function",
+            "function": {
+              "name": "list_invoices",
+              "arguments": "{\"id\":\"srv-4821\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_2",
+        "content": "{\"invoices\":[{\"id\":\"INV-9000\",\"amount\":12500,\"status\":\"unpaid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9001\",\"amount\":25000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9002\",\"amount\":37500,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9003\",\"amount\":50000,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9004\",\"amount\":62500,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9005\",\"amount\":75000,\"status\":\"unpaid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9006\",\"amount\":87500,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9007\",\"amount\":100000,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9008\",\"amount\":112500,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9009\",\"amount\":125000,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9010\",\"amount\":137500,\"status\":\"unpaid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9011\",\"amount\":150000,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9012\",\"amount\":162500,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9013\",\"amount\":175000,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9014\",\"amount\":187500,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9015\",\"amount\":200000,\"status\":\"unpaid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9016\",\"amount\":212500,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9017\",\"amount\":225000,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9018\",\"amount\":237500,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9019\",\"amount\":250000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9020\",\"amount\":262500,\"status\":\"unpaid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9021\",\"amount\":275000,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9022\",\"amount\":287500,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9023\",\"amount\":300000,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9024\",\"amount\":312500,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9025\",\"amount\":325000,\"status\":\"unpaid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9026\",\"amount\":337500,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9027\",\"amount\":350000,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9028\",\"amount\":362500,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9029\",\"amount\":375000,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9030\",\"amount\":387500,\"status\":\"unpaid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9031\",\"amount\":400000,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9032\",\"amount\":412500,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9033\",\"amount\":425000,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9034\",\"amount\":437500,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9035\",\"amount\":450000,\"status\":\"unpaid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9036\",\"amount\":462500,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9037\",\"amount\":475000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9038\",\"amount\":487500,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9039\",\"amount\":500000,\"status\":\"paid\",\"due\":\"1403/04/13\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. یک فاکتور پرداخت‌نشده دارید."
+      },
+      {
+        "role": "user",
+        "content": "فاکتورهای این ماه را بیاور (3)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_3",
+            "type": "function",
+            "function": {
+              "name": "list_servers",
+              "arguments": "{\"id\":\"srv-4822\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_3",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. سرور srv-4821 پایدار است."
+      },
+      {
+        "role": "user",
+        "content": "لاگ‌های برنامه shop را نشان بده (4)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_4",
+            "type": "function",
+            "function": {
+              "name": "server_metrics",
+              "arguments": "{\"id\":\"srv-4823\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_4",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. رکوردها درست هستند."
+      },
+      {
+        "role": "user",
+        "content": "رکوردهای DNS دامنه example.ir را ببین (5)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_5",
+            "type": "function",
+            "function": {
+              "name": "list_invoices",
+              "arguments": "{\"id\":\"srv-4824\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_5",
+        "content": "{\"invoices\":[{\"id\":\"INV-9000\",\"amount\":12500,\"status\":\"unpaid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9001\",\"amount\":25000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9002\",\"amount\":37500,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9003\",\"amount\":50000,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9004\",\"amount\":62500,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9005\",\"amount\":75000,\"status\":\"unpaid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9006\",\"amount\":87500,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9007\",\"amount\":100000,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9008\",\"amount\":112500,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9009\",\"amount\":125000,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9010\",\"amount\":137500,\"status\":\"unpaid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9011\",\"amount\":150000,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9012\",\"amount\":162500,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9013\",\"amount\":175000,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9014\",\"amount\":187500,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9015\",\"amount\":200000,\"status\":\"unpaid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9016\",\"amount\":212500,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9017\",\"amount\":225000,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9018\",\"amount\":237500,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9019\",\"amount\":250000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9020\",\"amount\":262500,\"status\":\"unpaid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9021\",\"amount\":275000,\"status\":\"paid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9022\",\"amount\":287500,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9023\",\"amount\":300000,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9024\",\"amount\":312500,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9025\",\"amount\":325000,\"status\":\"unpaid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9026\",\"amount\":337500,\"status\":\"paid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9027\",\"amount\":350000,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9028\",\"amount\":362500,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9029\",\"amount\":375000,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9030\",\"amount\":387500,\"status\":\"unpaid\",\"due\":\"1403/04/13\"},{\"id\":\"INV-9031\",\"amount\":400000,\"status\":\"paid\",\"due\":\"1403/05/14\"},{\"id\":\"INV-9032\",\"amount\":412500,\"status\":\"paid\",\"due\":\"1403/06/15\"},{\"id\":\"INV-9033\",\"amount\":425000,\"status\":\"paid\",\"due\":\"1403/07/16\"},{\"id\":\"INV-9034\",\"amount\":437500,\"status\":\"paid\",\"due\":\"1403/08/17\"},{\"id\":\"INV-9035\",\"amount\":450000,\"status\":\"unpaid\",\"due\":\"1403/09/18\"},{\"id\":\"INV-9036\",\"amount\":462500,\"status\":\"paid\",\"due\":\"1403/01/10\"},{\"id\":\"INV-9037\",\"amount\":475000,\"status\":\"paid\",\"due\":\"1403/02/11\"},{\"id\":\"INV-9038\",\"amount\":487500,\"status\":\"paid\",\"due\":\"1403/03/12\"},{\"id\":\"INV-9039\",\"amount\":500000,\"status\":\"paid\",\"due\":\"1403/04/13\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. دو خطای timeout در لاگ‌ها هست."
+      },
+      {
+        "role": "user",
+        "content": "لاگ‌های برنامه shop را نشان بده (6)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_6",
+            "type": "function",
+            "function": {
+              "name": "list_servers",
+              "arguments": "{\"id\":\"srv-4825\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_6",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. رکوردها درست هستند."
+      },
+      {
+        "role": "user",
+        "content": "مصرف CPU سرور srv-4821 چقدر است؟ (7)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_7",
+            "type": "function",
+            "function": {
+              "name": "dns_records",
+              "arguments": "{\"id\":\"srv-4826\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_7",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. دو خطای timeout در لاگ‌ها هست."
+      },
+      {
+        "role": "user",
+        "content": "لاگ‌های برنامه shop را نشان بده (8)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_8",
+            "type": "function",
+            "function": {
+              "name": "dns_records",
+              "arguments": "{\"id\":\"srv-4827\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_8",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. سرور srv-4821 پایدار است."
+      },
+      {
+        "role": "user",
+        "content": "رکوردهای DNS دامنه example.ir را ببین (9)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_9",
+            "type": "function",
+            "function": {
+              "name": "dns_records",
+              "arguments": "{\"id\":\"srv-4828\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_9",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. رکوردها درست هستند."
+      },
+      {
+        "role": "user",
+        "content": "وضعیت سرورهایم چطور است؟ (10)"
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_10",
+            "type": "function",
+            "function": {
+              "name": "server_metrics",
+              "arguments": "{\"id\":\"srv-4829\",\"limit\":50}"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_10",
+        "content": "{\"servers\":[{\"id\":\"srv-4810\",\"cpu\":0,\"ram\":0,\"status\":\"stopped\",\"ip\":\"185.12.40.0\"},{\"id\":\"srv-4811\",\"cpu\":13,\"ram\":7,\"status\":\"running\",\"ip\":\"185.12.41.3\"},{\"id\":\"srv-4812\",\"cpu\":26,\"ram\":14,\"status\":\"running\",\"ip\":\"185.12.42.6\"},{\"id\":\"srv-4813\",\"cpu\":39,\"ram\":21,\"status\":\"running\",\"ip\":\"185.12.43.9\"},{\"id\":\"srv-4814\",\"cpu\":52,\"ram\":28,\"status\":\"running\",\"ip\":\"185.12.44.12\"},{\"id\":\"srv-4815\",\"cpu\":65,\"ram\":35,\"status\":\"running\",\"ip\":\"185.12.45.15\"},{\"id\":\"srv-4816\",\"cpu\":78,\"ram\":42,\"status\":\"stopped\",\"ip\":\"185.12.46.18\"},{\"id\":\"srv-4817\",\"cpu\":91,\"ram\":49,\"status\":\"running\",\"ip\":\"185.12.47.21\"},{\"id\":\"srv-4818\",\"cpu\":4,\"ram\":56,\"status\":\"running\",\"ip\":\"185.12.48.24\"},{\"id\":\"srv-4819\",\"cpu\":17,\"ram\":63,\"status\":\"running\",\"ip\":\"185.12.49.27\"},{\"id\":\"srv-4820\",\"cpu\":30,\"ram\":70,\"status\":\"running\",\"ip\":\"185.12.50.30\"},{\"id\":\"srv-4821\",\"cpu\":43,\"ram\":77,\"status\":\"running\",\"ip\":\"185.12.51.33\"},{\"id\":\"srv-4822\",\"cpu\":56,\"ram\":84,\"status\":\"stopped\",\"ip\":\"185.12.52.36\"},{\"id\":\"srv-4823\",\"cpu\":69,\"ram\":91,\"status\":\"running\",\"ip\":\"185.12.53.39\"},{\"id\":\"srv-4824\",\"cpu\":82,\"ram\":98,\"status\":\"running\",\"ip\":\"185.12.54.42\"},{\"id\":\"srv-4825\",\"cpu\":95,\"ram\":5,\"status\":\"running\",\"ip\":\"185.12.55.45\"},{\"id\":\"srv-4826\",\"cpu\":8,\"ram\":12,\"status\":\"running\",\"ip\":\"185.12.56.48\"},{\"id\":\"srv-4827\",\"cpu\":21,\"ram\":19,\"status\":\"running\",\"ip\":\"185.12.57.51\"},{\"id\":\"srv-4828\",\"cpu\":34,\"ram\":26,\"status\":\"stopped\",\"ip\":\"185.12.58.54\"},{\"id\":\"srv-4829\",\"cpu\":47,\"ram\":33,\"status\":\"running\",\"ip\":\"185.12.59.57\"},{\"id\":\"srv-4830\",\"cpu\":60,\"ram\":40,\"status\":\"running\",\"ip\":\"185.12.60.60\"},{\"id\":\"srv-4831\",\"cpu\":73,\"ram\":47,\"status\":\"running\",\"ip\":\"185.12.61.63\"},{\"id\":\"srv-4832\",\"cpu\":86,\"ram\":54,\"status\":\"running\",\"ip\":\"185.12.62.66\"},{\"id\":\"srv-4833\",\"cpu\":99,\"ram\":61,\"status\":\"running\",\"ip\":\"185.12.63.69\"},{\"id\":\"srv-4834\",\"cpu\":12,\"ram\":68,\"status\":\"stopped\",\"ip\":\"185.12.64.72\"}]}"
+      },
+      {
+        "role": "assistant",
+        "content": "نتیجه را بررسی کردم. یک فاکتور پرداخت‌نشده دارید."
+      },
+      {
+        "role": "user",
+        "content": "خلاصه کن: کدام سرورها متوقف شده‌اند و چه کاری پیشنهاد می‌کنی؟"
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "list_servers",
+          "description": "Gereh tool list servers",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "server_metrics",
+          "description": "Gereh tool server metrics",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "app_logs",
+          "description": "Gereh tool app logs",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "list_invoices",
+          "description": "Gereh tool list invoices",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "dns_records",
+          "description": "Gereh tool dns records",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "check": {
+    "kind": "free"
+  }
+}

@@ -18,6 +18,7 @@ import {
 import { isAiError } from "../ai/endpoints";
 import { redact } from "../ai/explain";
 import { openMeter, platformCaller, platformSpend, resolveModel, tehranStarts, type ResolvedModel } from "../ai/service";
+import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
 import { assistantModels, refuseModel, wrapResult } from "../assistant/prompt";
@@ -132,7 +133,8 @@ async function ask(db: DB, s: SupportAiSettings, messages: ChatMessage[], custom
       return { answer, model: model.id, cost, simulated: true, note: "" };
     }
     try {
-      const res = await up.chat({ model: model.upstream || model.id, messages, max_tokens: MAX_OUT, temperature: 0.1 }, AbortSignal.timeout(TIMEOUT_MS));
+      const opt = new OptCall("support-ai");
+      const res = await up.chat({ model: model.upstream || model.id, messages, max_tokens: MAX_OUT, temperature: 0.1 }, AbortSignal.timeout(TIMEOUT_MS), undefined, opt);
       if (!res.ok) {
         const body = (await res.text().catch(() => "")).slice(0, 200);
         await meter.close("error", { error: "upstream " + res.status + " " + body });
@@ -140,9 +142,9 @@ async function ask(db: DB, s: SupportAiSettings, messages: ChatMessage[], custom
         return null;
       }
       const r = readChat((await res.json()) as Record<string, unknown>);
-      const inT = r.usage?.prompt_tokens ?? inEst, outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
+      const inT = opt.billedIn(r.usage, inEst), outT = r.usage?.completion_tokens ?? estimateTokens(r.text.length);
       const parsed = parseAnswer(r.text);
-      const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.finish, error: parsed ? "" : "unusable answer" });
+      const cost = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !r.usage, finish: r.finish, error: parsed ? "" : "unusable answer", usage: r.usage, opt, response: r.text });
       if (!parsed) return { answer: { ...simulate(customer, facts), needsHuman: true }, model: model.id, cost, simulated: true, note: "پاسخ مدل قابل استفاده نبود؛ پیش‌نویس قاعده‌محور." };
       return { answer: parsed, model: model.id, cost, simulated: false, note: "" };
     } catch (e) {

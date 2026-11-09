@@ -40,14 +40,14 @@ export async function aiState(db: DB, o: { uid: string; admin: boolean }): Promi
   ]);
   const docs = kbs.length ? await db.select().from(aiKbDocs).where(inArray(aiKbDocs.kbId, kbs.map((k) => k.id))).orderBy(asc(aiKbDocs.createdAt)) : [];
   return {
-    models: models.map((m) => ({ id: m.id, name: m.name, vendor: m.vendor, kind: m.kind, inPrice: m.inPrice, outPrice: m.outPrice, unitPrice: m.unitPrice, context: m.context, vision: m.vision, active: m.active, refIn: o.admin ? m.refIn : 0, refOut: o.admin ? m.refOut : 0, upstream: o.admin ? m.upstream : "" })),
+    models: models.map((m) => ({ id: m.id, name: m.name, vendor: m.vendor, kind: m.kind, inPrice: m.inPrice, outPrice: m.outPrice, unitPrice: m.unitPrice, context: m.context, vision: m.vision, active: m.active, refIn: o.admin ? m.refIn : 0, refOut: o.admin ? m.refOut : 0, upstream: o.admin ? m.upstream : "", costIn: o.admin ? m.costIn : 0, costOut: o.admin ? m.costOut : 0 })),
     keys: keys.map((k) => {
       const s = keySpend.find((x) => x.keyId === k.id);
       return {
         id: k.id, name: k.name, prefix: k.prefix, models: k.models, dailyCap: k.dailyCap, monthlyCap: k.monthlyCap, rpm: k.rpm, status: k.status,
         expires: k.expiresAt ? faDate(k.expiresAt) : "", expiresIn: k.expiresAt ? Math.max(1, Math.ceil((k.expiresAt.getTime() - Date.now()) / 86400_000)) : 0,
         lastUsed: k.lastUsedAt ? faDateTime(k.lastUsedAt) : "", created: faDate(k.createdAt), spentToday: Number(s?.today ?? 0), spentMonth: Number(s?.month ?? 0), requestsMonth: s?.n ?? 0,
-        ips: k.ips, routing: (k.routing || "") as AiState["keys"][number]["routing"], projectId: k.projectId,
+        ips: k.ips, routing: (k.routing || "") as AiState["keys"][number]["routing"], projectId: k.projectId, optimize: k.optimize,
       };
     }),
     usage: usage.map(({ u, keyName }) => ({ id: u.id, userId: o.admin ? u.userId : "", keyName: keyName ?? (u.keyId ? "" : "پنل"), model: u.model, format: u.format, stream: u.stream, status: u.status, inTokens: u.inTokens, outTokens: u.outTokens, units: u.units, finish: u.finish, charged: u.charged, estimated: u.estimated, latencyMs: u.latencyMs, error: o.admin ? u.error : "", at: faDateTime(u.createdAt) })),

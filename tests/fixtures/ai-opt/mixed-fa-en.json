@@ -1,0 +1,64 @@
+{
+  "id": "mixed-fa-en",
+  "workload": "mixed",
+  "feature": "panel-chat",
+  "description": "Persian questions with English code, identifiers, URLs and paths",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are Gereh's coding assistant. The customer writes in Persian; keep code, commands and identifiers in English."
+      },
+      {
+        "role": "user",
+        "content": "چطور متغیر DATABASE_URL را در Gereh Apps تنظیم کنم؟"
+      },
+      {
+        "role": "assistant",
+        "content": "در پنل › برنامه‌ها › تنظیمات › متغیرها، کلید `DATABASE_URL` را با مقدار `postgres://app:secret@db.internal:5432/shop` اضافه کنید. بعد از ذخیره، برنامه دوباره deploy می‌شود."
+      },
+      {
+        "role": "user",
+        "content": "خطای `ECONNREFUSED 127.0.0.1:5432` می‌گیرم."
+      },
+      {
+        "role": "assistant",
+        "content": "یعنی برنامه به localhost وصل می‌شود نه به `db.internal`. مقدار `DATABASE_URL` را بررسی کنید؛ نباید `localhost` باشد. فایل `src/config/db.ts` را هم ببینید."
+      },
+      {
+        "role": "user",
+        "content": "در src/config/db.ts این را دارم: `const url = process.env.DB_URL ?? 'postgres://localhost/shop'`"
+      },
+      {
+        "role": "assistant",
+        "content": "نام متغیر اشتباه است: کد `DB_URL` را می‌خواند اما شما `DATABASE_URL` تنظیم کرده‌اید. یکی را تغییر دهید. تصمیم گرفتیم نام `DATABASE_URL` بماند و کد اصلاح شود."
+      },
+      {
+        "role": "user",
+        "content": "اصلاح کردم و deploy شد. حالا migration ها اجرا نمی‌شوند."
+      },
+      {
+        "role": "assistant",
+        "content": "دستور `npx drizzle-kit migrate` را در Release command قرار دهید، نه در Start command. اگر migration شکست بخورد، deploy متوقف می‌شود و نسخه قبلی فعال می‌ماند."
+      },
+      {
+        "role": "user",
+        "content": "Release command را گذاشتم ولی لاگ می‌گوید permission denied for schema public."
+      },
+      {
+        "role": "assistant",
+        "content": "کاربر `app` روی schema `public` دسترسی CREATE ندارد. در پنل › پایگاه داده › کاربران، به `app` نقش `owner` بدهید یا دستور `GRANT CREATE ON SCHEMA public TO app;` را اجرا کنید."
+      },
+      {
+        "role": "user",
+        "content": "دسترسی را دادم. آیا برای محیط staging هم باید همین کار را بکنم؟ نام دیتابیس staging هست shop_staging."
+      }
+    ]
+  },
+  "check": {
+    "kind": "contains",
+    "expect": [
+      "shop_staging"
+    ]
+  }
+}

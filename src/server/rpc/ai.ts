@@ -3,6 +3,7 @@ import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { AI_DISCOUNT, AI_KINDS, isPriced, rulePrice } from "@/lib/ai";
 import { createKey, resolveModel, runChat, syncUpstreamModels } from "../ai/service";
+import { OptCall } from "../ai/optimizer/call";
 import { aiUpstream } from "../ai/upstream";
 import { actor, method, needStaff, needUser } from "../ctx";
 import { aiKeys, aiModels, aiProjects } from "../db/schema";
@@ -20,6 +21,8 @@ const keyFields = z.object({
   ips: z.array(z.string().trim().regex(/^(\d{1,3}(\.\d{1,3}){3}(\/([0-9]|[12]\d|3[0-2]))?|[0-9a-fA-F:]{2,39})$/, "IP یا بازه CIDR نامعتبر است.")).max(20).optional(),
   routing: z.enum(["", "price", "throughput", "latency"]).optional(),
   projectId: z.string().max(40).nullable().optional(),
+  /** opt in to content optimization of this key's requests (default off: prompt caching only) */
+  optimize: z.boolean().optional(),
 });
 
 async function checkProject(ctx: Parameters<typeof needUser>[0], uid: string, projectId: string | null | undefined) {
@@ -92,6 +95,8 @@ export const aiMethods = {
     refIn: z.number().int().min(0).max(1_000_000_000).optional(), refOut: z.number().int().min(0).max(1_000_000_000).optional(),
     context: z.number().int().min(1024).max(10_000_000).optional(), active: z.boolean().optional(),
     kind: z.enum(AI_KINDS as [string, ...string[]]).optional(), unitPrice: z.number().int().min(0).max(1_000_000_000).optional(), vision: z.boolean().optional(),
+    /** Gereh's own upstream cost (Toman per 1M), for the optimizer's margin analytics */
+    costIn: z.number().int().min(0).max(1_000_000_000).optional(), costOut: z.number().int().min(0).max(1_000_000_000).optional(),
   })]), async (ctx, [id, patch]) => {
     needStaff(ctx, "ai");
     const [m] = await ctx.db.select().from(aiModels).where(eq(aiModels.id, id));
@@ -136,7 +141,7 @@ export const aiMethods = {
     if (!m) fail("مدل پیدا نشد.", 404);
     const t0 = Date.now();
     try {
-      const res = await aiUpstream().chat({ model: m!.upstream || m!.id, messages: [{ role: "user", content: "Reply with: OK" }], max_tokens: 8 }, AbortSignal.timeout(60_000));
+      const res = await aiUpstream().chat({ model: m!.upstream || m!.id, messages: [{ role: "user", content: "Reply with: OK" }], max_tokens: 8 }, AbortSignal.timeout(60_000), undefined, new OptCall("model-test"));
       const body = await res.text();
       if (!res.ok) return { ok: false, ms: Date.now() - t0, detail: "HTTP " + res.status + " " + body.slice(0, 200) };
       const j = JSON.parse(body) as { model?: string; usage?: unknown; choices?: { message?: { content?: string } }[] };

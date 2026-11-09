@@ -821,6 +821,9 @@ export const aiModels = pgTable("ai_models", {
   kind: text("kind", { enum: ["chat", "embedding", "image", "tts", "stt", "rerank"] }).notNull().default("chat"),
   /** Toman per unit for kinds billed per unit: image (per image), stt (per minute), rerank (per 1000 searches) */
   unitPrice: money("unit_price").notNull().default(0),
+  /** Gereh's own upstream cost, Toman per 1M tokens (0 = unknown); admin analytics only, never shown to customers (0043) */
+  costIn: money("cost_in").notNull().default(0),
+  costOut: money("cost_out").notNull().default(0),
 });
 
 export const aiKeys = pgTable("ai_keys", {
@@ -844,6 +847,8 @@ export const aiKeys = pgTable("ai_keys", {
   /** upstream routing preference sent as a header: "" | price | throughput | latency */
   routing: text("routing").notNull().default(""),
   projectId: text("project_id"),
+  /** the customer opted in to content optimization of this key's requests (0043); off = prompt caching only */
+  optimize: boolean("optimize").notNull().default(false),
 }, (t) => [uniqueIndex("ai_key_hash_uq").on(t.hash), index("ai_key_user_ix").on(t.userId)]);
 
 export const aiUsage = pgTable("ai_usage", {
@@ -869,6 +874,10 @@ export const aiUsage = pgTable("ai_usage", {
   /** non-token quantity billed: images, characters (tts), seconds (stt), searches (rerank) */
   units: real("units").notNull().default(0),
   projectId: text("project_id"),
+  /** prompt tokens the upstream actually received and how many were cache reads (0043); in_tokens is the
+      request's input size as billed */
+  sentTokens: integer("sent_tokens").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
 }, (t) => [index("ai_usage_user_ix").on(t.userId, t.createdAt), index("ai_usage_key_ix").on(t.keyId, t.createdAt), index("ai_usage_bill_ix").on(t.billed), index("ai_usage_project_ix").on(t.projectId, t.createdAt)]);
 
 /* ---------- Managed databases (DBaaS extras) ---------- */
@@ -2024,6 +2033,8 @@ export const platformAiUsage = pgTable("platform_ai_usage", {
   cost: money("cost").notNull().default(0),
   error: text("error").notNull().default(""),
   createdAt: created(),
+  sentTokens: integer("sent_tokens").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
 }, (t) => [index("platform_ai_usage_ix").on(t.purpose, t.createdAt)]);
 
 /* ---------- «مشاور هزینه», the cost and right-sizing advisor (0038_advisor) ---------- */
@@ -2236,3 +2247,70 @@ export const statusChecks = pgTable("status_checks", {
   detail: text("detail").notNull().default(""),
   createdAt: created(),
 }, (t) => [index("status_checks_ix").on(t.component, t.createdAt)]);
+
+/* ---------- «بهینه‌ساز توکن», the token optimizer (0043_ai_optimizer) ---------- */
+/** one row per metered chat request that went through the optimizer. No message content: counts, costs and hashes only. */
+export const aiOptEvents = pgTable("ai_opt_events", {
+  id: text("id").primaryKey(), // the request id (ai_usage / platform_ai_usage)
+  feature: text("feature").notNull(),
+  model: text("model").notNull(),
+  /** API surface or "panel" */
+  format: text("format").notNull().default(""),
+  policy: text("policy").notNull().default(""),
+  status: text("status").notNull().default("success"),
+  changed: boolean("changed").notNull().default(false),
+  /** estimated input tokens of the original and the optimized request (same heuristic) */
+  origEst: integer("orig_est").notNull().default(0),
+  optEst: integer("opt_est").notNull().default(0),
+  /** input tokens the customer was billed for (the original request's size) */
+  billedIn: integer("billed_in").notNull().default(0),
+  /** what the upstream reported: prompt tokens actually sent, cache reads and writes, output */
+  actualIn: integer("actual_in").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
+  cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+  outTokens: integer("out_tokens").notNull().default(0),
+  usageReported: boolean("usage_reported").notNull().default(false),
+  /** Toman: the customer's charge, Gereh's actual upstream cost and what the unoptimized request would have cost */
+  charged: money("charged").notNull().default(0),
+  actualCost: real("actual_cost").notNull().default(0),
+  unoptCost: real("unopt_cost").notNull().default(0),
+  /** reported (provider's usage.cost × USD rate) | model (ai_models.cost_in/out) | sale-proxy (sale prices: ratios only, no margin) */
+  costSource: text("cost_source").notNull().default("sale-proxy"),
+  /** the provider's own figure (OpenRouter usage.cost, USD) × 1e6 */
+  upstreamUsdMicros: bigint("upstream_usd_micros", { mode: "number" }).notNull().default(0),
+  latencyMs: real("latency_ms").notNull().default(0),
+  validatorFailures: integer("validator_failures").notNull().default(0),
+  fallback: text("fallback").notNull().default(""),
+  overBudget: boolean("over_budget").notNull().default(false),
+  cacheFamily: text("cache_family").notNull().default(""),
+  cacheBreakpoints: integer("cache_breakpoints").notNull().default(0),
+  cacheSkipped: text("cache_skipped").notNull().default(""),
+  cacheHit: boolean("cache_hit").notNull().default(false),
+  prefixHash: text("prefix_hash").notNull().default(""),
+  translated: integer("translated").notNull().default(0),
+  langMismatch: boolean("lang_mismatch").notNull().default(false),
+  steps: jsonb("steps").$type<Record<string, number>>().notNull().default({}),
+  createdAt: created(),
+}, (t) => [index("ai_opt_events_ix").on(t.createdAt), index("ai_opt_events_feature_ix").on(t.feature, t.createdAt)]);
+
+/** per-model estimator calibration: actual prompt tokens / heuristic estimate, an EMA over real requests */
+export const aiOptCalibration = pgTable("ai_opt_calibration", {
+  model: text("model").primaryKey(),
+  factor: real("factor").notNull().default(1),
+  samples: integer("samples").notNull().default(0),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** admin-triggered live benchmark runs (original vs optimized, same model and parameters, within a USD budget) */
+export const aiOptBenchmarks = pgTable("ai_opt_benchmarks", {
+  id: text("id").primaryKey(),
+  byUser: text("by_user").notNull().default(""),
+  model: text("model").notNull(),
+  status: text("status", { enum: ["running", "done", "budget", "failed"] }).notNull().default("running"),
+  budgetUsd: real("budget_usd").notNull().default(5),
+  spentUsd: real("spent_usd").notNull().default(0),
+  report: jsonb("report").$type<Record<string, unknown>>().notNull().default({}),
+  error: text("error").notNull().default(""),
+  createdAt: created(),
+  finishedAt: ts("finished_at"),
+});
