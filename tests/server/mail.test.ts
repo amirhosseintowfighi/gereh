@@ -266,6 +266,23 @@ describe("inbound", () => {
   const hook = (body: unknown, secret = "hook-secret-hook-secret-1234") => HOOK(new Request("http://x/api/mail/hook", { method: "POST", headers: { authorization: "Bearer " + secret, "content-type": "application/json" }, body: JSON.stringify(body) }));
   const inbound = (from: string, to: string, subject: string, body?: string) => hook({ context: { stage: "data" }, envelope: { from: { address: from }, to: [{ address: to }] }, message: { contents: raw(from, to, subject, body) } }).then((r) => r.json() as Promise<{ action: string }>);
 
+  it("delivery reports to a VERP return path are accepted by the mail server and dropped after being noted", async () => {
+    process.env.MAIL_HOOK_SECRET = "hook-secret-hook-secret-1234";
+    const { id, apiKey } = await liveDomain();
+    // the return-path domain and its catch-all exist on the mail server
+    expect(SimMail.state.domains.has("bounces.shop-mail.ir")).toBe(true);
+    expect(SimMail.state.forwards.has("@bounces.shop-mail.ir")).toBe(true);
+    const { id: msgId } = (await (await send(apiKey, { from: "a@shop-mail.ir", to: "ali@example.com", subject: "x", text: "x" })).json()) as { id: string };
+    const r = await inbound("MAILER-DAEMON@mx.gereh.net", "b-" + msgId + "@bounces.shop-mail.ir", "Failed to deliver message");
+    expect(r).toEqual({ action: "discard" });
+    const m = await call<{ events: { type: string; detail: string }[] }>("mail.message", id, msgId);
+    expect(m.events.some((e) => e.type === "bounced" && e.detail.includes("DSN"))).toBe(true);
+    // removing the domain removes its return-path domain too
+    await call("mail.remove", id, "shop-mail.ir");
+    expect(SimMail.state.domains.has("bounces.shop-mail.ir")).toBe(false);
+    expect(SimMail.state.forwards.has("@bounces.shop-mail.ir")).toBe(false);
+  });
+
   it("MTA hook: blocklist, rules, spam threshold, mailboxes, aliases and unknown users", async () => {
     process.env.MAIL_HOOK_SECRET = "hook-secret-hook-secret-1234";
     expect((await hook({}, "nope-nope-nope-nope")).status).toBe(401);

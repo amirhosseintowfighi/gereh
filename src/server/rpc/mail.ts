@@ -8,7 +8,7 @@ import { actor, method, needStaff, needUser, type Ctx } from "../ctx";
 import { mailAliases, mailBlocks, mailDomains, mailEvents, mailMailboxes, mailMessages, mailPlans, mailRules, mailSmtpUsers, users } from "../db/schema";
 import { enqueue } from "../jobs";
 import { mailDriver, mailHosts } from "../mail/driver";
-import { autoDns, checkDns, domainCounts, gerehZoneFor, mailHourly, newApiKey, newDkim, queueMessage, receiveMail, recordsOf, sendSchema, usageOf, type MailDomainRow } from "../mail/service";
+import { autoDns, checkDns, deprovisionDomain, domainCounts, provisionDomain, gerehZoneFor, mailHourly, newApiKey, newDkim, queueMessage, receiveMail, recordsOf, sendSchema, usageOf, type MailDomainRow } from "../mail/service";
 import { hashPassword } from "../password";
 import { open, seal } from "../secrets";
 import { fail, genPassword, logActivity, logAudit, notify, randomSecret, rid } from "../util";
@@ -176,8 +176,7 @@ export const mailRpc = {
     if (!house) await needCredit(ctx, a.uid, plan.price);
     const dkim = await newDkim(), key = newApiKey();
     const did = rid("mail");
-    await mailDriver().addDomain(domain);
-    await mailDriver().setDkim(domain, dkim.selector, dkim.privateKey);
+    await provisionDomain({ domain, returnPath: "bounces", dkimSelector: dkim.selector, dkimPrivateEnc: seal(dkim.privateKey) });
     await ctx.db.insert(mailDomains).values({ id: did, userId: a.uid, domain, planId: plan.id, dkimSelector: dkim.selector, dkimPublic: dkim.publicKey, dkimPrivateEnc: seal(dkim.privateKey), dmarc: DMARC_DEFAULT, apiKeyHash: key.hash, apiKeyPrefix: key.prefix });
     await enqueue(ctx.db, "mail.dns", { domainId: did }, { runAt: new Date(Date.now() + 60_000) });
     await logActivity(ctx.db, a.uid, "mail", "افزودن دامنه ایمیل " + domain, ctx.ip);
@@ -189,7 +188,7 @@ export const mailRpc = {
     if (confirm.trim().toLowerCase() !== d.domain) fail("برای حذف، نام دامنه را دقیق بنویسید.");
     const drv = mailDriver();
     for (const s of await ctx.db.select().from(mailSmtpUsers).where(eq(mailSmtpUsers.domainId, d.id))) await drv.removeSmtpUser(s.username);
-    await drv.removeDomain(d.domain);
+    await deprovisionDomain(d);
     await ctx.db.delete(mailDomains).where(eq(mailDomains.id, d.id));
     await logActivity(ctx.db, a.uid, "trash-2", "حذف دامنه ایمیل " + d.domain, ctx.ip);
   }),
@@ -217,9 +216,8 @@ export const mailRpc = {
 
   "mail.checkDns": method(z.tuple([id]), async (ctx, [domainId]) => {
     const { d } = await ownDomain(ctx, domainId);
-    // domains added before the mail server signed for them get their DKIM key there now (idempotent)
-    const key = open(d.dkimPrivateEnc);
-    if (key) await mailDriver().setDkim(d.domain, d.dkimSelector, key).catch((e) => console.warn("[mail] DKIM on the mail server for " + d.domain + ": " + (e as Error).message));
+    // domains added before: their DKIM key and return-path domain on the mail server now (idempotent)
+    await provisionDomain(d).catch((e) => console.warn("[mail] provisioning " + d.domain + " on the mail server: " + (e as Error).message));
     const r = await checkDns(ctx.db, d);
     return { verified: r.verified, ok: Object.fromEntries(Object.entries(r.status).map(([k, v]) => [k, v.ok])) };
   }),

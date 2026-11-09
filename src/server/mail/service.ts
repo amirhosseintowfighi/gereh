@@ -28,6 +28,29 @@ export async function newDkim() {
   // selectors carry the month so a rotated key never collides with a cached old one
   return { selector: "gereh" + d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, "0"), publicKey: publicKey.toString("base64"), privateKey };
 }
+/** everything a domain needs on the mail server: the domain, its DKIM signature, and its return-path domain
+    (<returnPath>.<domain>, e.g. bounces.example.ir) with a catch-all, so delivery reports sent to the VERP address
+    b-<message id>@… are accepted and reach the MTA hook, which records and drops them. Idempotent. */
+export async function provisionDomain(d: { domain: string; returnPath: string; dkimSelector: string; dkimPrivateEnc: string }) {
+  const drv = mailDriver();
+  const rp = d.returnPath + "." + d.domain;
+  await drv.addDomain(d.domain);
+  const key = open(d.dkimPrivateEnc);
+  if (key) await drv.setDkim(d.domain, d.dkimSelector, key);
+  await drv.addDomain(rp);
+  await drv.setForward("@" + rp, []);
+}
+export async function deprovisionDomain(d: { domain: string; returnPath: string }) {
+  const drv = mailDriver();
+  const rp = d.returnPath + "." + d.domain;
+  await drv.removeForward("@" + rp).catch(() => undefined);
+  await drv.removeDomain(rp).catch(() => undefined);
+  await drv.removeDomain(d.domain);
+}
+
+/** a VERP return-path address (b-<message id>@<returnPath>.<domain>): the message id, else null */
+export const verpId = (address: string) => /^b-(msg-[a-z0-9]+)@/i.exec(address)?.[1] ?? null;
+
 export function newApiKey() {
   const key = "gm_" + randomBytes(24).toString("base64url");
   return { key, hash: sha256(key), prefix: key.slice(0, 10) };
@@ -345,6 +368,13 @@ export async function receiveMail(db: DB, m: { from: string; to: string[]; raw: 
   const p = parseMime(m.raw);
   const sender = (parseAddress(m.from)?.address ?? parseAddress(p.from)?.address ?? "").toLowerCase();
   const rcpts = m.to.map((t) => parseAddress(t)?.address).filter((x): x is string => !!x);
+  // a delivery report to a VERP return path: the webhook already recorded the outcome; note it and drop the report
+  const verp = rcpts.map(verpId).find(Boolean);
+  if (verp) {
+    const [msg] = await db.select({ id: mailMessages.id }).from(mailMessages).where(eq(mailMessages.id, verp));
+    if (msg) await db.insert(mailEvents).values({ messageId: msg.id, type: "bounced", recipient: "", detail: "گزارش تحویل (DSN) از سرور مقصد: " + p.subject.slice(0, 200) });
+    return { action: "discard", reason: "dsn" };
+  }
   const doms = rcpts.length ? await db.select().from(mailDomains).where(inArray(mailDomains.domain, [...new Set(rcpts.map(domainOf))])) : [];
   const dom = doms[0];
   if (!dom) return { action: "reject", reason: "relay not permitted" };
