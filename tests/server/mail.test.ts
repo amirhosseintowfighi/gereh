@@ -78,6 +78,16 @@ describe("mail domains", () => {
     const pub = createPublicKey({ key: Buffer.from(d.records[0].value.split("p=")[1], "base64"), format: "der", type: "spki" });
     expect(createVerify("sha256").update("hello").verify(pub, sig)).toBe(true);
     expect(SimMail.state.domains.has("news.example.ir")).toBe(true);
+    // the mail server signs mailbox and SMTP mail with the same key and selector
+    expect(SimMail.state.dkim.get("news.example.ir")).toEqual({ selector: row.dkimSelector, privateKey: pem });
+    // a new key goes to the mail server too; removing the domain removes it there
+    await call("mail.rotateDkim", id);
+    const [rot] = await (await db()).select().from(mailDomains).where(eq(mailDomains.id, id));
+    expect(SimMail.state.dkim.get("news.example.ir")).toEqual({ selector: rot.dkimSelector, privateKey: open(rot.dkimPrivateEnc) });
+    expect(rot.dkimSelector).not.toBe(row.dkimSelector);
+    SimMail.state.dkim.clear();
+    await call("mail.checkDns", id);
+    expect(SimMail.state.dkim.get("news.example.ir")?.selector).toBe(rot.dkimSelector);
   });
 
   it("verifies each record; LIVE needs DKIM, SPF and return-path", async () => {

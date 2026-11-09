@@ -67,6 +67,14 @@ Field names in Stalwart's hook and webhook payloads differ between releases; Ger
 tolerantly, but verify against the version you deploy (test by sending to a known-bad address and
 watching the message's events in the panel).
 
+## DKIM on Stalwart
+
+Gereh signs API mail itself. For mail sent from mailboxes and SMTP logins, Gereh also writes each domain's key to
+Stalwart as signature `rsa-<domain>` (with the selector Gereh publishes) when a domain is added, when its key is
+rotated, and on «بررسی DNS» (which also covers domains added earlier), then reloads the configuration. Stalwart's
+default `auth.dkim.sign` rule picks `rsa-<sender domain>` for local domains; check it under Settings › … › DKIM
+signing if you changed it.
+
 ## 4. Environment for the Gereh app
 
 ```sh

@@ -16,6 +16,8 @@ export interface MailDriver {
   readonly name: "stalwart" | "simulator";
   test(): Promise<string>;
   addDomain(domain: string): Promise<void>;
+  /** the domain's DKIM key, so mail sent from its mailboxes and SMTP logins is signed by the mail server too */
+  setDkim(domain: string, selector: string, privateKeyPem: string): Promise<void>;
   removeDomain(domain: string): Promise<void>;
   setSmtpUser(u: { username: string; password: string; domain: string }): Promise<void>;
   removeSmtpUser(username: string): Promise<void>;
@@ -30,17 +32,19 @@ export interface MailDriver {
 }
 
 /** what the simulator holds; tests read it */
-export type SimState = { domains: Set<string>; smtp: Map<string, string>; mailboxes: Map<string, MailboxSpec>; forwards: Map<string, string[]>; sent: OutgoingMail[] };
+export type SimState = { domains: Set<string>; dkim: Map<string, { selector: string; privateKey: string }>; smtp: Map<string, string>; mailboxes: Map<string, MailboxSpec>; forwards: Map<string, string[]>; sent: OutgoingMail[] };
 
 export class SimMail implements MailDriver {
   readonly name = "simulator" as const;
-  static state: SimState = { domains: new Set(), smtp: new Map(), mailboxes: new Map(), forwards: new Map(), sent: [] };
-  static reset() { SimMail.state = { domains: new Set(), smtp: new Map(), mailboxes: new Map(), forwards: new Map(), sent: [] }; }
+  static state: SimState = { domains: new Set(), dkim: new Map(), smtp: new Map(), mailboxes: new Map(), forwards: new Map(), sent: [] };
+  static reset() { SimMail.state = { domains: new Set(), dkim: new Map(), smtp: new Map(), mailboxes: new Map(), forwards: new Map(), sent: [] }; }
   async test() { return "شبیه‌ساز (STALWART_URL تنظیم نشده)"; }
   async addDomain(d: string) { SimMail.state.domains.add(d); }
+  async setDkim(d: string, selector: string, privateKey: string) { SimMail.state.dkim.set(d, { selector, privateKey }); }
   async removeDomain(d: string) {
     const s = SimMail.state;
     s.domains.delete(d);
+    s.dkim.delete(d);
     for (const k of [...s.mailboxes.keys()]) if (k.endsWith("@" + d)) s.mailboxes.delete(k);
     for (const k of [...s.forwards.keys()]) if (k.endsWith("@" + d)) s.forwards.delete(k);
   }
@@ -87,7 +91,25 @@ class StalwartMail implements MailDriver {
     return new URL(this.base).host + (r.ok ? " ✓" : " ✗ " + r.status) + " · SMTP " + (process.env.MAIL_SMTP_HOST || "—");
   }
   addDomain(domain: string) { return this.upsert({ type: "domain", name: domain }); }
-  removeDomain(domain: string) { return this.remove(domain); }
+  /* DKIM signing on Stalwart: a signature named "rsa-<domain>" (the name Stalwart's default auth.dkim.sign rule picks for
+     a local sender domain), with the same key and selector Gereh publishes, then a configuration reload */
+  async setDkim(domain: string, selector: string, privateKeyPem: string) {
+    const k = "signature.rsa-" + domain;
+    const headers = ["From", "To", "Cc", "Date", "Subject", "Message-ID", "Reply-To", "In-Reply-To", "References", "MIME-Version", "Content-Type", "List-Unsubscribe"];
+    await this.req("POST", "/settings", [
+      { type: "clear", prefix: k + "." },
+      { type: "insert", prefix: null, assert_empty: false, values: [
+        [k + ".private-key", privateKeyPem], [k + ".domain", domain], [k + ".selector", selector], [k + ".algorithm", "rsa-sha256"],
+        [k + ".canonicalization", "relaxed/relaxed"], [k + ".set-body-length", "false"], [k + ".report", "false"],
+        ...headers.map((h, i) => [k + ".headers." + i, h]),
+      ] },
+    ]);
+    await this.req("GET", "/reload");
+  }
+  async removeDomain(domain: string) {
+    await this.req("POST", "/settings", [{ type: "clear", prefix: "signature.rsa-" + domain + "." }]).catch(() => undefined);
+    await this.remove(domain);
+  }
   setSmtpUser(u: { username: string; password: string; domain: string }) {
     // a login with no mailbox address: it may submit mail only
     return this.upsert({ type: "individual", name: u.username, secrets: [u.password], emails: [], description: "SMTP " + u.domain, roles: ["user"], disabledPermissions: ["imap-authenticate", "pop3-authenticate", "jmap-email-get"] });
