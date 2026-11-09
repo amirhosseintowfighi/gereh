@@ -6,7 +6,7 @@ export const ADVISOR = { name: "مشاور هزینه" } as const;
 export type AdvisorRule =
   | "vps_oversized" | "vps_undersized" | "traffic_overrun" | "billing_monthly"
   | "idle_server" | "idle_app" | "preview_running" | "detached_disk" | "old_snapshots" | "idle_db" | "empty_bucket"
-  | "paas_instances" | "paas_oom" | "ai_model" | "builder_mode" | "wallet_runway";
+  | "paas_instances" | "paas_oom" | "ai_model" | "watch_mode" | "wallet_runway";
 
 export const ADVISOR_RULES = {
   /** days of usage data before anything may be downsized, stopped or called idle */
@@ -25,7 +25,7 @@ export const ADVISOR_RULES = {
   instancesTargetCpu: 70,
   oomEvents: 2,
   ai: { days: 30, minRequests: 200, maxAvgOut: 300, maxPriceShare: 0.5 },
-  builderQuietDays: 30,
+  watchQuietDays: 30,
   runwayWarnDays: 14, runwayRiskDays: 7,
   /** findings saving less than this (Toman per month) are not shown */
   minSaving: 10_000,
@@ -35,7 +35,7 @@ export const RULE_LABEL: Record<AdvisorRule, string> = {
   vps_oversized: "سرور بزرگ‌تر از نیاز", vps_undersized: "سرور کوچک‌تر از نیاز", traffic_overrun: "ترافیک ماهانه", billing_monthly: "نوع پرداخت",
   idle_server: "سرور بی‌استفاده", idle_app: "اپ بی‌استفاده", preview_running: "پیش‌نمایش روشن", detached_disk: "دیسک جداشده",
   old_snapshots: "اسنپ‌شات‌های قدیمی", idle_db: "پایگاه داده بی‌استفاده", empty_bucket: "باکت خالی یا بی‌استفاده",
-  paas_instances: "نمونه‌های اضافه", paas_oom: "کمبود حافظه اپ", ai_model: "مدل هوش مصنوعی", builder_mode: "نگهداری بافت", wallet_runway: "موجودی کیف پول",
+  paas_instances: "نمونه‌های اضافه", paas_oom: "کمبود حافظه اپ", ai_model: "مدل هوش مصنوعی", watch_mode: "پایش پیشرفته", wallet_runway: "موجودی کیف پول",
 };
 
 export type AdvisorRisk = "low" | "medium" | "high";

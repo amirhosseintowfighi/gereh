@@ -10,10 +10,10 @@ import { numbersIn, onlyKnownNumbers, templateSummary, writeSummary } from "@/se
 import { setAiUpstream, type Upstream } from "@/server/ai/upstream";
 import { toolByName, execTool } from "@/server/assistant/tools";
 import { perHour, vpsHourly, vpsPrices } from "@/server/billing-extras";
-import { maintainCosts } from "@/server/builder/service";
+import { watchQuote } from "@/server/watch/settings";
 import { context } from "@/server/ctx";
 import {
-  activity, advisorFindings, advisorState, aiModels, aiUsage, builderProjects, jobs, notifications, paasApps, paasDbs, paasDeployments, paasEvents, paasLinks,
+  activity, advisorFindings, advisorState, aiModels, aiUsage, jobs, watchChecks, watchPlans, notifications, paasApps, paasDbs, paasDeployments, paasEvents, paasLinks,
   paasMetricsHourly, paasPlans, plans, platformAiUsage, servers, snapshots, storageBuckets, storagePlans, transactions, usageHourly, users, vpsDisks, vpsTraffic,
 } from "@/server/db/schema";
 import { appHourly, dbHourly } from "@/server/paas/service";
@@ -194,15 +194,15 @@ describe("advisor rules", () => {
     expect(f.action!.link).toBe("/panel/ai");
   });
 
-  it("بافت: continuous maintenance with no incident for 30 days → incident mode saves continuousMonthly", async () => {
+  it("«پایش پیشرفته»: a quiet «همیشه روشن» plan for 30 days → «هر ۳ ساعت» saves the price difference", async () => {
     const d = await db();
-    await d.insert(builderProjects).values({ id: "bld-t1", userId: "u1", name: "shop-site", appId: "app-demo1", previewToken: "tok-advisor-test", maintainMode: "continuous", model: "claude-opus-5.5", createdAt: new Date(NOW.getTime() - 40 * DAY) });
-    const f = find((await computeFindings(d, "u1", NOW)).findings, "builder_mode", "bld-t1")!;
-    const [p] = await d.select().from(builderProjects).where(eq(builderProjects.id, "bld-t1"));
-    expect(f.saving).toBe((await maintainCosts(d, p)).continuousMonthly);
-    expect(f.action!.calls).toEqual([["builder.update", ["bld-t1", { maintainMode: "incident" }]]]);
-    await d.insert(paasEvents).values({ appId: "app-demo1", kind: "crash", message: "x", createdAt: new Date(NOW.getTime() - 3 * DAY) });
-    expect(find((await computeFindings(d, "u1", NOW)).findings, "builder_mode", "bld-t1")).toBeUndefined();
+    await d.insert(watchPlans).values({ id: "wpl-adv", userId: "u1", resourceKind: "app", resourceId: "app-demo1", mode: "continuous", status: "active", paidUntil: new Date(NOW.getTime() + 9 * DAY), createdAt: new Date(NOW.getTime() - 40 * DAY) });
+    const f = find((await computeFindings(d, "u1", NOW)).findings, "watch_mode", "app-demo1")!;
+    const q = await watchQuote(d);
+    expect(f.saving).toBe(q.continuous - q.every3h);
+    expect(f.action!.calls).toEqual([["watch.enable", ["app", "app-demo1", "every3h"]]]);
+    await d.insert(watchChecks).values({ id: "wchk-adv", userId: "u1", resourceKind: "app", resourceId: "app-demo1", planId: "wpl-adv", trigger: "anomaly", status: "warn", createdAt: new Date(NOW.getTime() - 3 * DAY) });
+    expect(find((await computeFindings(d, "u1", NOW)).findings, "watch_mode", "app-demo1")).toBeUndefined();
   });
 
   it("wallet runway: warns when the balance lasts under 14 days, high risk under 7", async () => {

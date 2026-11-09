@@ -22,6 +22,8 @@ import { virt } from "../virt/driver";
 import { quotaOf } from "../virt/sync";
 import { detectApp, detectServer, minerProcesses, type Hit, type Result } from "./detect";
 import { explainIncident, monitorSettings } from "./explain";
+import { WATCH_DETECTORS } from "@/lib/watch";
+import { watchedKeys } from "../watch/service";
 import { buildBaseline, type Baseline, type Point } from "./stats";
 
 const MIN = 60_000, H = 3600_000, DAY = 86400_000;
@@ -34,12 +36,17 @@ export const hrefOf = (kind: ResourceKind, id: string) => (kind === "server" ? "
 const rank = (s: string) => SEVERITY_RANK[s as Severity] ?? 0;
 
 /* ---------------- account settings ---------------- */
-export type UserCfg = { prefs: ChannelPrefs; resources: Map<string, { sensitivity: Sensitivity; mutedUntil: Date | null }> };
+export type UserCfg = { prefs: ChannelPrefs; resources: Map<string, { sensitivity: Sensitivity; mutedUntil: Date | null }>;
+  /** resources with «پایش پیشرفته» ("kind:id"): only they get the predictive detectors (WATCH_DETECTORS) and the AI
+      wording; security detectors run for every resource (basic care, and the platform's protection) */
+  watched?: Set<string> };
 export async function loadCfg(db: DB, userIds: string[]) {
   const out = new Map<string, UserCfg>();
   if (!userIds.length) return out;
+  const watched = await watchedKeys(db, userIds);
+  for (const uid of userIds) out.set(uid, { prefs: { ...DEFAULT_PREFS }, resources: new Map(), watched });
   for (const r of await db.select().from(settingsTable).where(inArray(settingsTable.userId, userIds))) {
-    const c = out.get(r.userId) ?? { prefs: { ...DEFAULT_PREFS }, resources: new Map() };
+    const c = out.get(r.userId) ?? { prefs: { ...DEFAULT_PREFS }, resources: new Map(), watched };
     if (!r.resourceKind) c.prefs = { ...DEFAULT_PREFS, ...(r.prefs as Partial<ChannelPrefs>) };
     else c.resources.set(r.resourceKind + ":" + r.resourceId, { sensitivity: r.sensitivity, mutedUntil: r.mutedUntil });
     out.set(r.userId, c);
@@ -91,6 +98,9 @@ const AI_PER_RUN = 20;
 
 export async function applyResult(db: DB, r: Res, res: Result, live: Row[], cfg: UserCfg, now: Date, tally: Tally = newTally()) {
   const t = now.getTime();
+  const watched = !cfg.watched || cfg.watched.has(r.kind + ":" + r.id);
+  // basic care: the predictive detectors are «پایش پیشرفته»'s; without it they find nothing (and close what they had)
+  if (!watched) res = { ...res, hits: res.hits.filter((h) => !(WATCH_DETECTORS as readonly string[]).includes(h.detector)) };
   const mine = live.filter((x) => x.resourceKind === r.kind && x.resourceId === r.id);
   const resMute = cfg.resources.get(r.kind + ":" + r.id)?.mutedUntil;
   const resourceMuted = !!resMute && resMute.getTime() > t;
@@ -107,7 +117,7 @@ export async function applyResult(db: DB, r: Res, res: Result, live: Row[], cfg:
       const status = inc.status === "muted" && (!inc.mutedUntil || inc.mutedUntil.getTime() <= t) ? "open" : inc.status;
       const escalated = rank(h.severity) > rank(inc.notifiedSeverity);
       const patch = { severity: h.severity, confidence: h.confidence, title: h.title, evidence: h.evidence as Record<string, unknown>, abuse: !!h.abuse || inc.abuse, cleanCount: 0, status, updatedAt: now, ...(status === "open" ? { mutedUntil: null } : {}) };
-      if (escalated && rank(h.severity) > rank(inc.severity)) Object.assign(patch, await explained(db, r, h, tally));
+      if (escalated && rank(h.severity) > rank(inc.severity)) Object.assign(patch, await explained(db, r, h, tally, watched));
       [inc] = await db.update(monitorIncidents).set(patch).where(eq(monitorIncidents.id, inc.id)).returning();
       tally.updated++;
       if (escalated) notifyAt = h.severity;
@@ -119,7 +129,7 @@ export async function applyResult(db: DB, r: Res, res: Result, live: Row[], cfg:
         id: rid("inc"), userId: r.userId, resourceKind: r.kind, resourceId: r.id, resourceName: r.name, detector: h.detector, severity: h.severity, confidence: h.confidence,
         status: "open", title: h.title, evidence: h.evidence as Record<string, unknown>, abuse: !!h.abuse, startedAt: now, updatedAt: now,
         ...(quiet ? { notifiedSeverity: prev!.notifiedSeverity, notifiedAt: prev!.notifiedAt } : {}),
-        ...(await explained(db, r, h, tally)),
+        ...(await explained(db, r, h, tally, watched)),
       }).onConflictDoNothing().returning();
       if (!inc) continue;
       tally.opened++;
@@ -152,8 +162,9 @@ export async function applyResult(db: DB, r: Res, res: Result, live: Row[], cfg:
   return tally;
 }
 
-async function explained(db: DB, r: Res, h: Hit, tally: Tally) {
-  const e = await explainIncident(db, r.userId, { detector: h.detector, kind: r.kind, severity: h.severity, title: h.title, evidence: h.evidence }, tally.explained++ < AI_PER_RUN);
+async function explained(db: DB, r: Res, h: Hit, tally: Tally, watched = true) {
+  // the AI wording comes with «پایش پیشرفته»; basic care gets the template
+  const e = await explainIncident(db, r.userId, { detector: h.detector, kind: r.kind, severity: h.severity, title: h.title, evidence: h.evidence }, watched && tally.explained++ < AI_PER_RUN);
   return { explanation: e.text, explanationAi: e.ai };
 }
 

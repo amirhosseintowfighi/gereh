@@ -107,7 +107,7 @@ export function buildPrompt(title: string, template: string): ChatMessage[] {
   return [{ role: "system", content: system }, { role: "user", content: "FACTS:\n" + title + "\n\n" + template }];
 }
 
-async function monitorModel(db: DB): Promise<ResolvedModel | null> {
+export async function monitorModel(db: DB): Promise<ResolvedModel | null> {
   const wanted = process.env.AI_MONITOR_MODEL;
   if (wanted) { const m = await resolveModel(db, wanted, [], "chat"); if (!isAiError(m) && m.outPrice > 0) return m; }
   return explainModel(db);

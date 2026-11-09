@@ -6,7 +6,7 @@ import { execTool, toolByName } from "@/server/assistant/tools";
 import { staffToolByName } from "@/server/assistant/staff";
 import { context } from "@/server/ctx";
 import {
-  activity, aiUsage, audit, firewallRules, monitorIncidents, notifications, paasEvents, platformAiUsage, serverCredentials, serverTasks, servers, snapshots, usageHourly, usageSamples, users,
+  activity, aiUsage, audit, watchPlans, firewallRules, monitorIncidents, notifications, paasEvents, platformAiUsage, serverCredentials, serverTasks, servers, snapshots, usageHourly, usageSamples, users,
 } from "@/server/db/schema";
 import { detectApp, detectServer, diskOf, leakOf, type Hit, type Result } from "@/server/monitor/detect";
 import { explainIncident, templateExplanation } from "@/server/monitor/explain";
@@ -14,7 +14,12 @@ import { applyResult, loadCfg, monitorScanJob, type Res } from "@/server/monitor
 import { buildBaseline, hourOfWeek, type Point } from "@/server/monitor/stats";
 import { asAdmin, asUser, call, db, fails, fresh, jar } from "./helpers";
 
-beforeEach(async () => { await fresh(); setAiUpstream(null); });
+/** the demo customer's server and app have «پایش پیشرفته» (the predictive detectors are its); one test turns it off */
+const watchAll = async () => (await db()).insert(watchPlans).values([
+  { id: "wpl-s", userId: "u1", resourceKind: "server" as const, resourceId: "srv-1042", mode: "continuous" as const, status: "active" as const, paidUntil: new Date(Date.now() + 9 * 86400_000) },
+  { id: "wpl-a", userId: "u1", resourceKind: "app" as const, resourceId: "app-demo1", mode: "continuous" as const, status: "active" as const, paidUntil: new Date(Date.now() + 9 * 86400_000) },
+]).onConflictDoNothing();
+beforeEach(async () => { await fresh(); setAiUpstream(null); await watchAll(); });
 afterEach(() => setAiUpstream(null));
 
 const MIN = 60_000, H = 3600_000, DAY = 86400_000;
@@ -170,6 +175,21 @@ describe("monitor.scan", () => {
     const all = (await incidents("service_down")).filter((r) => r.resourceId === "srv-1042");
     expect(all.length).toBe(1);
     expect(all[0].cleanCount).toBe(2);
+  });
+});
+
+describe("basic care vs «پایش پیشرفته»", () => {
+  it("without a plan the predictive detectors stay quiet and the wording is the template; security detectors still run", async () => {
+    const d = await db();
+    await d.delete(watchPlans);
+    await d.insert(paasEvents).values([1, 2, 3, 4].map((i) => ({ appId: "app-demo1", kind: "crash" as const, message: "exit code 1", createdAt: new Date(Date.now() - i * 5 * MIN) })));
+    await monitorScanJob(d);
+    expect(await incidents("service_down")).toHaveLength(0);
+    const cfg = (await loadCfg(d, ["u1"])).get("u1")!;
+    await applyResult(d, R0, { ran: ["memory_leak", "brute_force"], hits: [mk("warn"), { detector: "brute_force", severity: "warn", confidence: 0.9, title: "حمله حدس رمز", evidence: { lines: ["۸۰ تلاش ناموفق ورود در ۱۵ دقیقه"] } }] }, [], cfg, new Date());
+    const all = await incidents();
+    expect(all.map((i) => i.detector)).toEqual(["brute_force"]);
+    expect(all[0].explanationAi).toBe(false);
   });
 });
 

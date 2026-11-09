@@ -2312,3 +2312,63 @@ export const aiOptBenchmarks = pgTable("ai_opt_benchmarks", {
   createdAt: created(),
   finishedAt: ts("finished_at"),
 });
+
+/* ---------- «پایش پیشرفته», paid ongoing watch of a running service (0045_watch) ---------- */
+/** one row per watched resource (kept when it ends, so a second trial is never given) */
+export const watchPlans = pgTable("watch_plans", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resourceKind: text("resource_kind", { enum: ["server", "app"] }).notNull(),
+  resourceId: text("resource_id").notNull(),
+  mode: text("mode", { enum: ["every3h", "continuous"] }).notNull(),
+  status: text("status", { enum: ["trial", "active", "expired", "cancelled"] }).notNull(),
+  /** renew at paidUntil (after a trial: start paying); off = ends then */
+  renew: boolean("renew").notNull().default(true),
+  /** a downgrade waits for the renewal */
+  nextMode: text("next_mode", { enum: ["every3h", "continuous"] }),
+  /** the monthly price last charged (Toman) */
+  price: money("price").notNull().default(0),
+  paidUntil: ts("paid_until"),
+  trialEnds: ts("trial_ends"),
+  trialNoticeAt: ts("trial_notice_at"),
+  /** apply بافت maintenance patches by themselves */
+  autoFix: boolean("auto_fix").notNull().default(false),
+  /** the address the ping checks every minute ("" = none; apps default to their own address) */
+  uptimeUrl: text("uptime_url").notNull().default(""),
+  lastCheckAt: ts("last_check_at"),
+  lastDailyAt: ts("last_daily_at"),
+  lastWeeklyAt: ts("last_weekly_at"),
+  /** what the last anomaly read covered: the newest error line's hash, event id and incident time */
+  lastSig: text("last_sig").notNull().default(""),
+  lastEventId: integer("last_event_id").notNull().default(0),
+  pingFails: integer("ping_fails").notNull().default(0),
+  downSince: ts("down_since"),
+  createdAt: created(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("watch_plan_res_uq").on(t.resourceKind, t.resourceId), index("watch_plan_user_ix").on(t.userId), index("watch_plan_status_ix").on(t.status)]);
+
+/** every AI check, with Gereh's token cost and what the customer was charged for it (on-demand only) */
+export const watchChecks = pgTable("watch_checks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resourceKind: text("resource_kind", { enum: ["server", "app"] }).notNull(),
+  resourceId: text("resource_id").notNull(),
+  planId: text("plan_id"),
+  trigger: text("trigger", { enum: ["manual", "schedule", "anomaly", "daily"] }).notNull(),
+  status: text("status", { enum: ["healthy", "warn", "critical", "failed"] }).notNull(),
+  summary: text("summary").notNull().default(""),
+  /** Toman: Gereh's token cost (model cost price) and the customer's charge */
+  cost: real("cost").notNull().default(0),
+  charged: money("charged").notNull().default(0),
+  createdAt: created(),
+}, (t) => [index("watch_checks_res_ix").on(t.resourceKind, t.resourceId, t.createdAt), index("watch_checks_at_ix").on(t.createdAt)]);
+
+/** the uptime ping, one row per plan per minute (kept 35 days) */
+export const watchPings = pgTable("watch_pings", {
+  id: serial("id").primaryKey(),
+  planId: text("plan_id").notNull().references(() => watchPlans.id, { onDelete: "cascade" }),
+  ok: boolean("ok").notNull(),
+  ms: integer("ms").notNull().default(0),
+  code: integer("code").notNull().default(0),
+  at: ts("at").notNull().defaultNow(),
+}, (t) => [index("watch_pings_plan_ix").on(t.planId, t.at)]);

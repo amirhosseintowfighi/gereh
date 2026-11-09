@@ -13,6 +13,7 @@ import { Icon } from "../icon";
 import { Badge, Card, Empty } from "../ui";
 import { AreaChart, AsyncButton, Bars, PageTitle, Select, StatCard, Switch, Tabs } from "../ui-client";
 import { ExplainButton } from "./explain";
+import { WatchAdminCard, WatchSection } from "./watch";
 
 const SEV: Record<Severity, ["red" | "amber" | "blue", string]> = { critical: ["red", "بحرانی"], warn: ["amber", "هشدار"], info: ["blue", "اطلاع"] };
 const STATUS_FA: Record<string, string> = { open: "باز", muted: "بی‌صدا", resolved: "برطرف شد", false_positive: "هشدار اشتباه" };
@@ -36,12 +37,13 @@ export function MonitorPage() {
             <StatCard icon="history" label="۳۰ روز اخیر" value={data.history.length} sub="برطرف‌شده یا اشتباه" />
             <StatCard icon="radar" label="آخرین بررسی" value={data.scannedAt || "—"} sub="هر ۵ دقیقه" />
           </div>
-          <div className="mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایش" options={[{ id: "open", label: "رخدادهای باز", icon: "shield-alert" }, { id: "history", label: "تاریخچه", icon: "history" }, { id: "settings", label: "تنظیمات", icon: "settings-2" }]} /></div>
+          <div className="mb-4"><Tabs size="sm" value={tab} onChange={setTab} label="بخش‌های پایش" options={[{ id: "open", label: "رخدادهای باز", icon: "shield-alert" }, { id: "history", label: "تاریخچه", icon: "history" }, { id: "watch", label: "پایش پیشرفته", icon: "heart-pulse" }, { id: "settings", label: "تنظیمات", icon: "settings-2" }]} /></div>
           {tab === "open" && (data.open.length === 0
             ? <Card><Empty icon="shield-check" title="همه چیز عادی است" text="رخداد بازی روی سرورها و اپ‌های شما نیست. هر ۵ دقیقه دوباره بررسی می‌کنیم." /></Card>
             : <section aria-label="رخدادهای باز" className="space-y-4">{data.open.map((i) => <IncidentCard key={i.id} i={i} onDone={load} />)}</section>)}
           {tab === "history" && (data.history.length === 0 ? <Card><Empty icon="history" title="تاریخچه‌ای نیست" /></Card>
             : <section aria-label="تاریخچه" className="space-y-3">{data.history.map((i) => <IncidentCard key={i.id} i={i} onDone={load} compact />)}</section>)}
+          {tab === "watch" && <WatchSection />}
           {tab === "settings" && <MonitorSettings data={data} reload={load} />}
         </>}
     </div>
@@ -234,6 +236,7 @@ export function MonitorAdminPage() {
   return (
     <div>
       <PageTitle title={MONITOR.name} sub="رخدادهای بحرانی همه مشتریان؛ سوءاستفاده‌ها (خطر قرار گرفتن IPها در فهرست سیاه) اول." />
+      <WatchAdminCard />
       {error && <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-400/[0.07] p-4 text-sm text-rose-200 mb-4">{error}</div>}
       {stats && (
         <div className="grid xl:grid-cols-[1.4fr_1fr] gap-4 mb-4">

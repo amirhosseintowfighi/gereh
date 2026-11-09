@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, MAINTAIN_MODES, QUALITY_CATEGORIES, SCAN_EVERY, SKILL_TITLES, type MaintainMode, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type QualityReport } from "@/lib/builder";
+import { BUILDER, BUILDER_DEFAULT_MODEL, BUILDER_IDEAS, INCIDENT_LABEL, BUILDER_STACKS, QUALITY_CATEGORIES, SKILL_TITLES, PROJECT_STATUS, RUN_KIND, type BuilderEvent, type BuilderProjectSummary, type BuilderProjectView, type BuilderRunView, type QualityReport } from "@/lib/builder";
 import { langLabel, SITE_LANGUAGES } from "@/lib/site-language";
 import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, TEXTAREA } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
@@ -561,58 +561,21 @@ function VersionsModal({ open, v, onClose, onDone }: { open: boolean; v: Builder
 }
 
 function MaintainModal({ open, v, onClose, onDone }: { open: boolean; v: BuilderProjectView; onClose: () => void; onDone: () => unknown }) {
-  const [cap, setCap] = useState(String(v.maintainCap));
   const last = v.runs.find((r) => r.kind === "maintain");
-  const setMode = async (maintainMode: MaintainMode) => { await api.builder.update(v.id, { maintainMode }); await onDone(); };
   return (
     <Modal open={open} onClose={onClose} title="نگهداری و سلامت" icon="heart-pulse" size="max-w-2xl">
       <div className="space-y-5 text-sm leading-7">
-        <p className="text-white/65">عامل نگهداری اپ منتشرشده را زیر نظر دارد: لاگ‌ها را می‌خواند، علت مشکل را به فارسی توضیح می‌دهد و وصله پیشنهاد می‌کند. انتخاب کنید کِی بررسی کند:</p>
-        <div role="radiogroup" aria-label="حالت پایش" className="grid gap-2.5">
-          {MAINTAIN_MODES.map((m) => {
-            const on = v.maintainMode === m.id;
-            return (
-              <button key={m.id} type="button" role="radio" aria-checked={on} onClick={() => !on && setMode(m.id)}
-                className={"text-right rounded-2xl border p-4 transition-colors " + (on ? "border-[var(--acc)] bg-[var(--acc)]/[0.08]" : "border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06]")}>
-                <span className="flex items-center gap-2.5">
-                  <span className={"size-4 rounded-full border-2 shrink-0 " + (on ? "border-[var(--acc)] bg-[var(--acc)]" : "border-white/35")} aria-hidden />
-                  <Icon name={m.icon} size={16} className={on ? "acc" : "text-white/55"} />
-                  <b>{m.label}</b>
-                  {m.id === "incident" && <Badge tone="green">پیشنهادی</Badge>}
-                </span>
-                <span className="block text-xs text-white/60 leading-6 mt-1.5 ps-[3.25rem]">{m.text}</span>
-                <span className={"block text-[11px] mt-1 ps-[3.25rem] " + (m.id === "continuous" ? "text-amber-200/90" : "text-white/50")}>{m.cost}</span>
-                {m.id === "continuous" && on && (
-                  <span className="mt-3 ms-[3.25rem] flex flex-wrap items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-white/60">هر</span>
-                    {SCAN_EVERY.map((n) => (
-                      <span key={n} role="button" tabIndex={0} aria-pressed={v.scanEvery === n}
-                        onClick={async () => { await api.builder.update(v.id, { scanEvery: n }); await onDone(); }}
-                        onKeyDown={async (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); await api.builder.update(v.id, { scanEvery: n }); await onDone(); } }}
-                        className={"px-2.5 h-7 inline-flex items-center rounded-lg border cursor-pointer " + (v.scanEvery === n ? "border-[var(--acc)] acc" : "border-white/15 text-white/70")}>{fa(n)} دقیقه</span>
-                    ))}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <p className="text-white/65">عامل نگهداری اپ منتشرشده را بررسی می‌کند: لاگ‌ها را می‌خواند، علت مشکل را به فارسی توضیح می‌دهد و وصله پیشنهاد می‌کند. بالا آوردن اپ (خطای بیلد و انتشار) همیشه رایگان و خودکار است.</p>
+        <div className="rounded-2xl border border-[var(--acc)]/40 bg-[var(--acc)]/[0.06] p-4 text-xs leading-6 text-white/75">
+          <b className="text-sm text-white flex items-center gap-2"><Icon name="radar" size={16} className="acc" />بررسی خودکار با «پایش پیشرفته»</b>
+          برای اینکه عامل نگهداری خودش حواسش به اپ باشد (هر ۳ ساعت، یا همیشه روشن و فوری پس از هر کرش و خطای تازه)، پایش پیشرفته را روشن کنید. هزینه توکن بررسی‌ها با اشتراک است، نه از سقف زیر.
+          <Link href={"/panel/monitor" as never} className={BTN_G + BTN_SM + " mt-2 w-fit"}><Icon name="heart-pulse" size={14} />پایش پیشرفته</Link>
         </div>
-        {v.maintainMode === "continuous" && (
-          <p role="status" className="rounded-2xl bg-amber-400/[0.08] border border-amber-300/25 p-3.5 text-xs text-amber-100/90 leading-6">
-            <Icon name="triangle-alert" size={14} className="inline -mt-0.5 me-1" />
-            پایش ۲۴ ساعته در هر بررسی توکن مصرف می‌کند: حدود {toman(v.scanCost)} برای هر بار، یعنی تقریباً <b>{toman(v.continuousMonthly)} در ماه</b> با بررسی هر {fa(v.scanEvery)} دقیقه. سقف هزینه پایین همیشه رعایت می‌شود.
-          </p>
-        )}
         <div className="rounded-2xl bg-white/[0.04] border border-white/[0.1] p-4 space-y-4">
           <div className="flex items-start justify-between gap-4">
-            <span><b>نگهداری خودکار</b><span className="block text-xs text-white/50 leading-6">وصله‌ها بدون پرسش اعمال و منتشر شوند؛ در هر سه حالت (بررسی‌های خودکار حداکثر ۳ بار در روز). خاموش باشد، وصله فقط پیشنهاد می‌شود.</span></span>
+            <span><b>نگهداری خودکار</b><span className="block text-xs text-white/50 leading-6">وصله‌ها بدون پرسش اعمال و منتشر شوند (بررسی‌های خودکار حداکثر ۳ بار در روز). خاموش باشد، وصله فقط پیشنهاد می‌شود.</span></span>
             <Switch label="نگهداری خودکار" on={v.autoMaintain} onChange={async (on) => { await api.builder.update(v.id, { autoMaintain: on }); await onDone(); }} />
           </div>
-          <Field label="سقف هزینه AI نگهداری در ماه (تومان)" hint={"مصرف این ماه: " + toman(v.maintainSpent)}>
-            <div className="flex gap-2"><input value={cap} onChange={(e) => setCap(e.target.value.replace(/[^\d۰-۹]/g, ""))} inputMode="numeric" dir="ltr" className={INPUT} />
-              <AsyncButton className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.builder.update(v.id, { maintainCap: Number(cap.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))) || 0 }); await onDone(); }}>ذخیره</AsyncButton></div>
-          </Field>
-          {v.checkedAt && v.maintainMode !== "manual" && <p className="text-[11px] text-white/50">آخرین بررسی خودکار: {v.checkedAt}</p>}
         </div>
         {last && <div className="rounded-2xl bg-white/[0.035] border border-white/[0.08] p-4"><b className="text-xs text-white/55">آخرین تشخیص ({last.at})</b><p className="mt-1.5 whitespace-pre-line">{last.summary || "—"}</p></div>}
         <AsyncButton className={BTN_P + BTN_LG + " w-full"} disabled={!v.appId} onClick={async () => { await api.builder.healthCheck(v.id); await onDone(); onClose(); }}><Icon name="sparkles" size={16} />بررسی سلامت با AI</AsyncButton>

@@ -7,7 +7,7 @@ import { parseOutput, render } from "@/server/builder/format";
 import { seedBuilderDemo } from "@/server/builder/demo";
 import { builderMaintain } from "@/server/builder/maintain";
 import { projectFiles } from "@/server/builder/sim";
-import { aiUsage, builderProjects, builderRuns, notifications, paasApps, paasEvents, paasLinks, users } from "@/server/db/schema";
+import { aiUsage, builderProjects, builderRuns, notifications, paasApps, paasEvents, paasLinks, users, watchChecks, watchPlans } from "@/server/db/schema";
 import { MCP_TOOLS } from "@/server/mcp";
 import { drain } from "@/server/worker";
 import { asUser, call, db, fails, fresh } from "./helpers";
@@ -19,6 +19,8 @@ afterEach(() => setAiUpstream(null));
 const settle = async () => { for (let i = 0; i < 30; i++) if (!(await drain(await db()))) break; };
 const balance = async (uid = "u1") => (await (await db()).select().from(users).where(eq(users.id, uid)))[0].balance;
 const view = (id: string) => call<BuilderProjectView>("builder.get", id);
+/** «پایش پیشرفته» on an app (automatic maintenance looks come with it) */
+const watchApp = async (appId: string, mode: "every3h" | "continuous") => (await db()).insert(watchPlans).values({ id: "wpl-" + appId, userId: "u1", resourceKind: "app", resourceId: appId, mode, status: "active", paidUntil: new Date(Date.now() + 9 * 86400_000) });
 
 /** one streamed run through the real route; returns its events */
 async function run(projectId: string, prompt: string) {
@@ -293,6 +295,7 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     const d = await db();
     await d.update(builderProjects).set({ checkedAt: new Date(Date.now() - 60_000) }).where(eq(builderProjects.id, id));
     await d.insert(paasEvents).values({ appId: v.appId!, kind: "crash", message: "container exited with code 1; restarted" });
+    await watchApp(v.appId!, "continuous");
     await builderMaintain(d);
     const [m] = await d.select().from(builderRuns).where(and(eq(builderRuns.projectId, id), eq(builderRuns.kind, "maintain")));
     expect(m).toMatchObject({ status: "succeeded", incident: "crash", applied: false });
@@ -318,41 +321,43 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     expect(hc.summary).toContain("وضعیت: سالم");
   });
 
-  it("watch modes: manual ignores incidents, continuous scans on schedule and stays quiet when healthy", async () => {
+  it("automatic looks come with «پایش پیشرفته»: none without it, every 3 hours, or on incidents (continuous); paid by the platform", async () => {
     await asUser();
     const id = await newProject("سایت نوبت‌دهی آرایشگاه", "node");
     await call("builder.deploy", id);
     await settle();
     const v = await view(id);
-    expect(v).toMatchObject({ maintainMode: "incident", scanEvery: 15 });
-    expect(v.continuousMonthly).toBe(v.scanCost * 2880);
     const d = await db();
     const maintainRuns = async () => d.select().from(builderRuns).where(and(eq(builderRuns.projectId, id), eq(builderRuns.kind, "maintain")));
-    // manual: a crash wakes nothing
-    await call("builder.update", id, { maintainMode: "manual" });
+    // basic care: a crash of a running app wakes no AI look
     await d.update(builderProjects).set({ checkedAt: new Date(Date.now() - 60_000) }).where(eq(builderProjects.id, id));
     await d.insert(paasEvents).values({ appId: v.appId!, kind: "crash", message: "container exited with code 1" });
     await builderMaintain(d);
     expect(await maintainRuns()).toHaveLength(0);
-    expect(await fails("builder.update", id, { maintainMode: "always" })).toBeTruthy();
-    // continuous: a routine scan now, none again before scanEvery has passed, silent when healthy
-    await call("builder.update", id, { maintainMode: "continuous", scanEvery: 30 });
-    await d.update(builderProjects).set({ checkedAt: new Date() }).where(eq(builderProjects.id, id));
+    // every3h: a routine read now, none again before 3 hours, silent when healthy, recorded as a check
+    await watchApp(v.appId!, "every3h");
     const notesBefore = (await d.select().from(notifications).where(eq(notifications.userId, "u1"))).length;
+    const balance0 = await balance();
     await builderMaintain(d);
     const [scan] = await maintainRuns();
-    expect(scan).toMatchObject({ incident: "scan", status: "succeeded" });
+    expect(scan).toMatchObject({ incident: "scan", status: "succeeded", cost: 0 });
     expect(scan.summary).toContain("وضعیت: سالم");
+    expect(await balance()).toBe(balance0); // the plan pays, not the wallet
     expect((await d.select().from(notifications).where(eq(notifications.userId, "u1"))).length).toBe(notesBefore);
+    expect(await d.select().from(watchChecks)).toMatchObject([{ trigger: "schedule", status: "healthy", resourceId: v.appId }]);
     await builderMaintain(d);
     expect(await maintainRuns()).toHaveLength(1);
-    await d.update(builderProjects).set({ scannedAt: new Date(Date.now() - 31 * 60_000) }).where(eq(builderProjects.id, id));
+    await d.update(watchPlans).set({ lastCheckAt: new Date(Date.now() - 3 * 3600_000 - 60_000) });
     await builderMaintain(d);
     expect(await maintainRuns()).toHaveLength(2);
-    // the monthly cap stops every automatic look
-    await d.update(builderProjects).set({ maintainSpent: 10_000_000, scannedAt: new Date(0) }).where(eq(builderProjects.id, id));
+    // continuous: a crash is looked at right away (and the daily read is due too, next round)
+    await d.update(watchPlans).set({ mode: "continuous", lastDailyAt: new Date() });
+    await d.update(builderProjects).set({ checkedAt: new Date(Date.now() - 60_000) }).where(eq(builderProjects.id, id));
+    await d.delete(builderRuns).where(eq(builderRuns.kind, "maintain"));
+    await d.insert(paasEvents).values({ appId: v.appId!, kind: "oom", message: "OOMKilled" });
     await builderMaintain(d);
-    expect(await maintainRuns()).toHaveLength(2);
+    expect(await maintainRuns()).toMatchObject([{ incident: "oom" }]);
+    expect((await d.select().from(watchChecks)).some((c) => c.trigger === "anomaly" && c.status !== "healthy")).toBe(true);
   });
 
   it("ships a Dockerfile for the cluster and downloads any version as a ZIP", async () => {
@@ -402,6 +407,7 @@ describe("builder: deploy, auto-fix and maintenance", () => {
     const d = await db();
     await d.update(builderProjects).set({ checkedAt: new Date(Date.now() - 60_000) }).where(eq(builderProjects.id, id));
     await d.insert(paasEvents).values({ appId: v.appId!, kind: "health_failed", message: "Readiness probe failed" });
+    await watchApp(v.appId!, "continuous");
     await builderMaintain(d);
     await settle();
     const after = await view(id);

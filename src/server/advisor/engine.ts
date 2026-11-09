@@ -13,11 +13,12 @@ import { fa, roundK } from "@/lib/format";
 import { invGross } from "@/lib/money";
 import { HOURS_PER_MONTH } from "@/lib/paas";
 import { addonMonthly, creditForecast, monthKey, perHour, prorate, vpsHourly, vpsPrices } from "../billing-extras";
-import { maintainCosts } from "../builder/service";
+import { watchQuote } from "../watch/settings";
 import type { DB } from "../db/client";
 import {
-  aiModels, aiUsage, builderProjects, builderRuns, paasApps, paasDbs, paasDeployments, paasEvents, paasLinks, paasMetricsHourly, paasPlans,
+  aiModels, aiUsage, paasApps, paasDbs, paasDeployments, paasEvents, paasLinks, paasMetricsHourly, paasPlans,
   servers, snapshots, storageBuckets, storagePlans, storageUsage, usageHourly, vpsDisks, vpsIps, vpsTraffic, vpsTrafficDaily,
+  monitorIncidents, watchChecks, watchPlans,
 } from "../db/schema";
 import { appHourly, dbHourly } from "../paas/service";
 import { catalog } from "../rpc/billing";
@@ -460,25 +461,29 @@ async function aiFindings(db: DB, uid: string, now: Date, out: Finding[]) {
   }
 }
 
-/* ---------------- بافت maintenance ---------------- */
-async function builderFindings(db: DB, uid: string, now: Date, out: Finding[]) {
-  const projects = await db.select().from(builderProjects).where(and(eq(builderProjects.userId, uid), eq(builderProjects.maintainMode, "continuous")));
-  const since = new Date(now.getTime() - R.builderQuietDays * DAY);
-  for (const p of projects) {
-    if (!p.appId || p.createdAt > since) continue;
-    const [ev] = await db.select({ n: sql<number>`count(*)::int` }).from(paasEvents).where(and(eq(paasEvents.appId, p.appId), inArray(paasEvents.kind, ["crash", "oom", "health_failed"]), gte(paasEvents.createdAt, since)));
-    const [runs] = await db.select({ n: sql<number>`count(*) filter (where ${builderRuns.incident} not in ('scan', 'manual', ''))::int`, scan: sql<number>`coalesce(sum(${builderRuns.cost}) filter (where ${builderRuns.incident} = 'scan'), 0)::bigint` })
-      .from(builderRuns).where(and(eq(builderRuns.projectId, p.id), eq(builderRuns.kind, "maintain"), gte(builderRuns.createdAt, since)));
-    if ((ev?.n ?? 0) + (runs?.n ?? 0) > 0) continue;
-    const { continuousMonthly } = await maintainCosts(db, p);
-    if (continuousMonthly < R.minSaving) continue;
+/* ---------------- «پایش پیشرفته» ---------------- */
+/** a paid «همیشه روشن» plan with nothing to report for a month: «هر ۳ ساعت» costs less */
+async function watchFindings(db: DB, uid: string, now: Date, out: Finding[]) {
+  const plans = await db.select().from(watchPlans).where(and(eq(watchPlans.userId, uid), eq(watchPlans.status, "active"), eq(watchPlans.mode, "continuous"), isNull(watchPlans.nextMode)));
+  if (!plans.length) return;
+  const since = new Date(now.getTime() - R.watchQuietDays * DAY);
+  const q = await watchQuote(db);
+  const saving = q.continuous - q.every3h;
+  if (saving < R.minSaving) return;
+  for (const p of plans) {
+    if (p.createdAt > since) continue;
+    const [bad] = await db.select({ n: sql<number>`count(*)::int` }).from(watchChecks).where(and(eq(watchChecks.planId, p.id), inArray(watchChecks.status, ["warn", "critical"]), gte(watchChecks.createdAt, since)));
+    const [inc] = await db.select({ n: sql<number>`count(*)::int` }).from(monitorIncidents).where(and(eq(monitorIncidents.resourceKind, p.resourceKind), eq(monitorIncidents.resourceId, p.resourceId), gte(monitorIncidents.startedAt, since)));
+    if ((bad?.n ?? 0) + (inc?.n ?? 0) > 0) continue;
+    const name = p.resourceKind === "server" ? (await db.select({ n: servers.name }).from(servers).where(eq(servers.id, p.resourceId)))[0]?.n : (await db.select({ n: paasApps.name }).from(paasApps).where(eq(paasApps.id, p.resourceId)))[0]?.n;
+    if (!name) continue;
     out.push({
-      key: "builder_mode:" + p.id, rule: "builder_mode", kind: "builder", resourceId: p.id, resourceName: p.name, href: "/panel/build/" + p.id,
-      title: "پایش ۲۴ ساعته «" + p.name + "» بدون حادثه",
-      detail: "در " + fa(R.builderQuietDays) + " روز اخیر حادثه‌ای نبوده است؛ حالت «هنگام حادثه» فقط وقتی اپ مشکل دارد هزینه AI دارد.",
-      evidence: { lines: ["پایش هر " + fa(p.scanEvery) + " دقیقه: حدود " + t(continuousMonthly) + " در ماه.", "هزینه واقعی پایش در " + fa(R.builderQuietDays) + " روز اخیر: " + t(Number(runs?.scan ?? 0)) + "."] },
-      saving: continuousMonthly, extraCost: 0, oneTime: 0, confidence: 0.85, risk: "low",
-      action: { label: "تغییر به «هنگام حادثه»", rpc: "builder.update", typed: false, destructive: false, preview: "حدود −" + t(continuousMonthly) + " در ماه هزینه AI", calls: [["builder.update", [p.id, { maintainMode: "incident" }]]] },
+      key: "watch_mode:" + p.id, rule: "watch_mode", kind: p.resourceKind, resourceId: p.resourceId, resourceName: name, href: "/panel/monitor",
+      title: "پایش «همیشه روشن» «" + name + "» بدون هیچ مشکلی",
+      detail: "در " + fa(R.watchQuietDays) + " روز اخیر نه رخدادی بوده و نه بررسی‌ای مشکلی دیده است؛ «هر ۳ ساعت» با همان پینگ و هشدارهای پیش‌بینانه ارزان‌تر است.",
+      evidence: { lines: ["همیشه روشن: " + t(q.continuous) + " در ماه؛ هر ۳ ساعت: " + t(q.every3h) + " در ماه."] },
+      saving, extraCost: 0, oneTime: 0, confidence: 0.8, risk: "low",
+      action: { label: "تغییر به «هر ۳ ساعت» از تمدید بعدی", rpc: "watch.enable", typed: false, destructive: false, preview: "حدود −" + t(saving) + " در ماه، از تمدید بعدی", calls: [["watch.enable", [p.resourceKind, p.resourceId, "every3h"]]] },
     });
   }
 }
@@ -519,7 +524,7 @@ export async function computeFindings(db: DB, uid: string, now = new Date()): Pr
   await paasFindings(db, uid, now, findings, insufficient);
   await storageFindings(db, uid, now, findings);
   await aiFindings(db, uid, now, findings);
-  await builderFindings(db, uid, now, findings);
+  await watchFindings(db, uid, now, findings);
   const f = await creditForecast(db, uid);
   if (f.burn > 0 && f.days !== null && f.days < R.runwayWarnDays) {
     const topup = Math.max(0, roundK(f.burn * 30 - f.balance));

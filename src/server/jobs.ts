@@ -21,7 +21,7 @@ export type JobType =
   | "builder.watch" | "builder.fix" | "builder.maintain"
   | "support.ai"
   | "advisor.weekly"
-  | "monitor.scan"
+  | "monitor.scan" | "watch.tick" | "watch.ping"
   | "status.check";
 
 /* Passwords never sit in jobs.payload in the clear: enqueue() stores each secret field as "<field>Enc" (sealed),

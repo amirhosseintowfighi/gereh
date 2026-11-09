@@ -16,7 +16,7 @@ import { baseLang, dirOf, resolveSiteLanguage, textLanguage } from "@/lib/site-l
 import type { DB } from "../db/client";
 import { aiModels, builderMessages, builderProjects, builderRuns, builderVersions } from "../db/schema";
 import { isAiError } from "../ai/endpoints";
-import { openMeter, panelCaller, resolveModel, upstreamError, type ResolvedModel } from "../ai/service";
+import { openMeter, panelCaller, platformCaller, resolveModel, upstreamError, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readSSE, readUsage, type ChatMessage, type ChatUsage } from "../ai/translate";
 import { aiUpstream } from "../ai/upstream";
@@ -142,6 +142,8 @@ export type AgentInput = {
   /** fix: the failed build; maintain: the incident */
   context?: { log?: string; failure?: string; incident?: string; events?: string; logs?: string };
   attempt?: number; signal?: AbortSignal; emit?: (e: BuilderEvent) => void;
+  /** the platform pays the tokens (a «پایش پیشرفته» check the customer already paid for with the plan) */
+  platform?: { purpose: string; ref: string };
 };
 export type AgentResult = { ok: true; run: Run; version: number | null; patch: Record<string, string | null> | null } | { ok: false; error: string; run?: Run; status?: number };
 
@@ -246,7 +248,7 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
 
   const messages = taskMessages(p.stack, task, skills);
   const inEst = estimateTokens(JSON.stringify(messages).length);
-  const meter = await openMeter(db, { caller: await panelCaller(db, o.userId), model, format: "panel", stream: true, reserve: costOf(inEst, MAX_OUT, model) });
+  const meter = await openMeter(db, { caller: o.platform ? platformCaller(o.platform.purpose, o.platform.ref) : await panelCaller(db, o.userId), model, format: "panel", stream: true, reserve: costOf(inEst, MAX_OUT, model) });
   if (isAiError(meter)) {
     const run = await finish("failed", { log: meter.message }, interactive ? meter.message : undefined);
     if (interactive) await db.update(builderProjects).set({ status: restore }).where(eq(builderProjects.id, p.id));
@@ -298,8 +300,10 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
 
   const inT = opt.billedIn(usage, inEst), outT = usage?.completion_tokens ?? estimateTokens(text.length);
   const charged = await meter.close("success", { inTokens: inT, outTokens: outT, charged: costOf(inT, outT, model), estimated: !usage, finish: "stop", request: messages.slice(-1), response: text, usage, opt });
-  await db.update(builderProjects).set({ spent: sql`${builderProjects.spent} + ${charged}` }).where(eq(builderProjects.id, p.id));
-  if (o.kind === "maintain") await db.update(builderProjects).set({ maintainSpent: sql`${builderProjects.maintainSpent} + ${charged}` }).where(eq(builderProjects.id, p.id));
+  // a platform-paid look costs the customer nothing: the project's spend and the run's cost stay as they were
+  const customerPaid = o.platform ? 0 : charged;
+  await db.update(builderProjects).set({ spent: sql`${builderProjects.spent} + ${customerPaid}` }).where(eq(builderProjects.id, p.id));
+  if (o.kind === "maintain" && !o.platform) await db.update(builderProjects).set({ maintainSpent: sql`${builderProjects.maintainSpent} + ${charged}` }).where(eq(builderProjects.id, p.id));
 
   const parsed = parseOutput(text);
   const log: string[] = [];
@@ -316,7 +320,7 @@ export async function runAgent(db: DB, o: AgentInput): Promise<AgentResult> {
   }
   for (const path of parsed.deletes) if (path in next && !unseen.has(path)) { patch[path] = null; delete next[path]; }
   if (parsed.truncated.length) log.push("پاسخ مدل ناقص بود؛ این فایل‌ها نوشته نشد: " + parsed.truncated.join("، "));
-  const base = { inTokens: inT + briefIn, outTokens: outT + briefOut, cost: charged + briefCost, model: model.id };
+  const base = { inTokens: inT + briefIn, outTokens: outT + briefOut, cost: customerPaid + briefCost, model: model.id };
   const fail = async (msg: string) => {
     const run = await finish("failed", { ...base, log: [...log, msg].join("\n"), summary: parsed.summary.slice(0, 4000) }, msg);
     await db.update(builderProjects).set({ status: restore }).where(eq(builderProjects.id, p.id));
