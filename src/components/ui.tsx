@@ -72,7 +72,7 @@ export function Meter({ value, max = 100, label, right }: { value: number; max?:
 export function SectionHead({ title, sub, center = true, id, as: H = "h2" }: { title: string; sub?: string; center?: boolean; id?: string; as?: "h2" | "h3" }) {
   return (
     <div id={id} className={"mb-10 " + (center ? "text-center mx-auto max-w-2xl" : "max-w-2xl")}>
-      <H className="text-[1.7rem] sm:text-[2.6rem] font-black leading-[1.4] tracking-tight">{title}</H>
+      <H className="text-[1.7rem] sm:text-[2.6rem] font-black leading-[1.4]">{title}</H>
       {sub && <p className="mt-3 text-white/65 leading-8 text-[15px] sm:text-base">{sub}</p>}
     </div>
   );

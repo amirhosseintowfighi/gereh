@@ -28,13 +28,13 @@ export default async function AiApiPage() {
       <section className="relative overflow-hidden">
         <GirihField />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 grid lg:grid-cols-[1.15fr_1fr] gap-10 items-center hero-in">
-          <div className="text-center lg:text-right">
+          <div className="text-center lg:text-start">
             <nav aria-label="مسیر صفحه" className="flex items-center justify-center lg:justify-start gap-2 text-xs text-white/55">
               <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
               <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">API هوش مصنوعی</span>
             </nav>
             <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="bot" size={14} className="acc" />{fa(models.length)} مدل با یک کلید</p>
-            <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">Claude و GPT و Gemini<br />با پرداخت تومانی</h1>
+            <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">Claude و GPT و Gemini<br />با پرداخت تومانی</h1>
             <p className="mt-6 text-white/70 max-w-xl mx-auto lg:mx-0 leading-8 sm:text-lg">بدون VPN، کارت ارزی و حساب خارجی. همان API رسمی OpenAI، Anthropic و Gemini را روی آدرس گره صدا بزنید و فقط به اندازه توکن مصرفی پرداخت کنید.</p>
             <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
               <Link href={"/panel/ai" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="key-round" size={18} />دریافت کلید API</Link>
@@ -44,7 +44,7 @@ export default async function AiApiPage() {
               {[["wallet", "بدون اشتراک ماهانه"], ["zap", "استریم و ابزارها"], ["shield-check", "سقف هزینه برای هر کلید"], ["eye-off", "بدون ذخیره متن"]].map(([ic, t]) => <li key={t} className="flex items-center gap-2"><Icon name={ic} size={16} className="acc" />{t}</li>)}
             </ul>
           </div>
-          <div className={GLASS + " rounded-[1.5rem] overflow-hidden text-left"} dir="ltr">
+          <div className={GLASS + " rounded-[1.5rem] overflow-hidden text-start"} dir="ltr">
             <div className="flex gap-1.5 px-4 py-3 border-b border-white/[0.08]" aria-hidden="true"><span className="w-3 h-3 rounded-full bg-rose-400/70" /><span className="w-3 h-3 rounded-full bg-amber-300/70" /><span className="w-3 h-3 rounded-full bg-emerald-400/70" /></div>
             <pre tabIndex={0} aria-label="نمونه اتصال Claude Code" className="p-5 text-[12px] sm:text-[12.5px] leading-7 font-mono text-white/80 overflow-x-auto">
               <span className="text-white/45"># Claude Code</span>{"\n"}
@@ -104,7 +104,7 @@ export default async function AiApiPage() {
                 {models.filter((m) => m.vendor === v).map((m) => (
                   <li key={m.id} className={GLASS_SOFT + " rounded-2xl p-5"}>
                     <div className="flex items-start justify-between gap-3"><b className="leading-7">{m.name}</b><span className="text-[11px] text-white/45 mt-1.5 tabular" dir="ltr">{m.context >= 1e6 ? fa(Math.round(m.context / 1e5) / 10) + "M" : fa(Math.round(m.context / 1000)) + "K"} ctx</span></div>
-                    <code dir="ltr" className="block text-[11px] text-white/50 mt-1 text-right">{m.id}</code>
+                    <code dir="ltr" className="block text-[11px] text-white/50 mt-1 text-end">{m.id}</code>
                     <dl className="grid grid-cols-2 gap-2 mt-3 text-xs">
                       <div className="rounded-xl bg-white/[0.04] p-2.5"><dt className="text-white/50">ورودی</dt><dd className="tabular font-bold mt-0.5">{fa(m.inPrice)}</dd></div>
                       <div className="rounded-xl bg-white/[0.04] p-2.5"><dt className="text-white/50">خروجی</dt><dd className="tabular font-bold text-emerald-300 mt-0.5">{fa(m.outPrice)}</dd></div>

@@ -36,7 +36,7 @@ export default async function WordpressPage() {
             <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">وردپرس مدیریت‌شده</span>
           </nav>
           <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="upload" size={14} className="acc" />انتقال رایگان از cPanel</p>
-          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">وردپرس سریع<br />بدون دردسر سرور</h1>
+          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">وردپرس سریع<br />بدون دردسر سرور</h1>
           <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">منابع اختصاصی، پایگاه داده جدا با پشتیبان روزانه، SSL رایگان و کش لبه؛ روی همان زیرساخت ابری که اپ‌های گره اجرا می‌شوند. سایت فعلی‌تان را با یک فایل پشتیبان cPanel منتقل کنید.</p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href={"/panel/wordpress" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="rocket" size={18} />ساخت سایت وردپرس</Link>

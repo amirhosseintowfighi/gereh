@@ -33,14 +33,14 @@ export function UserAi() {
   return (
     <div>
       <div className="relative overflow-hidden rounded-[1.4rem] p-5 sm:p-8 mb-4 text-white" style={{ background: "linear-gradient(120deg, #3b1a78 0%, #6d28d9 50%, #0ea5e9 100%)" }}>
-        <div aria-hidden="true" className="absolute -left-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
+        <div aria-hidden="true" className="absolute -end-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="min-w-0">
             <p className="text-xs text-white/75">Claude، GPT، Gemini و DeepSeek با یک کلید و پرداخت تومانی</p>
             <h1 className="text-2xl sm:text-3xl font-black mt-1">API هوش مصنوعی</h1>
             <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-black/25 px-3 py-2 max-w-full"><span className="text-[11px] text-white/70 shrink-0">آدرس API</span><CopyText text={a.endpoint} className="font-mono text-sm truncate" /></div>
           </div>
-          <div className="sm:text-left">
+          <div className="sm:text-end">
             <p className="text-xs text-white/75">موجودی کیف پول</p>
             <p className="text-2xl sm:text-3xl font-black tabular mt-1">{fa(me?.balance ?? 0)} <span className="text-sm font-normal">تومان</span></p>
             <p className="text-[11px] text-white/70 mt-1">مصرف امروز: {toman(a.stats.todaySpend)} · {fa(a.stats.todayCount)} درخواست</p>
@@ -163,7 +163,7 @@ function KeyForm({ edit, models, onClose, onCreated }: { edit: AiKeyRow | null; 
           <Field label="اولویت مسیریابی" hint="به سرویس‌دهنده بالادستی فرستاده می‌شود"><Select label="مسیریابی" value={f.routing} onChange={(v) => setF({ ...f, routing: v as AiKeyInput["routing"] })} options={AI_ROUTING.map((r) => ({ value: r.value, label: r.label }))} /></Field>
           <Field label="پروژه"><Select label="پروژه" value={f.projectId ?? ""} onChange={(v) => setF({ ...f, projectId: v || null })} options={[{ value: "", label: "بدون پروژه" }, ...projects.map((p) => ({ value: p.id, label: p.name }))]} /></Field>
         </div>
-        <Field label="IPهای مجاز" hint="هر خط یک IP یا بازه CIDR (مثل 185.1.2.0/24)؛ خالی یعنی همه"><textarea dir="ltr" rows={2} value={ips} onChange={(e) => setIps(e.target.value)} className={TEXTAREA + " text-left font-mono text-xs"} /></Field>
+        <Field label="IPهای مجاز" hint="هر خط یک IP یا بازه CIDR (مثل 185.1.2.0/24)؛ خالی یعنی همه"><textarea dir="ltr" rows={2} value={ips} onChange={(e) => setIps(e.target.value)} className={TEXTAREA + " text-start font-mono text-xs"} /></Field>
         <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-4 py-3 text-sm">
           <span>محدود به مدل‌های خاص<span className="block text-[11px] text-white/50">خاموش یعنی همه مدل‌های فعال</span></span>
           <Switch on={limit} onChange={(v) => { setLimit(v); if (!v) setF({ ...f, models: [] }); }} label="محدود به مدل‌های خاص" />
@@ -196,7 +196,7 @@ export function ModelList({ models, compact = false }: { models: AiModelRow[]; c
       </div>
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="قیمت مدل‌ها">
         <table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">مدل</th><th scope="col" className="text-right font-medium p-3">شناسه</th>{unit.in && <th scope="col" className="text-right font-medium p-3">{unit.in}</th>}{unit.out && <th scope="col" className="text-right font-medium p-3">{unit.out}</th>}{unit.unit && <th scope="col" className="text-right font-medium p-3">{unit.unit}</th>}{kind === "chat" && <th scope="col" className="text-right font-medium p-3">کانتکست</th>}</tr></thead>
+          <thead><tr className="text-white/55 text-xs text-start"><th scope="col" className="text-start font-medium p-3">مدل</th><th scope="col" className="text-start font-medium p-3">شناسه</th>{unit.in && <th scope="col" className="text-start font-medium p-3">{unit.in}</th>}{unit.out && <th scope="col" className="text-start font-medium p-3">{unit.out}</th>}{unit.unit && <th scope="col" className="text-start font-medium p-3">{unit.unit}</th>}{kind === "chat" && <th scope="col" className="text-start font-medium p-3">کانتکست</th>}</tr></thead>
           <tbody>{list.map((m) => (
             <tr key={m.id} className="border-t border-white/[0.06]">
               <td className="p-3 font-bold whitespace-nowrap">{m.name}<span className="block text-[11px] font-normal text-white/50">{AI_VENDORS[m.vendor] ?? m.vendor}{m.vision ? " · تصویر" : ""}</span></td>
@@ -226,9 +226,9 @@ function UsageList({ admin = false }: { admin?: boolean }) {
           {rows.map((u) => { const [label, tone] = USAGE_STATUS[u.status] ?? [u.status, "gray"]; return (
             <li key={u.id} className="py-3 px-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
               <span className="text-sm font-bold truncate" dir="ltr" style={{ textAlign: "right" }}>{u.model}</span>
-              <span className="text-sm tabular text-left">{u.charged ? toman(u.charged) : "رایگان"}</span>
+              <span className="text-sm tabular text-end">{u.charged ? toman(u.charged) : "رایگان"}</span>
               <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge><Badge>{AI_FORMAT_LABEL[u.format] ?? u.format}</Badge>{u.stream && <Badge tone="blue">stream</Badge>}{u.keyName && <span>{u.keyName}</span>}{admin && <UserLink id={u.userId} className="ltr" />}</span>
-              <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{u.at}</span>
+              <span className="text-[11px] text-white/50 text-end whitespace-nowrap">{u.at}</span>
               <span className="col-span-2 text-[11px] text-white/50">حجم ورودی درخواست {fa(u.inTokens)} توکن · {fa(u.outTokens)} خروجی{u.estimated ? " (تخمینی)" : ""} · {fa(u.latencyMs)}ms{u.error ? " · " + u.error : ""}</span>
             </li>
           ); })}
@@ -298,7 +298,7 @@ function AdminModelRow({ m }: { m: AiModelRow }) {
   const [f, setF] = useState({ name: m.name, upstream: m.upstream, inPrice: String(m.inPrice), outPrice: String(m.outPrice), refIn: String(m.refIn), refOut: String(m.refOut), unitPrice: String(m.unitPrice), costIn: String(m.costIn), costOut: String(m.costOut) });
   const [test, setTest] = useState<{ ok: boolean; ms: number; detail: string } | null>(null);
   const dirty = f.name !== m.name || f.upstream !== m.upstream || num(f.inPrice) !== m.inPrice || num(f.outPrice) !== m.outPrice || num(f.refIn) !== m.refIn || num(f.refOut) !== m.refOut || num(f.unitPrice) !== m.unitPrice || num(f.costIn) !== m.costIn || num(f.costOut) !== m.costOut;
-  const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT_BASE + " h-9 text-xs" + (ltr ? " text-left font-mono" : "")} /></Field>;
+  const inp = (k: keyof typeof f, label: string, ltr = true) => <Field label={label}><input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} dir={ltr ? "ltr" : "rtl"} aria-label={label + " " + m.id} className={INPUT_BASE + " h-9 text-xs" + (ltr ? " text-start font-mono" : "")} /></Field>;
   return (
     <details className="rounded-2xl bg-white/[0.03] border border-white/[0.07] group">
       <summary className="p-3 flex flex-wrap items-center justify-between gap-2 cursor-pointer list-none">
@@ -338,10 +338,10 @@ function AddModel({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Modal open={open} onClose={onClose} title="افزودن مدل" icon="plus">
       <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="شناسه عمومی"><input dir="ltr" value={f.id} onChange={(e) => setF({ ...f, id: e.target.value.trim() })} placeholder="gpt-5.5" className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="شناسه عمومی"><input dir="ltr" value={f.id} onChange={(e) => setF({ ...f, id: e.target.value.trim() })} placeholder="gpt-5.5" className={INPUT + " text-start font-mono"} /></Field>
         <Field label="نام نمایشی"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} /></Field>
         <Field label="سازنده"><Select label="سازنده" value={f.vendor} onChange={(v) => setF({ ...f, vendor: v })} options={Object.entries(AI_VENDORS).map(([value, label]) => ({ value, label }))} /></Field>
-        <Field label="شناسه نزد سرویس‌دهنده" hint="خالی = همان شناسه عمومی"><input dir="ltr" value={f.upstream} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="شناسه نزد سرویس‌دهنده" hint="خالی = همان شناسه عمومی"><input dir="ltr" value={f.upstream} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} className={INPUT + " text-start font-mono"} /></Field>
         <Field label="نوع"><Select label="نوع" value={f.kind} onChange={(v) => setF({ ...f, kind: v as AiKind })} options={AI_KINDS.map((k) => ({ value: k, label: AI_KIND_LABEL[k] }))} /></Field>
         {unit.in && <Field label={"قیمت " + unit.in}><input inputMode="numeric" value={f.inPrice} onChange={(e) => setF({ ...f, inPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}
         {unit.out && <Field label={"قیمت " + unit.out}><input inputMode="numeric" value={f.outPrice} onChange={(e) => setF({ ...f, outPrice: e.target.value })} className={INPUT + " tabular"} /></Field>}

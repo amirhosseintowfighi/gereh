@@ -34,7 +34,7 @@ export function PaasSteps() {
       <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {PAAS_STEPS.map(([ic, t, d], i) => (
           <li key={t} className={GLASS_SOFT + " rounded-[1.5rem] p-6 relative"}>
-            <span className="absolute top-5 left-5 text-4xl font-black text-white/[0.07] tabular">{fa(i + 1)}</span>
+            <span className="absolute top-5 end-5 text-4xl font-black text-white/[0.07] tabular">{fa(i + 1)}</span>
             <Icon name={ic} size={22} className="acc" />
             <h3 className="font-extrabold mt-3">{t}</h3>
             <p className="text-white/60 text-sm leading-7 mt-1">{d}</p>
@@ -47,7 +47,7 @@ export function PaasSteps() {
 
 export function PaasTerminal() {
   return (
-    <div className={GLASS + " rounded-[1.5rem] overflow-hidden text-left"} dir="ltr">
+    <div className={GLASS + " rounded-[1.5rem] overflow-hidden text-start"} dir="ltr">
       <div className="flex gap-1.5 px-4 py-3 border-b border-white/[0.08]" aria-hidden="true"><span className="w-3 h-3 rounded-full bg-rose-400/70" /><span className="w-3 h-3 rounded-full bg-amber-300/70" /><span className="w-3 h-3 rounded-full bg-emerald-400/70" /></div>
       <pre tabIndex={0} className="p-5 text-[12.5px] leading-7 font-mono text-white/80 overflow-x-auto" aria-label="نمونه استقرار با CLI">
         <span className="text-white/45">$</span> npx @gereh/cli deploy{"\n"}
@@ -71,10 +71,10 @@ export function PaasPricing({ plans, kind = "app" }: { plans: PaasPlan[]; kind?:
       <div className={GLASS + " rounded-[1.75rem] overflow-hidden"}>
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={kind === "app" ? "جدول قیمت اپ" : "جدول قیمت پایگاه داده"}>
           <table className="w-full text-sm">
-            <thead><tr className="text-white/55 text-xs text-right"><th className="p-4">پلن</th><th className="p-4">پردازنده</th><th className="p-4">حافظه</th>{kind === "db" && <th className="p-4">دیسک</th>}<th className="p-4">ساعتی</th><th className="p-4">ماهانه</th></tr></thead>
+            <thead><tr className="text-white/55 text-xs text-start"><th className="p-4">پلن</th><th className="p-4">پردازنده</th><th className="p-4">حافظه</th>{kind === "db" && <th className="p-4">دیسک</th>}<th className="p-4">ساعتی</th><th className="p-4">ماهانه</th></tr></thead>
             <tbody>{list.map((p) => (
               <tr key={p.id} className={"border-t border-white/[0.06] " + (p.id === popular ? "bg-sky-400/[0.06]" : "")}>
-                <td className="p-4 font-bold">{p.name}{p.id === popular && <span className="mr-2 text-[10px] px-2 py-0.5 rounded-full acc-bg">محبوب</span>}</td>
+                <td className="p-4 font-bold">{p.name}{p.id === popular && <span className="ms-2 text-[10px] px-2 py-0.5 rounded-full acc-bg">محبوب</span>}</td>
                 <td className="p-4">{cpu(p.cpu)}</td><td className="p-4">{ram(p.ramMb)}</td>{kind === "db" && <td className="p-4">{fa(p.diskGb)} گیگ</td>}
                 <td className="p-4 tabular">{fa(hourlyOf(p.price))} تومان</td>
                 <td className="p-4 tabular font-bold">{toman(p.price)}</td>
@@ -150,9 +150,9 @@ export function PaasCompare() {
       <div className={GLASS + " rounded-[1.75rem] overflow-hidden"}>
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="مقایسه">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-right"><th className="p-4 text-white/55" /><th className="p-4 acc">گره اپ</th><th className="p-4"><Link href="/vps" className="hover:underline">سرور ابری</Link></th><th className="p-4"><Link href="/hosting" className="hover:underline">هاست</Link></th></tr></thead>
+            <thead><tr className="text-xs text-start"><th className="p-4 text-white/55" /><th className="p-4 acc">گره اپ</th><th className="p-4"><Link href="/vps" className="hover:underline">سرور ابری</Link></th><th className="p-4"><Link href="/hosting" className="hover:underline">هاست</Link></th></tr></thead>
             <tbody>{PAAS_COMPARE.map((r) => (
-              <tr key={r.row} className="border-t border-white/[0.06]"><th scope="row" className="p-4 text-right font-normal text-white/60">{r.row}</th><td className="p-4 font-bold">{r.paas}</td><td className="p-4 text-white/75">{r.vps}</td><td className="p-4 text-white/75">{r.host}</td></tr>
+              <tr key={r.row} className="border-t border-white/[0.06]"><th scope="row" className="p-4 text-start font-normal text-white/60">{r.row}</th><td className="p-4 font-bold">{r.paas}</td><td className="p-4 text-white/75">{r.vps}</td><td className="p-4 text-white/75">{r.host}</td></tr>
             ))}</tbody>
           </table>
         </div>

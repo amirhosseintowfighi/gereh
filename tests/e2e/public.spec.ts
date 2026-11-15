@@ -3,6 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 
 const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api", "/blog", "/blog/nvme-vs-ssd", "/domains/ir", "/domains/com", "/compare", "/devops", "/devops/kubernetes", "/devops/managed-devops", "/paas", "/paas/databases", "/paas/nextjs", "/paas/django", "/docs/paas", "/inquiry", "/docs/inquiry", "/geo-dns", "/docs/geo-dns", "/ai-api", "/docs/ai-api", "/docs/mcp", "/mirror", "/wordpress", "/paas/rust"];
 
+// The footer's Enamad seal is the one third-party request on the site. Answer it locally, so the suite does not
+// depend on trustseal.enamad.ir being reachable from the machine that runs it (a failed image is a console error).
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
+test.beforeEach(async ({ page }) => {
+  await page.route("https://trustseal.enamad.ir/**", (r) => r.fulfill({ status: 200, contentType: "image/png", body: PIXEL }));
+});
+
 /** fail the test on uncaught errors and console errors (hydration mismatches included) */
 function watchErrors(page: Page) {
   const errors: string[] = [];

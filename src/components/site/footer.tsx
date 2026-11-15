@@ -26,6 +26,9 @@ function Enamad() {
   );
 }
 
+/** the current Jalali year in Persian digits (rendered per request or at build; never a hard-coded year) */
+const jalaliYear = () => new Intl.DateTimeFormat("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", year: "numeric" }).format(new Date());
+
 export function Footer() {
   return (
     <footer className="px-3 sm:px-6 pb-6">
@@ -43,8 +46,8 @@ export function Footer() {
             </address>
             <a href={VIRGULE_URL} target="_blank" rel="noopener" className="mt-5 inline-flex items-center gap-3 rounded-2xl px-3.5 py-2.5 bg-white/[0.04] border border-white/[0.1] hover:bg-white/[0.08] hover:border-white/20 transition group">
               <VirguleMark size={26} />
-              <span className="text-right leading-5"><span className="block text-[11px] text-white/55">گره، عضوی از خانواده</span><span className="block text-sm font-bold">ویرگول</span></span>
-              <Icon name="arrow-up-right" size={15} className="text-white/50 group-hover:text-white transition mr-1" />
+              <span className="text-start leading-5"><span className="block text-[11px] text-white/55">گره، عضوی از خانواده</span><span className="block text-sm font-bold">ویرگول</span></span>
+              <Icon name="arrow-up-right" size={15} className="text-white/50 group-hover:text-white transition ms-1" />
             </a>
             <Enamad />
           </div>
@@ -59,7 +62,7 @@ export function Footer() {
         </div>
         <div className="hairline mt-10" />
         <div className="pt-6 text-xs text-white/55 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <span>© ۱۴۰۵ گره. تمام حقوق محفوظ است. قدرت‌گرفته از ویرگول.</span>
+          <span>© {jalaliYear()} گره. تمام حقوق محفوظ است. قدرت‌گرفته از ویرگول.</span>
           <span className="flex items-center gap-1.5">طراحی و توسعه با <span aria-label="عشق" role="img">❤️</span> توسط <VirguleLink /></span>
         </div>
       </div>

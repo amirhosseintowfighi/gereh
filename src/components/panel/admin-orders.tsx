@@ -60,12 +60,12 @@ export function AdminOrders() {
                     {r.serverName && <span className="mono text-xs text-white/55 ltr">{r.serverName}</span>}
                   </div>
                   <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 text-xs">
-                    <div><dt className="text-white/50">مشتری</dt><dd className="mt-0.5"><UserLink id={r.userId} name={r.userName} /><div className="text-white/50 ltr text-right truncate">{r.email}</div></dd></div>
+                    <div><dt className="text-white/50">مشتری</dt><dd className="mt-0.5"><UserLink id={r.userId} name={r.userName} /><div className="text-white/50 ltr text-end truncate">{r.email}</div></dd></div>
                     <div><dt className="text-white/50">صورتحساب</dt><dd className="mt-0.5 mono">{r.invoiceId} · ردیف {fa(r.index + 1)}</dd></div>
                     <div><dt className="text-white/50">مبلغ</dt><dd className="mt-0.5 tabular">{toman(r.amount)}</dd></div>
                     <div><dt className="text-white/50">عمر / تلاش</dt><dd className="mt-0.5">{age(r.ageMin)} · {fa(r.attempts)} تلاش{r.ticket ? <> · <Link className="acc" href={("/admin/tickets/" + r.ticket) as never}>{r.ticket}</Link></> : null}</dd></div>
                   </dl>
-                  {r.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-48 overflow-auto ltr text-left" dir="auto">{r.error}</pre>}
+                  {r.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-48 overflow-auto ltr text-start" dir="auto">{r.error}</pre>}
                 </div>
                 <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
                   <button type="button" onClick={() => setDetail(r)} className={BTN_P + BTN_SM}><Icon name="file-text" size={14} /> جزئیات</button>
@@ -97,12 +97,12 @@ function AssignModal({ onClose }: { onClose: () => void }) {
         notify("سرور به مشتری تخصیص یافت", "circle-check"); onClose();
       }}>تخصیص</AsyncButton><button type="button" onClick={onClose} className={BTN_G + BTN_MD}>انصراف</button></>}>
       <div className="grid sm:grid-cols-2 gap-3 mb-4">
-        <Field label="ایمیل مشتری"><input value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-left"} /></Field>
+        <Field label="ایمیل مشتری"><input value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-start"} /></Field>
         <Field label="نام پلن"><input value={f.plan} onChange={set("plan")} className={INPUT} /></Field>
         <Field label="هسته / رم (گیگ) / دیسک (گیگ)"><div className="grid grid-cols-3 gap-2"><input value={f.cpu} onChange={set("cpu")} inputMode="numeric" aria-label="هسته" className={INPUT + " text-center"} /><input value={f.ram} onChange={set("ram")} inputMode="numeric" aria-label="رم" className={INPUT + " text-center"} /><input value={f.disk} onChange={set("disk")} inputMode="numeric" aria-label="دیسک" className={INPUT + " text-center"} /></div></Field>
         <Field label="موقعیت"><Select value={f.loc} onChange={(x) => setF((c) => ({ ...c, loc: x }))} options={locs.map((l) => ({ value: l.id, label: locLabel(l.id) }))} label="موقعیت" /></Field>
-        <Field label="سیستم‌عامل"><input value={f.os} onChange={set("os")} dir="ltr" className={INPUT + " text-left"} /></Field>
-        <Field label="قیمت ماهانه (تومان)"><input value={f.price} onChange={set("price")} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="سیستم‌عامل"><input value={f.os} onChange={set("os")} dir="ltr" className={INPUT + " text-start"} /></Field>
+        <Field label="قیمت ماهانه (تومان)"><input value={f.price} onChange={set("price")} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
         <Field label="نوع صورتحساب"><Select value={f.billing} onChange={(x) => setF((c) => ({ ...c, billing: x }))} options={[{ value: "monthly", label: "ماهانه" }, { value: "hourly", label: "ساعتی" }]} label="نوع صورتحساب" /></Field>
         <Field label="پرداخت‌شده تا (ماه از امروز)" hint="۰ = سررسید امروز"><input value={f.months} onChange={set("months")} inputMode="numeric" className={INPUT + " text-center"} /></Field>
       </div>

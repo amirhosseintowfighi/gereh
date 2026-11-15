@@ -100,7 +100,7 @@ function WatchCard({ r, data, reload }: { r: WatchResourceView; data: WatchRepor
         <div className="mt-3 space-y-2 text-xs">
           {r.builder && <label className="flex items-center justify-between gap-2"><span>رفع خودکار (وصله کد بافت را خودش اعمال و منتشر کند)</span><Switch label="رفع خودکار" on={p.autoFix} onChange={(v) => act(() => watchApi.options(r.kind, r.id, { autoFix: v }))} /></label>}
           <div className="flex items-center gap-2">
-            <input dir="ltr" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={r.kind === "app" ? "نشانی پیش‌فرض اپ" : "https://example.com/health"} aria-label="نشانی پینگ" className={INPUT_SM + " text-left"} />
+            <input dir="ltr" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={r.kind === "app" ? "نشانی پیش‌فرض اپ" : "https://example.com/health"} aria-label="نشانی پینگ" className={INPUT_SM + " text-start"} />
             <AsyncButton className={BTN_G + BTN_SM + " shrink-0"} onClick={() => act(() => watchApi.options(r.kind, r.id, { uptimeUrl: url.trim() }))}>ذخیره پینگ</AsyncButton>
           </div>
           {r.kind === "server" && !p.uptimeUrl && <p className="text-[11px] text-white/45">برای پینگ هر دقیقه، نشانی سایتی که روی این سرور است را وارد کنید.</p>}
@@ -158,9 +158,9 @@ export function WatchAdminCard() {
         <div className={v.month.margin < 0 ? "text-rose-300" : "text-emerald-200"}>سود این ماه: {toman(v.month.margin)}</div>
       </div>
       <div className="grid sm:grid-cols-3 gap-3">
-        <label className="text-xs space-y-1"><span className="text-white/60">مدل بررسی (خالی = مدل پایش)</span><input dir="ltr" className={INPUT_SM + " text-left"} value={form.model ?? ""} onChange={(e) => setForm({ ...form, model: e.target.value })} /></label>
+        <label className="text-xs space-y-1"><span className="text-white/60">مدل بررسی (خالی = مدل پایش)</span><input dir="ltr" className={INPUT_SM + " text-start"} value={form.model ?? ""} onChange={(e) => setForm({ ...form, model: e.target.value })} /></label>
         {NUM_FIELDS.map((f) => (
-          <label key={f.k} className="text-xs space-y-1"><span className="text-white/60">{f.label}</span><input inputMode="decimal" dir="ltr" className={INPUT_SM + " text-left"} value={form[f.k] ?? ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />{f.hint && <span className="block text-[10px] text-white/40">{f.hint}</span>}</label>
+          <label key={f.k} className="text-xs space-y-1"><span className="text-white/60">{f.label}</span><input inputMode="decimal" dir="ltr" className={INPUT_SM + " text-start"} value={form[f.k] ?? ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })} />{f.hint && <span className="block text-[10px] text-white/40">{f.hint}</span>}</label>
         ))}
       </div>
       <p className="text-[11px] text-white/45 leading-5 mt-3">قیمت محاسبه‌شده = هزینه پایه + هزینه توکن هر بررسی (با قیمت تمام‌شده مدل) × تعداد بررسی مورد انتظار در ماه × (۱ + حاشیه سود)، گرد به بالا تا هزار تومان. پلتفرم هزینه توکن بررسی‌ها را می‌دهد و مشتری اشتراک را.</p>

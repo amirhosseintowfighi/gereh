@@ -30,14 +30,14 @@ export function UserInquiry() {
   return (
     <div>
       <div className="relative overflow-hidden rounded-[1.4rem] p-5 sm:p-8 mb-4 text-white" style={{ background: "linear-gradient(120deg, #1e2a78 0%, #2347c9 55%, #0ea5e9 100%)" }}>
-        <div aria-hidden="true" className="absolute -left-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
+        <div aria-hidden="true" className="absolute -end-16 -top-24 w-72 h-72 rounded-full bg-white/10" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div>
             <p className="text-xs text-white/75">پنل یکپارچه سرویس‌های استعلامی</p>
             <h1 className="text-2xl sm:text-3xl font-black mt-1">مدیریت API</h1>
             <p className="text-sm text-white/80 mt-2">اعتبار، اطلاعات اتصال و سرویس‌های فعال شما در یک صفحه</p>
           </div>
-          <div className="sm:text-left">
+          <div className="sm:text-end">
             <p className="text-xs text-white/75">موجودی قابل استفاده</p>
             <p className="text-2xl sm:text-3xl font-black tabular mt-1">{fa(me?.balance ?? 0)} <span className="text-sm font-normal">تومان</span></p>
             <p className="text-[11px] text-white/70 mt-1">مصرف امروز: {toman(q.stats.todaySpend)} · {fa(q.stats.todayCount)} درخواست</p>
@@ -152,7 +152,7 @@ function Services() {
       {/* table on wide screens, cards on phones */}
       <div className="hidden md:block overflow-x-auto" tabIndex={0} role="region" aria-label="سرویس‌ها">
         <table className="w-full text-sm">
-          <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">نام سرویس</th><th scope="col" className="text-right font-medium p-3">شناسه فنی</th><th scope="col" className="text-right font-medium p-3">قیمت هر درخواست</th><th scope="col" className="text-right font-medium p-3">وضعیت</th></tr></thead>
+          <thead><tr className="text-white/55 text-xs text-start"><th scope="col" className="text-start font-medium p-3">نام سرویس</th><th scope="col" className="text-start font-medium p-3">شناسه فنی</th><th scope="col" className="text-start font-medium p-3">قیمت هر درخواست</th><th scope="col" className="text-start font-medium p-3">وضعیت</th></tr></thead>
           <tbody>{list.map((s) => (
             <tr key={s.id} className="border-t border-white/[0.06]">
               <td className="p-3 font-bold">{s.name}<span className="block text-[11px] font-normal text-white/50 mt-0.5 max-w-md">{inquiryDef(s.id)?.summary}</span></td>
@@ -167,7 +167,7 @@ function Services() {
         {list.map((s) => (
           <li key={s.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4">
             <div className="flex items-start justify-between gap-3"><b className="text-sm leading-6">{s.name}</b><span className="tabular font-bold text-emerald-300 text-sm whitespace-nowrap">{toman(s.price)}</span></div>
-            <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-right">{s.id}</code>
+            <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-end">{s.id}</code>
             <div className="mt-3"><AccessCell access={s.access} note={s.note} onAsk={() => setAsk(s.id)} /></div>
           </li>
         ))}
@@ -219,9 +219,9 @@ function Logs() {
             {rows.map((c) => { const [label, tone] = CALL_STATUS[c.status] ?? [c.status, "gray"]; return (
               <li key={c.id} className="py-3 px-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 <span className="text-sm font-bold truncate">{name(c.serviceId)}</span>
-                <span className="text-sm tabular text-left">{c.charged ? toman(c.charged) : "رایگان"}</span>
+                <span className="text-sm tabular text-end">{c.charged ? toman(c.charged) : "رایگان"}</span>
                 <span className="flex flex-wrap items-center gap-2 text-[11px] text-white/55"><Badge tone={tone}>{label}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}{c.source === "panel" && <span>از پنل</span>}<span dir="ltr" className="font-mono">{c.input}</span></span>
-                <span className="text-[11px] text-white/50 text-left whitespace-nowrap">{c.at}</span>
+                <span className="text-[11px] text-white/50 text-end whitespace-nowrap">{c.at}</span>
                 <span className="col-span-2 text-[11px] text-white/50" dir="ltr">{c.id} · {fa(c.latencyMs)}ms</span>
               </li>
             ); })}
@@ -268,7 +268,7 @@ function Playground() {
       <Card title="پاسخ" icon="code-xml">
         {out ? <>
           <div className="flex items-center gap-2 mb-3"><Badge tone={out.http === 200 ? "green" : out.http >= 500 ? "red" : "amber"}>HTTP {out.http}</Badge>{out.body.charged !== undefined && <span className="text-xs text-white/60">هزینه: {Number(out.body.charged) ? toman(Number(out.body.charged)) : "رایگان"}</span>}</div>
-          <pre dir="ltr" tabIndex={0} aria-label="پاسخ JSON" className="text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 max-h-[60vh] overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(out.body, null, 2)}</pre>
+          <pre dir="ltr" tabIndex={0} aria-label="پاسخ JSON" className="text-start text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 max-h-[60vh] overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(out.body, null, 2)}</pre>
         </> : <p className="text-sm text-white/55 leading-7">پاسخ JSON همان‌طور که API به برنامه شما برمی‌گرداند اینجا نمایش داده می‌شود.</p>}
       </Card>
     </div>
@@ -281,7 +281,7 @@ function Security({ ips, onSaved }: { ips: string[]; onSaved: () => void }) {
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       <Card title="محدودیت IP" icon="shield-check">
         <p className="text-sm text-white/65 leading-7">فقط درخواست‌هایی که از این IPها یا بازه‌ها بیایند پذیرفته می‌شوند. هر مورد در یک خط؛ خالی یعنی بدون محدودیت.</p>
-        <textarea rows={5} dir="ltr" value={text} onChange={(e) => setText(e.target.value)} placeholder={"185.10.20.30\n5.160.0.0/16"} aria-label="IPهای مجاز" className={TEXTAREA + " font-mono text-left mt-3"} />
+        <textarea rows={5} dir="ltr" value={text} onChange={(e) => setText(e.target.value)} placeholder={"185.10.20.30\n5.160.0.0/16"} aria-label="IPهای مجاز" className={TEXTAREA + " font-mono text-start mt-3"} />
         <AsyncButton className={BTN_P + BTN_MD + " mt-3"} onClick={async () => { await api.inquiry.setIps(text.split(/[\s,]+/).filter(Boolean)); onSaved(); }}>ذخیره</AsyncButton>
       </Card>
       <Card title="توصیه‌های امنیتی" icon="lock">

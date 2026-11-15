@@ -42,7 +42,7 @@ export default async function StoragePage() {
             <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">فضای ذخیره‌سازی ابری</span>
           </nav>
           <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="hard-drive" size={14} className="acc" />Object Storage · سازگار با S3</p>
-          <h1 className="hero-title mt-6 text-[2rem] sm:text-6xl font-black leading-[1.35] tracking-tight">فضای ذخیره‌سازی ابری<br />برای فایل‌های اپلیکیشن شما</h1>
+          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">فضای ذخیره‌سازی ابری<br />برای فایل‌های اپلیکیشن شما</h1>
           <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">تصاویر، فایل‌های کاربران، بکاپ و استاتیک سایت را در باکت‌های سازگار با S3 داخل ایران نگه دارید؛ ساعتی پرداخت کنید و ترافیک رایگان بگیرید.</p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href={"/panel/storage?new=1" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="hard-drive" size={18} />ساخت باکت</Link>

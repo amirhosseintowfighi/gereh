@@ -27,13 +27,13 @@ function MockStudio() {
     <div className={GLASS + " rounded-[1.75rem] p-3 sm:p-4"} aria-hidden="true">
       <div className="grid sm:grid-cols-[0.9fr_1.1fr] gap-3">
         <div className="rounded-2xl bg-black/25 border border-white/[0.08] p-3 space-y-2.5 text-[12px] leading-6">
-          <div className="mr-auto w-[88%] rounded-2xl rounded-bl-md px-3 py-2 bg-violet-500/25 border border-violet-300/20">یک سایت نوبت‌دهی برای سالن زیبایی با فرم رزرو</div>
-          <div className="rounded-2xl rounded-br-md px-3 py-2 bg-white/[0.06] border border-white/[0.1]">
+          <div className="ms-auto w-[88%] rounded-2xl rounded-ee-md px-3 py-2 bg-violet-500/25 border border-violet-300/20">یک سایت نوبت‌دهی برای سالن زیبایی با فرم رزرو</div>
+          <div className="rounded-2xl rounded-es-md px-3 py-2 bg-white/[0.06] border border-white/[0.1]">
             <span className="inline-flex items-center gap-1 text-[10px] text-sky-200"><Icon name="sparkles" size={11} />ساخت · نسخه ۱</span>
             <p className="mt-1 text-white/80">«سالن زیبایی رز» آماده است: خدمات و قیمت‌ها، رزرو آنلاین و نظرات مشتریان.</p>
             <div className="mt-2 flex flex-wrap gap-1 font-mono text-[10px] text-white/60" dir="ltr"><span className="px-1.5 rounded bg-black/30">+ server.js</span><span className="px-1.5 rounded bg-black/30">+ public/index.html</span></div>
           </div>
-          <div className="mr-auto w-[70%] rounded-2xl rounded-bl-md px-3 py-2 bg-violet-500/25 border border-violet-300/20">رنگ را صورتی کن</div>
+          <div className="ms-auto w-[70%] rounded-2xl rounded-ee-md px-3 py-2 bg-violet-500/25 border border-violet-300/20">رنگ را صورتی کن</div>
           <div className="rounded-2xl px-3 py-2 bg-emerald-400/[0.08] border border-emerald-300/20 text-emerald-200 flex items-center gap-1.5"><Icon name="rocket" size={13} />منتشر شد: <span dir="ltr">salon-rose.gereh.dev</span></div>
         </div>
         <div className="rounded-2xl overflow-hidden bg-white text-slate-800">
@@ -61,7 +61,7 @@ export function BuilderShowcase() {
         style={{ background: "radial-gradient(ellipse 70% 100% at 0% 0%, rgba(167,139,250,.18), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015))" }}>
         <div>
           <p className="text-xs text-white/65 flex items-center gap-1.5"><Icon name="sparkles" size={14} className="text-violet-300" />{BUILDER.name} · {BUILDER.short}</p>
-          <h2 id="builder-showcase" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">{BUILDER.tagline}</h2>
+          <h2 id="builder-showcase" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35]">{BUILDER.tagline}</h2>
           <p className="mt-4 text-white/70 leading-8">بدون برنامه‌نویسی، ایده‌تان را به فارسی بنویسید. AI سایت یا اپ را می‌سازد، روی گره منتشر می‌کند و بعد از انتشار هم مراقبش است.</p>
           <ol className="mt-6 grid sm:grid-cols-3 gap-2.5">
             {BUILDER_STEPS.map(([ic, t], i) => <li key={t} className={GLASS_SOFT + " rounded-2xl px-3.5 py-3 flex items-center gap-2.5 text-sm font-bold"}><Icon name={ic} size={17} className="text-violet-300 shrink-0" />{fa(i + 1)}. {t}</li>)}
@@ -80,13 +80,13 @@ export function BuilderShowcase() {
 export function BuilderHero() {
   return (
     <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 grid lg:grid-cols-[1fr_1.1fr] gap-10 items-center hero-in">
-      <div className="text-center lg:text-right">
+      <div className="text-center lg:text-start">
         <nav aria-label="مسیر صفحه" className="flex items-center justify-center lg:justify-start gap-2 text-xs text-white/55">
           <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
           <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">{BUILDER.name}</span>
         </nav>
         <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="sparkles" size={14} className="text-violet-300" />{BUILDER.name} · {BUILDER.short}</p>
-        <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">{BUILDER.tagline}</h1>
+        <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">{BUILDER.tagline}</h1>
         <p className="mt-6 text-white/70 max-w-xl mx-auto lg:mx-0 leading-8 sm:text-lg">ایده را به فارسی بنویسید؛ هوش مصنوعی کد را می‌نویسد، پیش‌نمایش را نشان می‌دهد، با یک کلیک روی زیرساخت گره منتشر می‌کند و بعد از انتشار هم اپ را نگه می‌دارد.</p>
         <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
           <Link href={"/panel/build" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="sparkles" size={18} />شروع ساخت</Link>
@@ -108,7 +108,7 @@ export function BuilderSteps() {
       <ol className="grid md:grid-cols-3 gap-4">
         {BUILDER_STEPS.map(([ic, t, d], i) => (
           <li key={t} className={GLASS_SOFT + " rounded-[1.5rem] p-6 relative"}>
-            <span className="absolute top-5 left-5 text-4xl font-black text-white/[0.07] tabular">{fa(i + 1)}</span>
+            <span className="absolute top-5 end-5 text-4xl font-black text-white/[0.07] tabular">{fa(i + 1)}</span>
             <Icon name={ic} size={22} className="text-violet-300" />
             <h3 className="font-extrabold mt-3 text-lg">{t}</h3>
             <p className="text-white/60 text-sm leading-7 mt-1.5">{d}</p>
@@ -141,7 +141,7 @@ export function BuilderCta() {
     <section className="max-w-6xl mx-auto px-4 sm:px-6">
       <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] p-8 sm:p-14 text-center"
         style={{ background: "radial-gradient(ellipse 60% 90% at 50% 0%, rgba(167,139,250,.2), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015))" }}>
-        <h2 className="text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">اولین اپ‌تان را همین امروز بسازید</h2>
+        <h2 className="text-[1.8rem] sm:text-5xl font-black leading-[1.35]">اولین اپ‌تان را همین امروز بسازید</h2>
         <p className="mt-4 text-white/70 leading-8">ثبت‌نام رایگان است؛ فقط هزینه مصرف از کیف پول کم می‌شود.</p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <Link href={"/panel/build" as never} className={BTN_P + " px-7 py-3.5"}><Icon name="sparkles" size={18} />شروع ساخت</Link>

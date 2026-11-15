@@ -94,11 +94,14 @@ describe("registration and recovery", () => {
     expect(u.referredBy).toBe("u1");
   });
 
-  it("forgot-password answers the same for unknown emails and rotates the password for known ones", async () => {
+  it("forgot-password answers the same for unknown emails and mails a temporary password that replaces the old one only once it is used", async () => {
     expect(await call("auth.forgot", "ghost@example.com")).toBe(true);
     expect(outbox).toHaveLength(0);
     expect(await call("auth.forgot", "demo@gereh.net")).toBe(true);
     const temp = /رمز موقت شما: (\S+)/.exec(outbox[0].text)![1];
+    // asking for a reset must not lock the owner out: the old password works until the temporary one is used
+    expect(await call("auth.login", "demo@gereh.net", "Demo1234!")).toMatchObject({ userId: "u1" });
+    expect(await call("auth.login", "demo@gereh.net", temp)).toMatchObject({ userId: "u1" });
     expect(await fails("auth.login", "demo@gereh.net", "Demo1234!")).toContain("درست نیست");
     expect(await call("auth.login", "demo@gereh.net", temp)).toMatchObject({ userId: "u1" });
   });

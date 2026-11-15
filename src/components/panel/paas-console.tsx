@@ -103,7 +103,7 @@ function Terminal({ appId, instance, onExit }: { appId: string; instance: string
       <div ref={box} tabIndex={0} role="textbox" aria-label="ترمینال" aria-multiline="true" dir="ltr"
         onKeyDown={(e) => { if (state !== "open") return; const k = keyInput(e); if (k !== null) { e.preventDefault(); send(k); } }}
         onPaste={(e) => { if (state !== "open") return; e.preventDefault(); send(e.clipboardData.getData("text").replace(/\r?\n/g, "\r")); }}
-        className="text-left font-mono text-[13px] leading-5 bg-black/70 rounded-xl p-3 h-[60vh] overflow-auto whitespace-pre-wrap break-all outline-none focus:ring-1 focus:ring-white/25 cursor-text">
+        className="text-start font-mono text-[13px] leading-5 bg-black/70 rounded-xl p-3 h-[60vh] overflow-auto whitespace-pre-wrap break-all outline-none focus:ring-1 focus:ring-white/25 cursor-text">
         {t.lines.map((l, i) => i === t.lines.length - 1
           ? <div key={i}>{l.slice(0, t.col)}<span className={state === "open" ? "bg-white/80 text-black animate-pulse" : ""}>{l[t.col] ?? " "}</span>{l.slice(t.col + 1)}</div>
           : <div key={i}>{l || " "}</div>)}
@@ -122,14 +122,14 @@ function RunCommand({ app, instance, onDone }: { app: PaasApp; instance: string;
     <Card title="اجرای یک دستور" icon="square-terminal">
       <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
         <label className="sr-only" htmlFor="run-cmd">دستور</label>
-        <input id="run-cmd" value={cmd} onChange={(e) => setCmd(e.target.value)} dir="ltr" placeholder="php artisan cache:clear" className={INPUT + " font-mono text-left text-xs"} />
+        <input id="run-cmd" value={cmd} onChange={(e) => setCmd(e.target.value)} dir="ltr" placeholder="php artisan cache:clear" className={INPUT + " font-mono text-start text-xs"} />
         <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const r = await api.paas.consoleRun(app.id, cmd, instance || undefined); setOut({ ...r, command: cmd }); onDone(); }}><Icon name="play" size={16} />اجرا</AsyncButton>
       </form>
       <p className="text-[11px] text-white/50 mt-2 leading-6">روی نمونه در حال اجرا با همان متغیرها و دیسک‌ها اجرا می‌شود؛ حداکثر ۶۰ ثانیه. برای کارهای طولانی (مایگریشن، اسکریپت) از «اجرای دستور» در بخش پردازش و زمان‌بندی استفاده کنید که در کانتینر جدا اجرا می‌شود.</p>
       {out && (
         <div className="mt-3">
           <div className="flex items-center gap-2 mb-2 text-xs"><Badge tone={out.code === 0 ? "green" : "red"}>{out.code === 0 ? "موفق" : out.code === -1 ? "خطا" : "کد خروج " + fa(out.code)}</Badge><span dir="ltr" className="font-mono truncate">{out.command}</span></div>
-          <pre dir="ltr" tabIndex={0} aria-label="خروجی دستور" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 max-h-[45vh] overflow-auto whitespace-pre-wrap">{out.output || "(بدون خروجی)"}</pre>
+          <pre dir="ltr" tabIndex={0} aria-label="خروجی دستور" className="text-start text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 max-h-[45vh] overflow-auto whitespace-pre-wrap">{out.output || "(بدون خروجی)"}</pre>
         </div>
       )}
     </Card>
@@ -173,8 +173,8 @@ function AddDisk({ app, price, onAdded }: { app: PaasApp; price: number; onAdded
   return (
     <Card title="دیسک جدید" icon="plus">
       <div className="grid sm:grid-cols-[1fr_1.4fr_9rem_auto] gap-3 items-end">
-        <Field label="نام"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} dir="ltr" placeholder="uploads" className={INPUT + " text-left font-mono"} /></Field>
-        <Field label="مسیر اتصال" error={err ?? undefined}><input value={f.mount} onChange={(e) => setF({ ...f, mount: e.target.value.trim() })} dir="ltr" placeholder="/app/storage" className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="نام"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} dir="ltr" placeholder="uploads" className={INPUT + " text-start font-mono"} /></Field>
+        <Field label="مسیر اتصال" error={err ?? undefined}><input value={f.mount} onChange={(e) => setF({ ...f, mount: e.target.value.trim() })} dir="ltr" placeholder="/app/storage" className={INPUT + " text-start font-mono"} /></Field>
         <Field label="حجم"><Select label="حجم" value={String(f.sizeGb)} onChange={(v) => setF({ ...f, sizeGb: Number(v) })} options={DISK_SIZES.map((n) => ({ value: String(n), label: fa(n) + " گیگ" }))} /></Field>
         <AsyncButton disabled={!f.name || !!err || f.mount.length < 2} onClick={async () => { await api.paas.addDisk(app.id, f); setF({ name: "", mount: "/", sizeGb: 5 }); await onAdded(); }}>افزودن</AsyncButton>
       </div>
@@ -206,7 +206,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
               <AsyncButton disabled={grow <= d.sizeGb} className={BTN_G + BTN_MD + " shrink-0"} onClick={async () => { await api.paas.updateDisk(d.id, { sizeGb: grow }); await reload(); notify("حجم دیسک افزایش یافت", "hard-drive"); }}>اعمال</AsyncButton></div>
           </Field>
           <Field label="مسیر اتصال" error={mount !== d.mount ? mountError(mount) ?? undefined : undefined}>
-            <div className="flex gap-2"><input value={mount} onChange={(e) => setMount(e.target.value.trim())} dir="ltr" className={INPUT + " text-left font-mono"} />
+            <div className="flex gap-2"><input value={mount} onChange={(e) => setMount(e.target.value.trim())} dir="ltr" className={INPUT + " text-start font-mono"} />
               <AsyncButton disabled={mount === d.mount || !!mountError(mount)} className={BTN_G + BTN_MD + " shrink-0"} confirmText="اپ با مسیر جدید دوباره اجرا می‌شود. ادامه؟" onClick={async () => { await api.paas.updateDisk(d.id, { mount }); await reload(); notify("مسیر دیسک تغییر کرد", "hard-drive"); }}>ذخیره</AsyncButton></div>
           </Field>
         </div>
@@ -254,7 +254,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
           </ul>
           <div className="flex gap-2">
             <label className="sr-only" htmlFor={"sftp-u-" + d.id}>نام کاربری SFTP</label>
-            <input id={"sftp-u-" + d.id} value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })} dir="ltr" placeholder="username" className={INPUT_BASE + " h-9 text-left font-mono text-xs"} />
+            <input id={"sftp-u-" + d.id} value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })} dir="ltr" placeholder="username" className={INPUT_BASE + " h-9 text-start font-mono text-xs"} />
             <Select label="دسترسی" value={newUser.access} onChange={(v) => setNewUser({ ...newUser, access: v as "ro" | "rw" })} options={[{ value: "rw", label: "نوشتن" }, { value: "ro", label: "خواندن" }]} />
             <AsyncButton disabled={newUser.username.length < 3} className={BTN_G + BTN_SM + " shrink-0"} onClick={async () => { const r = await api.paas.sftpCreate(d.id, newUser); setShown({ user: newUser.username, password: r.password }); setNewUser({ username: "", access: "rw" }); await reload(); }}>افزودن</AsyncButton>
           </div>
@@ -264,7 +264,7 @@ function DiskCard({ app, view, d, reload, onBrowse }: { app: PaasApp; view: Paas
       <details className="mt-5 border-t border-white/[0.08] pt-3">
         <summary className="text-xs text-rose-300/80 cursor-pointer">حذف دیسک</summary>
         <p className="text-xs text-white/60 mt-2">همه فایل‌ها و پشتیبان‌های این دیسک برای همیشه حذف می‌شوند. برای تأیید نام دیسک را بنویسید: <b dir="ltr">{d.name}</b></p>
-        <div className="flex gap-2 mt-2"><input aria-label="نام دیسک برای تأیید" value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" className={INPUT_BASE + " h-9 text-left max-w-xs"} />
+        <div className="flex gap-2 mt-2"><input aria-label="نام دیسک برای تأیید" value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" className={INPUT_BASE + " h-9 text-start max-w-xs"} />
           <AsyncButton danger disabled={del !== d.name} size="sm" onClick={async () => { await api.paas.deleteDisk(d.id, del); await reload(); notify("دیسک حذف شد", "trash-2"); }}>حذف همیشگی</AsyncButton></div>
       </details>
       <Modal open={!!shown} onClose={() => setShown(null)} title="اطلاعات اتصال SFTP" icon="key-round">
@@ -343,7 +343,7 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
       ) : entries === null ? <p className="text-sm text-white/55">…</p> : (
         <div className="overflow-auto max-h-[60vh] rounded-xl border border-white/[0.08]">
           <table className="w-full text-xs">
-            <thead className="text-white/50 bg-white/[0.03]"><tr><th className="text-right p-2 font-normal">نام</th><th className="text-right p-2 font-normal w-24">حجم</th><th className="text-right p-2 font-normal w-40 hidden sm:table-cell">تغییر</th><th className="w-40" /></tr></thead>
+            <thead className="text-white/50 bg-white/[0.03]"><tr><th className="text-start p-2 font-normal">نام</th><th className="text-start p-2 font-normal w-24">حجم</th><th className="text-start p-2 font-normal w-40 hidden sm:table-cell">تغییر</th><th className="w-40" /></tr></thead>
             <tbody>
               {path && <tr className="border-t border-white/[0.06]"><td colSpan={4} className="p-2"><button type="button" onClick={() => load(parentOf(path))} className="flex items-center gap-1.5 hover:underline"><Icon name="corner-left-up" size={13} />..</button></td></tr>}
               {entries.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-white/50">پوشه خالی است.</td></tr>}
@@ -372,11 +372,11 @@ function FileManager({ diskId, running }: { diskId: string; running: boolean }) 
       )}
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit ? fileName(edit.path) : ""} icon="file-pen" size="max-w-4xl"
         footer={<AsyncButton onClick={async () => { await api.paas.fsWrite(diskId, edit!.path, edit!.text); setEdit(null); notify("ذخیره شد", "check"); await load(path); }}>ذخیره</AsyncButton>}>
-        {edit && <><label className="sr-only" htmlFor="fs-edit">محتوای فایل</label><textarea id="fs-edit" value={edit.text} onChange={(e) => setEdit({ ...edit, text: e.target.value })} dir="ltr" spellCheck={false} className={TEXTAREA + " h-[60vh] font-mono text-xs leading-5 text-left resize-y"} /></>}
+        {edit && <><label className="sr-only" htmlFor="fs-edit">محتوای فایل</label><textarea id="fs-edit" value={edit.text} onChange={(e) => setEdit({ ...edit, text: e.target.value })} dir="ltr" spellCheck={false} className={TEXTAREA + " h-[60vh] font-mono text-xs leading-5 text-start resize-y"} /></>}
       </Modal>
       <Modal open={!!rename} onClose={() => setRename(null)} title="تغییر نام یا انتقال" icon="pencil"
         footer={<AsyncButton onClick={async () => { await api.paas.fsRename(diskId, rename!.from, rename!.to); setRename(null); await load(path); }}>اعمال</AsyncButton>}>
-        {rename && <Field label="مسیر جدید (نسبت به ریشه دیسک)"><input value={rename.to} onChange={(e) => setRename({ ...rename, to: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>}
+        {rename && <Field label="مسیر جدید (نسبت به ریشه دیسک)"><input value={rename.to} onChange={(e) => setRename({ ...rename, to: e.target.value })} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>}
       </Modal>
     </div>
   );

@@ -30,13 +30,13 @@ export function EgressCard({ app }: { app: PaasApp }) {
       <Tabs size="sm" value={mode} onChange={(v) => setMode(v as EgressMode)} label="حالت پروکسی" options={options} />
       {mode === "custom" && (
         <Field label="نشانی پروکسی" hint={view.url ? "فعلی: " + view.url + " — برای تغییر، نشانی جدید را وارد کنید" : "مثل http://user:pass@1.2.3.4:3128 یا socks5h://1.2.3.4:1080؛ رمز آن مثل متغیرهای محرمانه ذخیره می‌شود"} className="mt-3">
-          <input dir="ltr" type="password" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value.trim())} placeholder="http://1.2.3.4:3128" className={INPUT + " font-mono text-left"} />
+          <input dir="ltr" type="password" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value.trim())} placeholder="http://1.2.3.4:3128" className={INPUT + " font-mono text-start"} />
         </Field>
       )}
       {mode === "platform" && <p className="text-[11px] text-white/55 leading-6 mt-3">پروکسی مشترک گره؛ اگر مدیریت آن را عوض کند، در استقرار بعدی اپ اعمال می‌شود.</p>}
       {mode !== "off" && (
         <Field label="بدون پروکسی (NO_PROXY)" hint={"هر خط یک نام، ‎.دامنه، IP یا CIDR؛ این‌ها همیشه افزوده می‌شوند: " + view.defaults.join("، ")} className="mt-3">
-          <textarea dir="ltr" rows={2} value={noProxy} onChange={(e) => setNoProxy(e.target.value)} placeholder={"api.example.ir\n.local.example"} className={TEXTAREA + " font-mono text-xs text-left"} />
+          <textarea dir="ltr" rows={2} value={noProxy} onChange={(e) => setNoProxy(e.target.value)} placeholder={"api.example.ir\n.local.example"} className={TEXTAREA + " font-mono text-xs text-start"} />
         </Field>
       )}
       {view.extraKeys.length > 0 && mode !== "off" && <p className="text-[11px] text-white/55 mt-2">این متغیرها هم نشانی پروکسی را می‌گیرند: <span dir="ltr">{view.extraKeys.join(", ")}</span></p>}
@@ -71,10 +71,10 @@ export function AdminEgress() {
       <p className="text-sm mt-3 flex flex-wrap items-center gap-2">وضعیت: {cur.url ? <><Badge tone="green" dot>فعال</Badge><span dir="ltr" className="font-mono text-xs">{cur.url}</span>{cur.source === "env" && <span className="text-[11px] text-white/50">(از متغیر PAAS_EGRESS_PROXY)</span>}</> : <Badge tone="gray">تنظیم نشده</Badge>}</p>
       <div className="grid sm:grid-cols-2 gap-3 mt-3">
         <Field label="نشانی پروکسی" hint="http://user:pass@host:3128 یا socks5h://host:1080؛ رمزنگاری‌شده ذخیره می‌شود">
-          <input dir="ltr" type="password" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value.trim())} placeholder={cur.url ? "(بدون تغییر)" : "http://10.0.0.5:3128"} className={INPUT + " font-mono text-left"} />
+          <input dir="ltr" type="password" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value.trim())} placeholder={cur.url ? "(بدون تغییر)" : "http://10.0.0.5:3128"} className={INPUT + " font-mono text-start"} />
         </Field>
         <Field label="بدون پروکسی (افزون بر شبکه داخلی)">
-          <textarea dir="ltr" rows={2} value={noProxy} onChange={(e) => setNoProxy(e.target.value)} placeholder=".ir" className={TEXTAREA + " font-mono text-xs text-left"} />
+          <textarea dir="ltr" rows={2} value={noProxy} onChange={(e) => setNoProxy(e.target.value)} placeholder=".ir" className={TEXTAREA + " font-mono text-xs text-start"} />
         </Field>
       </div>
       {error && <p role="alert" className="text-xs text-rose-300 mt-2">{error}</p>}

@@ -89,8 +89,8 @@ function ServiceRow({ s }: { s: ReturnType<typeof useDB>["inquiry"]["services"][
       </div>
       <div className="grid sm:grid-cols-[1fr_9rem_10rem_auto] gap-2 items-center">
         <input aria-label={"نام " + s.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
-        <input aria-label={"قیمت " + s.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
-        <input aria-label={"مسیر سرویس‌دهنده " + s.id} value={f.upstream} placeholder={s.id} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left font-mono text-xs"} />
+        <input aria-label={"قیمت " + s.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} />
+        <input aria-label={"مسیر سرویس‌دهنده " + s.id} value={f.upstream} placeholder={s.id} onChange={(e) => setF({ ...f, upstream: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start font-mono text-xs"} />
         <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.inquiry.adminService(s.id, { name: f.name, price: num(f.price), upstream: f.upstream }); notify("ذخیره شد · " + toman(num(f.price)), "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
@@ -114,7 +114,7 @@ function Accounts() {
         <ul className="divide-y divide-white/[0.06]">
           {db.inquiry.accounts.map((a) => (
             <li key={a.userId} className="p-3 flex flex-wrap items-center justify-between gap-3">
-              <span className="min-w-0"><b className="text-sm"><UserLink id={a.userId} name={a.name} /></b><span dir="ltr" className="block text-[11px] text-white/50 text-right">{a.email} · #{a.accountNo}</span></span>
+              <span className="min-w-0"><b className="text-sm"><UserLink id={a.userId} name={a.name} /></b><span dir="ltr" className="block text-[11px] text-white/50 text-end">{a.email} · #{a.accountNo}</span></span>
               <span className="text-xs text-white/60 tabular">{fa(a.calls30)} درخواست · {toman(a.spend30)} در ۳۰ روز</span>
               {a.status === "active"
                 ? <AsyncButton danger className={BTN_G + BTN_SM} confirmText={"دسترسی API " + a.name + " معلق شود؟"} onClick={() => api.inquiry.adminAccount(a.userId, "suspended")}><Icon name="pause" size={14} />تعلیق</AsyncButton>
@@ -136,7 +136,7 @@ function Calls() {
         <ul className="divide-y divide-white/[0.06]">
           {db.inquiry.calls.map((c) => { const [l, t] = CALL_STATUS[c.status] ?? [c.status, "gray"]; return (
             <li key={c.id} className="py-2.5 px-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="min-w-0"><b><UserLink id={c.userId} name={user(c.userId)} /></b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/50 text-right">{c.id} · {c.input}</span></span>
+              <span className="min-w-0"><b><UserLink id={c.userId} name={user(c.userId)} /></b> <span className="text-white/60">— {inquiryDef(c.serviceId)?.name ?? c.serviceId}</span><span dir="ltr" className="block text-[11px] text-white/50 text-end">{c.id} · {c.input}</span></span>
               <span className="flex items-center gap-2 text-xs"><Badge tone={t}>{l}</Badge>{c.sandbox && <Badge tone="blue">sandbox</Badge>}<span className="tabular">{c.charged ? toman(c.charged) : "—"}</span><span className="text-white/50">{c.at}</span></span>
             </li>
           ); })}
@@ -209,8 +209,8 @@ function GeoPlanRow({ p }: { p: ReturnType<typeof useDB>["geo"]["plans"][number]
         <Switch on={p.active} onChange={async (v) => { await api.geo.adminPlan(p.id, { active: v }); notify("ذخیره شد", "check"); }} label={"فعال بودن " + p.name} /></div>
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_8rem_5rem_auto] gap-2 items-center">
         <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
-        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
-        <input aria-label={"سقف رکورد " + p.id} value={f.records} inputMode="numeric" onChange={(e) => setF({ ...f, records: e.target.value })} dir="ltr" className={INPUT + " text-left"} />
+        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} />
+        <input aria-label={"سقف رکورد " + p.id} value={f.records} inputMode="numeric" onChange={(e) => setF({ ...f, records: e.target.value })} dir="ltr" className={INPUT + " text-start"} />
         <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.geo.adminPlan(p.id, { name: f.name, price: num(f.price), records: num(f.records) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>

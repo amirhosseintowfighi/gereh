@@ -73,7 +73,7 @@ export function AdminBlog() {
       <Card pad="p-3 sm:p-4">
         {db.posts.length === 0 ? <Empty icon="newspaper" title="هنوز نوشته‌ای ندارید" /> : db.posts.map((p) => (
           <div key={p.id} className="p-3 rounded-xl hover:bg-white/[0.03] flex flex-wrap items-center justify-between gap-3">
-            <button type="button" onClick={() => edit(p)} className="min-w-0 text-right">
+            <button type="button" onClick={() => edit(p)} className="min-w-0 text-start">
               <span className="block font-bold text-sm">{p.title}</span>
               <span className="block text-[11px] text-white/55 mt-1">{p.author} · {p.status === "published" ? "انتشار " + p.publishedAt : "ویرایش " + p.updatedAt}</span>
             </button>

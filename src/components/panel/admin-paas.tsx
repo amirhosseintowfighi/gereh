@@ -48,14 +48,14 @@ export function AdminPaas() {
           {apps.length === 0 ? <div className="p-6"><Empty icon="rocket" title="اپی پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="اپ‌ها">
               <table className="w-full text-sm min-w-[720px]">
-                <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">اپ</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">پشته / منبع</th><th scope="col" className="text-right font-medium p-3">منابع</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
+                <thead><tr className="text-white/55 text-xs text-start"><th scope="col" className="text-start font-medium p-3">اپ</th><th scope="col" className="text-start font-medium p-3">مشتری</th><th scope="col" className="text-start font-medium p-3">پشته / منبع</th><th scope="col" className="text-start font-medium p-3">منابع</th><th scope="col" className="text-start font-medium p-3">وضعیت</th><th scope="col" className="text-start font-medium p-3">هزینه</th><th scope="col" className="text-start font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{apps.map((a) => {
                   const plan = db.paasPlans.find((p) => p.id === a.planId);
                   const last = a.deployments[0];
                   return (
                     <tr key={a.id} className="border-t border-white/[0.06] align-top">
                       <td className="p-3"><a href={a.url} target="_blank" rel="noopener" dir="ltr" className="font-bold hover:underline">{a.name}</a><span className="block text-[11px] text-white/50">{a.id} · {a.at}</span></td>
-                      <td className="p-3"><UserLink id={a.userId} name={owner(a.userId)?.name} /><span dir="ltr" className="block text-[11px] text-white/50 text-right">{owner(a.userId)?.email}</span></td>
+                      <td className="p-3"><UserLink id={a.userId} name={owner(a.userId)?.name} /><span dir="ltr" className="block text-[11px] text-white/50 text-end">{owner(a.userId)?.email}</span></td>
                       <td className="p-3">{stackOf(a.stack)?.label ?? a.stack}<span className="block text-[11px] text-white/50" dir="ltr">{a.source === "git" ? a.gitUrl.replace(/^https:\/\/[^@]*@/, "https://") : a.source === "image" ? a.image : a.source}</span></td>
                       <td className="p-3 text-xs">{plan?.name ?? a.planId} × {fa(a.instances)}{a.autoscale ? " (تا " + fa(a.maxInstances) + ")" : ""}{a.diskGb ? " · " + fa(a.diskGb) + " گیگ" : ""}<span className="block text-white/50">{fa(a.domains.length)} دامنه · {fa(a.links.length)} پایگاه داده</span></td>
                       <td className="p-3"><StatusPill s={a.status} />{last && last.status === "failed" && <span className="block text-[11px] text-rose-300 mt-1">آخرین بیلد ناموفق</span>}</td>
@@ -75,7 +75,7 @@ export function AdminPaas() {
           {dbs.length === 0 ? <div className="p-6"><Empty icon="database" title="پایگاه داده‌ای پیدا نشد" /></div> : (
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="پایگاه‌های داده">
               <table className="w-full text-sm min-w-[720px]">
-                <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مشتری</th><th scope="col" className="text-right font-medium p-3">موتور</th><th scope="col" className="text-right font-medium p-3">پلن</th><th scope="col" className="text-right font-medium p-3">پشتیبان</th><th scope="col" className="text-right font-medium p-3">وضعیت</th><th scope="col" className="text-right font-medium p-3">هزینه</th><th scope="col" className="text-right font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
+                <thead><tr className="text-white/55 text-xs text-start"><th scope="col" className="text-start font-medium p-3">نام</th><th scope="col" className="text-start font-medium p-3">مشتری</th><th scope="col" className="text-start font-medium p-3">موتور</th><th scope="col" className="text-start font-medium p-3">پلن</th><th scope="col" className="text-start font-medium p-3">پشتیبان</th><th scope="col" className="text-start font-medium p-3">وضعیت</th><th scope="col" className="text-start font-medium p-3">هزینه</th><th scope="col" className="text-start font-medium p-3"><span className="sr-only">عملیات</span></th></tr></thead>
                 <tbody>{dbs.map((d) => {
                   const plan = db.paasPlans.find((p) => p.id === d.planId);
                   const lastBk = d.backupList[0];
@@ -138,7 +138,7 @@ function PlanRow({ p }: { p: PaasPlanRow }) {
         <label className="sr-only" htmlFor={"pn-" + p.id}>نام {p.id}</label>
         <input id={"pn-" + p.id} value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
         <label className="sr-only" htmlFor={"pp-" + p.id}>قیمت ماهانه {p.id}</label>
-        <input id={"pp-" + p.id} value={price} inputMode="numeric" onChange={(e) => setPrice(e.target.value)} dir="ltr" className={INPUT + " text-left tabular"} />
+        <input id={"pp-" + p.id} value={price} inputMode="numeric" onChange={(e) => setPrice(e.target.value)} dir="ltr" className={INPUT + " text-start tabular"} />
         <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.paas.adminPlan(p.id, { name, price: num(price) }); notify("ذخیره شد · " + toman(num(price)), "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>
@@ -167,7 +167,7 @@ function Platform() {
       </Card>
       <Card title="دامنه اپ‌ها" icon="globe">
         <Field label="دامنه" hint="آدرس پیش‌فرض اپ‌ها <نام>.<این دامنه> می‌شود. باید دامنه‌ای جدا از سایت اصلی باشد (برای جدا ماندن کوکی‌ها) و رکورد wildcard آن به ingress کلاستر اشاره کند.">
-          <input value={domain} onChange={(e) => setDomain(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="gereh.dev" className={INPUT + " text-left"} />
+          <input value={domain} onChange={(e) => setDomain(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="gereh.dev" className={INPUT + " text-start"} />
         </Field>
         <AsyncButton disabled={!domain || domain === db.settings.paasDomain} className={BTN_P + BTN_MD + " mt-3"} confirmText="آدرس پیش‌فرض همه اپ‌ها عوض می‌شود. ادامه؟" onClick={async () => { await api.admin.saveSettings({ paasDomain: domain }); notify("دامنه اپ‌ها ذخیره شد", "globe"); }}>ذخیره</AsyncButton>
         <div className="mt-4 text-[11px] text-white/55 leading-6" dir="ltr">*.{domain || "gereh.dev"} → A → INGRESS_IP</div>

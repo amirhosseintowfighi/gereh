@@ -25,10 +25,10 @@ export default function EnDomains() {
         <div className={GLASS + " rounded-2xl overflow-x-auto"} tabIndex={0} role="region" aria-label="Domain prices">
           <table className="w-full text-sm">
             <caption className="sr-only">Yearly domain prices in Toman</caption>
-            <thead><tr className="bg-white/[0.04]">{["Extension", "Register", "Renew", "Transfer"].map((h) => <th key={h} scope="col" className="text-left p-4 font-bold">{h}</th>)}</tr></thead>
+            <thead><tr className="bg-white/[0.04]">{["Extension", "Register", "Renew", "Transfer"].map((h) => <th key={h} scope="col" className="text-start p-4 font-bold">{h}</th>)}</tr></thead>
             <tbody className="tabular">{TLDS.map((t) => (
               <tr key={t.tld} className="border-t border-white/[0.06]">
-                <th scope="row" className="text-left p-4"><Link href={("/domains/" + tldSlug(t.tld)) as never} hrefLang="fa" className="font-bold hover:underline">{t.tld}</Link>{t.promo && <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded bg-emerald-400/15 text-emerald-200">Offer</span>}</th>
+                <th scope="row" className="text-start p-4"><Link href={("/domains/" + tldSlug(t.tld)) as never} hrefLang="fa" className="font-bold hover:underline">{t.tld}</Link>{t.promo && <span className="ms-2 text-[11px] px-1.5 py-0.5 rounded bg-emerald-400/15 text-emerald-200">Offer</span>}</th>
                 <td className="p-4">{tomanEn(t.reg)}</td><td className="p-4">{tomanEn(t.renew)}</td><td className="p-4">{t.transfer ? tomanEn(t.transfer) : "Free"}</td>
               </tr>
             ))}</tbody>

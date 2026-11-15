@@ -50,10 +50,10 @@ export function AdminDashboard() {
           {db.nodes.length === 0 ? <Empty icon="radio-tower" title="هنوز داده‌ای ثبت نشده" text="نودها و بارشان با «همگام‌سازی سرورها» از Virtualizor خوانده می‌شوند؛ پس از اتصال و همگام‌سازی این‌جا نمایش داده می‌شوند." /> : <div className="space-y-4">{db.nodes.map((n) => <div key={n.id}><div className="flex justify-between text-xs mb-1.5"><span className="mono">{n.id}</span>{n.status === "online" ? <span className="text-white/55 tabular">{fa(n.cpu)}٪</span> : <StatusBadge s={n.status} />}</div><Meter value={n.cpu} label={"بار CPU " + n.id} /></div>)}</div>}
         </Card>
         <Card title="آخرین صورتحساب‌ها" icon="receipt" pad="p-3">
-          {db.invoices.length === 0 ? <Empty icon="receipt" title="هنوز صورتحسابی صادر نشده" /> : db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-left"><div className="tabular text-xs font-bold">{toman(invGross(i, db.settings.tax))}</div><StatusBadge s={i.status} /></div></div>)}
+          {db.invoices.length === 0 ? <Empty icon="receipt" title="هنوز صورتحسابی صادر نشده" /> : db.invoices.slice(0, 6).map((i) => <div key={i.id} className="flex items-center justify-between p-2.5 text-sm"><div><div className="mono text-xs">{i.id}</div><div className="text-[11px] text-white/55">{byId(db.users, i.userId)?.name || "—"}</div></div><div className="text-end"><div className="tabular text-xs font-bold">{toman(invGross(i, db.settings.tax))}</div><StatusBadge s={i.status} /></div></div>)}
         </Card>
         <Card title="صف تیکت" icon="message-circle" pad="p-3">
-          {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-right"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/55">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
+          {openT.length === 0 ? <Empty icon="circle-check" title="صف خالی است" /> : openT.slice(0, 6).map((t) => <Link key={t.id} href={("/admin/tickets/" + t.id) as never} className="w-full flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] text-start"><div className="min-w-0"><div className="text-sm truncate">{t.subject}</div><div className="text-[11px] text-white/55">{t.id}، {t.dept}</div></div><StatusBadge s={t.priority} /></Link>)}
         </Card>
       </div>
     </div>
@@ -75,18 +75,18 @@ export function AdminUsers() {
       <DataTable rows={customers} searchKeys={["name", "email", "phone"]} searchPlaceholder="نام، ایمیل یا موبایل" filters={[{ key: "status", label: "وضعیت", options: ["active", "pending", "suspended"] }, { key: "kyc", label: "احراز", options: ["verified", "pending", "none"] }]}
         onRowClick={(r) => router.push(("/admin/users/" + encodeURIComponent(r.id)) as never)} pageSize={10}
         columns={[
-          { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/55 ltr text-right">{r.email}</div></div></div> },
+          { key: "name", label: "کاربر", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{r.name[0]}</span><div><div className="font-bold">{r.name}</div><div className="text-[11px] text-white/55 ltr text-end">{r.email}</div></div></div> },
           { key: "phone", label: "موبایل", render: (r) => <span className="mono text-xs text-white/60">{r.phone}</span> },
           { key: "services", label: "سرویس", sortable: true, render: (r) => fa(r.services) },
           { key: "balance", label: "موجودی", sortable: true, render: (r) => <span className="tabular">{toman(r.balance)}</span> },
           { key: "kyc", label: "احراز", render: (r) => <StatusBadge s={r.kyc} /> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
           { key: "joined", label: "عضویت", sortable: true },
-          { key: "a", label: "", className: "text-left", render: (r) => <button type="button" onClick={(e) => { e.stopPropagation(); setSel(r.id); setAdj({ amount: "", reason: "" }); }} className={ICON_BTN} aria-label={"اقدامات سریع " + r.name}><Icon name="settings-2" size={17} /></button> },
+          { key: "a", label: "", className: "text-end", render: (r) => <button type="button" onClick={(e) => { e.stopPropagation(); setSel(r.id); setAdj({ amount: "", reason: "" }); }} className={ICON_BTN} aria-label={"اقدامات سریع " + r.name}><Icon name="settings-2" size={17} /></button> },
         ]} />
       <SideDrawer open={!!u} onClose={() => setSel(null)} title="جزئیات کاربر">
         {u && <>
-          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div className="flex-1 min-w-0"><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/55 ltr text-right">{u.email}</div></div><Link href={("/admin/users/" + encodeURIComponent(u.id)) as never} className={BTN_G + BTN_SM + " shrink-0"}><Icon name="external-link" size={14} /> نمای کامل</Link></div>
+          <div className="flex items-center gap-4"><span className="w-14 h-14 rounded-2xl tile grid place-items-center text-xl font-black" aria-hidden="true">{u.name[0]}</span><div className="flex-1 min-w-0"><div className="font-black text-lg">{u.name}</div><div className="text-xs text-white/55 ltr text-end">{u.email}</div></div><Link href={("/admin/users/" + encodeURIComponent(u.id)) as never} className={BTN_G + BTN_SM + " shrink-0"}><Icon name="external-link" size={14} /> نمای کامل</Link></div>
           <div className="flex flex-wrap gap-2 mt-4"><StatusBadge s={u.status} /><StatusBadge s={u.kyc} />{u.company && <Badge>{u.company}</Badge>}</div>
           <dl className="grid grid-cols-2 gap-4 mt-6 text-sm">{[["موبایل", u.phone], ["عضویت", u.joined], ["سرویس‌ها", fa(u.services)], ["موجودی", toman(u.balance)]].map(([k, v]) => <div key={k} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3"><dt className="text-[11px] text-white/55">{k}</dt><dd className="mt-1 font-bold tabular">{v}</dd></div>)}</dl>
           <div className="mt-6 space-y-2">
@@ -103,7 +103,7 @@ export function AdminUsers() {
           <form className="mt-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] p-4" onSubmit={(e) => e.preventDefault()}>
             <div className="text-sm font-bold mb-3 flex items-center gap-2"><Icon name="wallet" size={16} className="acc" />تغییر موجودی</div>
             <div className="grid grid-cols-2 gap-2">
-              <input value={adj.amount} onChange={(e) => setAdj((s) => ({ ...s, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-left tabular"} />
+              <input value={adj.amount} onChange={(e) => setAdj((s) => ({ ...s, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-start tabular"} />
               <input value={adj.reason} onChange={(e) => setAdj((s) => ({ ...s, reason: e.target.value }))} aria-label="دلیل" placeholder="دلیل" className={INPUT} />
             </div>
             <div className="mt-3 flex justify-end"><AsyncButton confirmText={"موجودی " + u.name + " تغییر کند؟"} onClick={async () => {
@@ -135,8 +135,8 @@ export function AdminUsers() {
         }}>ساخت کاربر</AsyncButton><button type="button" onClick={() => setNewU(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {newU && <div className="space-y-4">
           <Field label="نام"><input value={newU.name} onChange={(e) => setNewU((s) => s && { ...s, name: e.target.value })} className={INPUT} /></Field>
-          <Field label="ایمیل"><input type="email" value={newU.email} onChange={(e) => setNewU((s) => s && { ...s, email: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <Field label="موبایل (اختیاری)"><input type="tel" value={newU.phone} onChange={(e) => setNewU((s) => s && { ...s, phone: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label="ایمیل"><input type="email" value={newU.email} onChange={(e) => setNewU((s) => s && { ...s, email: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+          <Field label="موبایل (اختیاری)"><input type="tel" value={newU.phone} onChange={(e) => setNewU((s) => s && { ...s, phone: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
         </div>}
       </Modal>
     </div>
@@ -170,18 +170,18 @@ export function AdminServices() {
             { key: "ip", label: "IP", render: (r) => <CopyText text={r.ip} className="mono text-xs text-white/60" /> },
             { key: "spec", label: "منابع", render: (r) => <span className="text-xs"><span className="text-white/60 ltr inline-block">{r.cpu}C / {r.ram}G / {r.disk}G</span>
               {r.sync?.hint && <span className="block text-amber-200 mt-0.5" title={r.sync.hint}>منابع با پلن فرق دارد</span>}
-              {r.sync?.node && <span className="block text-white/45 mt-0.5 ltr text-right">{r.sync.node}</span>}
+              {r.sync?.node && <span className="block text-white/45 mt-0.5 ltr text-end">{r.sync.node}</span>}
               {r.sync?.last && <span className="block text-white/45 mt-0.5" title={r.sync.lastAt}>{r.sync.last}</span>}</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
             { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
-            { key: "a", label: "", className: "text-left", render: (r) => actions("servers", r) },
+            { key: "a", label: "", className: "text-end", render: (r) => actions("servers", r) },
           ]} />}
         {tab === "hosting" && <DataTable rows={db.hosting} searchKeys={["domain"]} filters={[{ key: "status", label: "وضعیت", options: ["active", "suspended"] }]}
           columns={[
             { key: "domain", label: "دامنه", render: (r) => <span className="font-bold ltr">{r.domain}</span> }, { key: "owner", label: "مالک", render: (r) => owner(r.userId) },
             { key: "plan", label: "پلن" }, { key: "server", label: "سرور", render: (r) => <span className="mono text-xs">{r.server}</span> },
             { key: "disk", label: "دیسک", render: (r) => <div className="w-28"><Meter value={r.diskUsed} max={r.diskTotal} label="دیسک" /></div> },
-            { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> }, { key: "a", label: "", className: "text-left", render: (r) => actions("hosting", r) },
+            { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> }, { key: "a", label: "", className: "text-end", render: (r) => actions("hosting", r) },
           ]} />}
         {tab === "domains" && <DataTable rows={db.domains} searchKeys={["name"]} filters={[{ key: "status", label: "وضعیت", options: ["active", "expiring", "expired"] }]}
           columns={[
@@ -220,7 +220,7 @@ export function AdminBilling() {
           { key: "date", label: "تاریخ", sortable: true },
           { key: "amount", label: "مبلغ (با مالیات)", sortable: true, sortValue: gross, render: (r) => <span className="tabular font-bold">{toman(gross(r))}</span> },
           { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
-          { key: "a", label: "", className: "text-left", render: (r) => (
+          { key: "a", label: "", className: "text-end", render: (r) => (
             <Menu label={"اقدامات " + r.id} triggerClass={ICON_BTN} trigger={<Icon name="settings-2" size={17} />} items={[
               { icon: "file-text", label: "مشاهده", run: () => setView(r) },
               r.status !== "paid" && r.status !== "refunded" && { icon: "circle-check", label: "علامت پرداخت‌شده", run: async () => { if (await confirm("صورتحساب " + r.id + " پرداخت‌شده علامت بخورد؟")) { await api.billing.markPaid(r.id); notify("علامت‌گذاری شد"); } } },
@@ -240,7 +240,7 @@ export function AdminBilling() {
         {create && <div className="space-y-4">
           <Field label="مشتری"><Select value={create.userId} label="مشتری" onChange={(v) => setCreate((s) => s && { ...s, userId: v })} options={db.users.filter((u) => u.role === "user").map((u) => ({ value: u.id, label: u.name + " (" + u.email + ")" }))} /></Field>
           <Field label="شرح"><input value={create.desc} onChange={(e) => setCreate((s) => s && { ...s, desc: e.target.value })} className={INPUT} /></Field>
-          <Field label="مبلغ (تومان)" hint={create.amount ? toman(+amountInput(create.amount) || 0) : undefined}><input value={create.amount} inputMode="numeric" onChange={(e) => setCreate((s) => s && { ...s, amount: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="مبلغ (تومان)" hint={create.amount ? toman(+amountInput(create.amount) || 0) : undefined}><input value={create.amount} inputMode="numeric" onChange={(e) => setCreate((s) => s && { ...s, amount: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
         </div>}
       </Modal>
     </div>
@@ -274,7 +274,7 @@ export function AdminTickets({ id }: { id?: string }) {
           </Card>
           {t.status !== "closed" && (
             <Card title="پاسخ‌های آماده" icon="file-text" pad="p-3">
-              {CANNED.map((m) => <AsyncButton key={m} onClick={async () => { await api.tickets.reply(t.id, m, "staff"); notify("پاسخ ارسال شد", "send"); }} className="w-full text-right text-xs text-white/65 p-3 rounded-xl hover:bg-white/[0.05] leading-6">{m}</AsyncButton>)}
+              {CANNED.map((m) => <AsyncButton key={m} onClick={async () => { await api.tickets.reply(t.id, m, "staff"); notify("پاسخ ارسال شد", "send"); }} className="w-full text-start text-xs text-white/65 p-3 rounded-xl hover:bg-white/[0.05] leading-6">{m}</AsyncButton>)}
             </Card>
           )}
         </div>
@@ -288,7 +288,7 @@ export function AdminTickets({ id }: { id?: string }) {
       <DataTable rows={db.tickets} searchKeys={["subject", "id"]} filters={[{ key: "status", label: "وضعیت", options: ["open", "customer-reply", "answered", "closed"] }, { key: "priority", label: "اولویت", options: ["high", "normal", "low"] }]} onRowClick={(r) => router.push(("/admin/tickets/" + r.id) as never)} pageSize={10}
         columns={[
           { key: "id", label: "شماره", render: (r) => <span className="mono text-xs">{r.id}</span> },
-          { key: "subject", label: "موضوع", render: (r) => <span className="font-bold">{r.subject}{r.ai?.handled && <span className="mr-2"><Badge tone={r.ai.escalated ? "red" : r.ai.pendingDraft ? "amber" : "violet"}>{r.ai.escalated ? "AI ← انسان" : r.ai.pendingDraft ? "AI پیش‌نویس" : "AI"}</Badge></span>}</span> },
+          { key: "subject", label: "موضوع", render: (r) => <span className="font-bold">{r.subject}{r.ai?.handled && <span className="ms-2"><Badge tone={r.ai.escalated ? "red" : r.ai.pendingDraft ? "amber" : "violet"}>{r.ai.escalated ? "AI ← انسان" : r.ai.pendingDraft ? "AI پیش‌نویس" : "AI"}</Badge></span>}</span> },
           { key: "owner", label: "مشتری", render: (r) => owner(r.userId) },
           { key: "dept", label: "واحد" }, { key: "priority", label: "اولویت", render: (r) => <StatusBadge s={r.priority} /> },
           { key: "assignee", label: "کارشناس", render: (r) => r.assignee || <span className="text-white/50">—</span> },
@@ -318,7 +318,7 @@ export function AdminProducts() {
               { key: "spec", label: "مشخصات", render: (r) => <span className="text-xs text-white/55">{r.cpu ? r.cpu + "، " + r.ram + "، " + r.disk : r.disk + "، " + r.sites}</span> },
               { key: "price", label: "قیمت ماهانه", sortable: true, render: (r) => <span className="tabular font-bold">{toman(r.price)}</span> },
               { key: "active", label: "فعال", render: (r) => <Switch on={r.active !== false} label={"فعال بودن " + r.name} onChange={async (v) => { await api.admin.updatePlan(tab as "cloud", r.id, { active: v }); notify(v ? "پلن فعال شد" : "پلن غیرفعال شد"); }} /> },
-              { key: "a", label: "", className: "text-left", render: (r) => <IconBtn icon="pencil" label={"ویرایش " + r.name} onClick={() => setEdit({ kind: tab as "cloud", id: r.id, name: r.name, price: String(r.price), popular: !!r.popular })} /> },
+              { key: "a", label: "", className: "text-end", render: (r) => <IconBtn icon="pencil" label={"ویرایش " + r.name} onClick={() => setEdit({ kind: tab as "cloud", id: r.id, name: r.name, price: String(r.price), popular: !!r.popular })} /> },
             ]} />
         ) : (
           <DataTable rows={db.tlds.map((t) => ({ ...t, id: t.tld }))} searchKeys={["tld"]}
@@ -328,7 +328,7 @@ export function AdminProducts() {
               { key: "renew", label: "تمدید", render: (r) => <span className="tabular">{toman(r.renew)}</span> },
               { key: "transfer", label: "انتقال", render: (r) => <span className="tabular">{r.transfer ? toman(r.transfer) : "رایگان"}</span> },
               { key: "promo", label: "تخفیف ویژه", render: (r) => <Switch on={!!r.promo} label={"تخفیف " + r.tld} onChange={async (v) => { await api.admin.updateTld(r.tld, { promo: v }); notify("ذخیره شد"); }} /> },
-              { key: "a", label: "", className: "text-left", render: (r) => <IconBtn icon="pencil" label={"ویرایش " + r.tld} onClick={() => setEdit({ kind: "tld", id: r.tld, name: r.tld, reg: String(r.reg), renew: String(r.renew), transfer: String(r.transfer) })} /> },
+              { key: "a", label: "", className: "text-end", render: (r) => <IconBtn icon="pencil" label={"ویرایش " + r.tld} onClick={() => setEdit({ kind: "tld", id: r.tld, name: r.tld, reg: String(r.reg), renew: String(r.renew), transfer: String(r.transfer) })} /> },
             ]} />
         )}
       </div>
@@ -348,12 +348,12 @@ export function AdminProducts() {
         }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && (edit.kind === "tld" ? (
           <div className="grid grid-cols-3 gap-3">
-            {(["reg", "renew", "transfer"] as const).map((k) => <Field key={k} label={{ reg: "ثبت", renew: "تمدید", transfer: "انتقال" }[k]}><input value={edit[k]} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, [k]: amountInput(e.target.value) } as Edit)} dir="ltr" className={INPUT + " text-left tabular"} /></Field>)}
+            {(["reg", "renew", "transfer"] as const).map((k) => <Field key={k} label={{ reg: "ثبت", renew: "تمدید", transfer: "انتقال" }[k]}><input value={edit[k]} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, [k]: amountInput(e.target.value) } as Edit)} dir="ltr" className={INPUT + " text-start tabular"} /></Field>)}
           </div>
         ) : (
           <div className="space-y-4">
             <Field label="نام پلن"><input value={edit.name} onChange={(e) => setEdit((s) => s && { ...s, name: e.target.value })} className={INPUT} /></Field>
-            <Field label="قیمت ماهانه (تومان)"><input value={edit.price} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, price: amountInput(e.target.value) } as Edit)} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+            <Field label="قیمت ماهانه (تومان)"><input value={edit.price} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, price: amountInput(e.target.value) } as Edit)} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
             <div className="flex items-center justify-between"><span className="text-sm">نمایش به‌عنوان پیشنهادی</span><Switch on={edit.popular} label="پیشنهادی" onChange={(v) => setEdit((s) => s && { ...s, popular: v } as Edit)} /></div>
           </div>
         ))}
@@ -411,7 +411,7 @@ export function AdminInfra() {
       </div>
       <DataTable rows={db.nodes} searchKeys={["id", "model"]} filters={[{ key: "status", label: "وضعیت", options: ["online", "maintenance"] }, { key: "loc", label: "لوکیشن", options: locs.map((l) => l.id) }]}
         columns={[
-          { key: "id", label: "نود", render: (r) => <div><div className="mono font-bold">{r.id}</div><div className="text-[11px] text-white/55 ltr text-right">{r.model}</div></div> },
+          { key: "id", label: "نود", render: (r) => <div><div className="mono font-bold">{r.id}</div><div className="text-[11px] text-white/55 ltr text-end">{r.model}</div></div> },
           { key: "loc", label: "لوکیشن", render: (r) => <div className="w-36"><Select value={r.loc} label={"لوکیشن " + r.id} onChange={async (v) => { await api.admin.updateNode(r.id, { loc: v }); notify("نود " + r.id + " به " + locLabel(v) + " منتقل شد"); }} options={[...locs.map((l) => ({ value: l.id, label: l.label })), ...(locs.some((l) => l.id === r.loc) ? [] : [{ value: r.loc, label: r.loc + " (حذف‌شده)" }])]} /></div> },
           { key: "cpu", label: "CPU", sortable: true, render: (r) => <div className="w-28"><Meter value={r.cpu} right={fa(r.cpu) + "٪"} label="CPU" /></div> },
           { key: "ram", label: "RAM", sortable: true, render: (r) => <div className="w-28"><Meter value={r.ram} right={fa(r.ram) + "٪"} label="RAM" /></div> },
@@ -428,18 +428,18 @@ export function AdminInfra() {
         {edit && <div className="space-y-4">
           <datalist id="virt-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="شناسه" hint="۲ تا ۱۰ حرف انگلیسی؛ بعداً قابل تغییر نیست"><input value={edit.id} disabled={!edit.isNew} onChange={(e) => setEdit((s) => s && { ...s, id: e.target.value.toLowerCase() })} dir="ltr" placeholder="ist" className={INPUT + " text-left mono"} /></Field>
+            <Field label="شناسه" hint="۲ تا ۱۰ حرف انگلیسی؛ بعداً قابل تغییر نیست"><input value={edit.id} disabled={!edit.isNew} onChange={(e) => setEdit((s) => s && { ...s, id: e.target.value.toLowerCase() })} dir="ltr" placeholder="ist" className={INPUT + " text-start mono"} /></Field>
             <Field label="نام"><input value={edit.label} onChange={(e) => setEdit((s) => s && { ...s, label: e.target.value })} placeholder="استانبول" className={INPUT} /></Field>
           </div>
           <Field label="توضیح کوتاه"><input value={edit.sub} onChange={(e) => setEdit((s) => s && { ...s, sub: e.target.value })} placeholder="ترکیه" className={INPUT} /></Field>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Server Group ابری در Virtualizor" hint={groups.length ? "از فهرست انتخاب کنید یا بنویسید" : "اول «همگام‌سازی سرورها» را بزنید تا فهرست بیاید"}><input list="virt-groups" value={edit.groupCloud ?? ""} onChange={(e) => setEdit((s) => s && { ...s, groupCloud: e.target.value })} dir="ltr" placeholder="ist-cloud" className={INPUT + " text-left mono"} /></Field>
-            <Field label="Server Group اختصاصی" hint="فقط اگر سرور اختصاصی می‌فروشید"><input list="virt-groups" value={edit.groupMetal ?? ""} disabled={!edit.metal} onChange={(e) => setEdit((s) => s && { ...s, groupMetal: e.target.value })} dir="ltr" placeholder="ist-metal" className={INPUT + " text-left mono"} /></Field>
+            <Field label="Server Group ابری در Virtualizor" hint={groups.length ? "از فهرست انتخاب کنید یا بنویسید" : "اول «همگام‌سازی سرورها» را بزنید تا فهرست بیاید"}><input list="virt-groups" value={edit.groupCloud ?? ""} onChange={(e) => setEdit((s) => s && { ...s, groupCloud: e.target.value })} dir="ltr" placeholder="ist-cloud" className={INPUT + " text-start mono"} /></Field>
+            <Field label="Server Group اختصاصی" hint="فقط اگر سرور اختصاصی می‌فروشید"><input list="virt-groups" value={edit.groupMetal ?? ""} disabled={!edit.metal} onChange={(e) => setEdit((s) => s && { ...s, groupMetal: e.target.value })} dir="ltr" placeholder="ist-metal" className={INPUT + " text-start mono"} /></Field>
           </div>
           {/* uptime is never typed in: /status measures it (src/server/status.ts) */}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="پینگ (ms)"><input value={edit.ping} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, ping: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="سرعت (Mbps)"><input value={edit.speed} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, speed: num(e.target.value) })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field label="پینگ (ms)"><input value={edit.ping} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, ping: num(e.target.value) })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+            <Field label="سرعت (Mbps)"><input value={edit.speed} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, speed: num(e.target.value) })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
           </div>
           {([["metal", "سرور اختصاصی در این لوکیشن"], ["foreign", "دیتاسنتر خارج (۱۲٪ افزایش قیمت سرور ابری)"], ["active", "فعال برای سفارش جدید"]] as const).map(([k, label]) => (
             <div key={k} className="flex items-center justify-between gap-3"><span className="text-sm">{label}</span><Switch on={k === "active" ? edit.active !== false : !!edit[k]} label={label} onChange={(v) => setEdit((s) => s && { ...s, [k]: v })} /></div>
@@ -450,9 +450,9 @@ export function AdminInfra() {
       <Modal open={!!add} onClose={() => setAdd(null)} title="افزودن نود" icon="radio-tower"
         footer={<><AsyncButton onClick={async () => { if (!add) return; const v = { ...add, id: add.id.trim().toLowerCase(), model: add.model.trim() }; if (!/^[a-z0-9-]{3,}$/.test(v.id)) throw new Error("شناسه نود معتبر نیست."); await api.admin.addNode(v); setAdd(null); notify("نود اضافه شد"); }}>افزودن</AsyncButton><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {add && <div className="space-y-4">
-          <Field label="شناسه" hint="همان نام سرور در Virtualizor، مثال: thr-hv-04"><input value={add.id} onChange={(e) => setAdd((s) => s && { ...s, id: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+          <Field label="شناسه" hint="همان نام سرور در Virtualizor، مثال: thr-hv-04"><input value={add.id} onChange={(e) => setAdd((s) => s && { ...s, id: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
           <Field label="لوکیشن"><Select value={add.loc} label="لوکیشن" onChange={(v) => setAdd((s) => s && { ...s, loc: v })} options={locs.map((l) => ({ value: l.id, label: l.label }))} /></Field>
-          <Field label="سخت‌افزار"><input value={add.model} onChange={(e) => setAdd((s) => s && { ...s, model: e.target.value })} dir="ltr" placeholder="EPYC 9354 / 768GB" className={INPUT + " text-left"} /></Field>
+          <Field label="سخت‌افزار"><input value={add.model} onChange={(e) => setAdd((s) => s && { ...s, model: e.target.value })} dir="ltr" placeholder="EPYC 9354 / 768GB" className={INPUT + " text-start"} /></Field>
         </div>}
       </Modal>
     </div>
@@ -483,10 +483,10 @@ export function AdminVirtualizor() {
             <Card title="Admin API" icon="key-round">
               {!!db.virt.fromEnv && <p role="status" className="mb-4 p-3 rounded-[12px] bg-amber-400/10 text-amber-200 text-xs leading-6">اتصال فعلی از متغیرهای VIRTUALIZOR_* در فایل ‎.env‎ خوانده می‌شود و این فرم روی آن اثری ندارد. فقط یکی را نگه دارید: یا آن خط‌ها را از ‎.env‎ پاک کنید (<span className="mono" dir="ltr">sudo gereh env</span>) یا همان‌جا اصلاحشان کنید.</p>}
               <form className="grid sm:grid-cols-[1fr_120px] gap-4" onSubmit={(e) => e.preventDefault()}>
-                <Field label="آدرس Master" hint="بدون https:// و پورت"><input value={cfg.host} onChange={(e) => setCfg((c) => ({ ...c, host: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-                <Field label="پورت"><input value={cfg.port} inputMode="numeric" onChange={(e) => setCfg((c) => ({ ...c, port: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-                <Field label="API Key" className="sm:col-span-2"><input value={cfg.key} autoComplete="off" onChange={(e) => setCfg((c) => ({ ...c, key: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود." className="sm:col-span-2"><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder={db.virt.passSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••"} className={INPUT + " text-left mono placeholder:font-sans"} /></Field>
+                <Field label="آدرس Master" hint="بدون https:// و پورت"><input value={cfg.host} onChange={(e) => setCfg((c) => ({ ...c, host: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+                <Field label="پورت"><input value={cfg.port} inputMode="numeric" onChange={(e) => setCfg((c) => ({ ...c, port: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+                <Field label="API Key" className="sm:col-span-2"><input value={cfg.key} autoComplete="off" onChange={(e) => setCfg((c) => ({ ...c, key: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+                <Field label="API Password" hint="فقط در سرور ذخیره می‌شود." className="sm:col-span-2"><input type="password" autoComplete="new-password" value={cfg.pass} onChange={(e) => setCfg((c) => ({ ...c, pass: e.target.value }))} dir="ltr" placeholder={db.virt.passSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••"} className={INPUT + " text-start mono placeholder:font-sans"} /></Field>
               </form>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <div><div className="text-sm font-bold">پذیرش گواهی خودامضا</div><div className="text-[11px] text-white/55 mt-0.5">Virtualizor به‌طور پیش‌فرض گواهی خودامضا دارد؛ امن‌تر است روی Master گواهی معتبر نصب کنید.</div></div>
@@ -516,7 +516,7 @@ export function AdminVirtualizor() {
           <DataTable rows={db.planMap}
             columns={[
               { key: "name", label: "پلن گره", render: (r) => <span className="font-bold">{r.name}</span> },
-              { key: "plid", label: "Plan ID در Virtualizor", render: (r) => <input defaultValue={r.plid || ""} inputMode="numeric" aria-label={"Plan ID برای " + r.name} onBlur={async (e) => { const v = +amountInput(e.target.value) || 0; if (v === r.plid) return; await api.admin.savePlanMap(r.id, { plid: v }); notify("نگاشت ذخیره شد"); }} dir="ltr" className={INPUT_BASE + " h-9 w-28 text-left mono"} /> },
+              { key: "plid", label: "Plan ID در Virtualizor", render: (r) => <input defaultValue={r.plid || ""} inputMode="numeric" aria-label={"Plan ID برای " + r.name} onBlur={async (e) => { const v = +amountInput(e.target.value) || 0; if (v === r.plid) return; await api.admin.savePlanMap(r.id, { plid: v }); notify("نگاشت ذخیره شد"); }} dir="ltr" className={INPUT_BASE + " h-9 w-28 text-start mono"} /> },
               { key: "group", label: "گروه سرور (اگر موقعیت گروه نداشت)", render: (r) => <Select className="w-44" label={"گروه سرور " + r.name} value={r.group} onChange={async (v) => { await api.admin.savePlanMap(r.id, { group: v }); notify("نگاشت ذخیره شد"); }} options={["", ...new Set([...GROUPS, ...db.virtGroups, ...db.locations.flatMap((l) => [l.groupCloud || "", l.groupMetal || ""])].filter(Boolean))].map((g) => ({ value: g, label: g || "— از موقعیت —" }))} ltr /> },
               { key: "virt", label: "نوع مجازی‌سازی", render: (r) => <Select className="w-32" label={"نوع مجازی‌سازی " + r.name} value={r.virt} onChange={async (v) => { await api.admin.savePlanMap(r.id, { virt: v }); notify("نگاشت ذخیره شد"); }} options={[{ value: "", label: "پیش‌فرض (kvm)" }, "kvm", "xen", "xenhvm", "openvz", "lxc", "proxk", "proxl", "vzk", "vzo"]} ltr /> },
               { key: "st", label: "وضعیت", render: (r) => r.plid ? <Badge tone="green">نگاشت شده</Badge> : <Badge tone="amber">منابع صریح</Badge> },
@@ -577,7 +577,7 @@ export function AdminCoupons() {
           { key: "used", label: "استفاده", render: (r) => <div className="w-32"><Meter value={r.used} max={r.limit || r.used || 1} right={fa(r.used) + (r.limit ? " / " + fa(r.limit) : "")} label="استفاده" /></div> },
           { key: "expires", label: "انقضا" },
           { key: "active", label: "فعال", render: (r) => <Switch on={r.active} label={"فعال بودن " + r.code} onChange={async (v) => { await api.admin.saveCoupon({ ...r, active: v }); notify(v ? "کد فعال شد" : "کد غیرفعال شد"); }} /> },
-          { key: "a", label: "", className: "text-left whitespace-nowrap", render: (r) => <><IconBtn icon="pencil" label={"ویرایش " + r.code} onClick={() => setEdit({ ...r, value: String(r.value), limit: r.limit ? String(r.limit) : "" })} /><IconBtn icon="trash-2" label={"حذف " + r.code} className="hover:text-rose-300" onClick={async () => { if (await confirm("کد " + r.code + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.deleteCoupon(r.id); notify("کد حذف شد"); } }} /></> },
+          { key: "a", label: "", className: "text-end whitespace-nowrap", render: (r) => <><IconBtn icon="pencil" label={"ویرایش " + r.code} onClick={() => setEdit({ ...r, value: String(r.value), limit: r.limit ? String(r.limit) : "" })} /><IconBtn icon="trash-2" label={"حذف " + r.code} className="hover:text-rose-300" onClick={async () => { if (await confirm("کد " + r.code + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.deleteCoupon(r.id); notify("کد حذف شد"); } }} /></> },
         ]} />
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "ویرایش کد" : "کد تخفیف جدید"} icon="badge-percent"
         footer={<><AsyncButton onClick={async () => {
@@ -589,10 +589,10 @@ export function AdminCoupons() {
           await api.admin.saveCoupon({ ...edit, value, limit: +amountInput(edit.limit) || 0, expires: edit.expires.trim() || "—" }); setEdit(null); notify("کد تخفیف ذخیره شد", "badge-percent");
         }}>ذخیره</AsyncButton><button type="button" onClick={() => setEdit(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         {edit && <div className="grid grid-cols-2 gap-4">
-          <Field className="col-span-2" label="کد"><div className="flex gap-2"><input value={edit.code} onChange={(e) => setEdit((s) => s && { ...s, code: e.target.value.toUpperCase().replace(/\s/g, "") })} dir="ltr" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setEdit((s) => s && { ...s, code: "GRH" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x % 32]).join("") })} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div></Field>
+          <Field className="col-span-2" label="کد"><div className="flex gap-2"><input value={edit.code} onChange={(e) => setEdit((s) => s && { ...s, code: e.target.value.toUpperCase().replace(/\s/g, "") })} dir="ltr" className={INPUT + " text-start mono"} /><button type="button" onClick={() => setEdit((s) => s && { ...s, code: "GRH" + Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[x % 32]).join("") })} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div></Field>
           <Field label="نوع"><Select value={edit.type} label="نوع تخفیف" onChange={(v) => setEdit((s) => s && { ...s, type: v as "percent" | "fixed" })} options={[{ value: "percent", label: "درصدی" }, { value: "fixed", label: "مبلغ ثابت" }]} /></Field>
-          <Field label={edit.type === "percent" ? "درصد" : "مبلغ (تومان)"}><input value={edit.value} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, value: amountInput(e.target.value) })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-          <Field label="سقف استفاده" hint="خالی یعنی نامحدود"><input value={edit.limit} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, limit: amountInput(e.target.value) })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label={edit.type === "percent" ? "درصد" : "مبلغ (تومان)"}><input value={edit.value} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, value: amountInput(e.target.value) })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+          <Field label="سقف استفاده" hint="خالی یعنی نامحدود"><input value={edit.limit} inputMode="numeric" onChange={(e) => setEdit((s) => s && { ...s, limit: amountInput(e.target.value) })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <Field label="تاریخ انقضا"><input value={edit.expires === "—" ? "" : edit.expires} onChange={(e) => setEdit((s) => s && { ...s, expires: e.target.value })} placeholder="۱۴۰۴/۱۰/۰۱" className={INPUT} /></Field>
         </div>}
       </Modal>
@@ -664,16 +664,16 @@ export function AdminSettings() {
           <Card title="تنظیمات عمومی" icon="settings-2">
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field label="نام سایت"><input value={s.siteName} onChange={(e) => setS((x) => ({ ...x, siteName: e.target.value }))} className={INPUT} /></Field>
-              <Field label="ایمیل پشتیبانی"><input type="email" value={s.supportEmail} onChange={(e) => setS((x) => ({ ...x, supportEmail: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /></Field>
+              <Field label="ایمیل پشتیبانی"><input type="email" value={s.supportEmail} onChange={(e) => setS((x) => ({ ...x, supportEmail: e.target.value }))} dir="ltr" className={INPUT + " text-start"} /></Field>
               <Field label="تلفن پشتیبانی"><input value={s.supportPhone} onChange={(e) => setS((x) => ({ ...x, supportPhone: e.target.value }))} className={INPUT} /></Field>
             </div>
             <h3 className="text-sm font-black mt-8 mb-3 flex items-center gap-2"><Icon name="file-check" size={16} className="acc" />مشخصات فروشنده روی فاکتور رسمی</h3>
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field className="sm:col-span-2" label="نام حقوقی"><input value={s.legalName} onChange={(e) => setS((x) => ({ ...x, legalName: e.target.value }))} className={INPUT} /></Field>
-              <Field label="شناسه ملی (۱۱ رقم)"><input value={s.sellerNationalId} onChange={(e) => setS((x) => ({ ...x, sellerNationalId: amountInput(e.target.value).slice(0, 11) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
-              <Field label="کد اقتصادی (۱۲ یا ۱۴ رقم)"><input value={s.sellerEconomicCode} onChange={(e) => setS((x) => ({ ...x, sellerEconomicCode: amountInput(e.target.value).slice(0, 14) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
-              <Field label="کد پستی"><input value={s.sellerPostalCode} onChange={(e) => setS((x) => ({ ...x, sellerPostalCode: amountInput(e.target.value).slice(0, 10) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
-              <Field label="سهم معرف از هر پرداخت (٪)"><input value={s.affiliateRate} onChange={(e) => setS((x) => ({ ...x, affiliateRate: Math.min(50, +amountInput(e.target.value) || 0) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+              <Field label="شناسه ملی (۱۱ رقم)"><input value={s.sellerNationalId} onChange={(e) => setS((x) => ({ ...x, sellerNationalId: amountInput(e.target.value).slice(0, 11) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-start tabular"} /></Field>
+              <Field label="کد اقتصادی (۱۲ یا ۱۴ رقم)"><input value={s.sellerEconomicCode} onChange={(e) => setS((x) => ({ ...x, sellerEconomicCode: amountInput(e.target.value).slice(0, 14) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-start tabular"} /></Field>
+              <Field label="کد پستی"><input value={s.sellerPostalCode} onChange={(e) => setS((x) => ({ ...x, sellerPostalCode: amountInput(e.target.value).slice(0, 10) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-start tabular"} /></Field>
+              <Field label="سهم معرف از هر پرداخت (٪)"><input value={s.affiliateRate} onChange={(e) => setS((x) => ({ ...x, affiliateRate: Math.min(50, +amountInput(e.target.value) || 0) }))} dir="ltr" inputMode="numeric" className={INPUT + " text-start tabular"} /></Field>
               <Field className="sm:col-span-2" label="نشانی"><input value={s.sellerAddress} onChange={(e) => setS((x) => ({ ...x, sellerAddress: e.target.value }))} className={INPUT} /></Field>
             </div>
             <div className="mt-6 space-y-1 max-w-3xl">
@@ -687,7 +687,7 @@ export function AdminSettings() {
         )}
         {tab === "finance" && (
           <Card title="مالی و درگاه پرداخت" icon="wallet">
-            <Field className="max-w-xs" label="نرخ مالیات بر ارزش افزوده (٪)"><input value={s.tax} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, tax: Math.min(100, +amountInput(e.target.value) || 0) }))} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+            <Field className="max-w-xs" label="نرخ مالیات بر ارزش افزوده (٪)"><input value={s.tax} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, tax: Math.min(100, +amountInput(e.target.value) || 0) }))} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
             <div className="mt-6 grid sm:grid-cols-2 gap-2 max-w-3xl">
               {[["zarinpal", "زرین‌پال"], ["idpay", "آیدی‌پی"], ["wallet", "کیف پول داخلی"], ["crypto", "پرداخت رمزارزی"]].map(([k, l]) => (
                 <div key={k} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.07]"><span className="text-sm font-bold flex items-center gap-2"><Icon name="lock" size={15} className="text-white/55" />{l}</span><Switch on={!!s.gateways[k]} label={l} onChange={(v) => setS((x) => ({ ...x, gateways: { ...x.gateways, [k]: v } }))} /></div>
@@ -700,9 +700,9 @@ export function AdminSettings() {
           <Card title="پیامک و ایمیل" icon="mail">
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field label="سرویس پیامک"><Select value={s.smsProvider} label="سرویس پیامک" onChange={(v) => setS((x) => ({ ...x, smsProvider: v }))} options={["کاوه‌نگار", "ملی‌پیامک", "فراز اس‌ام‌اس"]} /></Field>
-              <Field label="کلید API پیامک" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={smsKey} onChange={(e) => setSmsKey(e.target.value)} placeholder={s.smsKeySet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••••"} dir="ltr" className={INPUT + " text-left"} /></Field>
-              <Field label="سرور SMTP"><input value={s.smtpHost} onChange={(e) => setS((x) => ({ ...x, smtpHost: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-              <Field label="پورت SMTP"><input value={s.smtpPort || ""} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, smtpPort: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+              <Field label="کلید API پیامک" hint="فقط در سرور ذخیره می‌شود."><input type="password" autoComplete="new-password" value={smsKey} onChange={(e) => setSmsKey(e.target.value)} placeholder={s.smsKeySet ? "ذخیره شده؛ برای تغییر وارد کنید" : "••••••••••"} dir="ltr" className={INPUT + " text-start"} /></Field>
+              <Field label="سرور SMTP"><input value={s.smtpHost} onChange={(e) => setS((x) => ({ ...x, smtpHost: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+              <Field label="پورت SMTP"><input value={s.smtpPort || ""} inputMode="numeric" onChange={(e) => setS((x) => ({ ...x, smtpPort: +amountInput(e.target.value).slice(0, 5) }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
             </div>
             <div className="mt-6 flex justify-end gap-2 max-w-3xl"><AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const r = await dashboardApi.testEmail(); notify("ایمیل آزمایشی به " + r.to + " ارسال شد", "mail"); }}>ارسال آزمایشی</AsyncButton><AsyncButton onClick={async () => {
                 if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s.smtpHost.trim())) throw new Error("آدرس SMTP معتبر نیست.");
@@ -720,7 +720,7 @@ export function AdminSettings() {
           <Card title="مدیران" icon="users" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setSt({ name: "", email: "", role: "پشتیبانی فنی" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> افزودن مدیر</button>}>
             {db.staff.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-                <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{m.name[0]}</span><div><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-right">{m.email}</div></div></div>
+                <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center font-black text-sm" aria-hidden="true">{m.name[0]}</span><div><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-end">{m.email}</div></div></div>
                 <div className="flex items-center gap-2"><Badge tone={m.role === "مدیر کل" ? "violet" : "gray"}>{m.role}</Badge>{m.role !== "مدیر کل" && <IconBtn icon="trash-2" label={"حذف " + m.name} className="hover:text-rose-300" onClick={async () => { if (await confirm(m.name + " از مدیران حذف شود؟", { danger: true, ok: "حذف" })) { await api.admin.removeStaff(m.id); notify("مدیر حذف شد"); } }} />}</div>
               </div>
             ))}
@@ -729,7 +729,7 @@ export function AdminSettings() {
             footer={<><AsyncButton onClick={async () => { if (!st) return; if (st.name.trim().length < 2 || !st.email.trim()) throw new Error("نام و ایمیل لازم است."); await api.admin.addStaff({ ...st, name: st.name.trim(), email: st.email.trim().toLowerCase() }); setSt(null); notify("مدیر اضافه شد"); }}>افزودن</AsyncButton><button type="button" onClick={() => setSt(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
             {st && <div className="space-y-4">
               <Field label="نام"><input value={st.name} onChange={(e) => setSt((x) => x && { ...x, name: e.target.value })} className={INPUT} /></Field>
-              <Field label="ایمیل"><input type="email" value={st.email} onChange={(e) => setSt((x) => x && { ...x, email: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+              <Field label="ایمیل"><input type="email" value={st.email} onChange={(e) => setSt((x) => x && { ...x, email: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
               <Field label="نقش"><Select value={st.role} label="نقش" onChange={(v) => setSt((x) => x && { ...x, role: v })} options={["مدیر کل", "پشتیبانی فنی", "مالی", "فروش", "فقط مشاهده"]} /></Field>
             </div>}
           </Modal>

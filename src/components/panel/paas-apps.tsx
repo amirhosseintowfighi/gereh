@@ -48,7 +48,7 @@ export function UserApps() {
                 <span className="flex items-center justify-between gap-2"><b dir="ltr" className="truncate">{a.name}</b><StatusPill s={a.status} /></span>
                 <span className="block text-xs text-white/55 mt-1">{stackOf(a.stack)?.label ?? a.stack} · {a.source === "git" ? a.gitBranch : a.source}</span>
                 {a.builder && <span className="mt-2 inline-flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 bg-violet-400/15 text-violet-200 border border-violet-300/25"><Icon name="sparkles" size={12} />ساخته‌شده با {BUILDER.name}</span>}
-                <span dir="ltr" className="block text-xs acc mt-3 truncate text-right">{a.url.replace("https://", "")}</span>
+                <span dir="ltr" className="block text-xs acc mt-3 truncate text-end">{a.url.replace("https://", "")}</span>
                 <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{fa(a.instances)} نمونه</span><span className="tabular">{fa(a.hourly)} تومان / ساعت</span></span>
               </Link>
             </li>
@@ -113,17 +113,17 @@ export function NewApp() {
             <div role="radiogroup" aria-label="منبع کد" className="grid sm:grid-cols-2 gap-2">
               {SOURCES.map((s) => (
                 <button key={s.id} type="button" role="radio" aria-checked={source === s.id} onClick={() => { setSource(s.id); if (s.id === "image") pickStack("docker"); if (s.id === "compose") pickStack("compose"); }}
-                  className={"text-right rounded-2xl p-4 border transition flex gap-3 " + (source === s.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+                  className={"text-start rounded-2xl p-4 border transition flex gap-3 " + (source === s.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
                   <Icon name={s.icon} size={20} className="acc shrink-0 mt-0.5" /><span><b className="text-sm">{s.label}</b><span className="block text-[11px] text-white/55 mt-1 leading-5">{s.hint}</span></span>
                 </button>
               ))}
             </div>
             <div className="mt-5 space-y-4">
               {source === "git" && <div className="grid sm:grid-cols-[1fr_10rem] gap-3">
-                <Field label="نشانی مخزن" hint="برای مخزن خصوصی، توکن دسترسی را در نشانی بگذارید: https://TOKEN@github.com/user/repo.git"><input value={f.gitUrl} onChange={(e) => set({ gitUrl: e.target.value.trim() })} dir="ltr" placeholder="https://github.com/user/repo.git" className={INPUT + " text-left"} /></Field>
-                <Field label="شاخه"><input value={f.gitBranch} onChange={(e) => set({ gitBranch: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
+                <Field label="نشانی مخزن" hint="برای مخزن خصوصی، توکن دسترسی را در نشانی بگذارید: https://TOKEN@github.com/user/repo.git"><input value={f.gitUrl} onChange={(e) => set({ gitUrl: e.target.value.trim() })} dir="ltr" placeholder="https://github.com/user/repo.git" className={INPUT + " text-start"} /></Field>
+                <Field label="شاخه"><input value={f.gitBranch} onChange={(e) => set({ gitBranch: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
               </div>}
-              {source === "image" && <Field label="ایمیج" hint="باید عمومی باشد؛ پورتی که اپ روی آن گوش می‌دهد را پایین وارد کنید."><input value={f.image} onChange={(e) => set({ image: e.target.value.trim() })} dir="ltr" placeholder="ghcr.io/user/app:latest" className={INPUT + " text-left"} /></Field>}
+              {source === "image" && <Field label="ایمیج" hint="باید عمومی باشد؛ پورتی که اپ روی آن گوش می‌دهد را پایین وارد کنید."><input value={f.image} onChange={(e) => set({ image: e.target.value.trim() })} dir="ltr" placeholder="ghcr.io/user/app:latest" className={INPUT + " text-start"} /></Field>}
               {(source === "zip" || source === "compose") && (
                 <div className="space-y-2">
                   <label className="block rounded-2xl border-2 border-dashed border-white/[0.15] hover:border-white/30 p-6 text-center cursor-pointer transition">
@@ -162,13 +162,13 @@ export function NewApp() {
               {versions.length > 0 && <Field label={"نسخه " + (RUNTIMES[stackOf(f.stack)!.runtime!].label)} hint="خالی = تشخیص از پروژه (.nvmrc، composer.json…)">
                 <Select label="نسخه" value={f.version} onChange={(v) => set({ version: v })} options={[{ value: "", label: "خودکار" }, ...versions.map((v) => ({ value: v, label: v }))]} />
               </Field>}
-              <Field label="پورت اپ" hint="اپ باید روی 0.0.0.0 و این پورت گوش دهد (متغیر PORT هم تنظیم می‌شود)"><input value={f.port} inputMode="numeric" onChange={(e) => set({ port: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>
-              <Field label="پوشه ریشه (اختیاری)" hint="برای monorepo"><input value={f.rootDir} onChange={(e) => set({ rootDir: e.target.value.trim() })} dir="ltr" placeholder="apps/web" className={INPUT + " text-left"} /></Field>
+              <Field label="پورت اپ" hint="اپ باید روی 0.0.0.0 و این پورت گوش دهد (متغیر PORT هم تنظیم می‌شود)"><input value={f.port} inputMode="numeric" onChange={(e) => set({ port: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-start"} /></Field>
+              <Field label="پوشه ریشه (اختیاری)" hint="برای monorepo"><input value={f.rootDir} onChange={(e) => set({ rootDir: e.target.value.trim() })} dir="ltr" placeholder="apps/web" className={INPUT + " text-start"} /></Field>
             </div>
             <button type="button" onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced} className="mt-4 text-xs acc inline-flex items-center gap-1"><Icon name="chevron-down" size={13} className={advanced ? "rotate-180" : ""} />دستورهای بیلد و اجرا</button>
             {advanced && <div className="grid sm:grid-cols-2 gap-3 mt-3">
-              <Field label="دستور بیلد" hint="خالی = تشخیص خودکار"><input value={f.buildCommand} onChange={(e) => set({ buildCommand: e.target.value })} dir="ltr" placeholder={stackOf(f.stack)?.build ?? ""} className={INPUT + " text-left font-mono text-xs"} /></Field>
-              <Field label="دستور اجرا" hint="خالی = تشخیص خودکار"><input value={f.startCommand} onChange={(e) => set({ startCommand: e.target.value })} dir="ltr" placeholder={stackOf(f.stack)?.start ?? ""} className={INPUT + " text-left font-mono text-xs"} /></Field>
+              <Field label="دستور بیلد" hint="خالی = تشخیص خودکار"><input value={f.buildCommand} onChange={(e) => set({ buildCommand: e.target.value })} dir="ltr" placeholder={stackOf(f.stack)?.build ?? ""} className={INPUT + " text-start font-mono text-xs"} /></Field>
+              <Field label="دستور اجرا" hint="خالی = تشخیص خودکار"><input value={f.startCommand} onChange={(e) => set({ startCommand: e.target.value })} dir="ltr" placeholder={stackOf(f.stack)?.start ?? ""} className={INPUT + " text-start font-mono text-xs"} /></Field>
             </div>}
           </Card>
 
@@ -188,8 +188,8 @@ export function NewApp() {
 
         <div className="xl:sticky xl:top-24 space-y-4">
           <Card title="نام و خلاصه" icon="rocket">
-            <Field label="نام اپ" error={nameError || undefined}><input value={f.name} onChange={(e) => set({ name: e.target.value.toLowerCase() })} dir="ltr" placeholder="my-app" aria-invalid={!!nameError} className={INPUT + " text-left"} /></Field>
-            <p dir="ltr" className="text-xs text-white/55 mt-2 text-right truncate">https://{f.name || "my-app"}.{domain}</p>
+            <Field label="نام اپ" error={nameError || undefined}><input value={f.name} onChange={(e) => set({ name: e.target.value.toLowerCase() })} dir="ltr" placeholder="my-app" aria-invalid={!!nameError} className={INPUT + " text-start"} /></Field>
+            <p dir="ltr" className="text-xs text-white/55 mt-2 text-end truncate">https://{f.name || "my-app"}.{domain}</p>
             <dl className="mt-4 space-y-2 text-sm">
               <div className="flex justify-between"><dt className="text-white/55">پلن</dt><dd>{plan ? plan.name + " (" + cpuLabel(plan.cpu) + "، " + ramLabel(plan.ramMb) + ")" : "—"}</dd></div>
               <div className="flex justify-between"><dt className="text-white/55">نمونه</dt><dd>{fa(f.instances)}</dd></div>
@@ -296,7 +296,7 @@ function BuildLog({ appId, depId, onClose }: { appId: string; depId: string | nu
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">{data ? <DeployPill s={data.status} /> : <Icon name="loader-circle" size={16} className="animate-spin" />}
         {depId && (data?.status === "failed" || data?.log.includes("==> Waiting:")) && <ExplainButton kind="paas" resourceId={appId} errorRef={depId} />}</div>
       <div className={data?.failure ? "grid md:grid-cols-[1fr_16rem] gap-3" : ""}>
-        <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ بیلد" className="text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[55vh] overflow-auto whitespace-pre-wrap">{data?.log || "در انتظار شروع…"}</pre>
+        <pre ref={pre} dir="ltr" tabIndex={0} aria-label="لاگ بیلد" className="text-start text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[55vh] overflow-auto whitespace-pre-wrap">{data?.log || "در انتظار شروع…"}</pre>
         <FailureHint kind={data?.failure} />
       </div>
     </Modal>
@@ -367,7 +367,7 @@ function ScanBadge({ d }: { d: PaasApp["deployments"][number] }) {
       <button type="button" onClick={async () => { setOpen(true); setReport((await api.paas.scanReport(d.id)).report); }} title="گزارش اسکن امنیتی"><Badge tone={tone}><Icon name="shield-check" size={11} /> {label}</Badge></button>
       <Modal open={open} onClose={() => setOpen(false)} title="اسکن امنیتی ایمیج" icon="shield-check" size="max-w-2xl">
         <p className="text-sm text-white/65 leading-7">بسته‌های سیستم‌عامل و کتابخانه‌های ایمیج با پایگاه آسیب‌پذیری‌های شناخته‌شده (Trivy) مقایسه شده‌اند؛ فقط موارد مهم و بحرانی که نسخه اصلاح‌شده دارند. برای رفع، ایمیج پایه یا وابستگی را به‌روز و دوباره دیپلوی کنید.</p>
-        <pre dir="ltr" tabIndex={0} aria-label="گزارش آسیب‌پذیری‌ها" className="mt-3 text-left text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-[50vh] overflow-auto whitespace-pre">{report === null ? "…" : report || "No HIGH/CRITICAL vulnerabilities with a fix."}</pre>
+        <pre dir="ltr" tabIndex={0} aria-label="گزارش آسیب‌پذیری‌ها" className="mt-3 text-start text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-[50vh] overflow-auto whitespace-pre">{report === null ? "…" : report || "No HIGH/CRITICAL vulnerabilities with a fix."}</pre>
       </Modal>
     </>
   );
@@ -396,7 +396,7 @@ function PreviewCard({ app, onLog }: { app: PaasApp; onLog: (id: string) => void
       {building ? <p className="text-xs text-sky-200 mt-4 flex items-center gap-2"><Icon name="loader-circle" size={14} className="animate-spin" />پیش‌نمایش در حال ساخت… <button type="button" className="acc" onClick={() => onLog(building.id)}>لاگ</button></p>
         : app.source === "git" ? (
           <div className="flex flex-wrap gap-2 mt-4">
-            <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " max-w-xs font-mono text-left text-sm"} />
+            <input dir="ltr" value={branch} onChange={(e) => setBranch(e.target.value.trim())} placeholder={app.gitBranch} aria-label="شاخه" className={INPUT + " max-w-xs font-mono text-start text-sm"} />
             <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { await api.paas.deployPreview(app.id, { branch: branch || undefined }); notify("ساخت پیش‌نمایش شروع شد", "eye"); }}><Icon name="eye" size={16} />{live ? "پیش‌نمایش جدید" : "ساخت پیش‌نمایش"}</AsyncButton>
           </div>
         ) : <p className="text-xs text-white/50 mt-4">برای اپ‌های ZIP: <code dir="ltr">gereh deploy --preview</code></p>}
@@ -476,14 +476,14 @@ function AppDomains({ app }: { app: PaasApp }) {
         </ul>
         <form className="flex gap-2 mt-4" onSubmit={(e) => e.preventDefault()}>
           <label className="sr-only" htmlFor="new-host">دامنه جدید</label>
-          <input id="new-host" value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="www.example.ir" className={INPUT + " text-left"} />
+          <input id="new-host" value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="www.example.ir" className={INPUT + " text-start"} />
           <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { await api.paas.addDomain(app.id, host); setHost(""); notify("دامنه اضافه شد", "globe"); }}>افزودن</AsyncButton>
         </form>
       </Card>
       <Card title="تنظیم DNS" icon="network">
         <p className="text-sm text-white/65 leading-7">در سرویس DNS دامنه، یک رکورد بسازید:</p>
         <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="رکورد DNS">
-          <table className="w-full text-xs" dir="ltr"><thead><tr className="text-white/55 text-xs"><th className="text-left p-2">Type</th><th className="text-left p-2">Name</th><th className="text-left p-2">Value</th></tr></thead>
+          <table className="w-full text-xs" dir="ltr"><thead><tr className="text-white/55 text-xs"><th className="text-start p-2">Type</th><th className="text-start p-2">Name</th><th className="text-start p-2">Value</th></tr></thead>
             <tbody><tr className="border-t border-white/[0.08]"><td className="p-2">CNAME</td><td className="p-2">www</td><td className="p-2"><CopyText text={target} className="font-mono" /></td></tr></tbody></table>
         </div>
         <p className="text-[11px] text-white/55 leading-6 mt-3">برای ریشه دامنه (بدون www) اگر سرویس DNS شما CNAME روی @ را پشتیبانی نمی‌کند، از ALIAS/ANAME استفاده کنید. گواهی SSL پس از تأیید خودکار صادر می‌شود.{db.domains.length ? " دامنه‌های شما در گره را از بخش دامنه‌ها می‌توانید تنظیم کنید." : ""}</p>
@@ -527,7 +527,7 @@ function AppDbs({ app }: { app: PaasApp }) {
         {free.length === 0 ? <Empty icon="database" title="پایگاه داده آزادی ندارید" action={<Link href="/panel/databases?new=1" className={BTN_P + BTN_MD}>ساخت پایگاه داده</Link>} /> : (
           <div className="space-y-4">
             <Field label="پایگاه داده"><Select label="پایگاه داده" value={pick || free[0].id} onChange={setPick} options={free.map((d) => ({ value: d.id, label: d.name + " (" + (DB_ENGINES.find((e) => e.id === d.engine)?.label ?? d.engine) + ")" }))} /></Field>
-            <Field label="نام متغیر" hint="آدرس اتصال کامل با این نام به اپ داده می‌شود"><input value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} dir="ltr" placeholder={chosen ? defaultEnvKeyFor(chosen.engine) : "DATABASE_URL"} className={INPUT + " text-left font-mono"} /></Field>
+            <Field label="نام متغیر" hint="آدرس اتصال کامل با این نام به اپ داده می‌شود"><input value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} dir="ltr" placeholder={chosen ? defaultEnvKeyFor(chosen.engine) : "DATABASE_URL"} className={INPUT + " text-start font-mono"} /></Field>
             <AsyncButton onClick={async () => { await api.paas.link(app.id, pick || free[0].id, key || undefined); setKey(""); setPick(""); notify("پایگاه داده متصل شد", "database"); }}>اتصال و اعمال</AsyncButton>
           </div>
         )}
@@ -574,16 +574,16 @@ function AppSettings({ app }: { app: PaasApp }) {
       <Card title="بیلد و اجرا" icon="terminal">
         <div className="space-y-3">
           {app.source === "git" && <div className="grid sm:grid-cols-[1fr_9rem] gap-3">
-            <Field label="مخزن"><input value={f.gitUrl} onChange={(e) => set({ gitUrl: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="شاخه"><input value={f.gitBranch} onChange={(e) => set({ gitBranch: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="مخزن"><input value={f.gitUrl} onChange={(e) => set({ gitUrl: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="شاخه"><input value={f.gitBranch} onChange={(e) => set({ gitBranch: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
           </div>}
-          {app.source === "image" && <Field label="ایمیج" hint="تغییر ایمیج، استقرار جدید را شروع می‌کند"><input value={f.image} onChange={(e) => set({ image: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>}
+          {app.source === "image" && <Field label="ایمیج" hint="تغییر ایمیج، استقرار جدید را شروع می‌کند"><input value={f.image} onChange={(e) => set({ image: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>}
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="پوشه ریشه"><input value={f.rootDir} onChange={(e) => set({ rootDir: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="پورت"><input value={f.port} inputMode="numeric" onChange={(e) => set({ port: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="دستور بیلد"><input value={f.buildCommand} onChange={(e) => set({ buildCommand: e.target.value })} dir="ltr" placeholder="خودکار" className={INPUT + " text-left font-mono text-xs"} /></Field>
-            <Field label="دستور اجرا"><input value={f.startCommand} onChange={(e) => set({ startCommand: e.target.value })} dir="ltr" placeholder="خودکار" className={INPUT + " text-left font-mono text-xs"} /></Field>
-            <Field label="مسیر سلامت" hint="نسخه جدید فقط وقتی جایگزین می‌شود که این مسیر پاسخ 200 بدهد"><input value={f.healthPath} onChange={(e) => set({ healthPath: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="پوشه ریشه"><input value={f.rootDir} onChange={(e) => set({ rootDir: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="پورت"><input value={f.port} inputMode="numeric" onChange={(e) => set({ port: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="دستور بیلد"><input value={f.buildCommand} onChange={(e) => set({ buildCommand: e.target.value })} dir="ltr" placeholder="خودکار" className={INPUT + " text-start font-mono text-xs"} /></Field>
+            <Field label="دستور اجرا"><input value={f.startCommand} onChange={(e) => set({ startCommand: e.target.value })} dir="ltr" placeholder="خودکار" className={INPUT + " text-start font-mono text-xs"} /></Field>
+            <Field label="مسیر سلامت" hint="نسخه جدید فقط وقتی جایگزین می‌شود که این مسیر پاسخ 200 بدهد"><input value={f.healthPath} onChange={(e) => set({ healthPath: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
           </div>
           <AsyncButton onClick={async () => { await api.paas.updateApp(app.id, f); notify("تنظیمات ذخیره شد؛ تغییرات بیلد در استقرار بعدی اعمال می‌شود", "check"); }}>ذخیره</AsyncButton>
         </div>
@@ -602,7 +602,7 @@ function AppSettings({ app }: { app: PaasApp }) {
         <Card title="حذف اپ" icon="trash-2">
           <p className="text-sm text-white/65 leading-7">اپ، نسخه‌ها، دامنه‌ها و دیسک دائمی آن برای همیشه حذف می‌شوند. پایگاه‌های داده متصل حذف نمی‌شوند.</p>
           <label className="block text-xs text-white/60 mt-3" htmlFor="del-name">برای تأیید، نام اپ را بنویسید: <b dir="ltr">{app.name}</b></label>
-          <input id="del-name" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5"} />
+          <input id="del-name" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-start mt-1.5"} />
           <AsyncButton danger disabled={confirmName !== app.name} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.paas.deleteApp(app.id, confirmName); notify("اپ حذف شد", "trash-2"); router.push("/panel/apps"); }}>حذف همیشگی</AsyncButton>
         </Card>
       </div>

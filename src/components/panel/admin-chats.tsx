@@ -50,7 +50,7 @@ export function AdminChats() {
               return (
                 <li key={c.id}>
                   <button type="button" onClick={() => pick(c.id)} aria-current={sel?.id === c.id}
-                    className={"w-full text-right p-3 rounded-xl transition " + (sel?.id === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
+                    className={"w-full text-start p-3 rounded-xl transition " + (sel?.id === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
                     <span className="flex items-center justify-between gap-2">
                       <span className="font-bold text-sm truncate">{c.name}</span>
                       <span className="flex items-center gap-1.5 shrink-0">{c.unread && c.status === "open" && <Badge tone="blue" dot>جدید</Badge>}<span className="text-[10px] text-white/50">{c.lastAt.split(" ").pop()}</span></span>
@@ -78,7 +78,7 @@ export function AdminChats() {
                 {sel.messages.map((m) => m.from === "system" ? (
                   <li key={m.id} className="text-center text-[11px] text-white/50 px-6 leading-6">{inline(m.text, "a" + m.id)}</li>
                 ) : (
-                  <li key={m.id} className={"max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-7 whitespace-pre-wrap break-words " + (m.from === "staff" ? "mr-auto bg-sky-400/15 border border-sky-300/20" : "ml-auto bg-white/[0.07]")}>
+                  <li key={m.id} className={"max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-7 whitespace-pre-wrap break-words " + (m.from === "staff" ? "ms-auto bg-sky-400/15 border border-sky-300/20" : "me-auto bg-white/[0.07]")}>
                     <span className="block text-[11px] text-white/55 mb-0.5">{m.from === "staff" ? m.author : sel.name}</span>
                     {m.text}
                     <span className="block text-[10px] text-white/50 mt-1">{m.at}</span>

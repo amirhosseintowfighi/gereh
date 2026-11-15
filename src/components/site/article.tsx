@@ -23,7 +23,7 @@ export function ArticleView({ crumbs, title, lead, meta, body, aside, children }
               </span>
             ))}
           </nav>
-          <h1 className="mt-6 text-[1.9rem] sm:text-5xl font-black leading-[1.4] tracking-tight max-w-3xl">{title}</h1>
+          <h1 className="mt-6 text-[1.9rem] sm:text-5xl font-black leading-[1.4] max-w-3xl">{title}</h1>
           {lead && <p className="mt-4 text-white/65 max-w-2xl leading-8">{lead}</p>}
           {meta && <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/55">{meta}</div>}
         </div>
@@ -38,7 +38,7 @@ export function ArticleView({ crumbs, title, lead, meta, body, aside, children }
             <nav aria-label="فهرست مطالب" className={GLASS_SOFT + " rounded-2xl p-4"}>
               <h2 className="text-sm font-extrabold mb-3">در این صفحه</h2>
               <ol className="space-y-2 text-sm text-white/60">
-                {toc.map((h) => <li key={h.id} className={h.level === 3 ? "pr-3" : ""}><a href={"#" + h.id} className="hover:text-white">{h.text}</a></li>)}
+                {toc.map((h) => <li key={h.id} className={h.level === 3 ? "ps-3" : ""}><a href={"#" + h.id} className="hover:text-white">{h.text}</a></li>)}
               </ol>
             </nav>
           )}

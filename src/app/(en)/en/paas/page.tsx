@@ -63,8 +63,8 @@ export default async function EnPaas() {
               <div key={title} className={GLASS + " rounded-2xl overflow-hidden"}>
                 <h3 className="font-black px-5 pt-5">{title}</h3>
                 <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={title + " pricing"}>
-                  <table className="w-full text-sm mt-3"><thead><tr className="text-white/55 text-xs text-left"><th className="p-3 pl-5">Plan</th><th className="p-3">vCPU</th><th className="p-3">RAM</th>{title === "Databases" && <th className="p-3">Disk</th>}<th className="p-3">Hourly</th><th className="p-3">Monthly</th></tr></thead>
-                    <tbody>{list.map((p) => <tr key={p.id} className="border-t border-white/[0.06]"><td className="p-3 pl-5 font-bold">{p.id.split("-")[1].replace(/^./, (c) => c.toUpperCase())}</td><td className="p-3">{p.cpu}</td><td className="p-3">{p.ramMb >= 1024 ? p.ramMb / 1024 + " GB" : p.ramMb + " MB"}</td>{title === "Databases" && <td className="p-3">{p.diskGb} GB</td>}<td className="p-3 tabular">{tomanEn(hourlyOf(p.price))}</td><td className="p-3 tabular font-bold">{tomanEn(p.price)}</td></tr>)}</tbody></table>
+                  <table className="w-full text-sm mt-3"><thead><tr className="text-white/55 text-xs text-start"><th className="p-3 ps-5">Plan</th><th className="p-3">vCPU</th><th className="p-3">RAM</th>{title === "Databases" && <th className="p-3">Disk</th>}<th className="p-3">Hourly</th><th className="p-3">Monthly</th></tr></thead>
+                    <tbody>{list.map((p) => <tr key={p.id} className="border-t border-white/[0.06]"><td className="p-3 ps-5 font-bold">{p.id.split("-")[1].replace(/^./, (c) => c.toUpperCase())}</td><td className="p-3">{p.cpu}</td><td className="p-3">{p.ramMb >= 1024 ? p.ramMb / 1024 + " GB" : p.ramMb + " MB"}</td>{title === "Databases" && <td className="p-3">{p.diskGb} GB</td>}<td className="p-3 tabular">{tomanEn(hourlyOf(p.price))}</td><td className="p-3 tabular font-bold">{tomanEn(p.price)}</td></tr>)}</tbody></table>
                 </div>
               </div>
             ))}

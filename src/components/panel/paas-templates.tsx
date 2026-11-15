@@ -35,7 +35,7 @@ export function AppTemplates() {
       <ul className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {list.map((t) => (
           <li key={t.id}>
-            <button type="button" onClick={() => setPick(t)} className="w-full h-full text-right rounded-2xl bg-white/[0.035] border border-white/[0.08] hover:border-white/25 p-5 transition flex flex-col">
+            <button type="button" onClick={() => setPick(t)} className="w-full h-full text-start rounded-2xl bg-white/[0.035] border border-white/[0.08] hover:border-white/25 p-5 transition flex flex-col">
               <span className="flex items-center gap-3"><span className="w-10 h-10 rounded-xl tile grid place-items-center"><Icon name={t.icon} size={18} /></span><b>{t.name}</b><span className="ms-auto"><Badge>{t.category}</Badge></span></span>
               <span className="text-xs text-white/60 leading-6 mt-3 flex-1">{t.desc}</span>
               <span className="flex flex-wrap gap-1.5 mt-3 text-[11px] text-white/50">
@@ -49,7 +49,7 @@ export function AppTemplates() {
         ))}
         {vpsList.map((t) => (
           <li key={t.id}>
-            <button type="button" onClick={() => setVps(t)} className="w-full h-full text-right rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.12] hover:border-white/25 p-5 transition flex flex-col">
+            <button type="button" onClick={() => setVps(t)} className="w-full h-full text-start rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.12] hover:border-white/25 p-5 transition flex flex-col">
               <span className="flex items-center gap-3"><span className="w-10 h-10 rounded-xl tile grid place-items-center opacity-70"><Icon name={t.icon} size={18} /></span><b>{t.name}</b><span className="ms-auto"><Badge tone="amber">سرور ابری</Badge></span></span>
               <span className="text-xs text-white/55 leading-6 mt-3 flex-1">{t.desc}</span>
               <span className="text-[11px] text-white/50 mt-3">روی سرور ابری بهتر اجرا می‌شود</span>
@@ -106,10 +106,10 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
     <Modal open onClose={onClose} title={"راه‌اندازی " + t.name} icon={t.icon} size="max-w-xl">
       <div className="space-y-4">
         <p className="text-sm text-white/65 leading-7">{t.desc}. <a href={t.docs} target="_blank" rel="noopener noreferrer" className="acc">مستندات</a></p>
-        <Field label="نام اپ" hint={"آدرس: " + name + ".gereh.dev"}><input dir="ltr" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} className={INPUT + " font-mono text-left"} /></Field>
+        <Field label="نام اپ" hint={"آدرس: " + name + ".gereh.dev"}><input dir="ltr" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} className={INPUT + " font-mono text-start"} /></Field>
         {(t.versions?.length ?? 0) > 1 && (
           <Field label="نسخه">
-            <select value={version} onChange={(e) => setVersion(e.target.value)} dir="ltr" className={INPUT + " font-mono text-left"}>
+            <select value={version} onChange={(e) => setVersion(e.target.value)} dir="ltr" className={INPUT + " font-mono text-start"}>
               {t.versions!.map((v) => <option key={v} value={v}>{v}{v === templateTag(t) ? "  (پیشنهادی)" : ""}</option>)}
             </select>
           </Field>
@@ -119,8 +119,8 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
             <div className="space-y-3">
               <Select label="سرویس مدل" value={llm.mode} onChange={(v) => setLlm({ ...llm, mode: v as "gereh" | "custom" })} options={[{ value: "gereh", label: "API هوش مصنوعی گره (پیشنهادی؛ کلید gk- جدید ساخته می‌شود)" }, { value: "custom", label: "سرویس دیگر سازگار با OpenAI" }]} />
               {llm.mode === "gereh" ? <p className="text-[11px] text-white/55 leading-6">هزینه هر درخواست از کیف پول کم می‌شود؛ کلید را بعداً در «API هوش مصنوعی» محدود یا باطل کنید. نشانی: <span dir="ltr" className="font-mono">{aiBase}</span></p> : <>
-                <Field label="Base URL" error={llm.baseUrl && llmError ? "نشانی معتبر نیست" : undefined}><input dir="ltr" value={llm.baseUrl} onChange={(e) => setLlm({ ...llm, baseUrl: e.target.value.trim() })} placeholder="https://api.example.com/v1" className={INPUT + " font-mono text-left"} /></Field>
-                <Field label="کلید API"><input dir="ltr" type="password" autoComplete="off" value={llm.apiKey} onChange={(e) => setLlm({ ...llm, apiKey: e.target.value })} className={INPUT + " font-mono text-left"} /></Field>
+                <Field label="Base URL" error={llm.baseUrl && llmError ? "نشانی معتبر نیست" : undefined}><input dir="ltr" value={llm.baseUrl} onChange={(e) => setLlm({ ...llm, baseUrl: e.target.value.trim() })} placeholder="https://api.example.com/v1" className={INPUT + " font-mono text-start"} /></Field>
+                <Field label="کلید API"><input dir="ltr" type="password" autoComplete="off" value={llm.apiKey} onChange={(e) => setLlm({ ...llm, apiKey: e.target.value })} className={INPUT + " font-mono text-start"} /></Field>
               </>}
             </div>
           </Card>
@@ -129,7 +129,7 @@ function Create({ t, onClose }: { t: PaasTemplate; onClose: () => void }) {
           <Field key={i.key} label={i.label + (i.required ? "" : " (اختیاری)")} hint={i.hint}>
             {i.options ? <Select label={i.label} value={inputs[i.key] ?? ""} onChange={(v) => setInputs({ ...inputs, [i.key]: v })} options={i.options} />
               : i.kind === "model" && llm.mode === "gereh" && chatModels.length ? <Select label={i.label} ltr value={inputs[i.key] ?? ""} onChange={(v) => setInputs({ ...inputs, [i.key]: v })} options={[{ value: "", label: "انتخاب مدل…" }, ...chatModels.map((m) => ({ value: m.id, label: m.name + " · " + m.id }))]} />
-              : <input dir="ltr" type={i.secret ? "password" : "text"} autoComplete="off" value={inputs[i.key] ?? ""} placeholder={i.placeholder ?? (i.kind === "model" ? "model-id" : "")} onChange={(e) => setInputs({ ...inputs, [i.key]: e.target.value })} className={INPUT + " font-mono text-left"} />}
+              : <input dir="ltr" type={i.secret ? "password" : "text"} autoComplete="off" value={inputs[i.key] ?? ""} placeholder={i.placeholder ?? (i.kind === "model" ? "model-id" : "")} onChange={(e) => setInputs({ ...inputs, [i.key]: e.target.value })} className={INPUT + " font-mono text-start"} />}
           </Field>
         ))}
         {t.needsProxy && (

@@ -26,13 +26,13 @@ export default async function PaasPage() {
       <section className="relative overflow-hidden">
         <GirihField />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center hero-in">
-          <div className="text-center lg:text-right">
+          <div className="text-center lg:text-start">
             <nav aria-label="مسیر صفحه" className="flex items-center justify-center lg:justify-start gap-2 text-xs text-white/55">
               <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
               <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">گره اپ</span>
             </nav>
             <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="sparkles" size={14} className="acc" />پلتفرم به‌عنوان سرویس (PaaS)</p>
-            <h1 className="hero-title mt-6 text-[2.2rem] sm:text-6xl font-black leading-[1.35] tracking-tight">کد را بفرستید،<br />بقیه با ما</h1>
+            <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">کد را بفرستید،<br />بقیه با ما</h1>
             <p className="mt-6 text-white/70 max-w-xl mx-auto lg:mx-0 leading-8 sm:text-lg">از Git، فایل ZIP یا ایمیج Docker؛ بیلد، اجرا، SSL، دامنه، پایگاه داده و مقیاس را خودکار انجام می‌دهیم. بدون مدیریت سرور، با پرداخت ساعتی{from ? " از " + toman(from) + " در ماه" : ""}.</p>
             <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
               <Link href={"/panel/apps/new" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="rocket" size={18} />ساخت اپ</Link>

@@ -103,15 +103,15 @@ function BotAdminRow({ b, reload }: { b: BotAdminView; reload: () => void }) {
         <Switch on={enabled} onChange={setEnabled} label={"فعال بودن ربات " + BOT_LABEL[b.kind]} />
       </div>
       <div className="grid sm:grid-cols-2 gap-3 mt-3">
-        <Field label="توکن ربات" hint="رمزنگاری‌شده ذخیره می‌شود و دوباره نمایش داده نمی‌شود."><input type="password" autoComplete="new-password" value={token} onChange={(e) => setToken(e.target.value.trim())} placeholder={b.tokenSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "123456789:AA…"} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="توکن ربات" hint="رمزنگاری‌شده ذخیره می‌شود و دوباره نمایش داده نمی‌شود."><input type="password" autoComplete="new-password" value={token} onChange={(e) => setToken(e.target.value.trim())} placeholder={b.tokenSet ? "ذخیره شده؛ برای تغییر وارد کنید" : "123456789:AA…"} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>
         <Field label="نحوه دریافت پیام‌ها" hint={tg ? "پیش‌فرض: دریافت دوره‌ای از طریق پروکسی (تلگرام به سرور ایران به‌خوبی نمی‌رسد)." : b.publicHttps ? "خودکار: وب‌هوک (سایت با https در دسترس است)." : "خودکار: دریافت دوره‌ای (سایت https عمومی ندارد)."} as="div">
           <Select value={mode} onChange={(v) => setMode(v as typeof mode)} options={MODE_OPTS} label="نحوه دریافت" />
         </Field>
         {tg && <Field label="پروکسی خروجی تلگرام" hint={b.proxyHost ? "فعلی: " + b.proxyHost + (b.proxySource === "admin" ? "" : b.proxySource === "env" ? " (BOT_PROXY)" : " (پروکسی خروجی پلتفرم)") : "تنظیم نشده؛ BOT_PROXY یا پروکسی خروجی پلتفرم (PAAS_EGRESS_PROXY) به کار می‌رود."}>
-          <input value={proxy} onChange={(e) => setProxy(e.target.value.trim())} placeholder="http://user:pass@1.2.3.4:3128 یا socks5://…" dir="ltr" className={INPUT + " text-left font-mono"} />
+          <input value={proxy} onChange={(e) => setProxy(e.target.value.trim())} placeholder="http://user:pass@1.2.3.4:3128 یا socks5://…" dir="ltr" className={INPUT + " text-start font-mono"} />
         </Field>}
       </div>
-      {(b.lastPoll || b.lastError) && <p className="text-[11px] text-white/45 mt-2">{b.lastPoll && "آخرین دریافت: " + b.lastPoll}{b.lastError && <span className="block text-rose-300/80 ltr text-right">{b.lastError}</span>}</p>}
+      {(b.lastPoll || b.lastError) && <p className="text-[11px] text-white/45 mt-2">{b.lastPoll && "آخرین دریافت: " + b.lastPoll}{b.lastError && <span className="block text-rose-300/80 ltr text-end">{b.lastError}</span>}</p>}
       <div className="flex flex-wrap justify-end gap-2 mt-3">
         {tg && b.proxySource === "admin" && <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.assistantBots.save(b.kind, { proxy: "" }); notify("پروکسی حذف شد"); reload(); }}>حذف پروکسی</AsyncButton>}
         <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const r = await api.assistantBots.test(b.kind); notify((r.ok ? "اتصال برقرار است: " : "ناموفق: ") + r.detail, r.ok ? "check" : "x"); reload(); }}><Icon name="activity" size={14} />تست اتصال</AsyncButton>

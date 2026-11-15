@@ -31,7 +31,7 @@ export function DevopsProcess() {
       <ol className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {DEVOPS_PROCESS.map(([icon, t, d], i) => (
           <li key={t} className={GLASS_SOFT + " rounded-[1.5rem] p-6 relative"}>
-            <span className="absolute top-5 left-5 text-4xl font-black text-white/[0.07] tabular" aria-hidden="true">{fa(i + 1)}</span>
+            <span className="absolute top-5 end-5 text-4xl font-black text-white/[0.07] tabular" aria-hidden="true">{fa(i + 1)}</span>
             <Icon name={icon} size={22} className="acc" />
             <h3 className="font-extrabold mt-4"><span className="sr-only">گام {fa(i + 1)}: </span>{t}</h3>
             <p className="text-white/60 text-sm leading-7 mt-2">{d}</p>
@@ -49,7 +49,7 @@ export function DevopsPricing() {
       <ul className="grid lg:grid-cols-3 gap-4">
         {DEVOPS_PACKAGES.map((p) => (
           <li key={p.id} className={GLASS + " rounded-[1.75rem] p-7 flex flex-col relative " + (p.highlight ? "ring-1 ring-sky-300/40" : "")}>
-            {p.highlight && <span className="absolute -top-3 right-7 text-xs font-bold px-3 py-1 rounded-full acc-bg">پیشنهاد ما</span>}
+            {p.highlight && <span className="absolute -top-3 start-7 text-xs font-bold px-3 py-1 rounded-full acc-bg">پیشنهاد ما</span>}
             <h3 className="text-xl font-black">{p.name}</h3>
             <p className="text-sm text-white/55 mt-1">{p.for}</p>
             <p className="mt-6">{p.price ? <><span className="text-3xl font-black tabular">{fa(p.price / 1e6)}</span> <span className="text-sm text-white/60">میلیون {p.unit}</span></> : <span className="text-2xl font-black">{p.unit}</span>}</p>
@@ -80,10 +80,10 @@ export function DevopsSla() {
       <div className={GLASS + " rounded-2xl overflow-x-auto"} tabIndex={0} role="region" aria-label="جدول توافق سطح خدمات">
         <table className="w-full text-sm min-w-[680px]">
           <caption className="sr-only">زمان اولین پاسخ بر اساس شدت مشکل و بسته</caption>
-          <thead><tr className="bg-white/[0.04]"><th scope="col" className="text-right p-4">شدت</th>{DEVOPS_PACKAGES.map((p) => <th key={p.id} scope="col" className="text-right p-4">{p.name}</th>)}</tr></thead>
+          <thead><tr className="bg-white/[0.04]"><th scope="col" className="text-start p-4">شدت</th>{DEVOPS_PACKAGES.map((p) => <th key={p.id} scope="col" className="text-start p-4">{p.name}</th>)}</tr></thead>
           <tbody>{DEVOPS_SLA.map((r) => (
             <tr key={r.sev} className="border-t border-white/[0.06]">
-              <th scope="row" className="text-right p-4 align-top"><span className="font-bold block">{r.sev}</span><span className="text-xs text-white/55 font-normal">{r.desc}</span></th>
+              <th scope="row" className="text-start p-4 align-top"><span className="font-bold block">{r.sev}</span><span className="text-xs text-white/55 font-normal">{r.desc}</span></th>
               <td className="p-4 align-top">{r.startup}</td><td className="p-4 align-top">{r.growth}</td><td className="p-4 align-top">{r.enterprise}</td>
             </tr>
           ))}</tbody>

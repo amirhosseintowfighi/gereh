@@ -116,7 +116,7 @@ export function DbAsk({ d }: { d: PaasDb }) {
             {answer?.explanation && <p className="text-sm text-white/80 mb-3 leading-7" dir="auto">{answer.explanation}</p>}
             {answer?.error && <p role="alert" className="text-xs text-amber-200 mb-3" dir="auto">{answer.error}</p>}
             {editing ? (
-              <textarea value={query} onChange={(e) => setQuery(e.target.value)} dir="ltr" rows={Math.min(14, Math.max(4, query.split("\n").length + 1))} aria-label="ویرایش کوئری" spellCheck={false} className={TEXTAREA + " font-mono text-xs text-left"} />
+              <textarea value={query} onChange={(e) => setQuery(e.target.value)} dir="ltr" rows={Math.min(14, Math.max(4, query.split("\n").length + 1))} aria-label="ویرایش کوئری" spellCheck={false} className={TEXTAREA + " font-mono text-xs text-start"} />
             ) : query ? <CodeBlock code={query} label="کوئری" title={lang === "sql" ? (engineOf(d.engine)?.label ?? "SQL") : lang === "mongo" ? "MongoDB aggregate" : "redis-cli"} wrap maxH="max-h-80" /> : null}
             <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
               <span className="text-[11px] text-white/50">فقط‌خواندنی · حداکثر {fa(DBQ_LIMITS.rows)} ردیف · {fa(DBQ_LIMITS.timeoutMs / 1000)} ثانیه</span>
@@ -178,7 +178,7 @@ function ResultView({ result, chart, setChart, question, historyId, analysis, se
         <span className="flex items-center gap-2 text-xs text-white/55 mb-1"><Icon name="sparkles" size={13} />تحلیل ({fa(analysis.rowsSent)} ردیف فرستاده شد{analysis.simulated ? "، شبیه‌ساز" : ""})</span>{analysis.text}</div>}
       {result.rows.length ? <>
         <div className="overflow-x-auto max-h-[32rem] border-t border-white/[0.06]"><table dir="ltr" className="text-xs w-full">
-          <thead className="sticky top-0 bg-[#10131c]"><tr>{result.columns.map((c) => <th key={c.name} scope="col" className="text-left p-2 border-b border-white/[0.08] whitespace-nowrap"><span className="font-mono">{c.name}</span> <span className="text-[10px] font-normal text-white/40">{TYPE_LABEL[c.type] ?? c.type}</span></th>)}</tr></thead>
+          <thead className="sticky top-0 bg-[#10131c]"><tr>{result.columns.map((c) => <th key={c.name} scope="col" className="text-start p-2 border-b border-white/[0.08] whitespace-nowrap"><span className="font-mono">{c.name}</span> <span className="text-[10px] font-normal text-white/40">{TYPE_LABEL[c.type] ?? c.type}</span></th>)}</tr></thead>
           <tbody>{result.rows.slice(page * PAGE, page * PAGE + PAGE).map((r, i) => <tr key={i} className="odd:bg-white/[0.02]">{r.map((v, k) => <td key={k} dir="auto" className={"p-2 whitespace-nowrap max-w-[24rem] truncate " + (result.columns[k]?.type === "number" ? "tabular text-right" : "font-mono")}>{v === null ? <span className="text-white/35">NULL</span> : String(v)}</td>)}</tr>)}</tbody>
         </table></div>
         {pages > 1 && <div className="flex items-center justify-between gap-2 p-2 text-[11px] text-white/50">
@@ -227,9 +227,9 @@ function History({ items, onOpen, onRun, reload, tables }: { items: DbqHistoryIt
         <ul className="space-y-1 max-h-[36rem] overflow-y-auto">
           {items.map((h) => (
             <li key={h.id} className="rounded-xl hover:bg-white/[0.04] p-2">
-              <button type="button" onClick={() => onOpen(h)} className="block w-full text-right">
+              <button type="button" onClick={() => onOpen(h)} className="block w-full text-start">
                 <span className="flex items-center gap-1.5 text-xs">{h.saved && <Icon name="star" size={12} className="text-amber-200 shrink-0" />}<span dir="auto" className="truncate">{h.title || h.question || "کوئری دستی"}</span></span>
-                <span dir="ltr" className="block text-[10px] font-mono text-white/40 truncate text-left mt-0.5">{h.query.replace(/\s+/g, " ").slice(0, 80)}</span>
+                <span dir="ltr" className="block text-[10px] font-mono text-white/40 truncate text-start mt-0.5">{h.query.replace(/\s+/g, " ").slice(0, 80)}</span>
                 <span className="block text-[10px] text-white/40 mt-0.5">{h.at}{h.runs ? " · " + fa(h.runs) + " اجرا" : ""}{h.lastRowCount !== null ? " · " + fa(h.lastRowCount) + " ردیف" : ""}{h.edited ? " · ویرایش‌شده" : ""}</span>
               </button>
               <span className="flex gap-1 mt-1">

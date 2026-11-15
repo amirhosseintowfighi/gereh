@@ -62,7 +62,7 @@ function RuntimeForm({ app, view, reload }: { app: PaasApp; view: PaasRuntimeVie
     notify(dep ? "ذخیره شد؛ اپ با تنظیمات جدید دوباره اجرا می‌شود" : "ذخیره شد؛ در استقرار بعدی اعمال می‌شود", "check");
   };
   const n = (v: number, k: keyof RuntimeConfig, label: string, hint?: string) => (
-    <Field label={label} hint={hint}><input value={v} inputMode="numeric" onChange={(e) => set({ [k]: num(e.target.value) } as Partial<RuntimeConfig>)} dir="ltr" className={INPUT + " text-left"} /></Field>
+    <Field label={label} hint={hint}><input value={v} inputMode="numeric" onChange={(e) => set({ [k]: num(e.target.value) } as Partial<RuntimeConfig>)} dir="ltr" className={INPUT + " text-start"} /></Field>
   );
   return (
     <div className="grid lg:grid-cols-2 gap-4 items-start">
@@ -70,16 +70,16 @@ function RuntimeForm({ app, view, reload }: { app: PaasApp; view: PaasRuntimeVie
         {hooks && <Card title="هوک‌ها" icon="terminal">
           <p className="text-[11px] text-white/50 leading-6 mb-3">از <code dir="ltr">gereh.json</code> هم خوانده می‌شوند: <code dir="ltr">{'"hooks": { "preBuild": "…", "postBuild": "…", "preStart": "…" }'}</code></p>
           <div className="space-y-3">
-            {builds && <Field label="پیش از بیلد (pre-build)" hint="بعد از کپی سورس و پیش از دستور بیلد اجرا می‌شود"><input value={f.preBuild} onChange={(e) => set({ preBuild: e.target.value })} dir="ltr" placeholder="npm run lint" className={INPUT + " text-left font-mono text-xs"} /></Field>}
-            {builds && <Field label="پس از بیلد (post-build)" hint="آخرین مرحله ساخت ایمیج"><input value={f.postBuild} onChange={(e) => set({ postBuild: e.target.value })} dir="ltr" placeholder="npm prune --omit=dev" className={INPUT + " text-left font-mono text-xs"} /></Field>}
-            <Field label="پیش از اجرا (pre-start)" hint="در هر بار روشن شدن هر نمونه، پیش از دستور اجرا"><input value={f.preStart} onChange={(e) => set({ preStart: e.target.value })} dir="ltr" placeholder="php artisan config:cache" className={INPUT + " text-left font-mono text-xs"} /></Field>
+            {builds && <Field label="پیش از بیلد (pre-build)" hint="بعد از کپی سورس و پیش از دستور بیلد اجرا می‌شود"><input value={f.preBuild} onChange={(e) => set({ preBuild: e.target.value })} dir="ltr" placeholder="npm run lint" className={INPUT + " text-start font-mono text-xs"} /></Field>}
+            {builds && <Field label="پس از بیلد (post-build)" hint="آخرین مرحله ساخت ایمیج"><input value={f.postBuild} onChange={(e) => set({ postBuild: e.target.value })} dir="ltr" placeholder="npm prune --omit=dev" className={INPUT + " text-start font-mono text-xs"} /></Field>}
+            <Field label="پیش از اجرا (pre-start)" hint="در هر بار روشن شدن هر نمونه، پیش از دستور اجرا"><input value={f.preStart} onChange={(e) => set({ preStart: e.target.value })} dir="ltr" placeholder="php artisan config:cache" className={INPUT + " text-start font-mono text-xs"} /></Field>
           </div>
         </Card>}
         <Card title="بررسی سلامت و استقرار بدون قطعی" icon="heart-pulse">
           <div className="space-y-3">
             <Field label="نوع بررسی"><Select label="نوع بررسی" value={f.healthType} onChange={(v) => set({ healthType: v as RuntimeConfig["healthType"] })} options={[{ value: "http", label: "درخواست HTTP به مسیر سلامت (" + app.healthPath + ")" }, { value: "command", label: "اجرای دستور (کد خروج ۰)" }, { value: "tcp", label: "باز بودن پورت" }]} /></Field>
-            {f.healthType === "http" && <Field label="کدهای وضعیت مجاز" hint="مسیر را در تنظیمات اپ عوض کنید"><input value={f.healthCodes} onChange={(e) => set({ healthCodes: e.target.value })} dir="ltr" placeholder="200-399" className={INPUT + " text-left"} /></Field>}
-            {f.healthType === "command" && <Field label="دستور بررسی"><input value={f.healthCommand} onChange={(e) => set({ healthCommand: e.target.value })} dir="ltr" placeholder="curl -fs localhost:3000/health" className={INPUT + " text-left font-mono text-xs"} /></Field>}
+            {f.healthType === "http" && <Field label="کدهای وضعیت مجاز" hint="مسیر را در تنظیمات اپ عوض کنید"><input value={f.healthCodes} onChange={(e) => set({ healthCodes: e.target.value })} dir="ltr" placeholder="200-399" className={INPUT + " text-start"} /></Field>}
+            {f.healthType === "command" && <Field label="دستور بررسی"><input value={f.healthCommand} onChange={(e) => set({ healthCommand: e.target.value })} dir="ltr" placeholder="curl -fs localhost:3000/health" className={INPUT + " text-start font-mono text-xs"} /></Field>}
             <div className="grid grid-cols-2 gap-3">
               {n(f.healthInterval, "healthInterval", "فاصله (ثانیه)")}{n(f.healthTimeout, "healthTimeout", "مهلت پاسخ (ثانیه)")}
               {n(f.healthRetries, "healthRetries", "تعداد تلاش")}{n(f.healthStartPeriod, "healthStartPeriod", "مهلت شروع (ثانیه)", "برای اپ‌هایی که دیر بالا می‌آیند")}
@@ -93,17 +93,17 @@ function RuntimeForm({ app, view, reload }: { app: PaasApp; view: PaasRuntimeVie
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 text-sm"><span>کش بیلد<span className="block text-[11px] text-white/50">لایه‌های بدون تغییر دوباره ساخته نمی‌شوند</span></span><Switch on={f.buildCache} onChange={(v) => set({ buildCache: v })} label="کش بیلد" /></div>
             <div className="flex items-center justify-between gap-3 text-sm"><span>آینه بسته‌ها<span className="block text-[11px] text-white/50">npm، pip، composer و Go از آینه گره (سریع و بدون وابستگی به اینترنت بین‌الملل)</span></span><Switch on={f.mirror} onChange={(v) => set({ mirror: v })} label="آینه بسته‌ها" /></div>
-            <Field label="مسیر Dockerfile" hint="اگر نباشد، پشته با Nixpacks تشخیص داده می‌شود"><input value={f.dockerfile} onChange={(e) => set({ dockerfile: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left font-mono text-xs"} /></Field>
-            <Field label="آرگومان‌های بیلد (build args)" hint="هر خط KEY=VALUE؛ در لاگ بیلد دیده نمی‌شوند ولی در ایمیج می‌مانند، پس رمز نگذارید"><textarea value={args} onChange={(e) => setArgs(e.target.value)} dir="ltr" rows={3} className={TEXTAREA + " text-left font-mono text-xs"} placeholder={"NODE_ENV=production"} /></Field>
+            <Field label="مسیر Dockerfile" hint="اگر نباشد، پشته با Nixpacks تشخیص داده می‌شود"><input value={f.dockerfile} onChange={(e) => set({ dockerfile: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start font-mono text-xs"} /></Field>
+            <Field label="آرگومان‌های بیلد (build args)" hint="هر خط KEY=VALUE؛ در لاگ بیلد دیده نمی‌شوند ولی در ایمیج می‌مانند، پس رمز نگذارید"><textarea value={args} onChange={(e) => setArgs(e.target.value)} dir="ltr" rows={3} className={TEXTAREA + " text-start font-mono text-xs"} placeholder={"NODE_ENV=production"} /></Field>
           </div>
         </Card>}
         <Card title="محیط اجرا" icon="cpu">
           <div className="space-y-3">
             <Field label="منطقه زمانی (TZ)"><Select label="منطقه زمانی" ltr value={f.timezone} onChange={(v) => set({ timezone: v })} options={[...new Set([f.timezone, ...TIMEZONES])].map((t) => ({ value: t, label: t }))} /></Field>
             <div className="flex items-center justify-between gap-3 text-sm"><span>فایل‌سیستم فقط‌خواندنی<span className="block text-[11px] text-white/50">امن‌تر؛ فقط ‎/tmp‎ و دیسک دائمی قابل نوشتن‌اند</span></span><Switch on={f.readOnlyFs} onChange={(v) => set({ readOnlyFs: v })} label="فایل‌سیستم فقط‌خواندنی" /></div>
-            <Field label={"سرورهای DNS سفارشی (تا " + fa(MAX_DNS) + ")"} hint="هر خط یک IP؛ خالی = DNS پلتفرم. Kubernetes حداکثر سه سرور اول را به کار می‌برد."><textarea value={dns} onChange={(e) => setDns(e.target.value)} dir="ltr" rows={2} placeholder={"178.22.122.100\n1.1.1.1"} className={TEXTAREA + " text-left font-mono text-xs"} /></Field>
-            {NGINX_STACKS.has(app.stack) && <Field label="پیکربندی nginx (جایگزین پیش‌فرض)" hint="بلاک server کامل؛ خالی = پیش‌فرض پشته"><textarea value={f.nginxConf} onChange={(e) => set({ nginxConf: e.target.value })} dir="ltr" rows={6} placeholder={"server {\n  listen 80;\n  root /app/public;\n  location / { try_files $uri $uri/ /index.php?$query_string; }\n}"} className={TEXTAREA + " text-left font-mono text-xs"} /></Field>}
-            {PHP_STACKS.has(app.stack) && <Field label="php.ini سفارشی"><textarea value={f.phpIni} onChange={(e) => set({ phpIni: e.target.value })} dir="ltr" rows={4} placeholder={"upload_max_filesize = 64M\npost_max_size = 64M\nmemory_limit = 256M"} className={TEXTAREA + " text-left font-mono text-xs"} /></Field>}
+            <Field label={"سرورهای DNS سفارشی (تا " + fa(MAX_DNS) + ")"} hint="هر خط یک IP؛ خالی = DNS پلتفرم. Kubernetes حداکثر سه سرور اول را به کار می‌برد."><textarea value={dns} onChange={(e) => setDns(e.target.value)} dir="ltr" rows={2} placeholder={"178.22.122.100\n1.1.1.1"} className={TEXTAREA + " text-start font-mono text-xs"} /></Field>
+            {NGINX_STACKS.has(app.stack) && <Field label="پیکربندی nginx (جایگزین پیش‌فرض)" hint="بلاک server کامل؛ خالی = پیش‌فرض پشته"><textarea value={f.nginxConf} onChange={(e) => set({ nginxConf: e.target.value })} dir="ltr" rows={6} placeholder={"server {\n  listen 80;\n  root /app/public;\n  location / { try_files $uri $uri/ /index.php?$query_string; }\n}"} className={TEXTAREA + " text-start font-mono text-xs"} /></Field>}
+            {PHP_STACKS.has(app.stack) && <Field label="php.ini سفارشی"><textarea value={f.phpIni} onChange={(e) => set({ phpIni: e.target.value })} dir="ltr" rows={4} placeholder={"upload_max_filesize = 64M\npost_max_size = 64M\nmemory_limit = 256M"} className={TEXTAREA + " text-start font-mono text-xs"} /></Field>}
           </div>
         </Card>
         <div className="flex justify-end"><AsyncButton onClick={save}>ذخیره تنظیمات</AsyncButton></div>
@@ -122,9 +122,9 @@ function BasicAuthCard({ app, view, reload }: { app: PaasApp; view: PaasRuntimeV
       <p className="text-sm text-white/60 leading-7 mb-3">درخواست‌های این مسیر (و زیرمسیرهایش) پیش از رسیدن به اپ نام کاربری و رمز می‌خواهند (HTTP Basic Auth)؛ مثلاً برای پنل مدیریت یا نسخه آزمایشی.</p>
       {view.config.authOn && <p className="mb-3 flex items-center gap-2 text-sm"><Badge tone="green" dot>فعال</Badge><span dir="ltr" className="font-mono text-xs">{view.config.authPath}</span> · کاربر <b dir="ltr">{view.config.authUser}</b></p>}
       <div className="grid sm:grid-cols-3 gap-3">
-        <Field label="مسیر"><input value={o.path} onChange={(e) => setO({ ...o, path: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
-        <Field label="نام کاربری"><input value={o.user} onChange={(e) => setO({ ...o, user: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
-        <Field label="رمز عبور" hint="دست‌کم ۸ نویسه؛ فقط هش آن نگه داشته می‌شود"><input type="password" value={o.password} onChange={(e) => setO({ ...o, password: e.target.value })} dir="ltr" autoComplete="new-password" className={INPUT + " text-left"} /></Field>
+        <Field label="مسیر"><input value={o.path} onChange={(e) => setO({ ...o, path: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
+        <Field label="نام کاربری"><input value={o.user} onChange={(e) => setO({ ...o, user: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
+        <Field label="رمز عبور" hint="دست‌کم ۸ نویسه؛ فقط هش آن نگه داشته می‌شود"><input type="password" value={o.password} onChange={(e) => setO({ ...o, password: e.target.value })} dir="ltr" autoComplete="new-password" className={INPUT + " text-start"} /></Field>
       </div>
       <div className="flex gap-2 mt-3">
         <AsyncButton disabled={o.password.length < 8} onClick={async () => { await api.paas.setBasicAuth(app.id, o); setO({ ...o, password: "" }); await reload(); notify("رمز عبور مسیر فعال شد", "lock"); }}>{view.config.authOn ? "به‌روزرسانی" : "فعال کردن"}</AsyncButton>
@@ -150,11 +150,11 @@ export function AppUsage({ app }: { app: PaasApp }) {
         <div className="flex items-baseline justify-between"><span className="text-2xl font-black tabular">{toman(data.spend.amount)}</span><span className="text-xs text-white/55">ماه {fa(data.spend.month.replace("-", "/"))}{c.budget ? " · از " + toman(c.budget) : ""}</span></div>
         {c.budget > 0 && <div className="mt-3 h-2 rounded-full bg-white/[0.08] overflow-hidden" role="progressbar" aria-label="مصرف بودجه" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div className={"h-full " + (pct >= 100 ? "bg-rose-400" : pct >= c.budgetAlertPct ? "bg-amber-400" : "acc-bg")} style={{ width: pct + "%" }} /></div>}
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
-          <Field label="سقف بودجه ماهانه (تومان)" hint="خالی = بدون سقف"><input value={form.budget} inputMode="numeric" onChange={(e) => setB({ ...form, budget: e.target.value.replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="سقف بودجه ماهانه (تومان)" hint="خالی = بدون سقف"><input value={form.budget} inputMode="numeric" onChange={(e) => setB({ ...form, budget: e.target.value.replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <Field label="هشدار در"><Select label="درصد هشدار" value={form.pct} onChange={(v) => setB({ ...form, pct: v })} options={[50, 70, 80, 90].map((p) => ({ value: String(p), label: fa(p) + "٪ بودجه" }))} /></Field>
         </div>
         <div className="flex items-center justify-between gap-3 text-sm mt-3"><span>با رسیدن به سقف، اپ خاموش شود<span className="block text-[11px] text-white/50">خاموش نشود: فقط اعلان می‌گیرید</span></span><Switch on={form.stop} onChange={(v) => setB({ ...form, stop: v })} label="خاموش شدن در سقف بودجه" /></div>
-        <Field label="هشدار ترافیک ماهانه (گیگابایت)" hint="خالی = بدون هشدار" className="mt-3"><input value={form.traffic} inputMode="numeric" onChange={(e) => setB({ ...form, traffic: e.target.value.replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="هشدار ترافیک ماهانه (گیگابایت)" hint="خالی = بدون هشدار" className="mt-3"><input value={form.traffic} inputMode="numeric" onChange={(e) => setB({ ...form, traffic: e.target.value.replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
         <AsyncButton className={BTN_P + BTN_MD + " mt-4"} onClick={async () => {
           await api.paas.setRuntime(app.id, { budget: num(form.budget), budgetAlertPct: num(form.pct) || 80, budgetStop: form.stop, trafficAlertGb: num(form.traffic) });
           setB(null); await reload(); notify("بودجه و هشدارها ذخیره شد", "check");
@@ -202,12 +202,12 @@ export function AppEvents({ app }: { app: PaasApp }) {
   return (
     <Card title="رویدادها" icon="history" action={<Tabs size="sm" value={filter} onChange={setFilter} label="فیلتر رویدادها" options={[{ id: "all", label: "همه" }, { id: "problems", label: "مشکلات" }, { id: "ops", label: "عملیات" }]} />}>
       {shown.length === 0 ? <Empty icon="history" title="رویدادی ثبت نشده است" /> : (
-        <ol className="relative border-r border-white/[0.1] mr-2 space-y-4">
+        <ol className="relative border-s border-white/[0.1] ms-2 space-y-4">
           {shown.map((e) => {
             const [icon, label, tone] = EVENT[e.kind] ?? ["info", e.kind, "gray"];
             return (
-              <li key={e.id} className="pr-5 relative">
-                <span className="absolute -right-[9px] top-0.5 w-[18px] h-[18px] rounded-full bg-[#0b1220] border border-white/20 grid place-items-center"><Icon name={icon} size={10} /></span>
+              <li key={e.id} className="ps-5 relative">
+                <span className="absolute -start-[9px] top-0.5 w-[18px] h-[18px] rounded-full bg-[#0b1220] border border-white/20 grid place-items-center"><Icon name={icon} size={10} /></span>
                 <span className="flex flex-wrap items-center gap-2"><Badge tone={tone}>{label}</Badge><span className="text-[11px] text-white/50">{e.at}</span></span>
                 <p className="text-sm text-white/75 mt-1 break-words">{e.message}</p>
                 {PROBLEMS.includes(e.kind) && <div className="mt-1.5"><ExplainButton compact kind="paas" resourceId={app.id} errorRef={"ev-" + e.id} label="توضیح بده و درستش کن" /></div>}
@@ -228,7 +228,7 @@ export function FailureHint({ kind }: { kind?: string }) {
     <aside role="note" className="rounded-xl border border-amber-300/30 bg-amber-400/[0.07] p-4 text-sm">
       <b className="flex items-center gap-2 text-amber-200"><Icon name="lightbulb" size={15} />{f.title}</b>
       <p className="text-white/70 leading-7 mt-1">{f.explain}</p>
-      <ul className="mt-2 space-y-1 list-disc pr-5 text-white/70 leading-7">{f.fix.map((x) => <li key={x}>{x}</li>)}</ul>
+      <ul className="mt-2 space-y-1 list-disc ps-5 text-white/70 leading-7">{f.fix.map((x) => <li key={x}>{x}</li>)}</ul>
     </aside>
   );
 }
@@ -270,7 +270,7 @@ export function DomainOptions({ app }: { app: PaasApp }) {
                 </div>
                 {edit?.id === d.id && (
                   <div className="grid sm:grid-cols-[1fr_8rem_auto] gap-2 mt-3 items-end">
-                    <Field label="مقصد"><input value={edit.target} onChange={(e) => setEdit({ ...edit, target: e.target.value.trim() })} dir="ltr" className={INPUT + " text-left"} /></Field>
+                    <Field label="مقصد"><input value={edit.target} onChange={(e) => setEdit({ ...edit, target: e.target.value.trim() })} dir="ltr" className={INPUT + " text-start"} /></Field>
                     <Field label="نوع"><Select label="نوع ریدایرکت" value={String(edit.code)} onChange={(v) => setEdit({ ...edit, code: v === "302" ? 302 : 301 })} options={[{ value: "301", label: "۳۰۱ دائمی" }, { value: "302", label: "۳۰۲ موقت" }]} /></Field>
                     <AsyncButton className={BTN_P + BTN_MD} onClick={async () => { await api.paas.setRedirect(d.id, { target: edit.target, code: edit.code, keepPath: edit.keepPath }); setEdit(null); await reload(); notify("ریدایرکت ذخیره شد", "check"); }}>ذخیره</AsyncButton>
                     <span className="flex items-center gap-2 text-xs text-white/70 sm:col-span-3"><Switch on={edit.keepPath} onChange={(v) => setEdit({ ...edit, keepPath: v })} label="حفظ مسیر" />مسیر و پارامترهای درخواست به مقصد اضافه شود</span>
@@ -314,7 +314,7 @@ export function CloneApp({ app }: { app: PaasApp }) {
       <p className="text-sm text-white/65 leading-7">یک اپ جدید با همین تنظیمات، متغیرها، پردازش‌ها، زمان‌بندی‌ها و گزینه‌های اجرا؛ بدون داده (دیسک خالی، پایگاه داده متصل نمی‌شود، دامنه‌ها منتقل نمی‌شوند).</p>
       <div className="flex gap-2 mt-3">
         <label className="sr-only" htmlFor="clone-name">نام اپ جدید</label>
-        <input id="clone-name" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-left"} />
+        <input id="clone-name" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-start"} />
         <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.cloneApp(app.id, name); notify("کپی ساخته شد؛ استقرار شروع شد", "copy"); router.push(("/panel/apps/" + id) as never); }}>ساخت کپی</AsyncButton>
       </div>
     </Card>
@@ -332,8 +332,8 @@ export function PlanLimits() {
         <ul className="space-y-1">{rows.map((r, i) => (
           <li key={r.id} className="grid grid-cols-2 sm:grid-cols-[1fr_8rem_8rem_auto] gap-2 items-end p-2 max-sm:border-b max-sm:border-white/[0.06]">
             <span className="text-sm sm:pb-2.5 max-sm:col-span-2">{r.name} <span className="text-[11px] text-white/50">{r.id}</span></span>
-            <Field label="بیلد در روز (۰ = نامحدود)"><input value={r.deploysPerDay} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, deploysPerDay: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="حداکثر دقیقه بیلد"><input value={r.maxBuildMinutes} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, maxBuildMinutes: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="بیلد در روز (۰ = نامحدود)"><input value={r.deploysPerDay} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, deploysPerDay: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="حداکثر دقیقه بیلد"><input value={r.maxBuildMinutes} inputMode="numeric" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, maxBuildMinutes: num(e.target.value) } : x)))} dir="ltr" className={INPUT + " text-start"} /></Field>
             <AsyncButton className={BTN_G + BTN_MD + " max-sm:col-span-2"} onClick={async () => { await api.paas.adminSetPlanLimits(r.id, { deploysPerDay: r.deploysPerDay, maxBuildMinutes: r.maxBuildMinutes }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
           </li>
         ))}</ul>

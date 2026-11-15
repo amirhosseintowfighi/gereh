@@ -49,7 +49,7 @@ export function AdminDevops() {
           <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)} className={"h-8 px-3 rounded-lg text-xs transition " + (filter === id ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}>{label} ({fa(id === "all" ? db.devopsLeads.length : id === "open" ? open.length : db.devopsLeads.filter((l) => l.status === id).length)})</button>
         ))}</div>}>
           {leads.length === 0 ? <Empty icon="rocket" title="درخواستی در این مرحله نیست" /> : leads.map((l) => (
-            <button key={l.id} type="button" onClick={() => setLead(l.id)} className="w-full text-right p-3 rounded-xl hover:bg-white/[0.04] flex flex-wrap items-center justify-between gap-3">
+            <button key={l.id} type="button" onClick={() => setLead(l.id)} className="w-full text-start p-3 rounded-xl hover:bg-white/[0.04] flex flex-wrap items-center justify-between gap-3">
               <span className="min-w-0">
                 <span className="font-bold text-sm">{l.company}</span> <span className="text-white/55 text-xs">— {l.name}{l.role && "، " + l.role}</span>
                 <span className="block text-[11px] text-white/50 mt-1">{l.id} · {l.at} · {l.services.map(svc).join("، ")}</span>
@@ -68,7 +68,7 @@ export function AdminDevops() {
             const u = db.users.find((x) => x.id === p.userId);
             const done = p.milestones.filter((m) => m.done).length;
             return (
-              <button key={p.id} type="button" onClick={() => setProj(p.id)} className="w-full text-right p-3 rounded-xl hover:bg-white/[0.04] flex flex-wrap items-center justify-between gap-3">
+              <button key={p.id} type="button" onClick={() => setProj(p.id)} className="w-full text-start p-3 rounded-xl hover:bg-white/[0.04] flex flex-wrap items-center justify-between gap-3">
                 <span className="min-w-0"><span className="font-bold text-sm">{p.title}</span><span className="block text-[11px] text-white/50 mt-1">{u?.company || u?.name || p.userId} · {PLAN_FA[p.plan]}{p.monthlyFee ? " · " + toman(p.monthlyFee) + " ماهانه" : ""}{p.milestones.length ? " · " + fa(done) + "/" + fa(p.milestones.length) + " مرحله" : ""}</span></span>
                 <Badge tone={PROJECT_STATUS[p.status][1]}>{PROJECT_STATUS[p.status][0]}</Badge>
               </button>
@@ -94,7 +94,7 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
   const [note, setNote] = useState("");
   const [value, setValue] = useState(l.value ? String(l.value) : "");
   const rows: [string, React.ReactNode][] = [
-    ["تماس", <span key="c" className="flex flex-col gap-1"><a href={"mailto:" + l.email} className="acc ltr text-right">{l.email}</a><a href={"tel:" + l.phone} className="acc ltr text-right">{l.phone}</a></span>],
+    ["تماس", <span key="c" className="flex flex-col gap-1"><a href={"mailto:" + l.email} className="acc ltr text-end">{l.email}</a><a href={"tel:" + l.phone} className="acc ltr text-end">{l.phone}</a></span>],
     ["وب‌سایت", l.website ? <a key="w" href={(/^https?:/.test(l.website) ? "" : "https://") + l.website} target="_blank" rel="noopener noreferrer" className="acc ltr">{l.website}</a> : "—"],
     ["شرکت", l.size + "، " + l.stage], ["زیرساخت", l.infra.join("، ")], ["خدمات", l.services.map(svc).join("، ")],
     ["نوع همکاری", l.pkg || "—"], ["بودجه", l.budget], ["زمان شروع", l.urgency], ["NDA", l.needsNda ? "لازم است" : "خیر"], ["مبدأ", <span key="s" className="ltr">{l.source || "—"}</span>],
@@ -106,7 +106,7 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label="مرحله"><Select label="مرحله" value={l.status} onChange={async (v) => { await api.devops.updateLead(l.id, { status: v }); notify("مرحله تغییر کرد"); }} options={LEAD_STAGES.map((s) => ({ value: s.id, label: s.label }))} /></Field>
         <Field label="مسئول"><Select label="مسئول" value={l.assignee} onChange={async (v) => { await api.devops.updateLead(l.id, { assignee: v }); }} options={[{ value: "", label: "—" }, ...db.staff.map((s) => ({ value: s.name, label: s.name }))]} /></Field>
-        <Field label="ارزش ماهانه (تومان)"><input inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} onBlur={async () => { if (num(value) !== l.value) await api.devops.updateLead(l.id, { value: num(value) }); }} dir="ltr" className={INPUT + " text-left"} /></Field>
+        <Field label="ارزش ماهانه (تومان)"><input inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} onBlur={async () => { if (num(value) !== l.value) await api.devops.updateLead(l.id, { value: num(value) }); }} dir="ltr" className={INPUT + " text-start"} /></Field>
       </div>
       <div>
         <h3 className="text-sm text-white/55 mb-2">یادداشت‌های داخلی</h3>
@@ -134,8 +134,8 @@ function CreateProject({ init, onClose, onCreated }: { init: { leadId?: string; 
         <Field label="عنوان"><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className={INPUT} /></Field>
         <div className="grid sm:grid-cols-3 gap-3">
           <Field label="نوع"><Select label="نوع" value={f.plan} onChange={(v) => setF({ ...f, plan: v, fee: v === "startup" ? "24000000" : v === "growth" ? "58000000" : v === "enterprise" ? f.fee : "0", hours: v === "startup" ? "20" : v === "growth" ? "50" : f.hours })} options={Object.entries(PLAN_FA).map(([value, label]) => ({ value, label }))} /></Field>
-          <Field label="مبلغ ماهانه (تومان)"><input inputMode="numeric" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <Field label="ساعت ماهانه"><input inputMode="numeric" value={f.hours} onChange={(e) => setF({ ...f, hours: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label="مبلغ ماهانه (تومان)"><input inputMode="numeric" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+          <Field label="ساعت ماهانه"><input inputMode="numeric" value={f.hours} onChange={(e) => setF({ ...f, hours: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
         </div>
         <Field label="مهندس مسئول"><Select label="مهندس مسئول" value={f.engineer} onChange={(v) => setF({ ...f, engineer: v })} options={[{ value: "", label: "—" }, ...db.staff.map((s) => ({ value: s.name, label: s.name }))]} /></Field>
         <fieldset><legend className="text-sm text-white/70 mb-2">خدمات</legend><div className="flex flex-wrap gap-1.5">{DEVOPS_SERVICES.map((s) => {
@@ -158,7 +158,7 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
     <div className="p-5 space-y-7">
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label="وضعیت"><Select label="وضعیت" value={p.status} onChange={async (v) => { await api.devops.updateProject(p.id, { status: v }); notify("وضعیت پروژه تغییر کرد"); }} options={Object.entries(PROJECT_STATUS).map(([value, [label]]) => ({ value, label }))} /></Field>
-        <Field label={"ساعت مصرف‌شده از " + fa(p.hoursIncluded)}><input inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} onBlur={async () => { const h = Number(toEnDigits(hours)) || 0; if (h !== p.hoursUsed) await api.devops.updateProject(p.id, { hoursUsed: h }); }} dir="ltr" className={INPUT + " text-left"} /></Field>
+        <Field label={"ساعت مصرف‌شده از " + fa(p.hoursIncluded)}><input inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} onBlur={async () => { const h = Number(toEnDigits(hours)) || 0; if (h !== p.hoursUsed) await api.devops.updateProject(p.id, { hoursUsed: h }); }} dir="ltr" className={INPUT + " text-start"} /></Field>
         <div className="text-sm"><div className="text-white/55 mb-2">صورتحساب بعدی</div>{p.nextBill || "—"}<div className="text-xs text-white/50 mt-1">{p.monthlyFee ? toman(p.monthlyFee) + " در ماه" : "بدون مبلغ ماهانه"}</div></div>
       </div>
 
@@ -190,7 +190,7 @@ function ProjectDetail({ p }: { p: DevopsProject }) {
         <h3 className="font-extrabold mb-3">صورتحساب یک‌باره</h3>
         <div className="grid sm:grid-cols-[1fr_10rem_auto] gap-2">
           <label className="sr-only" htmlFor="inv-desc">شرح</label><input id="inv-desc" value={inv.desc} onChange={(e) => setInv({ ...inv, desc: e.target.value })} placeholder="مثلاً: ۱۲ ساعت اضافه مهر" className={INPUT} />
-          <label className="sr-only" htmlFor="inv-amount">مبلغ (تومان)</label><input id="inv-amount" inputMode="numeric" value={inv.amount} onChange={(e) => setInv({ ...inv, amount: e.target.value })} placeholder="مبلغ (تومان)" dir="ltr" className={INPUT + " text-left"} />
+          <label className="sr-only" htmlFor="inv-amount">مبلغ (تومان)</label><input id="inv-amount" inputMode="numeric" value={inv.amount} onChange={(e) => setInv({ ...inv, amount: e.target.value })} placeholder="مبلغ (تومان)" dir="ltr" className={INPUT + " text-start"} />
           <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const id = await api.devops.invoice(p.id, { desc: inv.desc, amount: num(inv.amount) }); setInv({ desc: "", amount: "" }); notify("صورتحساب " + id + " صادر شد", "receipt"); }}>صدور</AsyncButton>
         </div>
       </section>

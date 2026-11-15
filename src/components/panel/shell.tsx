@@ -105,7 +105,7 @@ function NavDrawer({ label, onClose, children }: { label: string; onClose: () =>
   return (
     <div className="lg:hidden fixed inset-0 z-[70] fade-in">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="drawer-in-r absolute inset-y-0 right-0 w-[280px] max-w-[86vw] bg-[#06070e] border-l border-white/10 outline-none"
+      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="drawer-in-r absolute inset-y-0 start-0 w-[280px] max-w-[86vw] bg-[#06070e] border-e border-white/10 outline-none"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         {children}
       </aside>
@@ -143,14 +143,14 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
         <Link href="/" aria-label="گره، بازگشت به سایت"><Wordmark size={30} sub={false} /></Link>
         <span className="flex items-center gap-1.5">
           <Badge tone={kind === "admin" ? "violet" : "blue"}>{kind === "admin" ? "مدیریت" : "کاربری"}</Badge>
-          {close && <button type="button" data-close onClick={close} aria-label="بستن منو" className="-ml-2 w-10 h-10 grid place-items-center rounded-xl text-white/70 hover:text-white hover:bg-white/10"><Icon name="x" size={18} /></button>}
+          {close && <button type="button" data-close onClick={close} aria-label="بستن منو" className="-me-2 w-10 h-10 grid place-items-center rounded-xl text-white/70 hover:text-white hover:bg-white/10"><Icon name="x" size={18} /></button>}
         </span>
       </div>
       <nav aria-label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} className="flex-1 overflow-auto p-3 space-y-0.5">
         {nav.map((n, i) => (<Fragment key={n.href}>
           {n.group && n.group !== nav[i - 1]?.group && <div className="px-3 pt-4 pb-1.5 text-[11px] font-bold text-white/50">{n.group}</div>}
           <Link href={n.href as never} aria-current={active.href === n.href ? "page" : undefined}
-            className={"w-full flex items-center gap-3 px-3 h-11 rounded-xl text-sm text-right transition " + (active.href === n.href ? "bg-white/[0.09] text-white font-bold shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "text-white/55 hover:text-white hover:bg-white/[0.04]")}>
+            className={"w-full flex items-center gap-3 px-3 h-11 rounded-xl text-sm text-start transition " + (active.href === n.href ? "bg-white/[0.09] text-white font-bold shadow-[inset_0_1px_0_rgba(255,255,255,.08)]" : "text-white/55 hover:text-white hover:bg-white/[0.04]")}>
             <Icon name={n.icon} size={18} className={active.href === n.href ? "acc" : ""} />
             <span className="flex-1">{n.label}</span>
             {n.tag && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-violet-400/20 text-violet-200 border border-violet-300/25">{n.tag}</span>}
@@ -173,14 +173,14 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
 
   return (
     <div className="relative z-10 min-h-screen flex">
-      <aside className="hidden lg:block w-[264px] shrink-0 fixed inset-y-0 right-0 bg-[#06070e]/70 backdrop-blur-2xl border-l border-white/[0.07]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{side()}</aside>
+      <aside className="hidden lg:block w-[264px] shrink-0 fixed inset-y-0 start-0 bg-[#06070e]/70 backdrop-blur-2xl border-e border-white/[0.07]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{side()}</aside>
       {mobile && <NavDrawer label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} onClose={closeNav}>{side(closeNav)}</NavDrawer>}
-      <div className="flex-1 lg:mr-[264px] min-w-0">
+      <div className="flex-1 lg:ms-[264px] min-w-0">
         <header className="sticky z-30 h-16 px-4 sm:px-8 flex items-center justify-between gap-3 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
           <div className="flex items-center gap-2">
             <button type="button" className="lg:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10" onClick={() => setMobile(true)} aria-label="منو" aria-expanded={mobile}><Icon name="menu" size={19} /></button>
             <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/55 hover:text-white text-sm w-56 lg:w-64 min-w-0 transition">
-              <Icon name="search" size={16} /> جست‌وجو در پنل <kbd className="mr-auto ltr text-[10px] px-1.5 py-0.5 rounded bg-white/10">Ctrl K</kbd>
+              <Icon name="search" size={16} /> جست‌وجو در پنل <kbd className="me-auto ltr text-[10px] px-1.5 py-0.5 rounded bg-white/10">Ctrl K</kbd>
             </button>
           </div>
           <div className="flex items-center gap-1.5">
@@ -189,10 +189,10 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             {kind === "admin" && <AdminSearch />}
             {session?.role === "admin" && <Link href={kind === "admin" ? "/panel" : "/admin"} className={BTN_G + BTN_MD + " max-sm:hidden"}><Icon name="arrow-left-right" size={16} />{kind === "admin" ? "نمای کاربر" : "نمای مدیریت"}</Link>}
             <Menu label={"اعلان‌ها" + (unread ? "، " + fa(unread) + " خوانده‌نشده" : "")} triggerClass="relative w-10 h-10 grid place-items-center rounded-xl hover:bg-white/[0.06]"
-              trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
+              trigger={<><Icon name="bell" size={19} />{unread > 0 && <span className="absolute top-2 end-2 w-2 h-2 rounded-full bg-[#9cc9ff]" />}</>}
               width="w-80"
               items={[...(db.notifications.length ? db.notifications.map((n) => ({ icon: n.icon, label: n.text, dot: !n.read, run: () => api.account.readOne(n.id) })) : [{ icon: "bell", label: "اعلان تازه‌ای ندارید", run: () => {} }]), "-", { icon: "check", label: "علامت‌گذاری همه به‌عنوان خوانده‌شده", run: () => api.account.readAll() }]} />
-            <Menu label="حساب" triggerClass="flex items-center gap-2.5 h-10 pr-1 pl-3 rounded-xl hover:bg-white/[0.06]"
+            <Menu label="حساب" triggerClass="flex items-center gap-2.5 h-10 ps-1 pe-3 rounded-xl hover:bg-white/[0.06]"
               trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{me.name[0]}</span><span className="hidden sm:block text-sm">{me.name}</span><Icon name="chevron-down" size={14} className="text-white/55" /></>}
               items={[
                 kind === "user" && { icon: "settings-2", label: "تنظیمات حساب", run: () => router.push("/panel/account") },
@@ -214,7 +214,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
             <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }}>بازگشت به حساب خودم</AsyncButton>
           </div>
         )}
-        <main id="main" key={path} className="fade-page p-4 sm:p-8 max-w-[1400px]">{children}</main>
+        <main id="main" key={path} className="fade-page p-4 max-sm:pb-24 sm:p-8 max-w-[1400px]">{children}</main>
       </div>
       {kind === "user" && <AssistantLauncher />}
       {kind === "admin" && session?.role === "admin" && (!session.actorId || session.actorId === session.userId) && <AssistantLauncher staff />}

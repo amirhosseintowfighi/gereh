@@ -93,7 +93,7 @@ function NewDomain({ open, onClose, plans }: { open: boolean; onClose: () => voi
           <div role="radiogroup" aria-label="پلن" className="grid sm:grid-cols-3 gap-2">
             {plans.map((p) => (
               <button key={p.id} type="button" role="radio" aria-checked={f.planId === p.id} onClick={() => setF({ ...f, planId: p.id })}
-                className={"text-right rounded-2xl p-4 border transition " + (f.planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+                className={"text-start rounded-2xl p-4 border transition " + (f.planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
                 <b>{p.name}</b>
                 <span className="block text-sm tabular mt-1">{toman(p.price)}<span className="text-[11px] text-white/50"> / ماه</span></span>
                 <span className="block text-[11px] text-white/55 mt-2 leading-5">{fa(p.dailyLimit)} ارسال در روز · {fa(p.monthlyLimit)} در ماه<br />{fa(p.mailboxes)} صندوق تا {mb(p.quotaMb)}</span>
@@ -101,7 +101,7 @@ function NewDomain({ open, onClose, plans }: { open: boolean; onClose: () => voi
             ))}
           </div>
           <Field label="دامنه یا زیردامنه" hint="برای ایمیل تراکنشی، زیردامنه‌ای مثل mail.example.ir پیشنهاد می‌شود تا اعتبار دامنه اصلی جدا بماند.">
-            <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="mail.example.ir" className={INPUT + " text-left"} />
+            <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="mail.example.ir" className={INPUT + " text-start"} />
           </Field>
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/[0.08]">
             <span className="text-sm">{plan && <>هزینه: <b className="tabular">{toman(plan.price)}</b> در ماه، ساعتی از کیف پول</>}</span>
@@ -207,7 +207,7 @@ function Overview({ d, reload }: { d: D; reload: () => void }) {
       <Card title="برچسب‌ها (۹۰ روز)" icon="tag" pad="p-3 sm:p-4">
         {!s.data ? <Loading /> : s.data.tags.length === 0 ? <Empty icon="tag" title="برچسبی ثبت نشده" text="با سربرگ X-Gereh-Tag یا فیلد tag، پیام‌ها را دسته‌بندی کنید." /> : (
           <div className="overflow-x-auto"><table className="w-full text-sm min-w-[520px]">
-            <thead><tr className="text-white/50 text-xs text-right"><th scope="col" className="text-right font-medium p-2">برچسب</th><th scope="col" className="text-right font-medium p-2">ارسال</th><th scope="col" className="text-right font-medium p-2">تحویل</th><th scope="col" className="text-right font-medium p-2">برگشت</th><th scope="col" className="text-right font-medium p-2">ناموفق</th><th scope="col" className="text-right font-medium p-2">DEV</th></tr></thead>
+            <thead><tr className="text-white/50 text-xs text-start"><th scope="col" className="text-start font-medium p-2">برچسب</th><th scope="col" className="text-start font-medium p-2">ارسال</th><th scope="col" className="text-start font-medium p-2">تحویل</th><th scope="col" className="text-start font-medium p-2">برگشت</th><th scope="col" className="text-start font-medium p-2">ناموفق</th><th scope="col" className="text-start font-medium p-2">DEV</th></tr></thead>
             <tbody>{s.data.tags.map((t) => (
               <tr key={t.tag} className="border-t border-white/[0.06]"><td className="p-2" dir="ltr">{t.tag || <span className="text-white/50">(بدون برچسب)</span>}</td><td className="p-2 tabular">{fa(t.total)}</td><td className="p-2 tabular text-emerald-300">{fa(t.delivered)}</td><td className="p-2 tabular text-rose-300">{fa(t.bounced)}</td><td className="p-2 tabular">{fa(t.failed)}</td><td className="p-2 tabular text-white/50">{fa(t.dev)}</td></tr>
             ))}</tbody>
@@ -236,8 +236,8 @@ function Dns({ d, reload }: { d: D; reload: () => void }) {
                 {r.ok ? <Badge tone="green" dot>تأیید شد</Badge> : <Badge tone={r.required ? "amber" : "gray"} dot>{r.seen.length ? "مقدار نادرست" : "یافت نشد"}</Badge>}
               </div>
               <div className="grid sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2 mt-3 text-xs">
-                <div className="rounded-xl bg-black/25 px-3 py-2 min-w-0"><span className="text-white/50 block mb-0.5">نام (Host)</span><CopyText text={r.name} className="font-mono break-all text-right" /></div>
-                <div className="rounded-xl bg-black/25 px-3 py-2 min-w-0"><span className="text-white/50 block mb-0.5">مقدار{r.priority !== undefined ? " (اولویت " + fa(r.priority) + ")" : ""}</span><CopyText text={r.value} className="font-mono break-all text-right" /></div>
+                <div className="rounded-xl bg-black/25 px-3 py-2 min-w-0"><span className="text-white/50 block mb-0.5">نام (Host)</span><CopyText text={r.name} className="font-mono break-all text-start" /></div>
+                <div className="rounded-xl bg-black/25 px-3 py-2 min-w-0"><span className="text-white/50 block mb-0.5">مقدار{r.priority !== undefined ? " (اولویت " + fa(r.priority) + ")" : ""}</span><CopyText text={r.value} className="font-mono break-all text-start" /></div>
               </div>
               {!r.ok && r.seen.length > 0 && <p className="text-[11px] text-white/50 mt-2 break-all" dir="ltr">seen: {r.seen.join(" | ")}</p>}
             </li>
@@ -263,8 +263,8 @@ function DmarcEditor({ d, reload }: { d: D; reload: () => void }) {
     <Card title="سیاست DMARC" icon="shield-check">
       <div className="grid sm:grid-cols-2 gap-3">
         <Field label="سیاست (p)" hint="با none شروع کنید، گزارش‌ها را ببینید، بعد سخت‌گیرانه کنید."><Select label="سیاست DMARC" value={m.p} onChange={(v) => setM({ ...m, p: v as Dmarc["p"] })} options={[{ value: "none", label: "none — فقط گزارش" }, { value: "quarantine", label: "quarantine — هرزنامه" }, { value: "reject", label: "reject — رد" }]} /></Field>
-        <Field label="درصد اعمال (pct)"><input value={m.pct} inputMode="numeric" onChange={(e) => setM({ ...m, pct: Math.min(100, Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1)) })} dir="ltr" className={INPUT + " text-left"} /></Field>
-        <Field label="نشانی گزارش (rua)" className="sm:col-span-2"><input value={m.rua} onChange={(e) => setM({ ...m, rua: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder={"dmarc@" + d.domain} className={INPUT + " text-left"} /></Field>
+        <Field label="درصد اعمال (pct)"><input value={m.pct} inputMode="numeric" onChange={(e) => setM({ ...m, pct: Math.min(100, Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1)) })} dir="ltr" className={INPUT + " text-start"} /></Field>
+        <Field label="نشانی گزارش (rua)" className="sm:col-span-2"><input value={m.rua} onChange={(e) => setM({ ...m, rua: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder={"dmarc@" + d.domain} className={INPUT + " text-start"} /></Field>
         <Field label="تطابق DKIM (adkim)"><Select label="adkim" value={m.adkim} onChange={(v) => setM({ ...m, adkim: v as "r" | "s" })} options={[{ value: "r", label: "آزاد (r)" }, { value: "s", label: "سخت (s)" }]} /></Field>
         <Field label="تطابق SPF (aspf)"><Select label="aspf" value={m.aspf} onChange={(v) => setM({ ...m, aspf: v as "r" | "s" })} options={[{ value: "r", label: "آزاد (r)" }, { value: "s", label: "سخت (s)" }]} /></Field>
       </div>
@@ -286,17 +286,17 @@ function SendConsole({ d }: { d: D; reload: () => void }) {
       <Card title="ارسال از پنل" icon="send">
         <div className="space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="از (from)"><input value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="به (to)" hint="چند نشانی را با کاما جدا کنید"><input value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} dir="ltr" placeholder="user@example.com" className={INPUT + " text-left"} /></Field>
-            <Field label="رونوشت (cc)"><input value={f.cc} onChange={(e) => setF({ ...f, cc: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="رونوشت مخفی (bcc)"><input value={f.bcc} onChange={(e) => setF({ ...f, bcc: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="از (from)"><input value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="به (to)" hint="چند نشانی را با کاما جدا کنید"><input value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} dir="ltr" placeholder="user@example.com" className={INPUT + " text-start"} /></Field>
+            <Field label="رونوشت (cc)"><input value={f.cc} onChange={(e) => setF({ ...f, cc: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="رونوشت مخفی (bcc)"><input value={f.bcc} onChange={(e) => setF({ ...f, bcc: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
           </div>
           <Field label="موضوع"><input value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} className={INPUT} /></Field>
           <div className="flex items-center justify-between gap-3"><span className="text-xs text-white/60">متن پیام</span><Tabs size="sm" value={f.html ? "html" : "text"} onChange={(v) => setF({ ...f, html: v === "html" })} label="قالب" options={[{ id: "html", label: "HTML" }, { id: "text", label: "متن ساده" }]} /></div>
           <textarea value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} rows={8} dir="auto" aria-label="متن پیام" className={TEXTAREA + (f.html ? " font-mono text-xs" : "")} placeholder={f.html ? "<p>سلام</p>" : "سلام"} />
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="برچسب (اختیاری)"><input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim() })} dir="ltr" placeholder="welcome" className={INPUT + " text-left"} /></Field>
-            <Field label="List-Unsubscribe (اختیاری)"><input value={f.unsub} onChange={(e) => setF({ ...f, unsub: e.target.value.trim() })} dir="ltr" placeholder="https://… یا mailto:…" className={INPUT + " text-left"} /></Field>
+            <Field label="برچسب (اختیاری)"><input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim() })} dir="ltr" placeholder="welcome" className={INPUT + " text-start"} /></Field>
+            <Field label="List-Unsubscribe (اختیاری)"><input value={f.unsub} onChange={(e) => setF({ ...f, unsub: e.target.value.trim() })} dir="ltr" placeholder="https://… یا mailto:…" className={INPUT + " text-start"} /></Field>
           </div>
           <Field as="div" label="پیوست‌ها" hint={"حداکثر ۱۰ مگابایت؛ فعلی " + kb(size)} error={size > MAX_ATTACHMENTS_BYTES ? "حجم پیوست‌ها بیش از ۱۰ مگابایت است" : undefined}>
             <FilePick label="افزودن پیوست" icon="paperclip" multiple onFiles={setFiles} />
@@ -336,7 +336,7 @@ function Logs({ d, direction, mailboxId }: { d: D; direction: "out" | "in"; mail
           <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="جست‌وجو" placeholder="جست‌وجو در موضوع، فرستنده یا گیرنده" className={INPUT} />
         </form>
         <div className="w-44"><Select label="وضعیت" value={f.status} onChange={(v) => setF({ ...f, status: v, offset: 0 })} options={[{ value: "", label: "همه وضعیت‌ها" }, ...statuses.map((s) => ({ value: s, label: MAIL_MSG_STATUS[s][0] }))]} /></div>
-        {direction === "out" && <input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim(), offset: 0 })} aria-label="برچسب" placeholder="برچسب" dir="ltr" className={INPUT + " w-32 text-left"} />}
+        {direction === "out" && <input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value.trim(), offset: 0 })} aria-label="برچسب" placeholder="برچسب" dir="ltr" className={INPUT + " w-32 text-start"} />}
         <button type="button" onClick={r.reload} className={BTN_G + BTN_MD} aria-label="بارگذاری دوباره"><Icon name="refresh-cw" size={16} /></button>
       </div>
       {!r.data ? <Loading /> : r.data.rows.length === 0 ? <Empty icon="scroll-text" title="پیامی پیدا نشد" text="گزارش‌ها ۹۰ روز نگه‌داری می‌شوند." /> : (
@@ -344,7 +344,7 @@ function Logs({ d, direction, mailboxId }: { d: D; direction: "out" | "in"; mail
           <ul className="divide-y divide-white/[0.06]">
             {r.data.rows.map((m: MailMsgRow) => (
               <li key={m.id}>
-                <button type="button" onClick={() => setOpen(m.id)} className="w-full text-right p-3 rounded-xl hover:bg-white/[0.04] transition">
+                <button type="button" onClick={() => setOpen(m.id)} className="w-full text-start p-3 rounded-xl hover:bg-white/[0.04] transition">
                   <span className="flex items-center justify-between gap-2">
                     <b className={"text-sm truncate " + (direction === "in" && !m.read ? "" : "font-normal")} dir="auto">{m.subject || "(بدون موضوع)"}</b>
                     <span className="flex items-center gap-1.5 shrink-0">{m.tag && <Badge>{m.tag}</Badge>}{m.attachments > 0 && <Icon name="paperclip" size={13} className="text-white/50" />}<Pill map={MAIL_MSG_STATUS} s={m.status} /></span>
@@ -392,13 +392,13 @@ function MessageDrawer({ domainId, id, onClose }: { domainId: string; id: string
           <Tabs size="sm" value={view} onChange={setView} label="نمایش" options={[{ id: "html", label: "HTML" }, { id: "text", label: "متن" }, { id: "source", label: "منبع" }, { id: "events", label: "رویدادها" }]} />
           {view === "html" && (m.html ? <iframe title="پیش‌نمایش HTML" sandbox="" srcDoc={m.html} className="w-full h-[420px] rounded-xl bg-white" /> : <p className="text-sm text-white/50">این پیام نسخه HTML ندارد.</p>)}
           {view === "text" && <pre dir="auto" className="whitespace-pre-wrap text-sm leading-7 rounded-xl bg-black/30 p-3">{m.text || "—"}</pre>}
-          {view === "source" && <pre dir="ltr" className="text-[11px] leading-5 rounded-xl bg-black/35 p-3 overflow-auto max-h-[520px] text-left whitespace-pre-wrap break-all">{m.raw || "—"}</pre>}
+          {view === "source" && <pre dir="ltr" className="text-[11px] leading-5 rounded-xl bg-black/35 p-3 overflow-auto max-h-[520px] text-start whitespace-pre-wrap break-all">{m.raw || "—"}</pre>}
           {view === "events" && (
             <ol className="space-y-2">
               {m.events.map((e) => (
                 <li key={e.id} className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-3 py-2 text-xs">
                   <div className="flex flex-wrap items-center justify-between gap-2"><b>{MAIL_EVENT_LABEL[e.type] ?? e.type}</b><span className="text-white/50">{e.at}</span></div>
-                  {e.recipient && <div dir="ltr" className="text-white/65 mt-1 text-right">{e.recipient}</div>}
+                  {e.recipient && <div dir="ltr" className="text-white/65 mt-1 text-end">{e.recipient}</div>}
                   {e.detail && <div dir="auto" className="text-white/50 mt-1 break-all">{e.detail}</div>}
                 </li>
               ))}
@@ -436,7 +436,7 @@ function Smtp({ d, reload }: { d: D; reload: () => void }) {
       <Card title="تنظیمات اتصال SMTP" icon="server">
         <dl className="text-sm space-y-2">
           {([["سرور", d.hosts.smtp], ["پورت", "587 (STARTTLS) یا 465 (SSL)"], ["احراز هویت", "نام کاربری و رمز بالا"], ["فرستنده", "هر نشانی @" + d.domain]] as const).map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2"><dt className="text-white/55">{k}</dt><dd dir="ltr" className="font-mono text-xs text-left break-all">{k === "سرور" ? <CopyText text={v} /> : v}</dd></div>
+            <div key={k} className="flex justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2"><dt className="text-white/55">{k}</dt><dd dir="ltr" className="font-mono text-xs text-start break-all">{k === "سرور" ? <CopyText text={v} /> : v}</dd></div>
           ))}
         </dl>
         <p className="text-[11px] text-white/50 mt-3 leading-6">پیام‌های SMTP هم در گزارش ثبت و از سقف پلن کم می‌شوند. سربرگ X-Gereh-Tag برچسب پیام را تعیین می‌کند.</p>
@@ -461,7 +461,7 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
             {d.mailboxes.map((b) => (
               <li key={b.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="min-w-0"><b dir="ltr" className="text-sm block truncate text-right">{b.address}</b><span className="text-[11px] text-white/50">{b.name || "—"}</span></span>
+                  <span className="min-w-0"><b dir="ltr" className="text-sm block truncate text-end">{b.address}</b><span className="text-[11px] text-white/50">{b.name || "—"}</span></span>
                   <span className="flex gap-1 shrink-0">
                     {!b.active && <Badge tone="gray">غیرفعال</Badge>}
                     <button type="button" aria-label={"ویرایش " + b.address} onClick={() => setBox({ id: b.id, local: b.local, name: b.name, password: "", quotaMb: b.quotaMb, active: b.active })} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10"><Icon name="pencil" size={14} /></button>
@@ -479,17 +479,17 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
           <p className="text-xs text-white/55 leading-6 mb-3">ایمیل‌های یک نشانی را به صندوق‌های همین دامنه (مستعار) یا نشانی‌های بیرونی (هدایت) بفرستید.</p>
           {d.aliases.length > 0 && <ul className="divide-y divide-white/[0.06] mb-3">{d.aliases.map((a) => (
             <li key={a.id} className="py-2 flex items-start justify-between gap-2 text-sm">
-              <span className="min-w-0"><b dir="ltr" className="block text-right">{a.address}</b><span dir="ltr" className="block text-[11px] text-white/55 text-right break-all">→ {a.destinations.join(", ")}</span></span>
+              <span className="min-w-0"><b dir="ltr" className="block text-end">{a.address}</b><span dir="ltr" className="block text-[11px] text-white/55 text-end break-all">→ {a.destinations.join(", ")}</span></span>
               <AsyncButton danger className="w-9 h-9 grid place-items-center rounded-xl text-white/65 hover:bg-rose-400/10 hover:text-rose-300 transition shrink-0" confirmText={a.address + " حذف شود؟"} onClick={async () => { await api.mail.aliasRemove(d.id, a.id); reload(); }}><Icon name="trash-2" size={16} /></AsyncButton>
             </li>
           ))}</ul>}
           <div className="grid sm:grid-cols-[9rem_1fr] gap-2">
-            <div className="flex items-center gap-1" dir="ltr"><input value={alias.local} onChange={(e) => setAlias({ ...alias, local: e.target.value.trim().toLowerCase() })} aria-label="نام نشانی" placeholder="sales" className={INPUT + " text-left"} /><span className="text-xs text-white/50">@</span></div>
-            <input value={alias.dests} onChange={(e) => setAlias({ ...alias, dests: e.target.value })} aria-label="مقصدها" placeholder="info@…, someone@gmail.com" dir="ltr" className={INPUT + " text-left"} />
+            <div className="flex items-center gap-1" dir="ltr"><input value={alias.local} onChange={(e) => setAlias({ ...alias, local: e.target.value.trim().toLowerCase() })} aria-label="نام نشانی" placeholder="sales" className={INPUT + " text-start"} /><span className="text-xs text-white/50">@</span></div>
+            <input value={alias.dests} onChange={(e) => setAlias({ ...alias, dests: e.target.value })} aria-label="مقصدها" placeholder="info@…, someone@gmail.com" dir="ltr" className={INPUT + " text-start"} />
           </div>
           <AsyncButton disabled={!alias.local || !alias.dests} className={BTN_G + BTN_SM + " mt-2"} onClick={async () => { await api.mail.aliasSave(d.id, { local: alias.local, destinations: alias.dests.split(/[,\s]+/) }); setAlias({ local: "", dests: "" }); notify("ذخیره شد", "check"); reload(); }}>افزودن</AsyncButton>
           <div className="mt-5 pt-4 border-t border-white/[0.08]">
-            <Field label="Catch-all" hint="ایمیل‌هایی که به نشانی ناموجود این دامنه می‌رسند، به این نشانی فرستاده شوند (خالی = رد شوند)."><input value={catchAll} onChange={(e) => setCatchAll(e.target.value.trim().toLowerCase())} dir="ltr" placeholder={"info@" + d.domain} className={INPUT + " text-left"} /></Field>
+            <Field label="Catch-all" hint="ایمیل‌هایی که به نشانی ناموجود این دامنه می‌رسند، به این نشانی فرستاده شوند (خالی = رد شوند)."><input value={catchAll} onChange={(e) => setCatchAll(e.target.value.trim().toLowerCase())} dir="ltr" placeholder={"info@" + d.domain} className={INPUT + " text-start"} /></Field>
             <AsyncButton disabled={catchAll === d.catchAll} className={BTN_G + BTN_SM + " mt-2"} onClick={async () => { await api.mail.setInbound(d.id, { catchAll }); notify("ذخیره شد", "check"); reload(); }}>ذخیره</AsyncButton>
           </div>
         </Card>
@@ -504,10 +504,10 @@ function Mailboxes({ d, reload }: { d: D; reload: () => void }) {
       </div>
       <Modal open={!!box} onClose={() => setBox(null)} title={box?.id ? "ویرایش صندوق" : "صندوق جدید"} icon="mail">
         {box && <div className="space-y-4">
-          {!box.id && <Field label="نشانی"><div className="flex items-center gap-1.5" dir="ltr"><input value={box.local} onChange={(e) => setBox({ ...box, local: e.target.value.trim().toLowerCase() })} placeholder="info" className={INPUT + " text-left"} /><span className="text-sm text-white/60 shrink-0">@{d.domain}</span></div></Field>}
+          {!box.id && <Field label="نشانی"><div className="flex items-center gap-1.5" dir="ltr"><input value={box.local} onChange={(e) => setBox({ ...box, local: e.target.value.trim().toLowerCase() })} placeholder="info" className={INPUT + " text-start"} /><span className="text-sm text-white/60 shrink-0">@{d.domain}</span></div></Field>}
           <Field label="نام نمایشی"><input value={box.name} onChange={(e) => setBox({ ...box, name: e.target.value })} className={INPUT} /></Field>
-          <Field label={box.id ? "رمز تازه (خالی = بدون تغییر)" : "رمز"} hint="دست‌کم ۸ نویسه با حرف و عدد"><input type="password" autoComplete="new-password" value={box.password} onChange={(e) => setBox({ ...box, password: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <Field label="فضا (مگابایت)" hint={"حداکثر در این پلن: " + mb(quota)}><input value={box.quotaMb} inputMode="numeric" onChange={(e) => setBox({ ...box, quotaMb: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label={box.id ? "رمز تازه (خالی = بدون تغییر)" : "رمز"} hint="دست‌کم ۸ نویسه با حرف و عدد"><input type="password" autoComplete="new-password" value={box.password} onChange={(e) => setBox({ ...box, password: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+          <Field label="فضا (مگابایت)" hint={"حداکثر در این پلن: " + mb(quota)}><input value={box.quotaMb} inputMode="numeric" onChange={(e) => setBox({ ...box, quotaMb: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-start"} /></Field>
           {box.id && <div className="flex items-center justify-between text-sm"><span>فعال</span><Switch on={box.active} onChange={(v) => setBox({ ...box, active: v })} label="فعال بودن صندوق" /></div>}
           <AsyncButton onClick={async () => {
             if (box.id) await api.mail.mailboxUpdate(d.id, box.id, { name: box.name, quotaMb: box.quotaMb, active: box.active, ...(box.password ? { password: box.password } : {}) });
@@ -536,8 +536,8 @@ function Inbox({ d, reload }: { d: D; reload: () => void }) {
       <Logs key={box + n} d={d} direction="in" mailboxId={box || undefined} />
       <Modal open={test} onClose={() => setTest(false)} title="پیام آزمایشی ورودی" icon="mail">
         <div className="space-y-3">
-          <Field label="از"><input value={t.from} onChange={(e) => setT({ ...t, from: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <Field label="به"><input value={t.to} onChange={(e) => setT({ ...t, to: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label="از"><input value={t.from} onChange={(e) => setT({ ...t, from: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
+          <Field label="به"><input value={t.to} onChange={(e) => setT({ ...t, to: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
           <Field label="موضوع"><input value={t.subject} onChange={(e) => setT({ ...t, subject: e.target.value })} className={INPUT} /></Field>
           <textarea value={t.text} onChange={(e) => setT({ ...t, text: e.target.value })} rows={4} aria-label="متن" className={TEXTAREA} />
           <AsyncButton onClick={async () => { const r = await api.mail.testInbound(d.id, t); notify(r.action === "accept" ? "پیام دریافت شد" : r.action === "quarantine" ? "به‌عنوان هرزنامه علامت خورد" : r.action === "discard" ? "طبق قوانین دور ریخته شد" : "رد شد (گیرنده وجود ندارد)", "mail"); setTest(false); setN((x) => x + 1); reload(); }}>ارسال آزمایشی</AsyncButton>
@@ -570,14 +570,14 @@ function InboundRules({ d, reload }: { d: D; reload: () => void }) {
           <Select label="شرط" value={r.op} onChange={(v) => setR({ ...r, op: v as typeof r.op })} options={Object.entries(OP_LABEL).map(([value, label]) => ({ value, label }))} />
           <input value={r.value} onChange={(e) => setR({ ...r, value: e.target.value })} aria-label="مقدار" placeholder="@example.com" dir="auto" className={INPUT} />
           <Select label="اقدام" value={r.action} onChange={(v) => setR({ ...r, action: v as typeof r.action })} options={[{ value: "drop", label: "دور ریختن" }, { value: "forward", label: "هدایت به…" }]} />
-          <input value={r.target} disabled={r.action !== "forward"} onChange={(e) => setR({ ...r, target: e.target.value.trim().toLowerCase() })} aria-label="مقصد هدایت" placeholder="ops@example.com" dir="ltr" className={INPUT + " text-left disabled:opacity-40"} />
+          <input value={r.target} disabled={r.action !== "forward"} onChange={(e) => setR({ ...r, target: e.target.value.trim().toLowerCase() })} aria-label="مقصد هدایت" placeholder="ops@example.com" dir="ltr" className={INPUT + " text-start disabled:opacity-40"} />
           <AsyncButton disabled={!r.value} className={BTN_G + BTN_MD} onClick={async () => { await api.mail.ruleAdd(d.id, r); setR({ ...r, value: "", target: "" }); notify("قانون افزوده شد", "check"); reload(); }}>افزودن</AsyncButton>
         </div>
       </Card>
       <Card title="فهرست مسدود" icon="ban" pad="p-3 sm:p-5">
         <p className="text-xs text-white/55 leading-6 mb-3">ایمیل این فرستنده‌ها بی‌صدا دور ریخته می‌شود. یک نشانی کامل یا یک دامنه (مثل <span dir="ltr">@spam.example</span>).</p>
         <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); try { await api.mail.blockAdd(d.id, block); setBlock(""); reload(); } catch (x) { notify((x as Error).message, "circle-alert"); } }}>
-          <input value={block} onChange={(e) => setBlock(e.target.value.trim().toLowerCase())} aria-label="نشانی یا دامنه" dir="ltr" placeholder="@spam.example" className={INPUT + " text-left"} />
+          <input value={block} onChange={(e) => setBlock(e.target.value.trim().toLowerCase())} aria-label="نشانی یا دامنه" dir="ltr" placeholder="@spam.example" className={INPUT + " text-start"} />
           <button type="submit" disabled={!block} className={BTN_G + BTN_MD + " shrink-0"}>افزودن</button>
         </form>
         {d.blocks.length > 0 && <ul className="flex flex-wrap gap-2 mt-3">{d.blocks.map((b) => (
@@ -614,7 +614,7 @@ function Settings({ d, reload }: { d: D; reload: () => void }) {
       <Card title="حذف دامنه ایمیل" icon="trash-2">
         <p className="text-sm text-white/65 leading-7">همه صندوق‌ها، ایمیل‌ها، کاربران SMTP و گزارش‌ها برای همیشه حذف می‌شوند و کلید API از کار می‌افتد.</p>
         <label className="block text-xs text-white/60 mt-3" htmlFor="mail-del">برای تأیید، دامنه را بنویسید: <b dir="ltr">{d.domain}</b></label>
-        <input id="mail-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5 max-w-sm"} />
+        <input id="mail-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-start mt-1.5 max-w-sm"} />
         <AsyncButton danger disabled={conf.trim().toLowerCase() !== d.domain} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.mail.remove(d.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/mail" as never); }}>حذف همیشگی</AsyncButton>
       </Card>
     </div>

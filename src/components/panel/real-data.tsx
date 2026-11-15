@@ -70,7 +70,7 @@ export function SeedDataCard() {
         {r.warnings.map((w) => <p key={w} role="alert" className="text-sm rounded-xl border border-rose-300/30 bg-rose-400/[0.08] text-rose-100 px-4 py-3 flex gap-2"><Icon name="triangle-alert" size={16} className="shrink-0 mt-1" />{w}</p>)}
         {r.total === 0 ? <p className="text-sm text-emerald-200 flex items-center gap-2"><Icon name="circle-check" size={16} />هیچ داده نمونه‌ای در پایگاه داده نیست.</p> : <>
           <ul className="divide-y divide-white/[0.06] text-sm">
-            {r.items.map((i) => <li key={i.key} className="py-2.5 flex items-center justify-between gap-3"><span>{i.label}<span className="block text-[11px] text-white/50 ltr text-right mono truncate">{i.sample.join("، ")}{i.count > i.sample.length ? "…" : ""}</span></span><span className="tabular font-bold shrink-0">{fa(i.count)}</span></li>)}
+            {r.items.map((i) => <li key={i.key} className="py-2.5 flex items-center justify-between gap-3"><span className="min-w-0">{i.label}<span className="block text-[11px] text-white/50 ltr text-end mono truncate">{i.sample.join(", ")}{i.count > i.sample.length ? "…" : ""}</span></span><span className="tabular font-bold shrink-0">{fa(i.count)}</span></li>)}
             {r.fakeVirt && <li className="py-2.5">وضعیت ساختگی «متصل به Virtualizor 3.1.x» (بدون رمز ذخیره‌شده)</li>}
           </ul>
           <Field label={"برای حذف، بنویسید: حذف داده‌های نمونه"}><input value={typed} onChange={(e) => setTyped(e.target.value)} className={INPUT} aria-label="عبارت تأیید حذف داده‌های نمونه" /></Field>

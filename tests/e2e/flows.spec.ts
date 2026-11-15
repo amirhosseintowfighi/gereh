@@ -152,7 +152,7 @@ test.describe("admin ↔ customer", () => {
     await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "کاربران" }).click();
     await page.getByRole("cell", { name: /user2@mail\.ir/ }).click();
     await page.getByRole("button", { name: /ورود به‌جای کاربر/ }).click();
-    await page.getByRole("dialog").getByRole("button").last().click();
+    await page.getByRole("dialog").last().getByRole("button").nth(1).click(); // topmost dialog: [close, confirm, cancel]
     await expect(page).toHaveURL(/\/panel$/);
     const banner = page.getByRole("status").filter({ hasText: "در حال مشاهده پنل" });
     await expect(banner).toBeVisible();
@@ -165,7 +165,7 @@ test.describe("admin ↔ customer", () => {
     await page.getByRole("navigation", { name: "منوی مدیریت" }).getByRole("link", { name: "سرویس‌ها" }).click();
     await page.getByRole("row", { name: /web-prod-1/ }).getByRole("button", { name: "اقدامات" }).click();
     await page.getByRole("menuitem", { name: "تعلیق" }).click();
-    await page.getByRole("dialog").getByRole("button").last().click();
+    await page.getByRole("dialog").last().getByRole("button").nth(1).click(); // topmost dialog: [close, confirm, cancel]
     await expect(page.getByRole("row", { name: /web-prod-1/ })).toContainText("معلق");
 
     // the suspension is stored server-side, so the customer sees it on their own login

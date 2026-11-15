@@ -28,7 +28,7 @@ export function TeamTab() {
       <Card title="دعوت عضو جدید" icon="users-round">
         <p className="text-sm text-white/55 leading-7 mb-4">همکاران با حساب خودشان وارد می‌شوند و از منوی بالای پنل به حساب شما می‌روند؛ رمز شما را لازم ندارند.</p>
         <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <Field label="ایمیل"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" className={INPUT + " text-left"} placeholder="colleague@example.com" /></Field>
+          <Field label="ایمیل"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" className={INPUT + " text-start"} placeholder="colleague@example.com" /></Field>
           <Field label="نقش" hint={TEAM_ROLES.find((r) => r.value === role)?.hint}><Select label="نقش" value={role} onChange={(v) => setRole(v as TeamRole)} options={TEAM_ROLES.map(({ value, label }) => ({ value, label }))} /></Field>
           <AsyncButton onClick={async () => { await api.team.invite(email, role); setEmail(""); notify("دعوت‌نامه ارسال شد", "send"); }}><Icon name="send" size={16} /> ارسال دعوت</AsyncButton>
         </form>
@@ -37,7 +37,7 @@ export function TeamTab() {
         {t.members.length === 0 && t.invites.length === 0 ? <Empty icon="users-round" title="هنوز عضوی ندارید" /> : <>
           {t.members.map((m) => (
             <div key={m.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div className="min-w-0"><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-right">{m.email}</div></div>
+              <div className="min-w-0"><div className="text-sm font-bold">{m.name}</div><div className="text-[11px] text-white/55 ltr text-end">{m.email}</div></div>
               <div className="flex items-center gap-2">
                 <Select className="w-32" label={"نقش " + m.name} value={m.role} onChange={async (v) => { await api.team.setRole(m.id, v as TeamRole); notify("نقش تغییر کرد"); }} options={TEAM_ROLES.map(({ value, label }) => ({ value, label }))} />
                 <IconBtn icon="trash-2" label={"حذف " + m.name} className="hover:text-rose-300" onClick={async () => { if (await confirm(m.name + " از تیم حذف شود؟ دسترسی او فورا قطع می‌شود.", { danger: true, ok: "حذف" })) { await api.team.remove(m.id); notify("عضو حذف شد"); } }} />
@@ -46,7 +46,7 @@ export function TeamTab() {
           ))}
           {t.invites.map((i) => (
             <div key={i.id} className="flex items-center justify-between gap-3 p-3 rounded-xl">
-              <div className="min-w-0"><div className="text-sm ltr text-right">{i.email}</div><div className="text-[11px] text-white/55 mt-0.5">در انتظار پذیرش تا {i.expires}</div></div>
+              <div className="min-w-0"><div className="text-sm ltr text-end">{i.email}</div><div className="text-[11px] text-white/55 mt-0.5">در انتظار پذیرش تا {i.expires}</div></div>
               <div className="flex items-center gap-2"><Badge>{roleLabel(i.role)}</Badge><IconBtn icon="x" label={"لغو دعوت " + i.email} onClick={async () => { await api.team.cancelInvite(i.id); notify("دعوت لغو شد"); }} /></div>
             </div>
           ))}

@@ -36,7 +36,7 @@ export default async function DevopsServicePage({ params }: PageProps<"/devops/[
             <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">{s.title}</span>
           </nav>
           <span className="mt-8 mx-auto w-16 h-16 rounded-[1.25rem] grid place-items-center bg-white/[0.08] border border-white/15 acc"><Icon name={s.icon} size={28} /></span>
-          <h1 className="hero-title mt-6 text-[2rem] sm:text-6xl font-black leading-[1.35] tracking-tight">{s.title}</h1>
+          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">{s.title}</h1>
           <p className="mt-5 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">{s.short}</p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <a href="#request" className={BTN_P + " px-7 py-3.5"}><Icon name="message-circle" size={18} />مشاوره رایگان</a>

@@ -78,7 +78,7 @@ function PlanRow({ p, reload }: { p: MailPlan; reload: () => void }) {
   const { notify } = useApp();
   const [f, setF] = useState({ name: p.name, price: String(p.price), dailyLimit: String(p.dailyLimit), monthlyLimit: String(p.monthlyLimit), mailboxes: String(p.mailboxes), quotaMb: String(p.quotaMb) });
   const dirty = f.name !== p.name || num(f.price) !== p.price || num(f.dailyLimit) !== p.dailyLimit || num(f.monthlyLimit) !== p.monthlyLimit || num(f.mailboxes) !== p.mailboxes || num(f.quotaMb) !== p.quotaMb;
-  const box = (k: Exclude<keyof typeof f, "name">, label: string) => <input aria-label={label + " " + p.id} value={f[k]} inputMode="numeric" onChange={(e) => setF({ ...f, [k]: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />;
+  const box = (k: Exclude<keyof typeof f, "name">, label: string) => <input aria-label={label + " " + p.id} value={f[k]} inputMode="numeric" onChange={(e) => setF({ ...f, [k]: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} />;
   return (
     <li className="p-3 rounded-xl hover:bg-white/[0.03]">
       <div className="flex items-center justify-between gap-2 mb-2"><span className="text-[11px] text-white/55">{p.id}</span><Switch on={p.active} onChange={async (v) => { await api.mail.adminPlan(p.id, { active: v }); notify("ذخیره شد", "check"); reload(); }} label={"فعال بودن " + p.name} /></div>

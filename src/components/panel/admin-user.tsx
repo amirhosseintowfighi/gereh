@@ -102,7 +102,7 @@ function SummaryTab({ s, reload }: { s: UserSummary; reload: () => Promise<void>
       <div className="grid lg:grid-cols-3 gap-4">
         <Card title="تغییر موجودی" icon="wallet">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-            <input value={adj.amount} onChange={(e) => setAdj((x) => ({ ...x, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-left tabular"} />
+            <input value={adj.amount} onChange={(e) => setAdj((x) => ({ ...x, amount: e.target.value }))} dir="ltr" inputMode="numeric" aria-label="مبلغ تغییر (منفی برای کسر)" placeholder="+500000 / -200000" className={INPUT + " text-start tabular"} />
             <input value={adj.reason} onChange={(e) => setAdj((x) => ({ ...x, reason: e.target.value }))} aria-label="دلیل" placeholder="دلیل (در تراکنش و گزارش ثبت می‌شود)" className={INPUT} />
           </div>
           <div className="mt-3 flex justify-end"><AsyncButton confirmText={"موجودی " + u.name + " تغییر کند؟"} onClick={async () => {
@@ -142,7 +142,7 @@ function OrdersTab({ id }: { id: string }) {
     <div className="space-y-3">
       {d.invoices.map((inv) => (
         <Card key={inv.id} pad="p-4">
-          <button type="button" onClick={() => setOpen(open === inv.id ? null : inv.id)} aria-expanded={open === inv.id} className="w-full flex flex-wrap items-center justify-between gap-2 text-right">
+          <button type="button" onClick={() => setOpen(open === inv.id ? null : inv.id)} aria-expanded={open === inv.id} className="w-full flex flex-wrap items-center justify-between gap-2 text-start">
             <span className="flex flex-wrap items-center gap-2 min-w-0"><Icon name={open === inv.id ? "chevron-down" : "chevron-left"} size={16} className="text-white/50" /><b className="mono text-sm">{inv.id}</b><StatusBadge s={inv.status} /><span className="text-xs text-white/50">{inv.created}</span>
               {inv.lines.filter((l) => l.state.state === "failed" || l.state.state === "pending").length > 0 && <Badge tone="red" dot>تحویل‌نشده</Badge>}</span>
             <span className="tabular font-bold text-sm">{toman(inv.total)}</span>
@@ -393,7 +393,7 @@ function SearchPanel({ onPick, autoFocus }: { onPick: () => void; autoFocus?: bo
   const go = (h: SearchHit) => { router.push(((userHref(h.userId) as string) + (h.kind === "invoice" ? "?tab=orders" : h.kind === "user" ? "" : "?tab=services")) as never); setQ(""); setHits(null); onPick(); };
   return (
     <div className="relative">
-      <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+      <Icon name="search" size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
       <input type="search" value={q} autoFocus={autoFocus} onChange={(e) => setQ(e.target.value)} placeholder="ایمیل، موبایل، فاکتور، IP یا دامنه"
         aria-label="جست‌وجوی مشتری" role="combobox" aria-expanded={!!hits} aria-controls="admin-search-hits" aria-autocomplete="list"
         onKeyDown={(e) => {
@@ -402,11 +402,11 @@ function SearchPanel({ onPick, autoFocus }: { onPick: () => void; autoFocus?: bo
           else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
           else if (e.key === "Enter") { e.preventDefault(); go(hits[active]); }
         }}
-        className={INPUT + " pr-9"} />
+        className={INPUT + " ps-9"} />
       {hits && <ul id="admin-search-hits" role="listbox" className="absolute z-50 top-full mt-1.5 inset-x-0 max-h-80 overflow-auto rounded-xl bg-[#0b0d16] border border-white/[0.14] shadow-2xl p-1">
         {hits.length === 0 ? <li className="p-3 text-sm text-white/55">نتیجه‌ای پیدا نشد.</li> : hits.map((h, i) => (
           <li key={h.kind + h.label + h.userId} role="option" aria-selected={i === active}>
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(h)} className={"w-full flex items-center gap-2.5 p-2.5 rounded-lg text-right " + (i === active ? "bg-white/[0.08]" : "hover:bg-white/[0.05]")}>
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(h)} className={"w-full flex items-center gap-2.5 p-2.5 rounded-lg text-start " + (i === active ? "bg-white/[0.08]" : "hover:bg-white/[0.05]")}>
               <Icon name={HIT_ICON[h.kind]} size={15} className="text-white/55 shrink-0" />
               <span className="min-w-0"><span className="block text-sm truncate" dir="auto">{h.label}</span><span className="block text-[11px] text-white/50 truncate" dir="auto">{h.sub}</span></span>
             </button>

@@ -55,7 +55,7 @@ export function AiDraftPanel({ ticketId, chatId, version }: { ticketId?: string;
           {draft.suggestedActions.length > 0 && (
             <div>
               <div className="text-[11px] font-bold text-white/60 mb-1">اقدام‌های پیشنهادی (خودکار اجرا نمی‌شوند)</div>
-              <ul className="space-y-1 text-sm text-white/75 list-disc pr-5">{draft.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}</ul>
+              <ul className="space-y-1 text-sm text-white/75 list-disc ps-5">{draft.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}</ul>
             </div>
           )}
           <div>
@@ -141,8 +141,8 @@ export function SupportAiSettingsCard() {
       <p className="text-sm text-white/60 leading-7 max-w-3xl">پاسخ‌دهنده اول تیکت‌ها: وضعیت سرویس‌ها، خطاهای اخیر و راهنماهای مرتبط را (فقط خواندنی و با دسترسی خود مشتری) می‌خواند و پاسخ و یادداشت داخلی می‌نویسد. هیچ اقدامی روی حساب انجام نمی‌دهد. هزینه آن با پلتفرم است و از کیف پول مشتری کسر نمی‌شود.</p>
       <div className="grid sm:grid-cols-2 gap-4 max-w-3xl mt-5">
         <Field label="حالت"><Select value={s.mode} label="حالت" onChange={(v) => set({ mode: v as SupportAiSettings["mode"] })} options={MODES} /></Field>
-        <Field label="آستانه اطمینان پاسخ خودکار (٪)" hint="پیش‌فرض ۸۰٪"><input value={Math.round(s.threshold * 100)} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} onChange={(e) => set({ threshold: Math.min(100, Math.max(50, +toEnDigits(e.target.value).replace(/\D/g, "") || 50)) / 100 })} /></Field>
-        <Field label="سقف هزینه روزانه (تومان)" hint={s.dailyCap ? toman(s.dailyCap) + " در روز؛ صفر یعنی بدون سقف" : "بدون سقف"}><input value={s.dailyCap} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} onChange={(e) => set({ dailyCap: +toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0 })} /></Field>
+        <Field label="آستانه اطمینان پاسخ خودکار (٪)" hint="پیش‌فرض ۸۰٪"><input value={Math.round(s.threshold * 100)} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} onChange={(e) => set({ threshold: Math.min(100, Math.max(50, +toEnDigits(e.target.value).replace(/\D/g, "") || 50)) / 100 })} /></Field>
+        <Field label="سقف هزینه روزانه (تومان)" hint={s.dailyCap ? toman(s.dailyCap) + " در روز؛ صفر یعنی بدون سقف" : "بدون سقف"}><input value={s.dailyCap} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} onChange={(e) => set({ dailyCap: +toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0 })} /></Field>
         <Field label="بالاتر از سقف"><Select value={s.overCap} label="بالاتر از سقف" onChange={(v) => set({ overCap: v as SupportAiSettings["overCap"] })} options={[{ value: "draft", label: "پیش‌نویس قاعده‌محور رایگان" }, { value: "skip", label: "اجرا نشود" }]} /></Field>
         <Field className="sm:col-span-2" label="مدل" hint="خالی: همان مدل‌های دستیار گره، با جایگزینی خودکار"><Select value={s.model} label="مدل" ltr onChange={(v) => set({ model: v })} options={[{ value: "", label: "پیش‌فرض دستیار" }, ...models.map((m) => ({ value: m.id, label: m.name }))]} /></Field>
       </div>

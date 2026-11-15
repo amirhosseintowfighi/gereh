@@ -79,7 +79,7 @@ function NewDatabase({ open, onClose }: { open: boolean; onClose: () => void }) 
         </div>
         {engine && <p className="text-xs text-white/55">{engine.hint}{engine.minRamMb ? " · دست‌کم " + ramLabel(engine.minRamMb) + " حافظه" : ""}{!engine.backups ? " · پشتیبان‌گیری خودکار و بازگردانی ندارد" : ""}</p>}
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="نام" error={nameError || undefined}><input value={f.name} onChange={(e) => set({ name: e.target.value.toLowerCase() })} dir="ltr" placeholder="shop-db" aria-invalid={!!nameError} className={INPUT + " text-left"} /></Field>
+          <Field label="نام" error={nameError || undefined}><input value={f.name} onChange={(e) => set({ name: e.target.value.toLowerCase() })} dir="ltr" placeholder="shop-db" aria-invalid={!!nameError} className={INPUT + " text-start"} /></Field>
           <Field label="نسخه"><Select label="نسخه" value={f.version} onChange={(v) => set({ version: v })} options={(engine?.versions ?? []).map((v) => ({ value: v, label: v }))} /></Field>
         </div>
         <PlanPicker plans={plans} value={f.planId} onChange={(id) => set({ planId: id })} label="پلن پایگاه داده" />
@@ -259,8 +259,8 @@ function Pitr({ d }: { d: PaasDb }) {
       <p className="text-sm text-white/60 leading-7">تغییرات پایگاه داده به‌صورت پیوسته آرشیو می‌شود و می‌توانید حالت آن را در هر لحظه از ۷ روز گذشته (مثلاً یک دقیقه پیش از یک DELETE اشتباه) در یک پایگاه داده جدید بازیابی کنید. پایگاه داده فعلی دست نمی‌خورد.</p>
       {d.restoredFrom && <p className="text-xs text-sky-200 mt-2">این پایگاه داده بازیابی لحظه‌ای «{d.restoredFrom}» در {d.restoredAt} است.</p>}
       {d.pitr && <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end mt-4">
-        <Field label="زمان (به وقت دستگاه شما)"><input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} dir="ltr" className={INPUT + " text-left"} /></Field>
-        <Field label="نام پایگاه داده جدید"><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="زمان (به وقت دستگاه شما)"><input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} dir="ltr" className={INPUT + " text-start"} /></Field>
+        <Field label="نام پایگاه داده جدید"><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>
         <AsyncButton disabled={!at || !PAAS_NAME_RE.test(name)} className={BTN_P + BTN_MD} onClick={async () => { const id = await api.paas.pitrRestore(d.id, new Date(at).toISOString(), name); notify("بازیابی شروع شد", "clock"); router.push(("/panel/databases/" + id) as never); }}>بازیابی</AsyncButton>
       </div>}
     </Card>
@@ -305,7 +305,7 @@ function DbSettings({ d }: { d: PaasDb }) {
         {d.links.length > 0 ? <p className="text-sm text-white/65 leading-7">ابتدا اتصال آن را از اپ‌های {d.links.map((l) => l.appName).join("، ")} بردارید.</p> : <>
           <p className="text-sm text-white/65 leading-7">پایگاه داده و همه پشتیبان‌هایش برای همیشه حذف می‌شوند.</p>
           <label className="block text-xs text-white/60 mt-3" htmlFor="del-db">برای تأیید، نام را بنویسید: <b dir="ltr">{d.name}</b></label>
-          <input id="del-db" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5"} />
+          <input id="del-db" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" className={INPUT + " text-start mt-1.5"} />
           <AsyncButton danger disabled={confirmName !== d.name} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.paas.deleteDb(d.id, confirmName); notify("پایگاه داده حذف شد", "trash-2"); router.push("/panel/databases"); }}>حذف همیشگی</AsyncButton>
         </>}
       </Card>

@@ -45,7 +45,7 @@ export function ContactForm() {
     <form onSubmit={submit} noValidate>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="نام و نام خانوادگی" error={err.name}><input name="name" autoComplete="name" value={f.name} onChange={(e) => set("name")(e.target.value)} aria-invalid={!!err.name} className={INPUT} /></Field>
-        <Field label="ایمیل" error={err.email}><input name="email" type="email" autoComplete="email" value={f.email} onChange={(e) => set("email")(e.target.value)} aria-invalid={!!err.email} dir="ltr" className={INPUT + " text-left"} placeholder="name@example.com" /></Field>
+        <Field label="ایمیل" error={err.email}><input name="email" type="email" autoComplete="email" value={f.email} onChange={(e) => set("email")(e.target.value)} aria-invalid={!!err.email} dir="ltr" className={INPUT + " text-start"} placeholder="name@example.com" /></Field>
         <Field label="واحد"><Select value={f.dept} onChange={set("dept")} label="واحد" options={["فروش", "پشتیبانی فنی", "مالی", "همکاری و رسانه"]} /></Field>
         <Field label="موضوع"><input name="subject" value={f.subject} onChange={(e) => set("subject")(e.target.value)} className={INPUT} /></Field>
         <Field className="sm:col-span-2" label="پیام" error={err.message}><textarea name="message" value={f.message} onChange={(e) => set("message")(e.target.value)} aria-invalid={!!err.message} rows={5} className={TEXTAREA} /></Field>

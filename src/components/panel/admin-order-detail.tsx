@@ -28,10 +28,10 @@ export type ServerInput = { vpsid: string; ip: string; hostname: string; rootpas
 export function ManualFields({ v, set }: { v: ServerInput; set: (k: keyof ServerInput, x: string) => void }) {
   return (
     <div className="grid sm:grid-cols-2 gap-3">
-      <Field label="شناسه VPS در Virtualizor" hint="با وارد کردن آن، IP و hostname از Virtualizor خوانده می‌شود."><input value={v.vpsid} onChange={(e) => set("vpsid", e.target.value)} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
-      <Field label="آدرس IPv4"><input value={v.ip} onChange={(e) => set("ip", e.target.value)} dir="ltr" placeholder="185.143.233.20" className={INPUT + " text-left mono"} /></Field>
-      <Field label="Hostname"><input value={v.hostname} onChange={(e) => set("hostname", e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-      <Field label="رمز root" hint="اگر وارد شود، یک بار برای مشتری ایمیل و یک بار در پنل او نمایش داده می‌شود."><input value={v.rootpass} onChange={(e) => set("rootpass", e.target.value)} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
+      <Field label="شناسه VPS در Virtualizor" hint="با وارد کردن آن، IP و hostname از Virtualizor خوانده می‌شود."><input value={v.vpsid} onChange={(e) => set("vpsid", e.target.value)} inputMode="numeric" dir="ltr" className={INPUT + " text-start mono"} /></Field>
+      <Field label="آدرس IPv4"><input value={v.ip} onChange={(e) => set("ip", e.target.value)} dir="ltr" placeholder="185.143.233.20" className={INPUT + " text-start mono"} /></Field>
+      <Field label="Hostname"><input value={v.hostname} onChange={(e) => set("hostname", e.target.value)} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+      <Field label="رمز root" hint="اگر وارد شود، یک بار برای مشتری ایمیل و یک بار در پنل او نمایش داده می‌شود."><input value={v.rootpass} onChange={(e) => set("rootpass", e.target.value)} autoComplete="off" dir="ltr" className={INPUT + " text-start mono"} /></Field>
     </div>
   );
 }
@@ -54,11 +54,11 @@ export function DeliverModal({ r, onClose, onDone }: { r: FixTarget; onClose: ()
       <p className="text-xs text-white/60 leading-6 mb-4">{r.item} — {r.userName}</p>
       {r.kind === "server" ? <ManualFields v={v} set={(k, x) => setV((c) => ({ ...c, [k]: x }))} /> : (
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="دامنه"><input value={o.domain} onChange={(e) => setO((c) => ({ ...c, domain: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+          <Field label="دامنه"><input value={o.domain} onChange={(e) => setO((c) => ({ ...c, domain: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
           {r.kind === "hosting" && <>
-            <Field label="نام کاربری cPanel"><input value={o.username} onChange={(e) => setO((c) => ({ ...c, username: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="رمز cPanel" hint="یک بار برای مشتری ایمیل می‌شود."><input value={o.password} onChange={(e) => setO((c) => ({ ...c, password: e.target.value }))} autoComplete="off" dir="ltr" className={INPUT + " text-left mono"} /></Field>
-            <Field label="سرور هاست"><input value={o.server} onChange={(e) => setO((c) => ({ ...c, server: e.target.value }))} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field label="نام کاربری cPanel"><input value={o.username} onChange={(e) => setO((c) => ({ ...c, username: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+            <Field label="رمز cPanel" hint="یک بار برای مشتری ایمیل می‌شود."><input value={o.password} onChange={(e) => setO((c) => ({ ...c, password: e.target.value }))} autoComplete="off" dir="ltr" className={INPUT + " text-start mono"} /></Field>
+            <Field label="سرور هاست"><input value={o.server} onChange={(e) => setO((c) => ({ ...c, server: e.target.value }))} dir="ltr" className={INPUT + " text-start mono"} /></Field>
           </>}
         </div>
       )}
@@ -134,7 +134,7 @@ function EditSpec({ d, onSaved }: { d: OrderDetail; onSaved: (retry: boolean) =>
         <Field label="قالب همگام‌شده Virtualizor" hint={"فعلی: OSID " + (d.item.osid || "—")}><Select value={f.osid} label="قالب سیستم‌عامل" ltr onChange={(x) => setF((c) => ({ ...c, osid: x }))}
           options={[{ value: "auto", label: "بدون تغییر" }, { value: "0", label: "انتخاب خودکار از روی سیستم‌عامل" }, ...d.options.templates.map((x) => ({ value: String(x.osid), label: x.name + " (" + x.osid + ")" + (x.on ? "" : " — خاموش") }))]} /></Field>
         <Field label="موقعیت"><Select value={f.loc} label="موقعیت" onChange={(x) => setF((c) => ({ ...c, loc: x }))} options={d.options.locs.map((l) => ({ value: l.id, label: l.label + (l.group ? " — " + l.group : " — بدون گروه") }))} /></Field>
-        <Field label="Plan ID در Virtualizor" hint="خالی یا ۰ = نگاشت پلن"><input value={f.plid} onChange={(e) => setF((c) => ({ ...c, plid: e.target.value }))} inputMode="numeric" dir="ltr" className={INPUT + " text-left mono"} /></Field>
+        <Field label="Plan ID در Virtualizor" hint="خالی یا ۰ = نگاشت پلن"><input value={f.plid} onChange={(e) => setF((c) => ({ ...c, plid: e.target.value }))} inputMode="numeric" dir="ltr" className={INPUT + " text-start mono"} /></Field>
       </div>
       <div className="mt-3 flex flex-wrap justify-end gap-2">
         <AsyncButton className={BTN_G + BTN_MD} onClick={() => save(false)}><Icon name="check" size={16} /> ذخیره</AsyncButton>
@@ -203,15 +203,15 @@ export function OrderDetailModal({ invoiceId, index, onClose, onChanged }: { inv
         {d.item.editable && <EditSpec d={d} onSaved={changed} />}
         <Section title="تحویل" icon="package-open">
           {d.job ? <Pairs rows={[["کار", d.job.type + " #" + d.job.id], ["وضعیت", d.job.status], ["تلاش‌ها", fa(d.job.attempts)], ["اجرای بعدی", d.job.runAt], ["ایجاد", d.job.created], ...(d.job.resolved ? [["بسته‌شده", d.job.resolved] as [string, string]] : [])]} /> : <p className="text-sm text-white/55">کار تحویلی برای این ردیف نیست.</p>}
-          {d.job?.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-60 overflow-auto ltr text-left" dir="auto">{d.job.error}</pre>}
+          {d.job?.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-60 overflow-auto ltr text-start" dir="auto">{d.job.error}</pre>}
           {d.server && <div className="mt-4">
             <div className="text-xs text-white/55 mb-2">ردیف سرور</div>
             <Pairs rows={[["سرور", <span key="s" className="mono">{d.server.id} · {d.server.name}</span>], ["Hostname", <span key="h" dir="ltr">{d.server.hostname}</span>], ["وضعیت", <StatusBadge key="st" s={d.server.status} />], ["VPS", d.server.vpsid ? String(d.server.vpsid) : "ساخته نشده"],
               ["تیکت", d.server.ticket ? <Link key="t" className="acc hover:underline" href={("/admin/tickets/" + d.server.ticket) as never}>{d.server.ticket}</Link> : ""]]} />
-            {d.server.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-60 overflow-auto ltr text-left" dir="auto">{d.server.error}</pre>}
+            {d.server.error && <pre className="mt-3 p-3 rounded-[10px] bg-black/30 border border-white/[0.08] text-[11px] leading-5 text-rose-100/90 whitespace-pre-wrap break-words max-h-60 overflow-auto ltr text-start" dir="auto">{d.server.error}</pre>}
           </div>}
-          {d.tasks.length > 0 && <ol className="mt-4 border-r border-white/10 pr-4 space-y-2">
-            {d.tasks.map((x, i) => <li key={i} className="relative text-sm"><span className={"absolute -right-[21px] top-2 w-2 h-2 rounded-full " + (x.status === "failed" ? "bg-rose-300" : x.status === "running" ? "bg-sky-300" : "bg-emerald-300")} /><span>{x.action}</span> <span className="text-[11px] text-white/50">{x.at}{x.status === "running" ? " · " + fa(x.progress) + "٪" : ""}</span></li>)}
+          {d.tasks.length > 0 && <ol className="mt-4 border-s border-white/10 ps-4 space-y-2">
+            {d.tasks.map((x, i) => <li key={i} className="relative text-sm"><span className={"absolute -start-[21px] top-2 w-2 h-2 rounded-full " + (x.status === "failed" ? "bg-rose-300" : x.status === "running" ? "bg-sky-300" : "bg-emerald-300")} /><span>{x.action}</span> <span className="text-[11px] text-white/50">{x.at}{x.status === "running" ? " · " + fa(x.progress) + "٪" : ""}</span></li>)}
           </ol>}
           {d.ticket && <p className="mt-4 text-sm">تیکت پشتیبانی: <Link className="acc hover:underline" href={("/admin/tickets/" + d.ticket.id) as never}>{d.ticket.id}</Link> — {d.ticket.subject} <StatusBadge s={d.ticket.status} /></p>}
         </Section>

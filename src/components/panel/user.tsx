@@ -65,7 +65,7 @@ export function UserDashboard() {
         <Card title="اقدام سریع" icon="zap">
           <div className="grid grid-cols-2 gap-2.5">
             {[["server", "سرور جدید", "/vps"], ["globe", "ثبت دامنه", "/domains"], ["wallet", "شارژ کیف پول", "/panel/billing?tab=wallet"], ["message-circle", "تیکت جدید", "/panel/tickets?new=1"]].map(([ic, l, h]) => (
-              <Link key={l} href={h as never} className="spot rounded-2xl p-4 text-right bg-white/[0.035] border border-white/[0.08] hover:border-white/20 transition">
+              <Link key={l} href={h as never} className="spot rounded-2xl p-4 text-start bg-white/[0.035] border border-white/[0.08] hover:border-white/20 transition">
                 <Icon name={ic} size={20} className="acc" /><div className="text-sm font-bold mt-3">{l}</div>
               </Link>
             ))}
@@ -75,9 +75,9 @@ export function UserDashboard() {
       <div className="grid xl:grid-cols-[1.6fr_1fr] gap-4 mt-4">
         <Card title="سرورهای شما" icon="server" action={<Link href="/panel/servers" className="text-xs text-white/50 hover:text-white">همه</Link>} pad="p-2 sm:p-3">
           {servers.length === 0 ? <Empty icon="server" title="هنوز سروری ندارید" /> : servers.map((s) => (
-            <Link key={s.id} href={("/panel/servers/" + s.id) as never} className="w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.04] text-right">
+            <Link key={s.id} href={("/panel/servers/" + s.id) as never} className="w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.04] text-start">
               <span className={"w-2.5 h-2.5 rounded-full " + (s.status === "running" ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.7)]" : "bg-white/25")} aria-hidden="true" />
-              <div className="flex-1 min-w-0"><div className="font-bold text-sm ltr text-right">{s.name}</div><div className="text-xs text-white/55 mt-0.5">{s.plan}، {locLabel(s.loc)}</div></div>
+              <div className="flex-1 min-w-0"><div className="font-bold text-sm ltr text-end">{s.name}</div><div className="text-xs text-white/55 mt-0.5">{s.plan}، {locLabel(s.loc)}</div></div>
               <span className="mono text-xs text-white/50 hidden sm:block">{s.ip}</span>
               <ServerStateBadge s={s} />
             </Link>
@@ -127,12 +127,12 @@ export function UserServers() {
       {rows.length === 0 ? <Card><Empty icon="server" title="هنوز سروری ندارید" text="اولین سرور ابری را در کمتر از یک دقیقه بسازید." action={<Link href="/vps" className={BTN_P + BTN_MD}>ساخت سرور</Link>} /></Card> : (
         <DataTable rows={rows} searchKeys={["name", "ip"]} filters={[{ key: "status", label: "وضعیت", options: ["running", "stopped", "suspended"] }]} onRowClick={(r) => router.push(("/panel/servers/" + r.id) as never)}
           columns={[
-            { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-right">{r.name}</div><div className="text-[11px] text-white/55">{r.os}</div></div></div> },
+            { key: "name", label: "نام", sortable: true, render: (r) => <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="server" size={16} /></span><div><div className="font-bold ltr text-end">{r.name}</div><div className="text-[11px] text-white/55">{r.os}</div></div></div> },
             { key: "ip", label: "آدرس IP", render: (r) => r.ip ? <CopyText text={r.ip} className="mono text-xs text-white/70" /> : <span className="text-xs text-white/50">—</span> },
             { key: "plan", label: "مشخصات", render: (r) => <span className="text-white/70">{fa(r.cpu)} هسته، {fa(r.ram)} گیگ، {fa(r.disk)} گیگ</span> },
             { key: "loc", label: "موقعیت", render: (r) => locLabel(r.loc) },
             { key: "status", label: "وضعیت", render: (r) => <ServerStateBadge s={r} /> },
-            { key: "act", label: "", className: "text-left", render: (r) => <PowerMenu s={r} /> },
+            { key: "act", label: "", className: "text-end", render: (r) => <PowerMenu s={r} /> },
           ]} />
       )}
     </div>
@@ -233,11 +233,11 @@ export function InvoiceModal({ inv, onClose, onPay }: { inv: Invoice | null; onC
       <div className="print-area">
         <div className="flex justify-between items-start">
           <div><Wordmark size={30} /><div className="text-xs text-white/55 mt-3 leading-6">شرکت گره ابر پارس<br />زیرمجموعه ویرگول</div></div>
-          <div className="text-left text-sm space-y-1"><StatusBadge s={inv.status} /><div className="text-white/50 mt-2">تاریخ: {inv.date}</div><div className="text-white/50">سررسید: {inv.due}</div></div>
+          <div className="text-end text-sm space-y-1"><StatusBadge s={inv.status} /><div className="text-white/50 mt-2">تاریخ: {inv.date}</div><div className="text-white/50">سررسید: {inv.due}</div></div>
         </div>
-        <table className="w-full text-sm mt-8"><thead><tr className="text-xs text-white/55 border-b border-white/10"><th scope="col" className="text-right font-medium pb-3">شرح</th><th scope="col" className="text-left font-medium pb-3">مبلغ</th></tr></thead>
-          <tbody>{inv.items.map((it, i) => <tr key={i} className="border-b border-white/[0.06]"><td className="py-3">{it.desc}</td><td className="py-3 text-left tabular">{toman(it.amount)}</td></tr>)}</tbody></table>
-        <div className="mt-5 mr-auto max-w-xs space-y-2 text-sm">
+        <table className="w-full text-sm mt-8"><thead><tr className="text-xs text-white/55 border-b border-white/10"><th scope="col" className="text-start font-medium pb-3">شرح</th><th scope="col" className="text-end font-medium pb-3">مبلغ</th></tr></thead>
+          <tbody>{inv.items.map((it, i) => <tr key={i} className="border-b border-white/[0.06]"><td className="py-3">{it.desc}</td><td className="py-3 text-end tabular">{toman(it.amount)}</td></tr>)}</tbody></table>
+        <div className="mt-5 ms-auto max-w-xs space-y-2 text-sm">
           <div className="flex justify-between text-white/60"><span>جمع</span><span className="tabular">{toman(sub)}</span></div>
           <div className="flex justify-between text-white/60"><span>مالیات بر ارزش افزوده ({fa(db.settings.tax)}٪)</span><span className="tabular">{toman(tax)}</span></div>
           <div className="flex justify-between font-black text-base pt-2 border-t border-white/10"><span>مبلغ کل</span><span className="tabular">{toman(total)}</span></div>
@@ -291,7 +291,7 @@ export function UserBilling() {
               { key: "date", label: "تاریخ" },
               { key: "amount", label: "مبلغ", sortable: true, sortValue: total, render: (r) => <span className="tabular font-bold">{toman(total(r))}</span> },
               { key: "status", label: "وضعیت", render: (r) => <StatusBadge s={r.status} /> },
-              { key: "act", label: "", className: "text-left", render: (r) => (r.status === "unpaid" || r.status === "overdue") ? <button type="button" onClick={(e) => { e.stopPropagation(); openPay(r); }} className={BTN_P + BTN_SM}>پرداخت</button> : <IconBtn icon="file-text" label={"مشاهده " + r.id} onClick={(e) => { e.stopPropagation(); setView(r); }} /> },
+              { key: "act", label: "", className: "text-end", render: (r) => (r.status === "unpaid" || r.status === "overdue") ? <button type="button" onClick={(e) => { e.stopPropagation(); openPay(r); }} className={BTN_P + BTN_SM}>پرداخت</button> : <IconBtn icon="file-text" label={"مشاهده " + r.id} onClick={(e) => { e.stopPropagation(); setView(r); }} /> },
             ]} />
         )}
         {tab === "wallet" && (
@@ -299,7 +299,7 @@ export function UserBilling() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl" role="radiogroup" aria-label="مبلغ پیشنهادی">
               {[500000, 1000000, 2000000, 5000000].map((a) => <button type="button" role="radio" aria-checked={amount === a} key={a} onClick={() => setAmount(a)} className={"rounded-xl p-4 border text-center transition tabular " + (amount === a ? "bg-white/[0.1] border-white/40 font-bold" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>{toman(a)}</button>)}
             </div>
-            <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-left tabular"} /></Field>
+            <Field className="mt-5 max-w-sm" label="مبلغ دلخواه (تومان)" hint="حداقل ۱۰۰٬۰۰۰ و حداکثر ۵۰۰٬۰۰۰٬۰۰۰ تومان"><input value={amount ? amount.toLocaleString("en-US") : ""} onChange={(e) => setAmount(+toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 10) || 0)} dir="ltr" inputMode="numeric" className={INPUT + " text-start tabular"} /></Field>
             <div className="mt-6 flex flex-wrap items-center gap-4">
               <AsyncButton onClick={async () => { if (amount < 100000) throw new Error("حداقل مبلغ شارژ ۱۰۰٬۰۰۰ تومان است."); if (amount > 500000000) throw new Error("حداکثر مبلغ شارژ ۵۰۰ میلیون تومان است."); await api.billing.topup(amount); notify("کیف پول " + toman(amount) + " شارژ شد", "wallet"); }} className={BTN_P + BTN_MD}><Icon name="lock" size={16} /> پرداخت {toman(amount)} با درگاه</AsyncButton>
               <span className="text-xs text-white/55">{gw ? "پرداخت امن از طریق " + gw : "درگاه پرداخت آنلاین موقتا غیرفعال است."}</span>
@@ -324,7 +324,7 @@ export function UserBilling() {
           <div className="space-y-2" role="radiogroup" aria-label="روش پرداخت">
             {methods.length === 0 && <div role="alert" className="text-sm text-amber-100 rounded-xl bg-amber-400/[0.08] border border-amber-300/25 p-4">هیچ روش پرداختی فعال نیست؛ با پشتیبانی تماس بگیرید.</div>}
             {methods.map(([k, ic, l, hint]) => (
-              <button type="button" role="radio" aria-checked={method === k} key={k} onClick={() => setMethod(k)} className={"w-full flex items-center gap-3 p-4 rounded-xl border text-right transition " + (method === k ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
+              <button type="button" role="radio" aria-checked={method === k} key={k} onClick={() => setMethod(k)} className={"w-full flex items-center gap-3 p-4 rounded-xl border text-start transition " + (method === k ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
                 <span className={"w-4 h-4 rounded-full border-2 " + (method === k ? "border-white bg-white shadow-[inset_0_0_0_3px_#0b0d16]" : "border-white/30")} />
                 <Icon name={ic} size={18} className="acc" /><div className="flex-1"><div className="text-sm font-bold">{l}</div><div className="text-[11px] text-white/55">{hint}{k === "wallet" && me.balance < total(pay) ? " (کافی نیست)" : ""}</div></div>
               </button>
@@ -433,7 +433,7 @@ export function UserKeys() {
         <Card title="کلیدهای SSH" icon="key-round" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setKeyM(true)} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> افزودن کلید</button>}>
           {db.sshKeys.length === 0 ? <Empty icon="key-round" title="کلیدی ندارید" text="با کلید SSH، بدون رمز و امن‌تر وارد سرورها شوید." /> : db.sshKeys.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/55 ltr text-right">{x.fingerprint}</div></div></div>
+              <div className="flex items-center gap-3 min-w-0"><span className="w-9 h-9 rounded-xl tile grid place-items-center"><Icon name="key-round" size={16} /></span><div className="min-w-0"><div className="text-sm font-bold truncate">{x.name}</div><div className="mono text-[11px] text-white/55 ltr text-end">{x.fingerprint}</div></div></div>
               <div className="flex items-center gap-3"><span className="text-[11px] text-white/50 hidden sm:block">{x.added}</span><IconBtn icon="trash-2" label={"حذف کلید " + x.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("کلید " + x.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.account.removeKey(x.id); notify("کلید حذف شد"); } }} /></div>
             </div>
           ))}
@@ -441,7 +441,7 @@ export function UserKeys() {
         <Card title="توکن‌های API" icon="code-xml" pad="p-3 sm:p-4" action={<button type="button" onClick={() => { setSecret(""); setTk({ name: "", scope: "read", expires: "۹۰ روز" }); setTokM(true); }} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> توکن جدید</button>}>
           {db.apiTokens.length === 0 ? <Empty icon="code-xml" title="توکنی ندارید" /> : db.apiTokens.map((x) => (
             <div key={x.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div><div className="text-sm font-bold ltr text-right">{x.name}</div><div className="text-[11px] text-white/55 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
+              <div><div className="text-sm font-bold ltr text-end">{x.name}</div><div className="text-[11px] text-white/55 mt-1 flex gap-3"><Badge tone={x.scope === "read" ? "gray" : "amber"}>{x.scope === "read" ? "فقط خواندن" : "خواندن و نوشتن"}</Badge><span>آخرین استفاده: {x.lastUsed}</span></div></div>
               <AsyncButton className="text-xs text-rose-300 hover:text-rose-200 px-2" danger confirmText="توکن باطل شود؟ برنامه‌هایی که از آن استفاده می‌کنند قطع می‌شوند." onClick={async () => { await api.account.revokeToken(x.id); notify("توکن باطل شد"); }}>ابطال</AsyncButton>
             </div>
           ))}
@@ -457,7 +457,7 @@ export function UserKeys() {
         }}>افزودن</AsyncButton><button type="button" onClick={() => setKeyM(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="space-y-4">
           <Field label="نام کلید"><input value={k.name} maxLength={60} onChange={(e) => setK((s) => ({ ...s, name: e.target.value }))} placeholder="مثلاً لپ‌تاپ کار" className={INPUT} /></Field>
-          <Field label="کلید عمومی" hint="محتوای فایل ~/.ssh/id_ed25519.pub"><textarea value={k.pub} onChange={(e) => setK((s) => ({ ...s, pub: e.target.value }))} rows={4} dir="ltr" className={TEXTAREA + " mono text-xs text-left"} placeholder="ssh-ed25519 AAAA…" /></Field>
+          <Field label="کلید عمومی" hint="محتوای فایل ~/.ssh/id_ed25519.pub"><textarea value={k.pub} onChange={(e) => setK((s) => ({ ...s, pub: e.target.value }))} rows={4} dir="ltr" className={TEXTAREA + " mono text-xs text-start"} placeholder="ssh-ed25519 AAAA…" /></Field>
         </div>
       </Modal>
       <Modal open={tokM} onClose={() => setTokM(false)} title="توکن API جدید" icon="code-xml"
@@ -467,7 +467,7 @@ export function UserKeys() {
           <div className="rounded-xl bg-black/40 border border-white/10 p-4"><CopyText text={secret} className="mono text-xs break-all" /></div>
         </> : (
           <div className="space-y-4">
-            <Field label="نام"><input value={tk.name} onChange={(e) => setTk((s) => ({ ...s, name: e.target.value }))} dir="ltr" placeholder="terraform-prod" className={INPUT + " text-left mono"} /></Field>
+            <Field label="نام"><input value={tk.name} onChange={(e) => setTk((s) => ({ ...s, name: e.target.value }))} dir="ltr" placeholder="terraform-prod" className={INPUT + " text-start mono"} /></Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="دسترسی"><Select value={tk.scope} label="دسترسی" onChange={(v) => setTk((s) => ({ ...s, scope: v }))} options={[{ value: "read", label: "فقط خواندن" }, { value: "read-write", label: "خواندن و نوشتن" }]} /></Field>
               <Field label="انقضا"><Select value={tk.expires} label="انقضا" onChange={(v) => setTk((s) => ({ ...s, expires: v }))} options={["۳۰ روز", "۹۰ روز", "یک سال", "بدون انقضا"]} /></Field>
@@ -545,8 +545,8 @@ function AccountView() {
             <div className="grid sm:grid-cols-2 gap-4 max-w-3xl">
               <Field label="نام و نام خانوادگی"><input autoComplete="name" value={p.name} onChange={(e) => setP((s) => ({ ...s, name: e.target.value }))} className={INPUT} /></Field>
               <Field label="نام شرکت (اختیاری)"><input autoComplete="organization" value={p.company} onChange={(e) => setP((s) => ({ ...s, company: e.target.value }))} className={INPUT} /></Field>
-              <Field label="ایمیل"><input type="email" autoComplete="email" value={p.email} onChange={(e) => setP((s) => ({ ...s, email: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /></Field>
-              <Field label="موبایل" hint="تغییر موبایل نیاز به تأیید پیامکی دارد."><input type="tel" autoComplete="tel" value={p.phone} onChange={(e) => setP((s) => ({ ...s, phone: e.target.value }))} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+              <Field label="ایمیل"><input type="email" autoComplete="email" value={p.email} onChange={(e) => setP((s) => ({ ...s, email: e.target.value }))} dir="ltr" className={INPUT + " text-start"} /></Field>
+              <Field label="موبایل" hint="تغییر موبایل نیاز به تأیید پیامکی دارد."><input type="tel" autoComplete="tel" value={p.phone} onChange={(e) => setP((s) => ({ ...s, phone: e.target.value }))} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
             </div>
             <div className="mt-6 flex justify-end max-w-3xl"><AsyncButton onClick={async () => { await api.account.updateProfile({ ...p, name: p.name.trim(), email: p.email.trim(), phone: toEnDigits(p.phone.trim()), company: p.company.trim() }); notify("پروفایل ذخیره شد"); }}>ذخیره تغییرات</AsyncButton></div>
           </Card>
@@ -556,9 +556,9 @@ function AccountView() {
             <Card title="تغییر رمز عبور" icon="lock">
               <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                 <input type="text" autoComplete="username" value={me.email} readOnly hidden />
-                <Field label="رمز فعلی"><input type="password" autoComplete="current-password" value={pw.cur} onChange={(e) => setPw((s) => ({ ...s, cur: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /></Field>
-                <Field label="رمز جدید"><input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw((s) => ({ ...s, next: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /><StrengthBar value={pw.next} /></Field>
-                <Field label="تکرار رمز جدید" error={pw.rep && pw.rep !== pw.next ? "تکرار رمز یکسان نیست." : ""}><input type="password" autoComplete="new-password" value={pw.rep} onChange={(e) => setPw((s) => ({ ...s, rep: e.target.value }))} dir="ltr" className={INPUT + " text-left"} /></Field>
+                <Field label="رمز فعلی"><input type="password" autoComplete="current-password" value={pw.cur} onChange={(e) => setPw((s) => ({ ...s, cur: e.target.value }))} dir="ltr" className={INPUT + " text-start"} /></Field>
+                <Field label="رمز جدید"><input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw((s) => ({ ...s, next: e.target.value }))} dir="ltr" className={INPUT + " text-start"} /><StrengthBar value={pw.next} /></Field>
+                <Field label="تکرار رمز جدید" error={pw.rep && pw.rep !== pw.next ? "تکرار رمز یکسان نیست." : ""}><input type="password" autoComplete="new-password" value={pw.rep} onChange={(e) => setPw((s) => ({ ...s, rep: e.target.value }))} dir="ltr" className={INPUT + " text-start"} /></Field>
               </form>
               <div className="mt-5 flex justify-end"><AsyncButton disabled={!pw.next || pw.next !== pw.rep} onClick={async () => { await api.account.changePassword(pw.cur, pw.next); setPw({ cur: "", next: "", rep: "" }); notify("رمز عبور تغییر کرد", "lock"); }}>تغییر رمز</AsyncButton></div>
             </Card>

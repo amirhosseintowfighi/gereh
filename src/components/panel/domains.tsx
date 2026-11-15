@@ -62,9 +62,9 @@ export function TransferInButton({ onDone }: { onDone: () => void }) {
         }}>{tld && tld.transfer > 0 ? "پرداخت " + toman(tld.transfer) + " از کیف پول" : "ثبت درخواست"}</AsyncButton><button type="button" onClick={() => setOpen(false)} className={BTN_G + BTN_MD}>انصراف</button></>}>
         <div className="space-y-4">
           <p className="text-sm text-white/60 leading-7">دامنه را نزد ثبت‌کننده فعلی از قفل خارج کنید و کد انتقال (EPP) را بگیرید. هزینه انتقال از کیف پول کم می‌شود و یک سال به اعتبار دامنه اضافه می‌شود؛ اگر انتقال انجام نشود مبلغ برمی‌گردد.</p>
-          <Field label="نام دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="example.com" /></Field>
-          {ir ? <Field label="شناسه ایرنیک مالک" hint="دامنه‌های ‎.ir با شناسه ایرنیک منتقل می‌شوند و کد EPP ندارند."><input value={f.irnicHandle} onChange={(e) => setF({ ...f, irnicHandle: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="ab1234-irnic" /></Field>
-            : <Field label="کد انتقال (EPP / Auth Code)"><input value={f.authCode} onChange={(e) => setF({ ...f, authCode: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} autoComplete="off" /></Field>}
+          <Field label="نام دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder="example.com" /></Field>
+          {ir ? <Field label="شناسه ایرنیک مالک" hint="دامنه‌های ‎.ir با شناسه ایرنیک منتقل می‌شوند و کد EPP ندارند."><input value={f.irnicHandle} onChange={(e) => setF({ ...f, irnicHandle: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder="ab1234-irnic" /></Field>
+            : <Field label="کد انتقال (EPP / Auth Code)"><input value={f.authCode} onChange={(e) => setF({ ...f, authCode: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} autoComplete="off" /></Field>}
           {tld && <div className="text-xs text-white/55">هزینه انتقال پسوند <span dir="ltr">{tld.tld}</span>: {tld.transfer ? toman(tld.transfer) : "رایگان"}</div>}
         </div>
       </Modal>
@@ -106,7 +106,7 @@ export function IrnicHandle() {
     <Card title="شناسه ایرنیک برای دامنه‌های ‎.ir" icon="id-card" className="mt-5">
       <p className="text-sm text-white/55 leading-7 mb-3">برای ثبت یا انتقال دامنه‌های ‎.ir شناسه مالک در ایرنیک لازم است. اگر ندارید، در nic.ir رایگان بسازید.</p>
       <div className="flex flex-wrap gap-2 max-w-lg">
-        <input value={val} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-left mono flex-1 min-w-[200px]"} placeholder="ab1234-irnic" aria-label="شناسه ایرنیک" />
+        <input value={val} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-start mono flex-1 min-w-[200px]"} placeholder="ab1234-irnic" aria-label="شناسه ایرنیک" />
         <AsyncButton onClick={async () => { const h = val.trim().toLowerCase(); if (h && !IRNIC_RE.test(h)) throw new Error("شناسه ایرنیک به شکل ab1234-irnic است."); await api.domains.setContact({ irnicHandle: h }); setV(null); c.reload(); notify("شناسه ایرنیک ذخیره شد"); }}>ذخیره</AsyncButton>
       </div>
     </Card>
@@ -186,18 +186,18 @@ function DnsTab({ d }: { d: Domain }) {
                   <Badge tone="blue">{r.type}</Badge><span className="mono ltr text-sm min-w-0 truncate">{r.name}</span>
                   <span className="ms-auto flex shrink-0">{actions(r)}</span>
                 </div>
-                <div className="mono text-xs ltr text-left text-white/70 mt-2 [overflow-wrap:anywhere]">{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</div>
-                <div className="flex items-center justify-between gap-2 mt-2 text-xs text-white/55"><span>TTL {fa(r.ttl)}</span>{cdn(r)}</div>
+                <div className="mono text-xs ltr text-start text-white/70 mt-2 [overflow-wrap:anywhere]">{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</div>
+                <div className="flex items-center justify-between gap-2 mt-2 text-xs text-white/55"><span dir="ltr" className="mono">TTL {r.ttl}</span>{cdn(r)}</div>
               </li>
             ))}</ul>
           ) :
           <div className="overflow-x-auto"><table className="w-full text-sm min-w-[720px]">
-            <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">نوع</th><th scope="col" className="text-right font-medium p-3">نام</th><th scope="col" className="text-right font-medium p-3">مقدار</th><th scope="col" className="text-right font-medium p-3">TTL</th><th scope="col" className="text-right font-medium p-3">CDN</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
+            <thead><tr className="text-xs text-white/55"><th scope="col" className="text-start font-medium p-3">نوع</th><th scope="col" className="text-start font-medium p-3">نام</th><th scope="col" className="text-start font-medium p-3">مقدار</th><th scope="col" className="text-start font-medium p-3">TTL</th><th scope="col" className="text-start font-medium p-3">CDN</th><th><span className="sr-only-focusable">اقدامات</span></th></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.id} className="border-t border-white/[0.06] hover:bg-white/[0.02]">
-                <td className="p-3"><Badge tone="blue">{r.type}</Badge></td><td className="p-3 mono ltr text-right">{r.name}</td>
-                <td className="p-3 mono text-xs ltr text-right text-white/70 max-w-[300px] truncate" title={r.value}>{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</td>
-                <td className="p-3 tabular text-white/55">{fa(r.ttl)}</td>
+                <td className="p-3"><Badge tone="blue">{r.type}</Badge></td><td className="p-3 mono ltr text-end">{r.name}</td>
+                <td className="p-3 mono text-xs ltr text-end text-white/70 max-w-[300px] truncate" title={r.value}>{r.priority !== undefined && WITH_PRIORITY.includes(r.type) ? r.priority + " " : ""}{r.value}</td>
+                <td className="p-3 mono text-xs text-white/55"><span dir="ltr">{r.ttl}</span></td>
                 <td className="p-3">{cdn(r)}</td>
                 <td className="p-3"><div className="flex justify-end gap-1">{actions(r)}</div></td>
               </tr>
@@ -228,11 +228,11 @@ function RecordModal({ d, rec, setRec }: { d: Domain; rec: Rec | null; setRec: (
       {rec && <div className="grid grid-cols-2 gap-4">
         <Field label="نوع"><Select value={rec.type} label="نوع رکورد" onChange={(v) => up({ type: v, proxied: PROXIABLE.includes(v) ? rec.proxied : false })} options={[...DNS_RECORD_TYPES]} ltr /></Field>
         <Field label="TTL"><Select value={String(rec.ttl)} label="TTL" onChange={(v) => up({ ttl: +v })} options={TTLS.some((t) => t.value === String(rec.ttl)) ? TTLS : [...TTLS, { value: String(rec.ttl), label: fa(rec.ttl) + " ثانیه" }]} /></Field>
-        <Field label="نام" hint="@ برای خود دامنه، * برای همه زیردامنه‌ها"><input value={rec.name} onChange={(e) => up({ name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-        {WITH_PRIORITY.includes(rec.type) ? <Field label="اولویت"><input value={rec.priority ?? 10} inputMode="numeric" onChange={(e) => up({ priority: +toEnDigits(e.target.value).replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-left mono"} /></Field> : <div />}
+        <Field label="نام" hint="@ برای خود دامنه، * برای همه زیردامنه‌ها"><input value={rec.name} onChange={(e) => up({ name: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+        {WITH_PRIORITY.includes(rec.type) ? <Field label="اولویت"><input value={rec.priority ?? 10} inputMode="numeric" onChange={(e) => up({ priority: +toEnDigits(e.target.value).replace(/\D/g, "") })} dir="ltr" className={INPUT + " text-start mono"} /></Field> : <div />}
         <Field className="col-span-2" label="مقدار" hint={RECORD_HINT[rec.type as keyof typeof RECORD_HINT]}>
-          {rec.type === "TXT" ? <textarea value={rec.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" rows={3} className={TEXTAREA + " text-left mono"} />
-            : <input value={rec.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} />}
+          {rec.type === "TXT" ? <textarea value={rec.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" rows={3} className={TEXTAREA + " text-start mono"} />
+            : <input value={rec.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} />}
         </Field>
         {PROXIABLE.includes(rec.type) && <div className="col-span-2"><Row title="عبور از CDN" hint="پاسخ DNS آدرس لبه CDN گره می‌شود و ترافیک کش و محافظت می‌شود. تنظیمات در تب CDN."><Switch on={!!rec.proxied} label="عبور از CDN" onChange={(v) => up({ proxied: v })} /></Row></div>}
       </div>}
@@ -256,7 +256,7 @@ function ZoneImport({ d, open, onClose }: { d: Domain; open: boolean; onClose: (
       <div className="space-y-4">
         <p className="text-sm text-white/55 leading-7">خروجی BIND از سرویس قبلی را بچسبانید یا فایل را انتخاب کنید. SOA و NS ریشه نادیده گرفته می‌شوند؛ «; proxied» در انتهای خط یعنی عبور از CDN.</p>
         <FilePick label="انتخاب فایل زون" accept=".zone,.txt,.db,text/plain" onFiles={async ([f]) => { if (f) setText(await f.text()); }} />
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} dir="ltr" className={TEXTAREA + " text-left mono text-xs"} placeholder={"$ORIGIN " + d.name + ".\n@ 3600 IN A 185.143.232.17\nwww 3600 IN CNAME " + d.name + "."} />
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} dir="ltr" className={TEXTAREA + " text-start mono text-xs"} placeholder={"$ORIGIN " + d.name + ".\n@ 3600 IN A 185.143.232.17\nwww 3600 IN CNAME " + d.name + "."} />
         <div role="radiogroup" aria-label="شیوه ورود" className="flex gap-2">
           {([["merge", "افزودن به رکوردهای فعلی"], ["replace", "جایگزینی کامل"]] as const).map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={(mode === k ? BTN_P : BTN_G) + BTN_SM}>{l}</button>)}
         </div>
@@ -279,7 +279,7 @@ function QuickConnect({ d, open, onClose }: { d: Domain; open: boolean; onClose:
               <span className="flex items-center gap-2 font-bold text-sm"><Icon name={x.icon} size={16} />{x.label}</span>
               <AsyncButton className={BTN_P + BTN_SM} onClick={async () => { const r = await api.domains.applySuggestion(d.id, x.key); notify(fa(r.added) + " رکورد ساخته شد" + (r.replaced ? "، " + fa(r.replaced) + " رکورد جایگزین شد" : "")); onClose(); }}>اعمال</AsyncButton>
             </div>
-            <ul className="mt-3 text-[11px] mono ltr text-left text-white/60 space-y-0.5">{x.records.map((r, i) => <li key={i} className="truncate">{r.type} {r.name} {r.priority !== null ? r.priority + " " : ""}{r.value}</li>)}</ul>
+            <ul className="mt-3 text-[11px] mono ltr text-start text-white/60 space-y-0.5">{x.records.map((r, i) => <li key={i} className="truncate">{r.type} {r.name} {r.priority !== null ? r.priority + " " : ""}{r.value}</li>)}</ul>
           </li>
         ))}</ul>
       )}
@@ -298,7 +298,7 @@ function Dnssec({ d }: { d: Domain }) {
       {x.data?.dnssec && x.data.ds.map((ds) => (
         <div key={ds} className="m-3 rounded-xl bg-black/30 border border-white/10 p-3">
           <div className="text-[11px] text-white/50 mb-1">رکورد DS (keytag الگوریتم نوع‌هش هش)</div>
-          <div className="flex items-start gap-2"><code className="mono text-[11px] ltr text-left break-all flex-1">{ds}</code><CopyText text={ds} className="text-xs" /></div>
+          <div className="flex items-start gap-2"><code className="mono text-[11px] ltr text-start break-all flex-1">{ds}</code><CopyText text={ds} className="text-xs" /></div>
         </div>
       ))}
     </Card>
@@ -331,7 +331,7 @@ function NsTab({ d }: { d: Domain }) {
           {curNs.map((n, i) => (
             <Field key={i} label={"نام‌سرور " + fa(i + 1)}>
               <div className="flex gap-2">
-                <input value={n} onChange={(e) => { const a = curNs.slice(); a[i] = e.target.value; setNs(a); }} dir="ltr" className={INPUT + " text-left mono"} />
+                <input value={n} onChange={(e) => { const a = curNs.slice(); a[i] = e.target.value; setNs(a); }} dir="ltr" className={INPUT + " text-start mono"} />
                 {curNs.length > 2 && <IconBtn icon="x" label={"حذف نام‌سرور " + fa(i + 1)} onClick={() => setNs(curNs.filter((_, k) => k !== i))} />}
               </div>
             </Field>
@@ -370,11 +370,11 @@ function SettingsTab({ d }: { d: Domain }) {
         {!w ? <p className="text-sm text-white/55 leading-7">اطلاعات ثبت این دامنه از سرور WHOIS رجیستری (برای ‎.ir از ایرنیک) خوانده می‌شود.</p> : (
           <dl className="text-sm space-y-2">
             {([["ثبت‌کننده", w.registrar], ["ثبت", w.created], ["انقضا", w.expires], ["وضعیت", w.status.join("، ")], ["نام‌سرورها", w.nameservers.join("، ")]] as const).map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd className="mono ltr text-left text-xs break-all">{v || "—"}</dd></div>
+              <div key={k} className="flex justify-between gap-3"><dt className="text-white/55">{k}</dt><dd className="mono ltr text-start text-xs break-all">{v || "—"}</dd></div>
             ))}
             <div className="text-[11px] text-white/50 pt-2">سرور <span className="mono">{w.server}</span> · {w.cached ? "از حافظه (" + w.at + ")" : w.at}</div>
             <button type="button" className="text-xs acc" onClick={() => setRaw((x) => !x)}>{raw ? "پنهان کردن پاسخ خام" : "پاسخ خام"}</button>
-            {raw && <pre className="text-[10px] mono ltr text-left whitespace-pre-wrap max-h-72 overflow-auto bg-black/30 rounded-xl p-3">{w.raw}</pre>}
+            {raw && <pre className="text-[10px] mono ltr text-start whitespace-pre-wrap max-h-72 overflow-auto bg-black/30 rounded-xl p-3">{w.raw}</pre>}
           </dl>
         )}
       </Card>
@@ -391,7 +391,7 @@ function TransferTab({ d }: { d: Domain }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Card title="انتقال به ثبت‌کننده دیگر" icon="arrow-left-right">
-        <ol className="text-sm text-white/60 leading-7 list-decimal pr-5 space-y-1">
+        <ol className="text-sm text-white/60 leading-7 list-decimal ps-5 space-y-1">
           {ir ? <><li>قفل دامنه برداشته می‌شود.</li><li>در ثبت‌کننده جدید، انتقال را با شناسه ایرنیک مالک درخواست کنید.</li><li>تأیید ایرنیک به ایمیل مالک فرستاده می‌شود.</li></>
             : <><li>با دکمه زیر قفل انتقال برداشته و کد EPP صادر می‌شود.</li><li>کد را در ثبت‌کننده جدید وارد کنید.</li><li>انتقال معمولاً ۵ تا ۷ روز طول می‌کشد؛ DNS تا پایان انتقال از گره پاسخ می‌دهد.</li></>}
         </ol>
@@ -487,8 +487,8 @@ function OriginCard({ d, c, origin, save }: { d: Domain; c: CdnConfig; origin: s
   return (
     <Card title="مبدأ" icon="server">
       <div className="space-y-4">
-        <Field label="آدرس مبدأ (IP یا نام میزبان)" hint={c.originHost ? "" : "خالی: آدرس رکورد پروکسی‌شده @ یا www" + (origin ? " (" + origin + ")" : "")}><input value={f.originHost} onChange={(e) => setF({ ...f, originHost: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={origin || "185.143.232.17"} /></Field>
-        <Field label="هدر Host ارسالی به مبدأ" hint={"خالی: " + d.name}><input value={f.originHostHeader} onChange={(e) => setF({ ...f, originHostHeader: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={d.name} /></Field>
+        <Field label="آدرس مبدأ (IP یا نام میزبان)" hint={c.originHost ? "" : "خالی: آدرس رکورد پروکسی‌شده @ یا www" + (origin ? " (" + origin + ")" : "")}><input value={f.originHost} onChange={(e) => setF({ ...f, originHost: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder={origin || "185.143.232.17"} /></Field>
+        <Field label="هدر Host ارسالی به مبدأ" hint={"خالی: " + d.name}><input value={f.originHostHeader} onChange={(e) => setF({ ...f, originHostHeader: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder={d.name} /></Field>
         <Row title="اتصال HTTPS به مبدأ"><Switch on={c.originHttps} label="HTTPS به مبدأ" onChange={(on) => save({ originHttps: on })} /></Row>
         <div className="flex justify-end"><AsyncButton onClick={() => save({ originHost: f.originHost.trim(), originHostHeader: f.originHostHeader.trim() })}>ذخیره مبدأ</AsyncButton></div>
       </div>
@@ -504,9 +504,9 @@ function Purge({ d, enabled }: { d: Domain; enabled: boolean }) {
   return (
     <div className="p-3 space-y-3">
       <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">پاک کردن کش</span><AsyncButton disabled={!enabled} danger className={BTN_G + BTN_SM} confirmText="کل کش این دامنه پاک شود؟" onClick={async () => done(await api.domains.cdnPurge(d.id, { all: true }))}>پاک کردن همه</AsyncButton></div>
-      <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={3} dir="ltr" aria-label="آدرس‌ها برای پاک کردن" className={TEXTAREA + " text-left mono text-xs"} placeholder={"https://" + d.name + "/style.css\nhttps://" + d.name + "/app.js"} />
+      <textarea value={urls} onChange={(e) => setUrls(e.target.value)} rows={3} dir="ltr" aria-label="آدرس‌ها برای پاک کردن" className={TEXTAREA + " text-start mono text-xs"} placeholder={"https://" + d.name + "/style.css\nhttps://" + d.name + "/app.js"} />
       <div className="flex justify-end"><AsyncButton disabled={!enabled} className={BTN_G + BTN_SM} onClick={async () => { const list = urls.split(/\s+/).filter(Boolean); if (!list.length) throw new Error("آدرسی وارد نشده است."); done(await api.domains.cdnPurge(d.id, { urls: list })); setUrls(""); }}>پاک کردن آدرس‌ها</AsyncButton></div>
-      <div className="flex gap-2"><input value={prefix} onChange={(e) => setPrefix(e.target.value)} dir="ltr" aria-label="پیشوند" className={INPUT_BASE + " h-9 text-left mono text-xs"} placeholder={"https://" + d.name + "/images/"} />
+      <div className="flex gap-2"><input value={prefix} onChange={(e) => setPrefix(e.target.value)} dir="ltr" aria-label="پیشوند" className={INPUT_BASE + " h-9 text-start mono text-xs"} placeholder={"https://" + d.name + "/images/"} />
         <AsyncButton disabled={!enabled} className={BTN_G + BTN_SM + " shrink-0"} onClick={async () => { if (!prefix.trim()) throw new Error("پیشوند را وارد کنید."); done(await api.domains.cdnPurge(d.id, { prefix: prefix.trim() })); setPrefix(""); }}>پاک کردن پیشوند</AsyncButton></div>
     </div>
   );
@@ -546,13 +546,13 @@ function CdnAlerts({ d }: { d: Domain }) {
       <p className="text-xs text-white/55 leading-6 mb-3">هر ساعت ترافیک یک ساعت گذشته بررسی می‌شود؛ با عبور از آستانه اعلان و ایمیل می‌گیرید.</p>
       <ul className="space-y-2 mb-3">{list.map((x) => (
         <li key={x.id} className="flex items-center justify-between gap-2 text-sm rounded-xl bg-white/[0.03] px-3 py-2">
-          <span>{ALERT_METRICS[x.metric]} ≥ <b className="tabular">{fa(x.threshold)}</b>{x.fired && <span className="text-[11px] text-amber-200 mr-2">آخرین هشدار {x.fired}</span>}</span>
+          <span>{ALERT_METRICS[x.metric]} ≥ <b className="tabular">{fa(x.threshold)}</b>{x.fired && <span className="text-[11px] text-amber-200 ms-2">آخرین هشدار {x.fired}</span>}</span>
           <span className="flex items-center gap-1"><Switch on={x.enabled} label="فعال" onChange={async (on) => { await api.domains.toggleAlert(d.id, x.id, on); a.reload(); }} /><IconBtn icon="trash-2" label="حذف هشدار" onClick={async () => { await api.domains.removeAlert(d.id, x.id); a.reload(); notify("هشدار حذف شد"); }} /></span>
         </li>
       ))}</ul>
       <div className="flex flex-wrap gap-2">
         <Select value={f.metric} label="معیار" onChange={(m) => setF({ ...f, metric: m as AlertMetric })} options={Object.entries(ALERT_METRICS).map(([value, label]) => ({ value, label }))} className="flex-1 min-w-[180px]" />
-        <input value={f.threshold} onChange={(e) => setF({ ...f, threshold: toEnDigits(e.target.value).replace(/[^\d.]/g, "") })} inputMode="numeric" dir="ltr" aria-label="آستانه" placeholder="آستانه" className={INPUT + " w-28 text-left"} />
+        <input value={f.threshold} onChange={(e) => setF({ ...f, threshold: toEnDigits(e.target.value).replace(/[^\d.]/g, "") })} inputMode="numeric" dir="ltr" aria-label="آستانه" placeholder="آستانه" className={INPUT + " w-28 text-start"} />
         <AsyncButton className={BTN_G + BTN_MD} onClick={async () => { const t = Number(f.threshold); if (!(t > 0)) throw new Error("آستانه را وارد کنید."); await api.domains.addAlert(d.id, { metric: f.metric, threshold: t }); setF({ ...f, threshold: "" }); a.reload(); notify("هشدار اضافه شد"); }}>افزودن</AsyncButton>
       </div>
     </Card>
@@ -586,7 +586,7 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
   const { notify, confirm } = useApp();
   const [f, setF] = useState<RuleForm | null>(null);
   const up = (p: Partial<RuleForm>) => f && setF({ ...f, ...p });
-  const pathField = f && f.kind !== "header" && f.kind !== "access" && <Field label="مسیر" hint="مثل /static/* (با * یعنی همه زیرمسیرها)"><input value={f.path} onChange={(e) => up({ path: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>;
+  const pathField = f && f.kind !== "header" && f.kind !== "access" && <Field label="مسیر" hint="مثل /static/* (با * یعنی همه زیرمسیرها)"><input value={f.path} onChange={(e) => up({ path: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>;
   return (
     <Card title="قوانین" icon="list-checks" pad="p-3 sm:p-4" action={<button type="button" onClick={() => setF({ ...EMPTY_RULE })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> قانون جدید</button>}>
       {rules.length === 0 ? <Empty icon="list-checks" title="قانونی ندارید" text="کش بر اساس مسیر، ریدایرکت، هدر پاسخ، رمز روی مسیر، دسترسی IP/کشور و محدودیت نرخ." /> : (
@@ -607,24 +607,24 @@ function CdnRules({ d, rules, reload }: { d: Domain; rules: (CdnRule & { id: str
             {f.action === "cache" && <Field label="مدت کش در لبه"><Select value={f.ttl} label="مدت کش" onChange={(x) => up({ ttl: x })} options={CACHE_TTL} /></Field>}
           </div>}
           {f.kind === "redirect" && <div className="grid sm:grid-cols-3 gap-4">
-            <Field className="sm:col-span-2" label="مقصد"><input value={f.to} onChange={(e) => up({ to: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder={"https://" + d.name + "/new"} /></Field>
+            <Field className="sm:col-span-2" label="مقصد"><input value={f.to} onChange={(e) => up({ to: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder={"https://" + d.name + "/new"} /></Field>
             <Field label="کد"><Select value={f.code} label="کد ریدایرکت" onChange={(x) => up({ code: x })} options={[{ value: "301", label: "۳۰۱ دائمی" }, { value: "302", label: "۳۰۲ موقت" }]} /></Field>
           </div>}
           {f.kind === "header" && <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="نام هدر"><input value={f.name} onChange={(e) => up({ name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="X-Frame-Options" /></Field>
-            <Field label="مقدار"><input value={f.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} placeholder="SAMEORIGIN" /></Field>
+            <Field label="نام هدر"><input value={f.name} onChange={(e) => up({ name: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder="X-Frame-Options" /></Field>
+            <Field label="مقدار"><input value={f.value} onChange={(e) => up({ value: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} placeholder="SAMEORIGIN" /></Field>
           </div>}
           {f.kind === "auth" && <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="نام کاربری"><input value={f.user} onChange={(e) => up({ user: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} autoComplete="off" /></Field>
-            <Field label="رمز" hint="حداقل ۸ نویسه؛ فقط به شکل هش نگه داشته می‌شود."><input type="password" value={f.password} onChange={(e) => up({ password: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} autoComplete="new-password" /></Field>
+            <Field label="نام کاربری"><input value={f.user} onChange={(e) => up({ user: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} autoComplete="off" /></Field>
+            <Field label="رمز" hint="حداقل ۸ نویسه؛ فقط به شکل هش نگه داشته می‌شود."><input type="password" value={f.password} onChange={(e) => up({ password: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} autoComplete="new-password" /></Field>
           </div>}
           {f.kind === "access" && <div className="grid sm:grid-cols-3 gap-4">
             <Field label="رفتار"><Select value={f.action} label="رفتار دسترسی" onChange={(x) => up({ action: x })} options={[{ value: "deny", label: "مسدود" }, { value: "allow", label: "فقط اجازه" }]} /></Field>
-            <Field className="sm:col-span-2" label="IP، بازه CIDR یا کد کشور" hint="مثل 5.160.0.0/16 یا IR"><input value={f.target} onChange={(e) => up({ target: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+            <Field className="sm:col-span-2" label="IP، بازه CIDR یا کد کشور" hint="مثل 5.160.0.0/16 یا IR"><input value={f.target} onChange={(e) => up({ target: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
           </div>}
           {f.kind === "ratelimit" && <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="درخواست در ثانیه برای هر IP"><input value={f.rps} onChange={(e) => up({ rps: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-left"} /></Field>
-            <Field label="ظرفیت انفجاری"><input value={f.burst} onChange={(e) => up({ burst: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-left"} /></Field>
+            <Field label="درخواست در ثانیه برای هر IP"><input value={f.rps} onChange={(e) => up({ rps: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-start"} /></Field>
+            <Field label="ظرفیت انفجاری"><input value={f.burst} onChange={(e) => up({ burst: toEnDigits(e.target.value).replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-start"} /></Field>
           </div>}
         </div>}
       </Modal>

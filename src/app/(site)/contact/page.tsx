@@ -31,7 +31,7 @@ export default function ContactPage() {
               <>
                 <IconTile name={ic} size={18} cls="w-10 h-10 rounded-xl" />
                 <div className="text-xs text-white/55 mt-4">{t}</div>
-                <div className={"font-bold mt-1 " + (/[a-z0-9]/i.test(v) ? "ltr text-right" : "")}>{v}</div>
+                <div className={"font-bold mt-1 " + (/[a-z0-9]/i.test(v) ? "ltr text-end" : "")}>{v}</div>
                 <div className="text-[11px] text-white/55 mt-1">{s}</div>
               </>
             );

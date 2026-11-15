@@ -69,12 +69,12 @@ function NewBucket({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Modal open={open} onClose={onClose} title="باکت جدید" icon="hard-drive" size="max-w-3xl">
       <div className="space-y-5">
         <Field label="نام باکت" hint="یکتا در کل سرویس؛ حروف کوچک انگلیسی، عدد و خط تیره" error={nameErr ?? undefined}>
-          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="my-app-media" className={INPUT + " text-left font-mono"} />
+          <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="my-app-media" className={INPUT + " text-start font-mono"} />
         </Field>
         <div role="radiogroup" aria-label="حجم" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {plans.map((p) => (
             <button key={p.id} type="button" role="radio" aria-checked={planId === p.id} onClick={() => setF({ ...f, planId: p.id })}
-              className={"text-right rounded-2xl p-3.5 border transition " + (planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+              className={"text-start rounded-2xl p-3.5 border transition " + (planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
               <b>{p.name}</b>
               <span className="block text-sm tabular mt-1">{toman(p.price)}<span className="text-[11px] text-white/50"> / ماه</span></span>
               <span className="block text-[11px] text-white/50 mt-1">{toman(hourlyOf(p.price))} در ساعت</span>
@@ -311,10 +311,10 @@ function Files({ b }: { b: StorageBucket }) {
         : res && res.list.folders.length === 0 && objects.length === 0 ? <Empty icon="folder-open" title="این پوشه خالی است" text="فایل‌ها را بارگذاری کنید یا با aws-cli و rclone همگام کنید." />
         : res && (
           <ul className={"divide-y divide-white/[0.06] transition-opacity " + (loading ? "opacity-50" : "")}>
-            {prefix && <li><button type="button" onClick={() => setPrefix(crumbs(prefix).slice(-2, -1)[0] ?? "")} className="w-full text-right py-2.5 px-1 text-sm text-white/60 hover:text-white flex items-center gap-2"><Icon name="chevron-right" size={15} />بازگشت به پوشه بالا</button></li>}
+            {prefix && <li><button type="button" onClick={() => setPrefix(crumbs(prefix).slice(-2, -1)[0] ?? "")} className="w-full text-start py-2.5 px-1 text-sm text-white/60 hover:text-white flex items-center gap-2"><Icon name="chevron-right" size={15} />بازگشت به پوشه بالا</button></li>}
             {res.list.folders.map((f) => (
               <li key={f.prefix} className="flex items-center justify-between gap-2 py-1.5 px-1">
-                <button type="button" onClick={() => setPrefix(f.prefix)} className="flex-1 min-w-0 text-right flex items-center gap-2 py-1 hover:text-white"><Icon name="folder-open" size={17} className="acc shrink-0" /><span dir="ltr" className="truncate text-sm">{f.name}</span></button>
+                <button type="button" onClick={() => setPrefix(f.prefix)} className="flex-1 min-w-0 text-start flex items-center gap-2 py-1 hover:text-white"><Icon name="folder-open" size={17} className="acc shrink-0" /><span dir="ltr" className="truncate text-sm">{f.name}</span></button>
                 <Menu label={"عملیات " + f.name} trigger={<Icon name="sliders-horizontal" size={15} />} items={[
                   { icon: "pencil", label: "تغییر نام یا انتقال", run: () => setModal({ kind: "move", key: f.prefix }) },
                   { icon: "trash-2", label: "حذف پوشه", danger: true, run: () => remove(f.prefix) },
@@ -323,7 +323,7 @@ function Files({ b }: { b: StorageBucket }) {
             ))}
             {objects.map((o) => (
               <li key={o.key} className="flex items-center justify-between gap-2 py-2 px-1">
-                <span className="flex-1 min-w-0 flex items-center gap-2"><Icon name="file-text" size={17} className="text-white/50 shrink-0" /><span className="min-w-0"><span dir="ltr" className="block truncate text-sm text-right">{o.name}</span><span className="block text-[11px] text-white/50">{bytes(o.size)} · {when(o.modified)}</span></span></span>
+                <span className="flex-1 min-w-0 flex items-center gap-2"><Icon name="file-text" size={17} className="text-white/50 shrink-0" /><span className="min-w-0"><span dir="ltr" className="block truncate text-sm text-end">{o.name}</span><span className="block text-[11px] text-white/50">{bytes(o.size)} · {when(o.modified)}</span></span></span>
                 <Menu label={"عملیات " + o.name} trigger={<Icon name="sliders-horizontal" size={15} />} items={[
                   { icon: "download", label: "دانلود", run: () => download(o.key) },
                   { icon: "share-2", label: "لینک اشتراک موقت", run: () => setModal({ kind: "share", key: o.key }) },
@@ -354,11 +354,11 @@ function FileModal({ b, modal, onClose, onDone }: { b: StorageBucket; modal: { k
   return (
     <Modal open={!!modal} onClose={onClose} title={title} icon={modal?.kind === "share" ? "share-2" : modal?.kind === "move" ? "pencil" : "folder-open"}>
       {modal?.kind === "mkdir" && <div className="space-y-4">
-        <Field label="نام پوشه" hint={modal.key ? "داخل " + modal.key : "در ریشه باکت"}><input value={v} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-left"} placeholder="images" /></Field>
+        <Field label="نام پوشه" hint={modal.key ? "داخل " + modal.key : "در ریشه باکت"}><input value={v} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-start"} placeholder="images" /></Field>
         <div className="flex justify-end"><AsyncButton disabled={!v.trim()} onClick={async () => { await api.storage.mkdir(b.id, modal.key, v.trim()); onClose(); onDone(); }}>ساخت پوشه</AsyncButton></div>
       </div>}
       {modal?.kind === "move" && <div className="space-y-4">
-        <Field label="مسیر کامل جدید" hint={modal.key.endsWith("/") ? "پوشه و همه فایل‌های داخلش منتقل می‌شوند؛ مسیر با / تمام شود" : "مثل images/2025/logo.png"}><input value={v} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
+        <Field label="مسیر کامل جدید" hint={modal.key.endsWith("/") ? "پوشه و همه فایل‌های داخلش منتقل می‌شوند؛ مسیر با / تمام شود" : "مثل images/2025/logo.png"}><input value={v} onChange={(e) => setV(e.target.value)} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>
         <div className="flex justify-end"><AsyncButton disabled={!v.trim() || v === modal.key} onClick={async () => { const n = await api.storage.move(b.id, modal.key, v.trim()); notify(fa(n) + " فایل منتقل شد", "check"); onClose(); onDone(); }}>انتقال</AsyncButton></div>
       </div>}
       {modal?.kind === "share" && <div className="space-y-4">
@@ -421,12 +421,12 @@ function Domains({ b }: { b: StorageBucket }) {
           </ul>
         )}
         <div className="flex gap-2 mt-4 pt-4 border-t border-white/[0.08]">
-          <input value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="cdn.example.ir" aria-label="دامنه" className={INPUT + " text-left"} />
+          <input value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} dir="ltr" placeholder="cdn.example.ir" aria-label="دامنه" className={INPUT + " text-start"} />
           <AsyncButton disabled={!host || b.status !== "active"} onClick={async () => { await api.storage.addDomain(b.id, host); setHost(""); notify("دامنه اضافه شد؛ رکورد CNAME را بسازید", "globe"); }}>افزودن</AsyncButton>
         </div>
       </Card>
       <Card title="راه‌اندازی" icon="list-checks">
-        <ol className="space-y-3 text-sm text-white/70 leading-7 list-decimal pr-5">
+        <ol className="space-y-3 text-sm text-white/70 leading-7 list-decimal ps-5">
           <li>در DNS دامنه یک رکورد <b>CNAME</b> بسازید:<div className="mt-2 rounded-lg bg-black/30 px-3 py-2 text-xs"><span className="text-white/50">مقصد: </span><CopyText text={b.cname} className="font-mono" /></div></li>
           <li>پس از اعمال رکورد (چند دقیقه تا چند ساعت)، «بررسی» را بزنید. تا ۷۲ ساعت خودکار هم بررسی می‌شود.</li>
           <li>گواهی SSL پس از تأیید CNAME خودکار صادر می‌شود.</li>
@@ -465,8 +465,8 @@ function Settings({ b }: { b: StorageBucket }) {
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-4"><span className="text-sm">فایل‌ها پس از چند روز خودکار حذف شوند</span><Switch on={life.on} label="حذف خودکار" onChange={(v) => setLife({ ...life, on: v })} /></div>
             {life.on && <div className="grid grid-cols-[7rem_1fr] gap-3">
-              <Field label="پس از (روز)"><input value={life.days} onChange={(e) => setLife({ ...life, days: e.target.value.replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-left"} /></Field>
-              <Field label="فقط در مسیر" hint="خالی = کل باکت"><input value={life.prefix} onChange={(e) => setLife({ ...life, prefix: e.target.value })} dir="ltr" placeholder="logs/" className={INPUT + " text-left font-mono"} /></Field>
+              <Field label="پس از (روز)"><input value={life.days} onChange={(e) => setLife({ ...life, days: e.target.value.replace(/\D/g, "") })} inputMode="numeric" dir="ltr" className={INPUT + " text-start"} /></Field>
+              <Field label="فقط در مسیر" hint="خالی = کل باکت"><input value={life.prefix} onChange={(e) => setLife({ ...life, prefix: e.target.value })} dir="ltr" placeholder="logs/" className={INPUT + " text-start font-mono"} /></Field>
             </div>}
             <div className="flex justify-end"><AsyncButton disabled={!active || (life.on && !(Number(life.days) >= 1))} onClick={async () => { await api.storage.setLifecycle(b.id, life.on ? { days: Number(life.days), prefix: life.prefix.trim() } : null); notify("قانون حذف خودکار ذخیره شد", "check"); }}>ذخیره</AsyncButton></div>
           </div>
@@ -486,13 +486,13 @@ function Settings({ b }: { b: StorageBucket }) {
           <ul className="space-y-3">
             {rules.map((r, i) => (
               <li key={i} className="rounded-2xl border border-white/[0.08] p-3 space-y-3">
-                <Field label="Originها (هر خط یکی)"><textarea value={r.origins.join("\n")} onChange={(e) => setRule(i, { origins: e.target.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean) })} rows={2} dir="ltr" className={INPUT + " h-auto py-2 text-left font-mono"} /></Field>
+                <Field label="Originها (هر خط یکی)"><textarea value={r.origins.join("\n")} onChange={(e) => setRule(i, { origins: e.target.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean) })} rows={2} dir="ltr" className={INPUT + " h-auto py-2 text-start font-mono"} /></Field>
                 <fieldset><legend className="text-xs text-white/60 mb-1.5">متدها</legend><div className="flex flex-wrap gap-3">{CORS_METHODS.map((m) => (
                   <label key={m} className="inline-flex items-center gap-1.5 text-xs font-mono"><input type="checkbox" checked={r.methods.includes(m)} onChange={(e) => setRule(i, { methods: e.target.checked ? [...r.methods, m] : r.methods.filter((x) => x !== m) })} />{m}</label>
                 ))}</div></fieldset>
                 <div className="grid grid-cols-[1fr_6rem] gap-2">
-                  <Field label="هدرهای مجاز"><input value={r.headers.join(", ")} onChange={(e) => setRule(i, { headers: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
-                  <Field label="MaxAge"><input value={String(r.maxAge)} onChange={(e) => setRule(i, { maxAge: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" inputMode="numeric" className={INPUT + " text-left"} /></Field>
+                  <Field label="هدرهای مجاز"><input value={r.headers.join(", ")} onChange={(e) => setRule(i, { headers: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>
+                  <Field label="MaxAge"><input value={String(r.maxAge)} onChange={(e) => setRule(i, { maxAge: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" inputMode="numeric" className={INPUT + " text-start"} /></Field>
                 </div>
                 <button type="button" onClick={() => setRules(rules.filter((_, j) => j !== i))} className="text-[11px] text-rose-300 hover:text-rose-200 inline-flex items-center gap-1"><Icon name="trash-2" size={12} />حذف قانون</button>
               </li>
@@ -503,7 +503,7 @@ function Settings({ b }: { b: StorageBucket }) {
         <Card title="حذف باکت" icon="trash-2">
           <p className="text-sm text-white/70 leading-7">باکت با همه فایل‌ها و نسخه‌هایش برای همیشه حذف می‌شود و هزینه ساعتی متوقف می‌شود.</p>
           <div className="flex gap-2 mt-3">
-            <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" placeholder={b.name} aria-label="نام باکت برای تأیید" className={INPUT + " text-left font-mono"} />
+            <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" placeholder={b.name} aria-label="نام باکت برای تأیید" className={INPUT + " text-start font-mono"} />
             <AsyncButton danger disabled={confirmName !== b.name} onClick={async () => { await api.storage.remove(b.id, confirmName); notify("باکت حذف شد", "trash-2"); router.push("/panel/storage" as never); }}>حذف</AsyncButton>
           </div>
         </Card>

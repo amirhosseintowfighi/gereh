@@ -51,7 +51,7 @@ export function NotifyChannels() {
           <div className="rounded-xl bg-black/40 p-4 mt-3"><CopyText text={secret} className="font-mono text-sm break-all" /></div>
           <button type="button" onClick={() => setHook(false)} className={BTN_P + BTN_LG + " w-full mt-4"}>ذخیره کردم</button>
         </> : <div className="space-y-4">
-          <Field label="نشانی (https)"><input dir="ltr" value={w.url} onChange={(e) => setW({ ...w, url: e.target.value.trim() })} placeholder="https://example.com/hooks/gereh" className={INPUT + " text-left font-mono"} /></Field>
+          <Field label="نشانی (https)"><input dir="ltr" value={w.url} onChange={(e) => setW({ ...w, url: e.target.value.trim() })} placeholder="https://example.com/hooks/gereh" className={INPUT + " text-start font-mono"} /></Field>
           <Field label="نام (اختیاری)"><input value={w.label} onChange={(e) => setW({ ...w, label: e.target.value })} className={INPUT} /></Field>
           <div className="flex flex-wrap gap-1.5">{KINDS.map(([k, l]) => <button key={k} type="button" aria-pressed={w.events.includes(k)} onClick={() => setW({ ...w, events: w.events.includes(k) ? w.events.filter((x) => x !== k) : [...w.events, k] })} className={"h-8 px-3 rounded-lg text-xs " + (w.events.includes(k) ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65")}>{l}</button>)}</div>
           <AsyncButton disabled={!w.url.startsWith("https://") || !w.events.length} className={BTN_P + BTN_LG + " w-full"} onClick={async () => { setSecret(await api.notify.addWebhook(w)); }}>افزودن</AsyncButton>

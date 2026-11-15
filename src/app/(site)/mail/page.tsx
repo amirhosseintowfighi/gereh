@@ -31,7 +31,7 @@ export default async function MailPage() {
           <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
           <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">سرویس ایمیل</span>
         </nav>
-        <h1 className="hero-title mt-8 text-[2rem] sm:text-6xl font-black leading-[1.35] tracking-tight">ایمیل‌هایتان به صندوق<br />برسند، نه به هرزنامه</h1>
+        <h1 className="hero-title mt-8 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">ایمیل‌هایتان به صندوق<br />برسند، نه به هرزنامه</h1>
         <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">ایمیل تراکنشی (کد ورود، فاکتور، خوش‌آمد) با API و SMTP، و صندوق ایمیل سازمانی روی دامنه خودتان؛ با DKIM، SPF و DMARC آماده و گزارش تحویل هر پیام.</p>
         <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
           <Link href={"/panel/mail?new=1" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="mail" size={18} />افزودن دامنه ایمیل</Link>
@@ -69,7 +69,7 @@ export default async function MailPage() {
 
       <section id="api" className="max-w-4xl mx-auto px-4 sm:px-6 scroll-mt-24">
         <SectionHead title="ارسال با یک درخواست" sub="کلید API برای هر دامنه جداست؛ برچسب را در سربرگ X-Gereh-Tag یا فیلد tag بفرستید." />
-        <pre dir="ltr" className={GLASS + " rounded-[1.5rem] p-5 text-xs leading-6 overflow-x-auto text-left"}>{`POST https://gereh.net/api/mail/v1/send
+        <pre dir="ltr" className={GLASS + " rounded-[1.5rem] p-5 text-xs leading-6 overflow-x-auto text-start"}>{`POST https://gereh.net/api/mail/v1/send
 Authorization: Bearer gm_…
 Content-Type: application/json
 X-Gereh-Tag: welcome

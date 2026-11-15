@@ -14,7 +14,7 @@ export function EnPlans({ plans, rows, order, unit = "/ month" }: { plans: Plan[
           {(PLAN_EN[p.id]?.tag ?? (/^[\x20-\x7e]+$/.test(p.tag || "") ? p.tag : "")) && <p className="text-xs text-white/55 mt-1">{PLAN_EN[p.id]?.tag ?? p.tag}</p>}
           <p className="mt-4"><span className="text-2xl font-black tabular">{tomanEn(p.price)}</span> <span className="text-xs text-white/55">{unit}</span></p>
           <dl className="mt-4 space-y-2 text-sm flex-1">
-            {rows.map(([label, key]) => p[key] ? <div key={label} className="flex justify-between gap-3"><dt className="text-white/55">{label}</dt><dd className="font-medium text-right">{enSpec(String(p[key]))}</dd></div> : null)}
+            {rows.map(([label, key]) => p[key] ? <div key={label} className="flex justify-between gap-3"><dt className="text-white/55">{label}</dt><dd className="font-medium text-end">{enSpec(String(p[key]))}</dd></div> : null)}
           </dl>
           <Link href={order as never} hrefLang="fa" className={(p.popular ? BTN_P : BTN_G) + " mt-6 h-11 text-sm"}>Order <Icon name="arrow-up-right" size={15} /></Link>
         </li>

@@ -64,7 +64,7 @@ function IncidentCard({ i, onDone, compact = false }: { i: IncidentView; onDone:
         {i.status !== "open" && <Badge tone="gray">{STATUS_FA[i.status]}{i.status === "muted" && i.mutedUntil ? " تا " + i.mutedUntil : ""}</Badge>}
         <span className="text-[11px] text-white/45 ms-auto">اطمینان {fa(Math.round(i.confidence * 100))}٪ · از {i.startedAt}{i.resolvedAt ? " تا " + i.resolvedAt : ""}</span>
       </div>
-      <button type="button" className="mt-2 text-right w-full" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button type="button" className="mt-2 text-start w-full" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <h3 className="font-bold text-[15px] leading-7">{i.title}</h3>
       </button>
       <Link href={i.resource.href as never} className="text-xs acc ltr inline-block">{i.resource.name}</Link>

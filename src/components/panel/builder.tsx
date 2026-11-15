@@ -47,9 +47,9 @@ export function BuildHome() {
         <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[38rem] max-w-full h-56 rounded-full bg-violet-500/20 blur-3xl" aria-hidden="true" />
         <div className="relative max-w-3xl mx-auto text-center">
           <span className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="sparkles" size={14} className="text-violet-300" />{BUILDER.name} · {BUILDER.short}</span>
-          <h1 className="mt-5 text-[1.7rem] sm:text-4xl font-black leading-[1.5] tracking-tight">ایده‌تان را بنویسید؛ AI می‌سازد و منتشر می‌کند</h1>
+          <h1 className="mt-5 text-[1.7rem] sm:text-4xl font-black leading-[1.5]">ایده‌تان را بنویسید؛ AI می‌سازد و منتشر می‌کند</h1>
           <p className="mt-3 text-sm sm:text-base text-white/60 leading-8">بدون برنامه‌نویسی: توضیح دهید چه می‌خواهید، پیش‌نمایش را ببینید، با گفتگو تغییرش دهید و با یک کلیک روی گره منتشرش کنید.</p>
-          <div className="mt-7 rounded-3xl bg-[#0b0d16]/80 border border-white/[0.14] p-3 sm:p-4 text-right shadow-2xl shadow-violet-950/40 focus-within:border-violet-300/40 transition">
+          <div className="mt-7 rounded-3xl bg-[#0b0d16]/80 border border-white/[0.14] p-3 sm:p-4 text-start shadow-2xl shadow-violet-950/40 focus-within:border-violet-300/40 transition">
             <label htmlFor="idea" className="sr-only">ایده شما</label>
             <textarea id="idea" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={4} maxLength={4000}
               onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void start(); } }}
@@ -93,7 +93,7 @@ export function BuildHome() {
                   <Link href={("/panel/build/" + p.id) as never} className="block h-full rounded-2xl p-4 bg-white/[0.04] border border-white/[0.1] hover:border-white/25 transition">
                     <span className="flex items-start justify-between gap-2"><b className="leading-7 line-clamp-2">{p.name}</b><StatusTag s={p.status} /></span>
                     <span className="block text-xs text-white/50 mt-1">{BUILDER_STACKS.find((s) => s.id === p.stack)?.label} · نسخه {fa(p.version)} · {fa(p.files)} فایل</span>
-                    {p.liveUrl && <span dir="ltr" className="block text-xs acc mt-3 truncate text-right">{p.liveUrl.replace("https://", "")}</span>}
+                    {p.liveUrl && <span dir="ltr" className="block text-xs acc mt-3 truncate text-end">{p.liveUrl.replace("https://", "")}</span>}
                     <span className="flex justify-between text-[11px] text-white/50 mt-3"><span>{p.updatedAt}</span><span className="tabular">هزینه AI: {toman(p.spent)}</span></span>
                   </Link>
                 </li>
@@ -259,7 +259,7 @@ export function BuildStudio({ id }: { id: string }) {
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <Link href={"/panel/build" as never} className="w-9 h-9 shrink-0 rounded-xl grid place-items-center bg-white/[0.05] border border-white/10 hover:bg-white/10" aria-label="بازگشت به پروژه‌ها"><Icon name="chevron-right" size={17} /></Link>
-          <button type="button" onClick={() => setModal("rename")} className="min-w-0 text-right group" title="تغییر نام">
+          <button type="button" onClick={() => setModal("rename")} className="min-w-0 text-start group" title="تغییر نام">
             <h1 className="font-black text-base sm:text-lg truncate max-w-[52vw] sm:max-w-[28rem] group-hover:text-white/85">{v.name}</h1>
           </button>
           <StatusTag s={v.status} />
@@ -324,7 +324,7 @@ function BuildingPlaceholder({ live }: { live: Live | null }) {
 function LiveCard({ live, onStop }: { live: Live; onStop: () => void }) {
   return (
     <>
-      <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm leading-7 bg-violet-500/20 border border-violet-300/20 whitespace-pre-wrap">{live.prompt}</div></div>
+      <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-ee-md px-3.5 py-2.5 text-sm leading-7 bg-violet-500/20 border border-violet-300/20 whitespace-pre-wrap">{live.prompt}</div></div>
       <div className="rounded-2xl p-3.5 bg-white/[0.05] border border-white/[0.1]">
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-sm font-bold"><Icon name="loader-circle" size={16} className="animate-spin text-violet-300" />{live.status}</span>
@@ -349,18 +349,18 @@ function Linked({ text, links }: { text: string; links: Record<string, string> }
 }
 
 function Message({ m, run, projectId, onChange, links }: { m: BuilderProjectView["messages"][number]; run?: BuilderRunView; projectId: string; onChange: () => unknown; links: Record<string, string> }) {
-  if (m.role === "user") return <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm leading-7 bg-violet-500/20 border border-violet-300/20 whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</div></div>;
+  if (m.role === "user") return <div className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-ee-md px-3.5 py-2.5 text-sm leading-7 bg-violet-500/20 border border-violet-300/20 whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</div></div>;
   const kind = run ? RUN_KIND[run.kind] : null;
   const changed = run ? [...run.diff.added, ...run.diff.changed] : [];
   return (
-    <div className="rounded-2xl rounded-br-md p-3.5 bg-white/[0.05] border border-white/[0.1]">
+    <div className="rounded-2xl rounded-es-md p-3.5 bg-white/[0.05] border border-white/[0.1]">
       {run && kind && (
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
           <Badge tone={run.kind === "fix" ? "amber" : run.kind === "maintain" ? "violet" : "blue"}><Icon name={kind.icon} size={11} />{kind.label}{run.kind === "fix" && run.attempt ? " · تلاش " + fa(run.attempt) : ""}{run.kind === "maintain" && run.incident ? " · " + (INCIDENT_LABEL[run.incident] ?? run.incident) : ""}</Badge>
           {run.status === "failed" && <Badge tone="red">ناموفق</Badge>}
           {run.status === "cancelled" && <Badge tone="gray">متوقف شد</Badge>}
           {run.version && <Badge tone="gray">نسخه {fa(run.version)}</Badge>}
-          {run.cost > 0 && <span className="text-[10px] text-white/50 tabular mr-auto">{toman(run.cost)}</span>}
+          {run.cost > 0 && <span className="text-[10px] text-white/50 tabular ms-auto">{toman(run.cost)}</span>}
         </div>
       )}
       <p className="text-sm leading-7 text-white/85 whitespace-pre-line [overflow-wrap:anywhere]"><Linked text={m.content} links={links} /></p>
@@ -480,7 +480,7 @@ function CodeView({ v, onSaved, locked }: { v: BuilderProjectView; onSaved: () =
               <Fragment key={f.path}>
                 {dir && dir !== prev && <li className="px-2 pt-2 pb-0.5 text-[10px] text-white/50 flex items-center gap-1" dir="ltr"><Icon name="folder" size={11} />{dir}/</li>}
                 <li><button type="button" onClick={() => setPath(f.path)} dir="ltr" aria-current={cur === f.path ? "true" : undefined}
-                  className={"w-full flex items-center gap-1.5 rounded-lg py-1.5 text-[12px] font-mono text-left transition " + (cur === f.path ? "bg-white/[0.1] text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white")} style={{ paddingLeft: 8 + depth * 10 }}>
+                  className={"w-full flex items-center gap-1.5 rounded-lg py-1.5 text-[12px] font-mono text-start transition " + (cur === f.path ? "bg-white/[0.1] text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white")} style={{ paddingLeft: 8 + depth * 10 }}>
                   <Icon name="file" size={12} className="shrink-0 opacity-60" /><span className="truncate">{name}</span></button></li>
               </Fragment>
             );

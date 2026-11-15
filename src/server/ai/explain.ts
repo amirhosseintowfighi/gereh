@@ -78,7 +78,9 @@ export async function withErrorRef(res: Response, uid: string, method: string): 
   if (!uid || res.status === 401 || (res.status >= 500 && res.status !== 502) || method.startsWith("auth.") || method === "ai.explain" || method === "ai.applyFix") return res;
   const j = (await res.clone().json().catch(() => null)) as { error?: string } | null;
   if (!j?.error) return res;
-  return Response.json({ error: j.error, ref: rpcErrorRef(uid, method, j.error) }, { status: res.status, headers: res.headers });
+  // the ref is an extra: if it cannot be sealed (APP_SECRET missing), the customer still gets the real error, not a bare 500
+  try { return Response.json({ error: j.error, ref: rpcErrorRef(uid, method, j.error) }, { status: res.status, headers: res.headers }); }
+  catch (e) { console.error("[api] error ref", e); return res; }
 }
 
 /* ---------------- hints read out of an error ---------------- */

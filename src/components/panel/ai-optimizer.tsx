@@ -20,7 +20,7 @@ function SummaryTable({ title, icon, rows, label }: { title: string; icon: strin
       {rows.length === 0 ? <Empty icon="activity" title="هنوز رویدادی ثبت نشده" text="پس از اولین درخواست‌های مدل، آمار اینجا دیده می‌شود." /> : (
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={title}>
           <table className="w-full text-xs min-w-[760px]">
-            <thead><tr className="text-white/55 text-right">{["", "درخواست", "کاهش توکن", "صرفه‌جویی هزینه", "حاشیه سود", "نرخ برخورد کش", "بازگشت به اصل", "خطای اعتبارسنجی", "فراتر از بودجه"].map((h) => <th key={h} scope="col" className="text-right font-medium p-2">{h}</th>)}</tr></thead>
+            <thead><tr className="text-white/55 text-start">{["", "درخواست", "کاهش توکن", "صرفه‌جویی هزینه", "حاشیه سود", "نرخ برخورد کش", "بازگشت به اصل", "خطای اعتبارسنجی", "فراتر از بودجه"].map((h) => <th key={h} scope="col" className="text-start font-medium p-2">{h}</th>)}</tr></thead>
             <tbody>{rows.map(({ key, summary: s }) => (
               <tr key={key} className="border-t border-white/[0.06]">
                 <td className="p-2 font-bold" dir="auto">{label(key)}</td>
@@ -61,7 +61,7 @@ function FeatureSettings({ view, onSaved }: { view: OptSettingsView; onSaved: ()
         <p className="text-[11px] text-white/50 leading-6">روشن یا خاموش بودن بهینه‌سازی API عمومی (کلیدهای gk-) و زمین بازی فقط با شماست (ردیف «api»)؛ مشتری چیزی از آن نمی‌بیند: همان پاسخ مدل را می‌گیرد و حجم ورودی‌ای که در پاسخ و صورت‌حساب می‌بیند حجم درخواست خودش است. سطح ۰ یعنی فقط کش پرامپت. ترجمه فارسی→انگلیسی {view.translateConfigured ? "پیکربندی شده است (AI_OPT_TRANSLATE_URL)" : "پیکربندی نشده است (AI_OPT_TRANSLATE_URL خالی)"}.</p>
         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="سیاست هر بخش">
           <table className="w-full text-xs min-w-[720px]">
-            <thead><tr className="text-white/55 text-right">{["بخش", "روشن", "سطح", "نوبت‌های کامل اخیر", "سقف ورودی (توکن)", "کش", "ترجمه"].map((h) => <th key={h} scope="col" className="text-right font-medium p-2">{h}</th>)}</tr></thead>
+            <thead><tr className="text-white/55 text-start">{["بخش", "روشن", "سطح", "نوبت‌های کامل اخیر", "سقف ورودی (توکن)", "کش", "ترجمه"].map((h) => <th key={h} scope="col" className="text-start font-medium p-2">{h}</th>)}</tr></thead>
             <tbody>{Object.keys(view.effective).filter((f) => f !== "benchmark").map((f) => { const p = eff(f); return (
               <tr key={f} className="border-t border-white/[0.06]">
                 <td className="p-2 font-bold">{OPT_FEATURE_LABEL[f] ?? f}</td>
@@ -97,7 +97,7 @@ function Benchmarks() {
       <Card title="محک آفلاین (تخمینی)" icon="flask-conical" action={<AsyncButton className={BTN_G + BTN_SM} onClick={async () => setOffline(await aiOptApi.offline())}>اجرا</AsyncButton>}>
         <p className="text-[11px] text-white/50 leading-6 mb-2">روی مجموعه نمونه tests/fixtures/ai-opt، بدون فراخوانی مدل. اعداد تخمین توکن ورودی‌اند، نه توکن صورت‌حساب‌شده.</p>
         {offline && <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="محک آفلاین"><table className="w-full text-xs min-w-[640px]">
-          <thead><tr className="text-white/55 text-right">{["نمونه", "سیاست", "اصلی (تخمین)", "بهینه (تخمین)", "کاهش", "بررسی‌ها"].map((h) => <th key={h} scope="col" className="text-right font-medium p-2">{h}</th>)}</tr></thead>
+          <thead><tr className="text-white/55 text-start">{["نمونه", "سیاست", "اصلی (تخمین)", "بهینه (تخمین)", "کاهش", "بررسی‌ها"].map((h) => <th key={h} scope="col" className="text-start font-medium p-2">{h}</th>)}</tr></thead>
           <tbody>{offline.map((r) => <tr key={r.id} className="border-t border-white/[0.06]"><td className="p-2" dir="auto">{r.workload}</td><td className="p-2" dir="ltr">{r.policy}</td><td className="p-2 tabular">{fa(r.origTokens)}</td><td className="p-2 tabular">{fa(r.optTokens)}</td><td className="p-2 tabular">{pct(r.reductionPct)}</td><td className="p-2">{r.pass ? <Badge tone="green">قبول</Badge> : <Badge tone="red">رد</Badge>}</td></tr>)}</tbody>
         </table></div>}
       </Card>
