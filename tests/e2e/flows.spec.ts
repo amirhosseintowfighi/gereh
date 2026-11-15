@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { stubThirdParty } from "./third-party";
+
+stubThirdParty();
 
 // every flow starts from the demo seed (the server runs with E2E=1)
 test.beforeEach(async ({ request }) => { expect((await request.post("/api/test")).ok()).toBe(true); });
