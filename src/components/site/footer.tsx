@@ -39,7 +39,6 @@ export function Footer() {
             <p className="text-white/55 text-sm leading-7 mt-4 max-w-xs">سرور، هاست، پلتفرم ابری و API برای کسب‌وکارهایی که نباید کند شوند یا از دسترس خارج شوند؛ با یک حساب و یک کیف پول.</p>
             <address className="not-italic mt-5">
               <ul className="space-y-2.5 text-sm text-white/55">
-                <li><a href="tel:+982191000000" className="inline-flex items-center gap-2 hover:text-white"><Icon name="phone" size={15} /><span className="ltr">۰۲۱-۹۱۰۰۰۰۰۰</span></a></li>
                 <li><a href={"mailto:" + EMAIL} className="inline-flex items-center gap-2 hover:text-white"><Icon name="mail" size={15} /><span className="ltr">{EMAIL}</span></a></li>
                 <li className="flex items-center gap-2"><Icon name="clock" size={15} />پشتیبانی ۲۴ ساعته</li>
               </ul>
