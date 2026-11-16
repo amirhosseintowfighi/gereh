@@ -8,12 +8,11 @@ import { breadcrumbLd, EMAIL, ORG_ID, pageMeta, SITE_URL } from "@/lib/seo";
 
 export const metadata = pageMeta({
   title: "تماس با گره",
-  description: "تماس با فروش و پشتیبانی فنی گره: تلفن شبانه‌روزی ۰۲۱-۹۱۰۰۰۰۰۰، ایمیل support@gereh.net، تیکت از پنل کاربری و دفتر مرکزی در خیابان ولیعصر تهران.",
+  description: "تماس با فروش و پشتیبانی فنی گره: ایمیل support@gereh.net، تیکت از پنل کاربری و دفتر مرکزی در خیابان ولیعصر تهران.",
   path: "/contact",
 });
 
 const CARDS: [string, string, string, string, string?][] = [
-  ["phone", "تلفن پشتیبانی", "۰۲۱-۹۱۰۰۰۰۰۰", "شبانه‌روزی", "tel:+982191000000"],
   ["mail", "ایمیل", "support@gereh.net", "پاسخ زیر یک ساعت", "mailto:support@gereh.net"],
   ["message-circle", "تیکت", "از پنل کاربری", "سریع‌ترین مسیر فنی", "/panel/tickets"],
   ["map-pin", "دفتر مرکزی", "تهران، خیابان ولیعصر", "شنبه تا چهارشنبه، ۹ تا ۱۸"],
@@ -25,7 +24,7 @@ export default function ContactPage() {
       <JsonLd data={[breadcrumbLd([["تماس با ما", "/contact"]]), { "@type": "ContactPage", name: "تماس با گره", url: SITE_URL + "/contact", about: { "@id": ORG_ID }, email: EMAIL }]} />
       <PageHeader icon="message-circle" crumb="تماس با ما" title="با ما در تماس باشید" sub="سؤال فروش، مشاوره فنی یا همکاری؛ یک نفر از تیم ما که موضوع را می‌شناسد جواب می‌دهد." />
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <ul className="grid sm:grid-cols-3 gap-4 mb-10">
           {CARDS.map(([ic, t, v, s, href]) => {
             const body = (
               <>
