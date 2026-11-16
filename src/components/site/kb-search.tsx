@@ -19,9 +19,9 @@ export function KbSearch({ items, categories }: { items: Item[]; categories: { i
   return (
     <div>
       <div className="relative max-w-2xl mx-auto">
-        <Icon name="search" size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/45" />
+        <Icon name="search" size={18} className="absolute start-4 top-1/2 -translate-y-1/2 text-white/45" />
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="جستجو در راهنما" placeholder="مثلا: SSH، رکورد MX، فاکتور رسمی…"
-          className="w-full h-14 rounded-2xl bg-white/[0.05] border border-white/[0.14] pr-12 pl-4 outline-none focus:border-white/35 transition placeholder:text-white/35" />
+          className="w-full h-14 rounded-2xl bg-white/[0.05] border border-white/[0.14] ps-12 pe-4 outline-none focus:border-white/35 transition placeholder:text-white/35" />
       </div>
       <div role="group" aria-label="دسته‌ها" className="mt-5 flex flex-wrap justify-center gap-2">
         {[{ id: "", label: "همه", icon: "layers" }, ...categories].map((c) => (

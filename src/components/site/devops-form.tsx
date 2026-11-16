@@ -19,7 +19,7 @@ const PKG_OPTIONS = [{ value: "", label: "هنوز نمی‌دانم؛ پیشن�
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" role="checkbox" aria-checked={on} onClick={onClick}
-      className={"min-h-10 px-3.5 py-2 rounded-xl text-sm text-right inline-flex items-center gap-2 border transition " + (on ? "bg-sky-400/15 border-sky-300/50 text-white" : "bg-white/[0.03] border-white/[0.12] text-white/70 hover:text-white hover:border-white/25")}>
+      className={"min-h-10 px-3.5 py-2 rounded-xl text-sm text-start inline-flex items-center gap-2 border transition " + (on ? "bg-sky-400/15 border-sky-300/50 text-white" : "bg-white/[0.03] border-white/[0.12] text-white/70 hover:text-white hover:border-white/25")}>
       <span aria-hidden="true" className={"w-4 h-4 rounded-[5px] border grid place-items-center shrink-0 " + (on ? "bg-sky-300 border-sky-300 text-slate-900" : "border-white/30")}>{on && <Icon name="check" size={11} sw={3} />}</span>
       {children}
     </button>
@@ -75,7 +75,7 @@ export function DevopsRequestForm({ preset, source }: { preset?: string; source:
       <div className="w-16 h-16 mx-auto rounded-full acc-bg grid place-items-center"><CheckDraw size={30} /></div>
       <h3 className="font-black text-xl mt-5">درخواست شما ثبت شد</h3>
       <p className="text-white/65 mt-2">شماره پیگیری: <b className="ltr inline-block tabular">{ref}</b></p>
-      <ol className="mt-8 max-w-md mx-auto text-right space-y-3 text-sm">
+      <ol className="mt-8 max-w-md mx-auto text-start space-y-3 text-sm">
         {[["mail", "خلاصه درخواست به ایمیل شما فرستاده شد."], ["phone", f.urgency.startsWith("فوری") ? "به‌خاطر فوریت، همین امروز تماس می‌گیریم." : "ظرف یک روز کاری برای هماهنگی جلسه تماس می‌گیریم."], ["file-check", f.needsNda ? "پیش از جلسه، قرارداد محرمانگی برایتان ارسال می‌شود." : "جلسه آشنایی ۴۵ دقیقه و رایگان است."]].map(([ic, t]) => (
           <li key={t} className="flex gap-3 items-start"><Icon name={ic} size={18} className="acc shrink-0 mt-0.5" /><span className="text-white/75 leading-7">{t}</span></li>
         ))}
@@ -96,9 +96,9 @@ export function DevopsRequestForm({ preset, source }: { preset?: string; source:
           <Field label="نام و نام خانوادگی" error={err.name}><input autoComplete="name" value={val("name")} onChange={(e) => set("name", e.target.value)} aria-invalid={!!err.name} className={INPUT} /></Field>
           <Field label={label("سمت", true)}><input autoComplete="organization-title" value={f.role} onChange={(e) => set("role", e.target.value)} placeholder="مثلا CTO یا مدیر فنی" className={INPUT} /></Field>
           <Field label="نام شرکت یا محصول" error={err.company}><input autoComplete="organization" value={val("company")} onChange={(e) => set("company", e.target.value)} aria-invalid={!!err.company} className={INPUT} /></Field>
-          <Field label={label("وب‌سایت", true)}><input inputMode="url" value={f.website} onChange={(e) => set("website", e.target.value)} dir="ltr" placeholder="example.com" className={INPUT + " text-left"} /></Field>
-          <Field label="ایمیل کاری" error={err.email}><input type="email" autoComplete="email" value={val("email")} onChange={(e) => set("email", e.target.value)} aria-invalid={!!err.email} dir="ltr" className={INPUT + " text-left"} /></Field>
-          <Field label="شماره تماس" error={err.phone}><input type="tel" autoComplete="tel" value={val("phone")} onChange={(e) => set("phone", e.target.value)} aria-invalid={!!err.phone} dir="ltr" placeholder="0912 123 4567" className={INPUT + " text-left"} /></Field>
+          <Field label={label("وب‌سایت", true)}><input inputMode="url" value={f.website} onChange={(e) => set("website", e.target.value)} dir="ltr" placeholder="example.com" className={INPUT + " text-start"} /></Field>
+          <Field label="ایمیل کاری" error={err.email}><input type="email" autoComplete="email" value={val("email")} onChange={(e) => set("email", e.target.value)} aria-invalid={!!err.email} dir="ltr" className={INPUT + " text-start"} /></Field>
+          <Field label="شماره تماس" error={err.phone}><input type="tel" autoComplete="tel" value={val("phone")} onChange={(e) => set("phone", e.target.value)} aria-invalid={!!err.phone} dir="ltr" placeholder="0912 123 4567" className={INPUT + " text-start"} /></Field>
           <Field label="اندازه تیم" error={err.size}><div data-invalid={!!err.size} tabIndex={-1}><Select label="اندازه تیم" value={f.size} onChange={(v) => set("size", v)} options={[{ value: "", label: "انتخاب کنید" }, ...COMPANY_SIZES.map((v) => ({ value: v, label: v }))]} /></div></Field>
           <Field label="مرحله کسب‌وکار" error={err.stage}><div data-invalid={!!err.stage} tabIndex={-1}><Select label="مرحله کسب‌وکار" value={f.stage} onChange={(v) => set("stage", v)} options={[{ value: "", label: "انتخاب کنید" }, ...COMPANY_STAGES.map((v) => ({ value: v, label: v }))]} /></div></Field>
         </div>

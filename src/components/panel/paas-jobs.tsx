@@ -34,7 +34,7 @@ function ReleaseCommand({ app }: { app: PaasApp }) {
   return (
     <Card title="دستور انتشار (release)" icon="rocket">
       <p className="text-sm text-white/60 leading-7">پس از هر بیلد موفق و <b>پیش از</b> رسیدن ترافیک به نسخه جدید، یک بار در کانتینری جدا اجرا می‌شود؛ مناسب migration پایگاه داده. اگر خطا بدهد، استقرار متوقف می‌شود و نسخه قبلی سرویس می‌دهد.</p>
-      <Field label="دستور" className="mt-3"><input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py migrate --noinput" className={INPUT + " font-mono text-left text-sm"} /></Field>
+      <Field label="دستور" className="mt-3"><input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py migrate --noinput" className={INPUT + " font-mono text-start text-sm"} /></Field>
       <div className="flex flex-wrap gap-1.5 mt-2">
         {["npx prisma migrate deploy", "python manage.py migrate --noinput", "php artisan migrate --force", "bundle exec rails db:migrate"].map((x) => <button key={x} type="button" onClick={() => setCmd(x)} className="h-7 px-2.5 rounded-lg text-[11px] bg-white/[0.05] text-white/60 hover:text-white font-mono" dir="ltr">{x}</button>)}
       </div>
@@ -58,8 +58,8 @@ function Processes({ app }: { app: PaasApp }) {
         <ul className="space-y-3 mt-4">
           {rows.map((r, i) => (
             <li key={i} className="rounded-xl bg-white/[0.03] border border-white/[0.07] p-3 grid sm:grid-cols-[8rem_1fr_6rem_auto] gap-2 items-end">
-              <Field label="نام"><input dir="ltr" value={r.name} onChange={(e) => set(i, { name: e.target.value.toLowerCase() })} className={INPUT_BASE + " h-9 text-xs font-mono text-left"} /></Field>
-              <Field label="دستور"><input dir="ltr" value={r.command} onChange={(e) => set(i, { command: e.target.value })} placeholder="node worker.js" className={INPUT_BASE + " h-9 text-xs font-mono text-left"} /></Field>
+              <Field label="نام"><input dir="ltr" value={r.name} onChange={(e) => set(i, { name: e.target.value.toLowerCase() })} className={INPUT_BASE + " h-9 text-xs font-mono text-start"} /></Field>
+              <Field label="دستور"><input dir="ltr" value={r.command} onChange={(e) => set(i, { command: e.target.value })} placeholder="node worker.js" className={INPUT_BASE + " h-9 text-xs font-mono text-start"} /></Field>
               <Field label="نمونه"><Select label={"تعداد نمونه " + r.name} value={String(r.instances)} onChange={(v) => set(i, { instances: Number(v) })} options={[0, 1, 2, 3, 4, 5, 6, 8, 10].map((n) => ({ value: String(n), label: n ? fa(n) : "خاموش" }))} /></Field>
               <button type="button" aria-label={"حذف " + r.name} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="h-9 w-9 grid place-items-center rounded-lg text-white/50 hover:text-rose-300"><Icon name="trash-2" size={15} /></button>
             </li>
@@ -88,7 +88,7 @@ function Crons({ app }: { app: PaasApp }) {
             <li key={c.id} className="p-3 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2"><b className="text-sm">{c.name}</b><code dir="ltr" className="text-xs text-sky-200">{c.schedule}</code>{!c.enabled && <Badge>غیرفعال</Badge>}</span>
-                <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-right truncate">{c.command}</code>
+                <code dir="ltr" className="block text-[11px] text-white/55 mt-1 text-end truncate">{c.command}</code>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setForm(c)} className={BTN_G + BTN_SM}><Icon name="pencil" size={14} />ویرایش</button>
@@ -102,10 +102,10 @@ function Crons({ app }: { app: PaasApp }) {
       {form && (
         <Modal open onClose={() => setForm(null)} title={form.id ? "ویرایش زمان‌بندی" : "زمان‌بندی جدید"} icon="clock">
           <div className="space-y-4">
-            <Field label="نام"><input dir="ltr" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })} placeholder="cleanup" className={INPUT + " font-mono text-left"} /></Field>
-            <Field label="زمان‌بندی (cron)" error={err ?? undefined}><input dir="ltr" value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} className={INPUT + " font-mono text-left"} /></Field>
+            <Field label="نام"><input dir="ltr" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })} placeholder="cleanup" className={INPUT + " font-mono text-start"} /></Field>
+            <Field label="زمان‌بندی (cron)" error={err ?? undefined}><input dir="ltr" value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} className={INPUT + " font-mono text-start"} /></Field>
             <div className="flex flex-wrap gap-1.5 -mt-2">{CRON_PRESETS.map((p) => <button key={p.value} type="button" onClick={() => setForm({ ...form, schedule: p.value })} className="h-7 px-2.5 rounded-lg text-[11px] bg-white/[0.05] text-white/60 hover:text-white">{p.label}</button>)}</div>
-            <Field label="دستور"><input dir="ltr" value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })} placeholder="python manage.py clearsessions" className={INPUT + " font-mono text-left"} /></Field>
+            <Field label="دستور"><input dir="ltr" value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })} placeholder="python manage.py clearsessions" className={INPUT + " font-mono text-start"} /></Field>
             <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3 text-sm"><span>فعال</span><Switch on={form.enabled} onChange={(v) => setForm({ ...form, enabled: v })} label="فعال بودن زمان‌بندی" /></div>
             <AsyncButton disabled={!!err || !PROC_NAME_RE.test(form.name) || !form.command.trim()} className={BTN_P + BTN_LG + " w-full"} onClick={async () => { await api.paas.saveCron(app.id, { ...form, command: form.command.trim() }); notify("زمان‌بندی ذخیره شد", "clock"); setForm(null); }}>ذخیره</AsyncButton>
           </div>
@@ -135,7 +135,7 @@ function RunConsole({ app }: { app: PaasApp }) {
       {!app.liveDeployment ? <p className="text-sm text-white/55">پس از اولین استقرار موفق می‌توانید دستور اجرا کنید.</p> : <>
         <p className="text-sm text-white/60 leading-7">یک دستور را یک بار در کانتینری جدا از نسخه فعال اجرا کنید (مثلاً ساخت کاربر ادمین یا اسکریپت یک‌باره). خروجی تا ۲۴ ساعت نگه داشته می‌شود.</p>
         <form className="flex gap-2 mt-3" onSubmit={(e) => e.preventDefault()}>
-          <input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py createsuperuser --noinput" aria-label="دستور" className={INPUT + " font-mono text-left text-sm"} />
+          <input dir="ltr" value={cmd} onChange={(e) => setCmd(e.target.value)} placeholder="python manage.py createsuperuser --noinput" aria-label="دستور" className={INPUT + " font-mono text-start text-sm"} />
           <AsyncButton disabled={!cmd.trim()} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { const id = await api.paas.runJob(app.id, cmd.trim()); setOpen(id); setLive(null); setCmd(""); notify("دستور اجرا شد", "terminal"); }}><Icon name="play" size={16} />اجرا</AsyncButton>
         </form>
       </>}
@@ -143,13 +143,13 @@ function RunConsole({ app }: { app: PaasApp }) {
         <div className="grid md:grid-cols-[14rem_1fr] gap-3 mt-4">
           <ul className="space-y-1 max-h-72 overflow-y-auto">
             {app.jobs.map((j) => (
-              <li key={j.id}><button type="button" aria-pressed={open === j.id} onClick={() => { setOpen(j.id); setLive(null); }} className={"w-full text-right rounded-lg px-3 py-2 text-xs transition " + (open === j.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
+              <li key={j.id}><button type="button" aria-pressed={open === j.id} onClick={() => { setOpen(j.id); setLive(null); }} className={"w-full text-start rounded-lg px-3 py-2 text-xs transition " + (open === j.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
                 <span className="flex items-center justify-between gap-2"><Badge tone={JOB_TONE[j.status]}>{JOB_LABEL[j.status]}</Badge><span className="text-white/50">{j.kind === "release" ? "انتشار" : j.kind === "import" ? "انتقال سایت" : j.at.split(" ")[1]}</span></span>
-                <code dir="ltr" className="block truncate mt-1 text-white/70 text-right">{j.command}</code>
+                <code dir="ltr" className="block truncate mt-1 text-white/70 text-end">{j.command}</code>
               </button></li>
             ))}
           </ul>
-          <pre dir="ltr" tabIndex={0} aria-label="خروجی دستور" className="text-left text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 max-h-72 overflow-auto whitespace-pre-wrap break-all">{shown ? (shown.output || "…") + (shown.status === "running" ? "\n▍" : "") : ""}</pre>
+          <pre dir="ltr" tabIndex={0} aria-label="خروجی دستور" className="text-start text-[12px] leading-6 font-mono bg-black/40 rounded-xl p-4 max-h-72 overflow-auto whitespace-pre-wrap break-all">{shown ? (shown.output || "…") + (shown.status === "running" ? "\n▍" : "") : ""}</pre>
         </div>
       )}
     </Card>

@@ -46,7 +46,7 @@ export function BillingExtras() {
         </Card>
         <Card title="هشدار کم‌بودن موجودی" icon="bell-ring">
           <div className="flex items-center justify-between mb-4"><span className="text-sm">آستانه خودکار (۳ روز مصرف فعلی)</span><Switch on={lowForm.auto} label="آستانه خودکار" onChange={(on) => setLow({ ...lowForm, auto: on })} /></div>
-          <Field label="آستانه دستی (تومان)"><input disabled={lowForm.auto} value={lowForm.amount} onChange={(e) => setLow({ ...lowForm, amount: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="آستانه دستی (تومان)"><input disabled={lowForm.auto} value={lowForm.amount} onChange={(e) => setLow({ ...lowForm, amount: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { await billingApi.setLowCredit({ auto: lowForm.auto, amount: num(lowForm.amount) }); setLow(null); done("آستانه هشدار ذخیره شد"); }}>ذخیره</AsyncButton></div>
         </Card>
       </div>
@@ -63,8 +63,8 @@ export function BillingExtras() {
         ))}
         <div className="grid sm:grid-cols-[1fr_1fr_100px_auto_auto] gap-2 items-end p-2 mt-2">
           <Field label="سرویس"><Select label="سرویس" value={bud.service} onChange={(s) => setBud({ ...bud, service: s })} options={v.services.map((s) => ({ value: s.id, label: s.label }))} /></Field>
-          <Field label="سقف ماهانه (تومان)"><input value={bud.cap} onChange={(e) => setBud({ ...bud, cap: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-          <Field label="هشدار (٪)"><input value={bud.pct} onChange={(e) => setBud({ ...bud, pct: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="سقف ماهانه (تومان)"><input value={bud.cap} onChange={(e) => setBud({ ...bud, cap: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+          <Field label="هشدار (٪)"><input value={bud.pct} onChange={(e) => setBud({ ...bud, pct: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <label className="flex items-center gap-2 h-11 text-xs"><Switch on={bud.block} label="توقف خرید" onChange={(b) => setBud({ ...bud, block: b })} />توقف خرید</label>
           <AsyncButton onClick={async () => { await billingApi.setBudget({ service: bud.service, monthlyCap: num(bud.cap), alertPct: num(bud.pct) || 80, block: bud.block }); setBud({ ...bud, cap: "" }); done("بودجه ذخیره شد"); }}>ذخیره</AsyncButton>
         </div>
@@ -82,7 +82,7 @@ export function BillingExtras() {
         {v.wallets.length > 0 && <div className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end p-2 mt-2">
           <Field label="از"><Select label="مبدأ" value={tr.from} onChange={(f) => setTr({ ...tr, from: f })} options={walletOpts} /></Field>
           <Field label="به"><Select label="مقصد" value={tr.to} onChange={(t) => setTr({ ...tr, to: t })} options={walletOpts} /></Field>
-          <Field label="مبلغ (تومان)"><input value={tr.amount} onChange={(e) => setTr({ ...tr, amount: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="مبلغ (تومان)"><input value={tr.amount} onChange={(e) => setTr({ ...tr, amount: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <AsyncButton onClick={async () => { await billingApi.transfer(tr.from, tr.to, num(tr.amount)); setTr({ ...tr, amount: "" }); done("انتقال انجام شد"); }}>انتقال</AsyncButton>
         </div>}
         {v.transfers.length > 0 && <div className="mt-3 px-2 space-y-1 text-xs text-white/60">{v.transfers.slice(0, 8).map((t) => <div key={t.id}>{t.at}: {t.from} ← {t.to}، {toman(t.amount)}{t.note && " — " + t.note}</div>)}</div>}
@@ -105,9 +105,9 @@ export function BillingExtras() {
         {prof && <div className="grid sm:grid-cols-2 gap-4">
           <Field label="عنوان"><input value={prof.label} onChange={(e) => setProf({ ...prof, label: e.target.value })} className={INPUT} placeholder="مثلاً شرکت" /></Field>
           <Field label="نام شخص یا شرکت"><input value={prof.name} onChange={(e) => setProf({ ...prof, name: e.target.value })} className={INPUT} /></Field>
-          <Field label="کد ملی / شناسه ملی"><input value={prof.nationalId} onChange={(e) => setProf({ ...prof, nationalId: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-          <Field label="کد اقتصادی (اختیاری)"><input value={prof.economicCode} onChange={(e) => setProf({ ...prof, economicCode: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-          <Field label="کد پستی"><input value={prof.postalCode} onChange={(e) => setProf({ ...prof, postalCode: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+          <Field label="کد ملی / شناسه ملی"><input value={prof.nationalId} onChange={(e) => setProf({ ...prof, nationalId: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+          <Field label="کد اقتصادی (اختیاری)"><input value={prof.economicCode} onChange={(e) => setProf({ ...prof, economicCode: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+          <Field label="کد پستی"><input value={prof.postalCode} onChange={(e) => setProf({ ...prof, postalCode: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} /></Field>
           <label className="flex items-center gap-2 text-sm mt-6"><Switch on={prof.isDefault} label="پیش‌فرض" onChange={(d) => setProf({ ...prof, isDefault: d })} />پیش‌فرض</label>
           <Field className="sm:col-span-2" label="نشانی"><input value={prof.address} onChange={(e) => setProf({ ...prof, address: e.target.value })} className={INPUT} /></Field>
         </div>}
@@ -175,7 +175,7 @@ export function SecurityExtras() {
         <div className="mt-4 flex justify-end"><AsyncButton disabled={!x.data.twofa} confirmText={x.data.recoveryLeft ? "کدهای قبلی باطل و ۱۰ کد جدید ساخته شود؟" : undefined} onClick={async () => { setCodes(await accountApi.recoveryCodes()); notify("کدهای بازیابی ساخته شد؛ آن‌ها را جای امنی نگه دارید", "key-round"); x.reload(); }}>ساخت کدهای جدید</AsyncButton></div>
       </Card>
       <Card title="سطح حساب" icon="badge-check" action={<Badge tone="blue">{x.data.level.label}</Badge>}>
-        <dl className="space-y-3 text-sm"><div className="flex justify-between"><dt className="text-white/55">SLA دسترس‌پذیری</dt><dd>{x.data.level.sla}</dd></div><div className="flex justify-between gap-4"><dt className="text-white/55">اولویت پشتیبانی</dt><dd className="text-left">{x.data.level.support}</dd></div></dl>
+        <dl className="space-y-3 text-sm"><div className="flex justify-between"><dt className="text-white/55">SLA دسترس‌پذیری</dt><dd>{x.data.level.sla}</dd></div><div className="flex justify-between gap-4"><dt className="text-white/55">اولویت پشتیبانی</dt><dd className="text-end">{x.data.level.support}</dd></div></dl>
         <p className="text-[11px] text-white/50 mt-4">ارتقای سطح (توسعه‌دهنده، استارتاپ، سازمانی) با درخواست از پشتیبانی انجام می‌شود.</p>
       </Card>
     </>
@@ -227,7 +227,7 @@ export function TeamExtras() {
           <div className="space-y-1">{db.servers.filter((s) => s.status !== "suspended").map((s) => (
             <label key={s.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={move.servers.includes(s.id)} onChange={(e) => setMove({ ...move, servers: e.target.checked ? [...move.servers, s.id] : move.servers.filter((y) => y !== s.id) })} /> <span className="ltr">{s.name}</span></label>
           ))}</div>
-          <Field label={"برای تأیید، ایمیل عضو را بنویسید: " + (members.find((m) => m.id === move.member)?.email ?? "")}><input value={move.confirm} onChange={(e) => setMove({ ...move, confirm: e.target.value })} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label={"برای تأیید، ایمیل عضو را بنویسید: " + (members.find((m) => m.id === move.member)?.email ?? "")}><input value={move.confirm} onChange={(e) => setMove({ ...move, confirm: e.target.value })} dir="ltr" className={INPUT + " text-start"} /></Field>
         </div>}
       </Modal>
     </div>
@@ -248,12 +248,12 @@ export function AdminVpsBilling() {
   return (
     <div className="space-y-4">
       <Card title="قیمت افزونه‌های سرور ابری" icon="tag">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{Object.keys(LABELS).map((k) => <Field key={k} label={LABELS[k]}><input value={form[k] ?? ""} onChange={(e) => setP({ ...form, [k]: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>)}</div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{Object.keys(LABELS).map((k) => <Field key={k} label={LABELS[k]}><input value={form[k] ?? ""} onChange={(e) => setP({ ...form, [k]: e.target.value })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>)}</div>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { await billingApi.adminSavePrices(Object.fromEntries(Object.entries(form).map(([k, v]) => [k, num(v)])) as never); setP(null); notify("قیمت‌ها ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></div>
       </Card>
       <Card title="سقف بدهی مجاز کیف پول" icon="wallet">
         <p className="text-sm text-white/55 leading-7 mb-3">سرویس‌های ساعتی تا این مبلغ منفی شدن کیف پول ادامه می‌دهند و بعد معلق می‌شوند. صفر یعنی تعلیق به محض اتمام موجودی.</p>
-        <div className="flex gap-2"><input value={grace ?? String(x.data.policy.negativeGrace)} onChange={(e) => setGrace(e.target.value)} inputMode="numeric" dir="ltr" aria-label="سقف بدهی" className={INPUT + " text-left tabular"} />
+        <div className="flex gap-2"><input value={grace ?? String(x.data.policy.negativeGrace)} onChange={(e) => setGrace(e.target.value)} inputMode="numeric" dir="ltr" aria-label="سقف بدهی" className={INPUT + " text-start tabular"} />
           <AsyncButton onClick={async () => { await billingApi.adminSavePolicy({ negativeGrace: num(grace ?? "0") }); setGrace(null); notify("ذخیره شد"); x.reload(); }}>ذخیره</AsyncButton></div>
       </Card>
       <Card title="سطح حساب مشتری" icon="badge-check">

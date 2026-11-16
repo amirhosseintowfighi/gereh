@@ -57,7 +57,7 @@ export default async function StatusPage() {
               {r.incidents.map((i) => (
                 <li key={i.id} className={GLASS + " rounded-2xl p-5"}>
                   <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-extrabold">{i.title}</h3><span className="text-xs text-white/55">{faDateTime(i.createdAt)}</span></div>
-                  <ol className="mt-3 space-y-2 border-r border-white/10 pr-4">
+                  <ol className="mt-3 space-y-2 border-s border-white/10 ps-4">
                     {i.updates.map((u) => <li key={u.id} className="text-sm leading-7"><b>{STATUS_FA[u.status] ?? u.status}</b> <span className="text-white/60 text-xs">— {faDateTime(u.createdAt)}</span><p className="text-white/70">{u.text}</p></li>)}
                   </ol>
                 </li>

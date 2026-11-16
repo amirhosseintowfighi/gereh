@@ -33,7 +33,7 @@ export function PlanPicker({ plans, value, onChange, label }: { plans: PaasPlanR
         const on = p.id === value;
         return (
           <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => onChange(p.id)}
-            className={"text-right rounded-2xl p-4 border transition " + (on ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+            className={"text-start rounded-2xl p-4 border transition " + (on ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
             <span className="flex items-center justify-between gap-2"><b>{p.name}</b>{on && <Icon name="circle-check" size={16} className="acc" />}</span>
             <span className="block text-xs text-white/60 mt-1.5">{cpuLabel(p.cpu)} · {ramLabel(p.ramMb)}{p.diskGb ? " · " + fa(p.diskGb) + " گیگ دیسک" : ""}</span>
             <span className="block text-sm mt-2 tabular">{toman(p.price)}<span className="text-[11px] text-white/50"> / ماه</span></span>
@@ -76,16 +76,16 @@ export function EnvEditor({ rows, onChange, locked = [] }: { rows: EnvRow[]; onC
     <div className="space-y-2">
       {locked.map((l) => (
         <div key={l.key} className="flex items-center gap-2 text-sm rounded-xl bg-white/[0.03] px-3 h-11">
-          <Icon name="lock" size={14} className="text-white/50" /><span dir="ltr" className="font-mono">{l.key}</span><span className="text-[11px] text-white/50 mr-auto">{l.note}</span>
+          <Icon name="lock" size={14} className="text-white/50" /><span dir="ltr" className="font-mono">{l.key}</span><span className="text-[11px] text-white/50 ms-auto">{l.note}</span>
         </div>
       ))}
       {rows.map((r, i) => (
         <div key={i} className="grid grid-cols-[1fr_1.4fr_auto_auto] gap-2 items-center">
           <label className="sr-only" htmlFor={"env-k-" + i}>نام متغیر</label>
-          <input id={"env-k-" + i} value={r.key} disabled={r.existing} onChange={(e) => set(i, { key: e.target.value.replace(/[^A-Za-z0-9_]/g, "_") })} dir="ltr" placeholder="KEY" className={INPUT + " font-mono text-left disabled:opacity-70"} />
+          <input id={"env-k-" + i} value={r.key} disabled={r.existing} onChange={(e) => set(i, { key: e.target.value.replace(/[^A-Za-z0-9_]/g, "_") })} dir="ltr" placeholder="KEY" className={INPUT + " font-mono text-start disabled:opacity-70"} />
           <label className="sr-only" htmlFor={"env-v-" + i}>مقدار {r.key}</label>
           <input id={"env-v-" + i} value={r.value} type={r.secret ? "password" : "text"} autoComplete="off" onChange={(e) => set(i, { value: e.target.value })} dir="ltr"
-            placeholder={r.secret && r.existing ? "•••••• (بدون تغییر)" : "value"} className={INPUT + " font-mono text-left"} />
+            placeholder={r.secret && r.existing ? "•••••• (بدون تغییر)" : "value"} className={INPUT + " font-mono text-start"} />
           <button type="button" aria-pressed={r.secret} aria-label={"محرمانه: " + (r.key || "متغیر")} title="محرمانه (مقدار دیگر نمایش داده نمی‌شود)" onClick={() => set(i, { secret: !r.secret })}
             className={"w-11 h-11 rounded-xl grid place-items-center border " + (r.secret ? "bg-amber-400/10 border-amber-300/40 text-amber-200" : "border-white/[0.12] text-white/50 hover:text-white")}><Icon name={r.secret ? "lock" : "eye"} size={15} /></button>
           <button type="button" aria-label={"حذف " + (r.key || "متغیر")} onClick={() => onChange(rows.filter((_, j) => j !== i))} className="w-11 h-11 rounded-xl grid place-items-center border border-white/[0.12] text-white/50 hover:text-rose-300"><Icon name="trash-2" size={15} /></button>
@@ -98,7 +98,7 @@ export function EnvEditor({ rows, onChange, locked = [] }: { rows: EnvRow[]; onC
       {paste && (
         <div className="space-y-2">
           <label className="sr-only" htmlFor="dotenv">محتوای ‎.env</label>
-          <textarea id="dotenv" rows={5} value={text} onChange={(e) => setText(e.target.value)} dir="ltr" placeholder={"DATABASE_HOST=...\nAPI_SECRET=..."} className={INPUT + " h-auto py-2.5 font-mono text-left text-xs leading-6"} />
+          <textarea id="dotenv" rows={5} value={text} onChange={(e) => setText(e.target.value)} dir="ltr" placeholder={"DATABASE_HOST=...\nAPI_SECRET=..."} className={INPUT + " h-auto py-2.5 font-mono text-start text-xs leading-6"} />
           <button type="button" onClick={() => { const add = parseDotenv(text); const keep = rows.filter((r) => !add.some((a) => a.key === r.key)); onChange([...keep, ...add]); setText(""); setPaste(false); }} className={BTN_G + BTN_SM}>افزودن {fa(parseDotenv(text).length)} متغیر</button>
         </div>
       )}

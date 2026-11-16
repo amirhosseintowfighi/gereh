@@ -49,7 +49,7 @@ export function StackTemplates() {
         {STACK_GALLERY.map((g) => (
           <li key={g.id}>
             <button type="button" onClick={() => { setYaml(g.yaml); setNotes([]); }} aria-pressed={yaml === g.yaml}
-              className={"w-full h-full text-right rounded-2xl border p-4 transition flex flex-col " + (yaml === g.yaml ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.035] border-white/[0.08] hover:border-white/25")}>
+              className={"w-full h-full text-start rounded-2xl border p-4 transition flex flex-col " + (yaml === g.yaml ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.035] border-white/[0.08] hover:border-white/25")}>
               <span className="flex items-center gap-2"><Icon name={g.icon} size={16} className="acc" /><b className="text-sm">{g.name}</b></span>
               <span className="text-[11px] text-white/55 leading-5 mt-2">{g.desc}</span>
             </button>
@@ -61,7 +61,7 @@ export function StackTemplates() {
           <button type="button" onClick={() => setCompose("")} className={BTN_G + BTN_SM}><Icon name="upload" size={14} />از docker-compose</button>
           <button type="button" onClick={() => { setYaml(BLANK); setNotes([]); }} className={BTN_G + BTN_SM}><Icon name="file-plus" size={14} />خالی</button>
         </div>}>
-          <textarea value={yaml} onChange={(e) => setYaml(e.target.value)} dir="ltr" rows={24} spellCheck={false} aria-label="قالب YAML" className={TEXTAREA + " font-mono text-xs leading-6 text-left"} />
+          <textarea value={yaml} onChange={(e) => setYaml(e.target.value)} dir="ltr" rows={24} spellCheck={false} aria-label="قالب YAML" className={TEXTAREA + " font-mono text-xs leading-6 text-start"} />
           <p className="text-[11px] text-white/50 mt-2 leading-6">
             متغیرها: <code dir="ltr">$APP_NAME</code>، <code dir="ltr">$APP_URL</code>، <code dir="ltr">$RANDOM_STRING</code> (با <code dir="ltr">_برچسب</code> بین اپ‌ها مشترک)، <code dir="ltr">$RANDOM_HEX</code>، <code dir="ltr">$RANDOM_BASE64</code> و <code dir="ltr">$DB_&lt;id&gt;_URL</code> (یا <code dir="ltr">_HOST</code>، <code dir="ltr">_PORT</code>، <code dir="ltr">_USER</code>، <code dir="ltr">_PASSWORD</code>، <code dir="ltr">_NAME</code>).
           </p>
@@ -70,7 +70,7 @@ export function StackTemplates() {
         <div className="xl:sticky xl:top-24 space-y-4">
           <Card title="پیش‌نمایش" icon="layers">
             {parsed.error ? <p role="alert" className="text-sm text-rose-300 leading-7">{parsed.error}</p> : plan && <>
-              <Field label="نام پایه" error={nameError ? "«" + nameError + "» نام معتبری نیست" : undefined}><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " font-mono text-left"} /></Field>
+              <Field label="نام پایه" error={nameError ? "«" + nameError + "» نام معتبری نیست" : undefined}><input value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} dir="ltr" className={INPUT + " font-mono text-start"} /></Field>
               <ul className="mt-4 space-y-2 text-sm">
                 {plan.apps.map((a, i) => (
                   <li key={a.suffix || "main"} className="rounded-xl bg-white/[0.04] p-3">
@@ -96,7 +96,7 @@ export function StackTemplates() {
       {compose !== null && (
         <Modal open onClose={() => setCompose(null)} title="تبدیل docker-compose" icon="upload" size="max-w-2xl">
           <p className="text-sm text-white/65 leading-7">محتوای docker-compose.yml را بچسبانید؛ سرویس‌های postgres، mysql، mariadb، mongo و redis به پایگاه داده مدیریت‌شده تبدیل می‌شوند.</p>
-          <textarea value={compose} onChange={(e) => setCompose(e.target.value)} dir="ltr" rows={14} aria-label="docker-compose.yml" className={TEXTAREA + " font-mono text-xs mt-3 text-left"} />
+          <textarea value={compose} onChange={(e) => setCompose(e.target.value)} dir="ltr" rows={14} aria-label="docker-compose.yml" className={TEXTAREA + " font-mono text-xs mt-3 text-start"} />
           <AsyncButton className={BTN_P + BTN_LG + " w-full mt-3"} onClick={async () => { const r = stackFromCompose(compose); setYaml(r.yaml); setNotes(r.notes); setCompose(null); }}><Icon name="refresh-cw" size={16} />تبدیل</AsyncButton>
         </Modal>
       )}

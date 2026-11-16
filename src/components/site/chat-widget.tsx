@@ -95,7 +95,7 @@ export function ChatWidget() {
   return (
     <>
       {open && (
-        <section role="dialog" aria-label="گفتگو با پشتیبانی" className="fixed z-40 right-3 sm:right-6 w-[min(380px,calc(100vw-1.5rem))] h-[min(560px,calc(100dvh-7rem))] rounded-3xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.14] shadow-2xl flex flex-col pop-in"
+        <section role="dialog" aria-label="گفتگو با پشتیبانی" className="fixed z-40 start-3 sm:start-6 w-[min(380px,calc(100vw-1.5rem))] h-[min(560px,calc(100dvh-7rem))] rounded-3xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.14] shadow-2xl flex flex-col pop-in"
           style={{ bottom: "calc(88px + env(safe-area-inset-bottom, 0px))" }}>
           <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.08]">
             <div>
@@ -112,7 +112,7 @@ export function ChatWidget() {
               <p className="text-sm text-white/65 leading-7">سؤالتان را بنویسید؛ کارشناسان ما همین‌جا جواب می‌دهند.</p>
               {!session && <>
                 <label className="block text-xs text-white/70">نام<input required minLength={2} maxLength={60} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={INPUT + " mt-1.5"} autoComplete="name" /></label>
-                <label className="block text-xs text-white/70">ایمیل (اختیاری، برای دریافت متن گفتگو)<input type="email" maxLength={120} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" className={INPUT + " mt-1.5 text-left"} autoComplete="email" /></label>
+                <label className="block text-xs text-white/70">ایمیل (اختیاری، برای دریافت متن گفتگو)<input type="email" maxLength={120} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} dir="ltr" className={INPUT + " mt-1.5 text-start"} autoComplete="email" /></label>
               </>}
               <label className="block text-xs text-white/70">پیام<textarea required maxLength={2000} rows={4} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} className={INPUT + " mt-1.5 h-auto py-2.5 resize-none leading-7"} /></label>
               {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
@@ -124,7 +124,7 @@ export function ChatWidget() {
                 {msgs.map((m) => m.from === "system" ? (
                   <li key={m.id} className="text-center text-[11px] text-white/55 leading-6 px-4">{inline(m.text, "m" + m.id)}</li>
                 ) : (
-                  <li key={m.id} className={"max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-7 whitespace-pre-wrap break-words " + (m.from === "visitor" ? "mr-auto bg-white/[0.07] rounded-br-md" : "ml-auto bg-sky-400/15 border border-sky-300/20 rounded-bl-md")}>
+                  <li key={m.id} className={"max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-7 whitespace-pre-wrap break-words " + (m.from === "visitor" ? "ms-auto bg-white/[0.07] rounded-es-md" : "me-auto bg-sky-400/15 border border-sky-300/20 rounded-ee-md")}>
                     {m.from === "staff" && <span className="block text-[11px] text-sky-200/80 mb-0.5">{m.author}</span>}
                     {m.from === "staff" ? inline(m.text, "m" + m.id) : m.text}
                     <span className="block text-[10px] text-white/45 mt-1">{m.at.split(" ").pop()}</span>
@@ -145,10 +145,10 @@ export function ChatWidget() {
         </section>
       )}
       <button type="button" onClick={() => { setOpen((o) => !o); setUnseen(0); }} aria-expanded={open} aria-label={open ? "بستن گفتگو با پشتیبانی" : "گفتگو با پشتیبانی" + (unseen ? "، " + unseen.toLocaleString("fa-IR") + " پیام جدید" : "")}
-        className="fixed z-40 right-3 sm:right-6 w-14 h-14 rounded-2xl acc-bg grid place-items-center shadow-xl hover:scale-105 active:scale-95 transition"
+        className="fixed z-40 start-3 sm:start-6 w-14 h-14 rounded-2xl acc-bg grid place-items-center shadow-xl hover:scale-105 active:scale-95 transition"
         style={{ bottom: "calc(20px + env(safe-area-inset-bottom, 0px))" }}>
         <Icon name={open ? "x" : "message-circle"} size={24} />
-        {unseen > 0 && !open && <span aria-hidden="true" className="absolute -top-1 -left-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold grid place-items-center">{unseen.toLocaleString("fa-IR")}</span>}
+        {unseen > 0 && !open && <span aria-hidden="true" className="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold grid place-items-center">{unseen.toLocaleString("fa-IR")}</span>}
       </button>
     </>
   );

@@ -121,7 +121,7 @@ export function WebChat() {
           <ul className="space-y-1 max-h-[60vh] overflow-y-auto">
             {list.map((c) => (
               <li key={c.id} className={"group flex items-center gap-1 rounded-lg " + (cur?.id === c.id ? "bg-white/[0.08]" : "hover:bg-white/[0.04]")}>
-                <button type="button" onClick={() => void open(c.id)} className="flex-1 min-w-0 text-right px-2.5 py-2"><span className="block text-xs font-bold truncate">{c.title}</span><span className="block text-[10px] text-white/50 truncate" dir="ltr" style={{ textAlign: "right" }}>{c.model}</span></button>
+                <button type="button" onClick={() => void open(c.id)} className="flex-1 min-w-0 text-start px-2.5 py-2"><span className="block text-xs font-bold truncate">{c.title}</span><span className="block text-[10px] text-white/50 truncate" dir="ltr" style={{ textAlign: "right" }}>{c.model}</span></button>
                 <AsyncButton danger className="w-8 h-8 shrink-0 grid place-items-center rounded-lg text-white/65 hover:bg-rose-400/10 hover:text-rose-300 opacity-60 group-hover:opacity-100 focus-visible:opacity-100 transition" title="حذف گفتگو" confirmText={"گفتگوی «" + c.title + "» حذف شود؟"} onClick={async () => { await api.ai.chatDelete(c.id); if (cur?.id === c.id) { setCur(null); setMsgs([]); } await load(); }}><Icon name="trash-2" size={14} /></AsyncButton>
               </li>
             ))}
@@ -297,7 +297,7 @@ export function RequestLogs() {
         {!data ? <p className="text-sm text-white/55">در حال بارگذاری…</p> : data.rows.length === 0 ? <Empty icon="activity" title="درخواستی با این فیلترها نیست" /> : (
           <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="درخواست‌ها">
             <table className="w-full text-xs min-w-[760px]">
-              <thead><tr className="text-white/55 text-xs text-right"><th scope="col" className="text-right font-medium p-2">زمان</th><th scope="col" className="text-right font-medium p-2">کلید</th><th scope="col" className="text-right font-medium p-2">مدل</th><th scope="col" className="text-right font-medium p-2">وضعیت</th><th scope="col" className="text-right font-medium p-2">حجم ورودی درخواست / خروجی (توکن)</th><th scope="col" className="text-right font-medium p-2">هزینه</th><th scope="col" className="text-right font-medium p-2">تأخیر</th><th scope="col" className="text-right font-medium p-2">پایان</th><th scope="col" className="text-right font-medium p-2" /></tr></thead>
+              <thead><tr className="text-white/55 text-xs text-start"><th scope="col" className="text-start font-medium p-2">زمان</th><th scope="col" className="text-start font-medium p-2">کلید</th><th scope="col" className="text-start font-medium p-2">مدل</th><th scope="col" className="text-start font-medium p-2">وضعیت</th><th scope="col" className="text-start font-medium p-2">حجم ورودی درخواست / خروجی (توکن)</th><th scope="col" className="text-start font-medium p-2">هزینه</th><th scope="col" className="text-start font-medium p-2">تأخیر</th><th scope="col" className="text-start font-medium p-2">پایان</th><th scope="col" className="text-start font-medium p-2" /></tr></thead>
               <tbody>{data.rows.map((r) => { const [label, tone] = STATUS[r.status] ?? [r.status, "gray"]; return (
                 <tr key={r.id} className="border-t border-white/[0.06]">
                   <td className="p-2 whitespace-nowrap">{r.at}</td><td className="p-2">{r.keyName}</td>

@@ -53,11 +53,11 @@ export function AdminReports() {
           <Card title="جزئیات ماهانه" icon="scroll-text" pad="p-0">
             <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="جدول جزئیات ماهانه">
               <table className="w-full text-sm whitespace-nowrap">
-                <thead className="text-white/55 text-xs"><tr>{["ماه", "صورتحساب", "فروش خالص", "مالیات", "جمع", "بازگشت وجه", "پورسانت", "شارژ کیف پول", "پرداخت آنلاین", "مشتری جدید"].map((h) => <th key={h} scope="col" className="text-right font-medium p-3">{h}</th>)}</tr></thead>
+                <thead className="text-white/55 text-xs"><tr>{["ماه", "صورتحساب", "فروش خالص", "مالیات", "جمع", "بازگشت وجه", "پورسانت", "شارژ کیف پول", "پرداخت آنلاین", "مشتری جدید"].map((h) => <th key={h} scope="col" className="text-start font-medium p-3">{h}</th>)}</tr></thead>
                 <tbody className="tabular">
                   {[...f.months].reverse().map((m) => (
                     <tr key={m.key} className="border-t border-white/[0.06]">
-                      <th scope="row" className="text-right p-3 font-bold">{m.month}</th><td className="p-3">{fa(m.invoices)}</td><td className="p-3">{fa(m.net)}</td><td className="p-3">{fa(m.vat)}</td><td className="p-3 font-bold">{fa(m.gross)}</td>
+                      <th scope="row" className="text-start p-3 font-bold">{m.month}</th><td className="p-3">{fa(m.invoices)}</td><td className="p-3">{fa(m.net)}</td><td className="p-3">{fa(m.vat)}</td><td className="p-3 font-bold">{fa(m.gross)}</td>
                       <td className="p-3">{fa(m.refunds)}</td><td className="p-3">{fa(m.commissions)}</td><td className="p-3">{fa(m.topups)}</td><td className="p-3">{fa(m.online)}</td><td className="p-3">{fa(m.newCustomers)}</td>
                     </tr>
                   ))}
@@ -77,7 +77,7 @@ export function AdminReports() {
             </Card>
             <Card title="مشتریان برتر" icon="star" pad="p-3 sm:p-4">
               {f.topCustomers.length === 0 ? <Empty icon="users" title="—" /> : <ol className="space-y-1">{f.topCustomers.map((c, i) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-white/[0.03]"><span className="min-w-0 text-sm"><span className="text-white/50 ml-2 tabular">{fa(i + 1)}</span>{c.name}</span><span className="text-xs tabular text-white/70 shrink-0">{mil(c.amount)} م</span></li>
+                <li key={c.id} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-white/[0.03]"><span className="min-w-0 text-sm"><span className="text-white/50 me-2 tabular">{fa(i + 1)}</span>{c.name}</span><span className="text-xs tabular text-white/70 shrink-0">{mil(c.amount)} م</span></li>
               ))}</ol>}
             </Card>
             <Card title="درگاه‌های پرداخت" icon="wallet" pad="p-3 sm:p-4">
@@ -91,10 +91,10 @@ export function AdminReports() {
             {s.agents.length === 0 ? <div className="p-6"><Empty icon="message-circle" title="پاسخی در این بازه ثبت نشده" /></div> : (
               <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="جدول عملکرد کارشناسان">
                 <table className="w-full text-sm whitespace-nowrap">
-                  <thead className="text-white/55 text-xs"><tr>{["کارشناس", "پاسخ‌ها", "تیکت‌ها", "اولین پاسخ", "میانگین اولین پاسخ", "در زمان هدف"].map((h) => <th key={h} scope="col" className="text-right font-medium p-3">{h}</th>)}</tr></thead>
+                  <thead className="text-white/55 text-xs"><tr>{["کارشناس", "پاسخ‌ها", "تیکت‌ها", "اولین پاسخ", "میانگین اولین پاسخ", "در زمان هدف"].map((h) => <th key={h} scope="col" className="text-start font-medium p-3">{h}</th>)}</tr></thead>
                   <tbody className="tabular">{s.agents.map((a) => (
                     <tr key={a.agent} className="border-t border-white/[0.06]">
-                      <th scope="row" className="text-right p-3 font-bold">{a.agent}{a.ai && <span className="mr-2"><Badge tone="violet">AI</Badge></span>}</th><td className="p-3">{fa(a.replies)}</td><td className="p-3">{fa(a.tickets)}</td><td className="p-3">{fa(a.firstResponses)}</td>
+                      <th scope="row" className="text-start p-3 font-bold">{a.agent}{a.ai && <span className="ms-2"><Badge tone="violet">AI</Badge></span>}</th><td className="p-3">{fa(a.replies)}</td><td className="p-3">{fa(a.tickets)}</td><td className="p-3">{fa(a.firstResponses)}</td>
                       <td className="p-3">{a.firstResponses ? dur(a.avgFirstMin) : "—"}</td><td className="p-3">{a.firstResponses ? fa(Math.round((a.withinSla / a.firstResponses) * 100)) + "٪" : "—"}</td>
                     </tr>
                   ))}</tbody>

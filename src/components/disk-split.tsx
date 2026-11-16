@@ -32,10 +32,10 @@ export function DiskLayoutEditor({ allowance, sizes, onChange, max = 4, current 
             <input value={String(gb)} onChange={(e) => set(i, num(e.target.value))} onBlur={() => set(i, snap(i, gb))} inputMode="numeric" dir="ltr" role="spinbutton"
               aria-valuemin={DISK_MIN_GB} aria-valuemax={allowance} aria-valuenow={gb} aria-label={"اندازه دیسک " + fa(i + 1) + " (گیگابایت، گام " + fa(DISK_STEP_GB) + ")"}
               onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); set(i, snap(i, gb + (e.key === "ArrowUp" ? DISK_STEP_GB : -DISK_STEP_GB))); } }}
-              className={INPUT_BASE + " h-9 w-20 text-left tabular text-sm"} />
+              className={INPUT_BASE + " h-9 w-20 text-start tabular text-sm"} />
             <IconBtn icon="plus" label={"افزایش دیسک " + fa(i + 1)} onClick={() => set(i, snap(i, gb + DISK_STEP_GB))} />
             <span className="text-xs text-white/50 min-w-0">گیگابایت{i === 0 && " · دیسک اصلی"}</span>
-            {i > 0 && <IconBtn icon="x" label={"حذف دیسک " + fa(i + 1)} className="hover:text-rose-300 mr-auto" onClick={() => onChange(sizes.filter((_, j) => j !== i))} />}
+            {i > 0 && <IconBtn icon="x" label={"حذف دیسک " + fa(i + 1)} className="hover:text-rose-300 ms-auto" onClick={() => onChange(sizes.filter((_, j) => j !== i))} />}
           </div>
         ))}
       </div>

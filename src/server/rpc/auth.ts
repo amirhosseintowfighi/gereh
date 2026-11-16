@@ -1,12 +1,12 @@
 import "server-only";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, gt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { EMAIL_RE, PHONE_RE, strength, toEnDigits } from "@/lib/format";
 import { verifyTotp } from "@/lib/totp";
 import { redeemRecoveryCode } from "../account-extras";
 import { checkOtp, clearRateLimit, createSession, destroySession, issueOtp, rateLimit } from "../auth";
 import { actor, method, needStaff, type Ctx } from "../ctx";
-import { sessions, users } from "../db/schema";
+import { otpCodes, sessions, users } from "../db/schema";
 import { sendEmail, sendOtpSms } from "../messaging";
 import { hashPassword, verifyPassword } from "../password";
 import { getSettings } from "../state";
@@ -16,6 +16,9 @@ const str = (max = 200) => z.string().max(max);
 const refCode = () => randomSecret(8, "ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 /** the UI shows a TOTP field when it sees this exact message */
 export const TWOFA_REQUIRED = "TWOFA_REQUIRED";
+/** temporary passwords live in otp_codes under this key (the table is keyed by text), next to the SMS codes */
+const resetKey = (userId: string) => "reset:" + userId;
+const RESET_TTL_MS = 30 * 60_000;
 
 async function startSession(ctx: Ctx, user: typeof users.$inferSelect, how: string) {
   await createSession(ctx.db, user.id, { ip: ctx.ip, device: ctx.device });
@@ -30,15 +33,26 @@ export const authRpc = {
     await rateLimit(ctx.db, "login:ip:" + ctx.ip, 30, 600);
     await rateLimit(ctx.db, "login:id:" + id, 8, 900);
     const [user] = await ctx.db.select().from(users).where(or(eq(sql`lower(${users.email})`, id), eq(users.phone, id))).limit(1);
-    if (!(await verifyPassword(password, user?.passwordHash))) fail("ایمیل، موبایل یا رمز عبور درست نیست.", 401);
+    let temp: string | null = null; // the hash of a temporary password from «فراموشی رمز», when that is what was typed
+    if (!(await verifyPassword(password, user?.passwordHash))) {
+      const [r] = user ? await ctx.db.select().from(otpCodes).where(and(eq(otpCodes.phone, resetKey(user.id)), gt(otpCodes.expiresAt, new Date()))) : [];
+      if (!r || !(await verifyPassword(password, r.codeHash))) fail("ایمیل، موبایل یا رمز عبور درست نیست.", 401);
+      temp = r!.codeHash;
+    }
     if (user!.status === "suspended" && user!.role !== "admin") fail("حساب شما معلق است؛ با پشتیبانی تماس بگیرید.", 403);
     if (user!.twofaSecret) {
       if (!code) fail(TWOFA_REQUIRED, 401);
       // a one-time recovery code (XXXX-XXXX) stands in for the app code
       if (!(await verifyTotp(user!.twofaSecret, toEnDigits(code!))) && !(await redeemRecoveryCode(ctx.db, user!.id, code!))) fail("کد ورود دومرحله‌ای درست نیست.", 401);
     }
+    if (temp) {
+      // only now, with the mailbox (and 2FA) proven, does the temporary password replace the old one and sign other devices out
+      await ctx.db.update(users).set({ passwordHash: temp }).where(eq(users.id, user!.id));
+      await ctx.db.delete(sessions).where(eq(sessions.userId, user!.id));
+      await ctx.db.delete(otpCodes).where(eq(otpCodes.phone, resetKey(user!.id)));
+    }
     await clearRateLimit(ctx.db, "login:id:" + id);
-    return startSession(ctx, user!, "رمز عبور");
+    return startSession(ctx, user!, temp ? "رمز موقت" : "رمز عبور");
   }),
 
   "auth.sendOtp": method(z.tuple([str(20)]), async (ctx, [raw]) => {
@@ -90,11 +104,14 @@ export const authRpc = {
     await rateLimit(ctx.db, "forgot:ip:" + ctx.ip, 5, 3600);
     const [user] = await ctx.db.select().from(users).where(eq(sql`lower(${users.email})`, email)).limit(1);
     if (user) {
-      // a single-use password: the user signs in with it and changes it in the panel
+      // a temporary password, valid for 30 minutes. The current password and sessions stay as they are until someone
+      // signs in with it: otherwise anyone who knows an email address could lock its owner out of the account
+      // per account as well as per IP; answered like any other request, so the limit does not reveal that the account exists
+      try { await rateLimit(ctx.db, "forgot:id:" + user.id, 3, 3600); } catch { return true; }
       const temp = randomSecret(12, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789");
-      await ctx.db.update(users).set({ passwordHash: await hashPassword(temp) }).where(eq(users.id, user.id));
-      await ctx.db.delete(sessions).where(eq(sessions.userId, user.id));
-      await sendEmail(user.email, "بازیابی رمز عبور گره", "رمز موقت شما: " + temp + "\nپس از ورود، از بخش تنظیمات حساب رمز را تغییر دهید. اگر این درخواست از طرف شما نبوده، با پشتیبانی تماس بگیرید.");
+      const row = { phone: resetKey(user.id), codeHash: await hashPassword(temp), attempts: 0, expiresAt: new Date(Date.now() + RESET_TTL_MS) };
+      await ctx.db.insert(otpCodes).values(row).onConflictDoUpdate({ target: otpCodes.phone, set: row });
+      await sendEmail(user.email, "بازیابی رمز عبور گره", "رمز موقت شما: " + temp + "\nاین رمز ۳۰ دقیقه معتبر است و رمز فعلی شما تا زمان ورود با آن تغییر نمی‌کند.\nپس از ورود، از بخش تنظیمات حساب رمز را تغییر دهید. اگر این درخواست از طرف شما نبوده، با پشتیبانی تماس بگیرید.");
     }
     return true; // same answer either way
   }),

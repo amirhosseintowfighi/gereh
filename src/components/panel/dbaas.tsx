@@ -50,7 +50,7 @@ export function DbUsers({ d }: { d: PaasDb }) {
           ))}
         </ul>
         <div className="flex gap-2 mt-3">
-          <input value={newDb} onChange={(e) => setNewDb(e.target.value.toLowerCase().trim())} dir="ltr" placeholder="analytics" aria-label={"نام " + noun + " جدید"} className={INPUT + " text-left font-mono"} />
+          <input value={newDb} onChange={(e) => setNewDb(e.target.value.toLowerCase().trim())} dir="ltr" placeholder="analytics" aria-label={"نام " + noun + " جدید"} className={INPUT + " text-start font-mono"} />
           <AsyncButton disabled={!newDb} className={BTN_P + BTN_MD + " shrink-0"} onClick={async () => { await api.dbaas.createDatabase(d.id, newDb); setNewDb(""); notify("ساخته شد", "database"); }}><Icon name="plus" size={16} />ساخت</AsyncButton>
         </div>
       </Card>
@@ -61,7 +61,7 @@ export function DbUsers({ d }: { d: PaasDb }) {
           </ul>
         )}
         <div className="mt-4 pt-4 border-t border-white/[0.08] space-y-3">
-          <Field label="کاربر جدید"><input value={user} onChange={(e) => setUser(e.target.value.toLowerCase().trim())} dir="ltr" placeholder="reporter" className={INPUT + " text-left font-mono"} /></Field>
+          <Field label="کاربر جدید"><input value={user} onChange={(e) => setUser(e.target.value.toLowerCase().trim())} dir="ltr" placeholder="reporter" className={INPUT + " text-start font-mono"} /></Field>
           {all.map((db) => (
             <div key={db} className="flex items-center justify-between gap-3 text-sm"><span dir="ltr" className="font-mono text-xs">{db}</span>
               <Select label={"دسترسی به " + db} value={grants[db] ?? ""} onChange={(v) => setGrants((g) => ({ ...g, [db]: v as DbAccess | "" }))} options={ACCESS} className="w-44" /></div>
@@ -147,7 +147,7 @@ export function DbTuning({ d }: { d: PaasDb }) {
             {defs.map((p) => (
               <Field key={p.key} label={p.label} hint={p.options ? undefined : "پیش‌فرض " + paramDefault(p, ram) + " · بازه " + p.min + " تا " + paramMax(p, ram) + (p.unit ? " " + p.unit : "")}>
                 {p.options ? <Select label={p.label} ltr value={vals[p.key] ?? p.options[0]} onChange={(v) => setVals((x) => ({ ...x, [p.key]: v }))} options={p.options} />
-                  : <input dir="ltr" inputMode="numeric" value={vals[p.key] ?? ""} placeholder={paramDefault(p, ram)} onChange={(e) => setVals((x) => { const n = { ...x }; if (e.target.value.trim()) n[p.key] = e.target.value.trim(); else delete n[p.key]; return n; })} className={INPUT + " text-left font-mono"} />}
+                  : <input dir="ltr" inputMode="numeric" value={vals[p.key] ?? ""} placeholder={paramDefault(p, ram)} onChange={(e) => setVals((x) => { const n = { ...x }; if (e.target.value.trim()) n[p.key] = e.target.value.trim(); else delete n[p.key]; return n; })} className={INPUT + " text-start font-mono"} />}
               </Field>
             ))}
           </div>
@@ -222,13 +222,13 @@ export function DbInspector({ d }: { d: PaasDb }) {
             <AsyncButton className={BTN_P + BTN_SM} onClick={() => run(async () => { setTable(""); setGrid((await api.dbaas.inspect(d.id, { op: "query", db, sql })).grid ?? null); })}><Icon name="play" size={14} />اجرا</AsyncButton></div>
         </Card>}
         {mongo && table && <Card pad="p-3">
-          <div className="flex gap-2"><input value={filter} onChange={(e) => setFilter(e.target.value)} dir="ltr" aria-label="فیلتر JSON" className={INPUT + " text-left font-mono text-xs"} />
+          <div className="flex gap-2"><input value={filter} onChange={(e) => setFilter(e.target.value)} dir="ltr" aria-label="فیلتر JSON" className={INPUT + " text-start font-mono text-xs"} />
             <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} onClick={() => open(table)}>جست‌وجو</AsyncButton></div>
         </Card>}
         {error && <p role="alert" className="text-sm text-rose-300 whitespace-pre-wrap" dir="auto">{error}</p>}
         {grid && <Card pad="p-0">
           <div className="overflow-x-auto max-h-[32rem]"><table dir="ltr" className="text-xs w-full">
-            <thead className="sticky top-0 bg-[#10131c]"><tr>{grid.columns.map((c) => <th key={c} className="text-left font-mono p-2 border-b border-white/[0.08]">{c}</th>)}</tr></thead>
+            <thead className="sticky top-0 bg-[#10131c]"><tr>{grid.columns.map((c) => <th key={c} className="text-start font-mono p-2 border-b border-white/[0.08]">{c}</th>)}</tr></thead>
             <tbody>{grid.rows.map((r, i) => <tr key={i} className="odd:bg-white/[0.02]">{r.map((v, k) => <td key={k} className="p-2 font-mono whitespace-nowrap max-w-[24rem] truncate">{v === null ? <span className="text-white/35">NULL</span> : v}</td>)}</tr>)}</tbody>
           </table></div>
           <Pager page={page} hasMore={grid.hasMore} onPage={table ? (p) => open(table, p) : undefined} count={grid.rows.length} />

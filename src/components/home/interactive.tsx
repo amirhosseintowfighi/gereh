@@ -22,7 +22,7 @@ export function DomainInput({ value, onChange, onSearch, loading = false, big = 
       className="flex items-center gap-2 rounded-2xl bg-black/20 border border-white/15 p-1.5 focus-within:border-white/40 focus-within:bg-black/25 transition">
       <span className="hidden sm:grid w-10 place-items-center text-white/50"><Icon name="globe" size={20} /></span>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} dir="ltr" placeholder={PLACEHOLDERS[ph]} aria-label="نام دامنه" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-        className={"flex-1 min-w-0 bg-transparent outline-none placeholder:text-white/30 text-left px-3 " + (big ? "h-12 text-lg" : "h-11")} />
+        className={"flex-1 min-w-0 bg-transparent outline-none placeholder:text-white/30 text-start px-3 " + (big ? "h-12 text-lg" : "h-11")} />
       <button type="submit" disabled={loading} className={BTN_P + " px-5 sm:px-7 " + (big ? "h-12" : "h-11")}>
         <Icon name={loading ? "loader-circle" : "search"} size={18} className={loading ? "animate-spin" : ""} /> <span>بررسی</span>
       </button>
@@ -90,7 +90,7 @@ export function Terminal() {
           {done && (
             <div className="line-in mt-2">
               <div className="text-white"><span className="text-emerald-300">●</span> server ready in <span className="text-[#9cc9ff]">54s</span>  ip 185.143.232.17</div>
-              <div className="text-white/90 mt-1"><span className="text-[#9cc9ff]">~</span> <span className="text-white/55">$</span> ssh root@185.143.232.17<span className="caret ml-1" /></div>
+              <div className="text-white/90 mt-1"><span className="text-[#9cc9ff]">~</span> <span className="text-white/55">$</span> ssh root@185.143.232.17<span className="caret ms-1" /></div>
             </div>
           )}
         </div>
@@ -151,7 +151,7 @@ export function QuickStart() {
               <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="پیکربندی آماده">
                 {PRESETS.map((p) => (
                   <button type="button" role="radio" key={p.id} onClick={() => setPreset(p.id)} aria-checked={preset === p.id}
-                    className={"rounded-xl p-3 text-right border transition " + (preset === p.id ? "bg-white/[0.1] border-white/30" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
+                    className={"rounded-xl p-3 text-start border transition " + (preset === p.id ? "bg-white/[0.1] border-white/30" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
                     <div className="flex items-center justify-between">
                       <span className="font-extrabold text-sm">{p.name}</span>
                       <span className={"w-4 h-4 rounded-full border-2 grid place-items-center " + (preset === p.id ? "border-white" : "border-white/25")}>{preset === p.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}</span>
@@ -253,14 +253,14 @@ export function Hardware() {
           <div className="text-center text-xs text-white/55 mt-4 h-5">{hover !== null ? "هسته " + fa(hover + 1) + " از " + fa(c.cores) + "، اختصاصی و بدون اشتراک" : "نشانگر را روی هسته‌ها ببرید"}</div>
         </div>
         <div>
-          <div className="mono text-xs text-white/55 ltr text-right">{c.name}</div>
+          <div className="mono text-xs text-white/55 ltr text-end">{c.name}</div>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-9 mt-6">
             {specs.map((s) => (
               <div key={s.l} className="flex flex-col-reverse">
                 <dt className="text-sm text-white/55">{s.l}</dt>
                 <dd>
                   <div className="flex items-baseline gap-1.5">
-                    <Num value={seen ? s.v : 0} d={s.d || 0} className="text-4xl sm:text-5xl font-black tracking-tight silver tabular" />
+                    <Num value={seen ? s.v : 0} d={s.d || 0} className="text-4xl sm:text-5xl font-black silver tabular" />
                     {s.u && <span className="text-xs text-white/55 ltr">{s.u}</span>}
                   </div>
                   <div className="hairline my-3 opacity-60" />
@@ -337,7 +337,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {locs.map((l) => (
                 <button type="button" key={l.id} onClick={() => setLoc(l.id)} aria-pressed={loc === l.id}
-                  className={"rounded-2xl p-3 text-right border transition " + (loc === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.04] border-white/10 hover:bg-white/10")}>
+                  className={"rounded-2xl p-3 text-start border transition " + (loc === l.id ? "bg-white/[0.16] border-white/40" : "bg-white/[0.04] border-white/10 hover:bg-white/10")}>
                   <div className="font-bold text-sm">{l.label}</div>
                   <div className="text-[11px] text-white/65 mt-1 flex items-center gap-1"><Icon name="wifi" size={12} /> پینگ {fa(l.ping)}ms{l.foreign ? "، +۱۲٪" : ""}</div>
                 </button>
@@ -393,7 +393,7 @@ export function Builder({ id = "builder" }: { id?: string }) {
             </ul>
           </div>
           <div className="mt-6 pt-5 border-t border-white/15">
-            <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black tracking-tight silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
+            <div className="flex items-baseline gap-2"><Num value={final} className="text-4xl font-black silver tabular" /><span className="text-sm text-white/55">تومان / ماه</span></div>
             <div className="text-[11px] text-white/55 mt-2">معادل ساعتی حدود {toman(Math.round(final / 720 / 10) * 10)}</div>
           </div>
           {split && <div className="mt-4 text-xs text-white/60">دیسک‌ها: <span className="tabular ltr inline-block">{split.join(" + ")}</span> گیگابایت</div>}
@@ -420,7 +420,7 @@ export function Network() {
             <dl className="mt-4 space-y-1.5 text-xs">
               <div className="flex justify-between gap-2"><dt className="text-white/55">پینگ تقریبی از تهران</dt><dd className="tabular">{fa(l.ping)} ms</dd></div>
               {l.speed > 0 && <div className="flex justify-between gap-2"><dt className="text-white/55">پورت شبکه</dt><dd className="tabular">{fa(l.speed)} Mbps</dd></div>}
-              {l.foreign && <div className="text-white/55">دیتاسنتر خارج از ایران</div>}
+              {l.foreign && <div className="text-white/55"><dt className="sr-only">موقعیت</dt><dd>دیتاسنتر خارج از ایران</dd></div>}
             </dl>
           </li>
         ))}
@@ -444,7 +444,7 @@ export function Steps() {
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <SectionHead title="از انتخاب تا اجرا، کمتر از پنج دقیقه" />
       <ol className="relative grid md:grid-cols-3 gap-4">
-        <div aria-hidden="true" className="hidden md:block absolute top-[38px] right-[16%] left-[16%] h-px bg-white/15">
+        <div aria-hidden="true" className="hidden md:block absolute top-[38px] start-[16%] end-[16%] h-px bg-white/15">
           <div className="h-full acc-bg transition-all duration-700" style={{ width: (act / 2) * 100 + "%" }} />
         </div>
         {STEPS.map((s, i) => (
@@ -470,7 +470,7 @@ export function Faq({ items, id }: { items: [string, string][]; id?: string }) {
       {items.map(([q, a], i) => (
         <div key={q} className={"rounded-2xl overflow-hidden border backdrop-blur-md transition-colors " + (open === i ? "bg-white/[0.12] border-white/30" : "bg-white/[0.06] border-white/15")}>
           <h3>
-            <button type="button" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i} aria-controls={"faq-" + i + (id || "")} className="w-full flex items-center justify-between gap-4 p-5 text-right font-bold">
+            <button type="button" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i} aria-controls={"faq-" + i + (id || "")} className="w-full flex items-center justify-between gap-4 p-5 text-start font-bold">
               {q}
               <span className={"w-8 h-8 shrink-0 rounded-full grid place-items-center transition duration-300 " + (open === i ? "acc-bg rotate-180" : "bg-white/10")}><Icon name="chevron-down" size={17} /></span>
             </button>
@@ -503,7 +503,7 @@ export function Newsletter() {
       <label htmlFor="nl-email" className="block text-sm text-white/70 mb-3">تخفیف‌ها و خبرهای فنی را ماهی یک بار بگیرید</label>
       <div className="flex gap-2 rounded-2xl bg-black/25 border border-white/20 p-1.5">
         <input id="nl-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" placeholder="name@example.com" aria-invalid={!!err} aria-describedby={err ? "nl-err" : undefined}
-          className="flex-1 min-w-0 bg-transparent outline-none px-3 text-left placeholder:text-white/35" />
+          className="flex-1 min-w-0 bg-transparent outline-none px-3 text-start placeholder:text-white/35" />
         <button type="submit" disabled={busy} className={BTN_P + " px-5 h-11 text-sm"}><Icon name="send" size={16} /> عضویت</button>
       </div>
       {err && <div id="nl-err" role="alert" className="mt-2 text-xs text-rose-200 flex items-center justify-center gap-1.5"><Icon name="circle-alert" size={14} />{err}</div>}

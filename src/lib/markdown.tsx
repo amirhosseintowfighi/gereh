@@ -108,14 +108,14 @@ export function Markdown({ src, className = "" }: { src: string; className?: str
             return <H key={k} id={b.id} className={cls + " font-black text-white scroll-mt-28"}>{inline(b.text, k)}</H>;
           }
           case "p": return <p key={k}>{inline(b.text, k)}</p>;
-          case "ul": return <ul key={k} className="list-disc pr-6 space-y-1.5 marker:text-white/40">{b.items.map((it, j) => <li key={j}>{inline(it, k + j)}</li>)}</ul>;
-          case "ol": return <ol key={k} className="list-decimal pr-6 space-y-1.5 marker:text-white/50">{b.items.map((it, j) => <li key={j}>{inline(it, k + j)}</li>)}</ol>;
-          case "quote": return <blockquote key={k} className="border-r-2 border-[var(--ice)] pr-4 text-white/70">{inline(b.text, k)}</blockquote>;
+          case "ul": return <ul key={k} className="list-disc ps-6 space-y-1.5 marker:text-white/40">{b.items.map((it, j) => <li key={j}>{inline(it, k + j)}</li>)}</ul>;
+          case "ol": return <ol key={k} className="list-decimal ps-6 space-y-1.5 marker:text-white/50">{b.items.map((it, j) => <li key={j}>{inline(it, k + j)}</li>)}</ol>;
+          case "quote": return <blockquote key={k} className="border-s-2 border-[var(--ice)] ps-4 text-white/70">{inline(b.text, k)}</blockquote>;
           case "code": return <CodeBlock key={k} code={b.code} label={"نمونه کد" + (b.lang ? " " + b.lang : "")} title={b.lang || undefined} />;
           case "table": return (
             <div key={k} tabIndex={0} role="region" aria-label="جدول" className="overflow-x-auto rounded-xl border border-white/[0.08]">
               <table className="w-full text-sm">
-                <thead className="bg-white/[0.04]"><tr>{b.head.map((c, j) => <th key={j} scope="col" className="text-right font-bold text-white p-3 whitespace-nowrap">{inline(c, k + "h" + j)}</th>)}</tr></thead>
+                <thead className="bg-white/[0.04]"><tr>{b.head.map((c, j) => <th key={j} scope="col" className="text-start font-bold text-white p-3 whitespace-nowrap">{inline(c, k + "h" + j)}</th>)}</tr></thead>
                 <tbody>{b.rows.map((r, j) => <tr key={j} className="border-t border-white/[0.06]">{r.map((c, x) => <td key={x} className="p-3 align-top min-w-[7.5rem] [&_code]:whitespace-nowrap">{inline(c, k + "r" + j + x)}</td>)}</tr>)}</tbody>
               </table>
             </div>

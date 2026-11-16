@@ -128,7 +128,7 @@ export function LayoutCard({ s }: { s: Server }) {
           <div className="leading-7">دیسکی کوچک‌تر یا حذف می‌شود، پس سرور با این چیدمان از نو ساخته می‌شود: همه داده‌های همه دیسک‌ها پاک و سیستم‌عامل انتخابی نصب می‌شود. IP سرور تا جای ممکن حفظ می‌شود و اگر تغییر کند خبر می‌دهیم. این کار چند دقیقه طول می‌کشد. پیش از ادامه بکاپ بگیرید.</div></div>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="سیستم‌عامل پس از تغییر"><Select value={os} onChange={setOs} label="سیستم‌عامل" ltr options={[{ value: "", label: "انتخاب کنید" }, ...oses.map((o) => ({ value: o.name, label: o.name }))]} /></Field>
-          <Field label={"برای تأیید، hostname را بنویسید: " + s.hostname}><input value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
+          <Field label={"برای تأیید، hostname را بنویسید: " + s.hostname}><input value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-start mono"} /></Field>
         </div>
       </div>}
       <div className="mt-5 flex justify-end gap-2">
@@ -206,10 +206,10 @@ export function VzBackupsCard({ s }: { s: Server }) {
         : x.data.list.length === 0 ? <Empty icon="archive" title="بکاپی ساخته نشده" />
         : x.data.list.map((b) => (
           <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-            <div><div className="text-sm mono ltr text-right">{b.file}</div><div className="text-[11px] text-white/55">{b.date}{b.sizeMb ? "، " + fa(b.sizeMb) + " مگابایت" : ""}</div></div>
+            <div><div className="text-sm mono ltr text-end">{b.file}</div><div className="text-[11px] text-white/55">{b.date}{b.sizeMb ? "، " + fa(b.sizeMb) + " مگابایت" : ""}</div></div>
             {restore === b.id ? (
               <div className="flex flex-wrap items-center gap-2">
-                <input value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" placeholder={s.hostname} aria-label={"برای تأیید بازیابی، hostname را بنویسید: " + s.hostname} className={INPUT_BASE + " h-9 text-left text-xs mono w-48"} />
+                <input value={confirm} onChange={(e) => setConfirm(e.target.value)} dir="ltr" placeholder={s.hostname} aria-label={"برای تأیید بازیابی، hostname را بنویسید: " + s.hostname} className={INPUT_BASE + " h-9 text-start text-xs mono w-48"} />
                 <AsyncButton className={BTN_G + BTN_SM} danger disabled={confirm.trim().toLowerCase() !== s.hostname.toLowerCase()} onClick={async () => { await panelApi.vzRestore(s.id, b.id, confirm); setRestore(null); setConfirm(""); notify("بازیابی شروع شد", "refresh-cw"); }}>بازیابی</AsyncButton>
                 <button type="button" onClick={() => setRestore(null)} className={BTN_G + BTN_SM}>انصراف</button>
               </div>
@@ -229,12 +229,12 @@ export function ProcessManager({ s }: { s: Server }) {
     <Card title="پردازه‌ها" icon="square-terminal" pad="p-3 sm:p-4" action={on ? <IconBtn icon="refresh-cw" label="به‌روزرسانی پردازه‌ها" onClick={() => x.reload()} /> : null}>
       {!on ? <Empty icon="power" title="سرور خاموش است" /> : x.error ? <Empty icon="circle-alert" title="بارگذاری نشد" text={x.error} /> : !x.data ? <Loading /> : x.data.length === 0 ? <Empty icon="square-terminal" title="پردازه‌ای گزارش نشد" /> : (
         <div className="overflow-x-auto"><table className="w-full text-sm min-w-[520px]">
-          <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-2">PID</th><th scope="col" className="text-right font-medium p-2">کاربر</th><th scope="col" className="text-right font-medium p-2">CPU ٪</th><th scope="col" className="text-right font-medium p-2">حافظه ٪</th><th scope="col" className="text-right font-medium p-2">فرمان</th><th><span className="sr-only-focusable">پایان</span></th></tr></thead>
+          <thead><tr className="text-xs text-white/55"><th scope="col" className="text-start font-medium p-2">PID</th><th scope="col" className="text-start font-medium p-2">کاربر</th><th scope="col" className="text-start font-medium p-2">CPU ٪</th><th scope="col" className="text-start font-medium p-2">حافظه ٪</th><th scope="col" className="text-start font-medium p-2">فرمان</th><th><span className="sr-only-focusable">پایان</span></th></tr></thead>
           <tbody>{x.data.map((p) => (
             <tr key={p.pid} className="border-t border-white/[0.06]">
               <td className="p-2 mono">{p.pid}</td><td className="p-2 mono text-white/70">{p.user}</td><td className="p-2 tabular">{fa(p.cpu, 1)}</td><td className="p-2 tabular">{fa(p.mem, 1)}</td>
-              <td className="p-2 mono text-xs ltr text-right text-white/70 max-w-[260px] truncate" title={p.command}>{p.command}</td>
-              <td className="p-2 text-left">{p.pid > 1 && <IconBtn icon="ban" label={"پایان دادن به " + p.pid} className="hover:text-rose-300" onClick={async () => { if (await confirm("پردازه " + p.pid + " (" + p.command.slice(0, 40) + ") پایان یابد؟", { danger: true, ok: "پایان" })) { await panelApi.killProcesses(s.id, [p.pid]); notify("پردازه پایان یافت"); x.reload(); } }} />}</td>
+              <td className="p-2 mono text-xs ltr text-end text-white/70 max-w-[260px] truncate" title={p.command}>{p.command}</td>
+              <td className="p-2 text-end">{p.pid > 1 && <IconBtn icon="ban" label={"پایان دادن به " + p.pid} className="hover:text-rose-300" onClick={async () => { if (await confirm("پردازه " + p.pid + " (" + p.command.slice(0, 40) + ") پایان یابد؟", { danger: true, ok: "پایان" })) { await panelApi.killProcesses(s.id, [p.pid]); notify("پردازه پایان یافت"); x.reload(); } }} />}</td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -295,8 +295,8 @@ export function Ipv6Card({ s }: { s: Server }) {
     <Card title="IPv6" icon="globe" pad="p-3 sm:p-4">
       {x.error ? <Empty icon="circle-alert" title="بارگذاری نشد" text={x.error} /> : !x.data ? <Loading /> : x.data.length === 0 ? <Empty icon="globe" title="IPv6 ندارید" text="برای دریافت IPv6 تیکت ثبت کنید." /> : x.data.map((a) => (
         <div key={a} className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-center p-2.5">
-          <span className="mono text-xs ltr text-right break-all">{a}</span>
-          <input value={ptr[a] ?? ""} onChange={(e) => setPtr((p) => ({ ...p, [a]: e.target.value }))} dir="ltr" placeholder="PTR، مثلاً mail.example.com" aria-label={"PTR برای " + a} className={INPUT_BASE + " h-9 text-left text-xs"} />
+          <span className="mono text-xs ltr text-end break-all">{a}</span>
+          <input value={ptr[a] ?? ""} onChange={(e) => setPtr((p) => ({ ...p, [a]: e.target.value }))} dir="ltr" placeholder="PTR، مثلاً mail.example.com" aria-label={"PTR برای " + a} className={INPUT_BASE + " h-9 text-start text-xs"} />
           <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await panelApi.setPtr6(s.id, a, (ptr[a] ?? "").trim().toLowerCase()); notify("PTR ذخیره شد"); }}>ذخیره PTR</AsyncButton>
         </div>
       ))}

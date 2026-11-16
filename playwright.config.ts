@@ -26,7 +26,8 @@ export default defineConfig({
   webServer: {
     command: `npx next start -p ${PORT}`,
     // E2E=1 enables POST /api/test (reset) and GET /api/test (outbox); demo seed + payment simulator
-    env: { E2E: "1", SEED_DEMO: "1", PAY_SIMULATOR: "1" },
+    // `next start` is a production server, which refuses to seal secrets without APP_SECRET: a fixed test-only value
+    env: { E2E: "1", SEED_DEMO: "1", PAY_SIMULATOR: "1", APP_SECRET: process.env.APP_SECRET || "e2e-only-secret-0123456789abcdef0123456789" },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

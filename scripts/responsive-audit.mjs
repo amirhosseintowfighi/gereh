@@ -46,7 +46,7 @@ const PUBLIC = [
 // an unknown URL must show the 404 page
 const EXPECT_404 = ["/not-a-page"];
 const PANEL = (ids) => [
-  "/panel", "/panel/account", "/panel/affiliate", "/panel/ai", "/panel/apps", "/panel/apps/new", "/panel/apps/stack", "/panel/apps/templates",
+  "/panel", "/panel/account", "/panel/advisor", "/panel/affiliate", "/panel/ai", "/panel/assistant", "/panel/db-ask", "/panel/monitor", "/panel/apps", "/panel/apps/new", "/panel/apps/stack", "/panel/apps/templates",
   "/panel/apps/" + ids.app, "/panel/billing", "/panel/build", "/panel/billing/" + ids.invoice + "/print", "/panel/databases", "/panel/databases/" + ids.db,
   "/panel/devops", "/panel/domains", "/panel/domains/" + ids.domain, "/panel/geo", "/panel/geo/" + ids.geo, "/panel/hosting", "/panel/hosting/" + ids.hosting,
   "/panel/inquiry", "/panel/keys", "/panel/mail", "/panel/mail/" + ids.mail, "/panel/servers", "/panel/servers/" + ids.server,
@@ -54,7 +54,7 @@ const PANEL = (ids) => [
 ];
 const ADMIN = (ids) => [
   "/admin", "/admin/ai", "/admin/announcements", "/admin/audit", "/admin/billing", "/admin/blog", "/admin/chats", "/admin/coupons", "/admin/devops",
-  "/admin/domains", "/admin/geo", "/admin/infra", "/admin/inquiry", "/admin/mail", "/admin/orders", "/admin/paas", "/admin/products", "/admin/reports", "/admin/services",
+  "/admin/domains", "/admin/geo", "/admin/infra", "/admin/inquiry", "/admin/mail", "/admin/monitor", "/admin/orders", "/admin/paas", "/admin/products", "/admin/reports", "/admin/services",
   "/admin/settings", "/admin/status", "/admin/storage", "/admin/tickets", "/admin/tickets/" + ids.ticket, "/admin/users", "/admin/users/" + ids.user, "/admin/virtualizor", "/admin/vps-billing",
 ];
 

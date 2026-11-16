@@ -42,7 +42,7 @@ function Hero() {
             <Icon name="sparkles" size={14} className="text-violet-300 shrink-0" /><span className="min-w-0 truncate"><b>{BUILDER.name}:</b> ایده را بنویسید، AI می‌سازد و منتشر می‌کند</span><Icon name="chevron-left" size={14} className="shrink-0" />
           </Link>
           <p className="hero-in d2 mt-5 text-sm font-bold acc">سرعت ابر، استواری زمین</p>
-          <h1 className="hero-in d2 hero-title mt-3 text-[2.35rem] sm:text-[4.4rem] font-black leading-[1.25] sm:leading-[1.15] tracking-[-0.03em]">
+          <h1 className="hero-in d2 hero-title mt-3 text-[2.35rem] sm:text-[4.4rem] font-black leading-[1.25] sm:leading-[1.15]">
             زیرساختی که کسب‌وکارتان را آنلاین نگه می‌دارد
           </h1>
           <p className="hero-in d3 mt-6 text-white/65 max-w-lg text-base sm:text-lg leading-8">
@@ -54,9 +54,9 @@ function Hero() {
           </div>
           <dl className="hero-in d4 mt-12 grid grid-cols-3 max-w-lg">
             {metrics.map((m, i) => (
-              <div key={m.l} className={"pl-4 flex flex-col-reverse " + (i ? "border-r border-white/10 pr-4" : "")}>
+              <div key={m.l} className={"pe-4 flex flex-col-reverse " + (i ? "border-s border-white/10 ps-4" : "")}>
                 <dt className="text-[11px] sm:text-xs text-white/55 mt-1.5 leading-5">{m.l}</dt>
-                <dd className="text-2xl sm:text-3xl font-black tracking-tight silver tabular"><Counter to={m.v} d={m.d || 0} suffix={m.s} /></dd>
+                <dd className="text-2xl sm:text-3xl font-black silver tabular"><Counter to={m.v} d={m.d || 0} suffix={m.s} /></dd>
               </div>
             ))}
           </dl>
@@ -181,7 +181,7 @@ function DevopsTeaser() {
         style={{ background: "radial-gradient(ellipse 70% 100% at 100% 0%, rgba(125,180,255,.16), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015))" }}>
         <div>
           <p className="text-xs text-white/60 flex items-center gap-1.5"><Icon name="sparkles" size={14} className="acc" />خدمات دواپس برای شرکت‌ها و استارتاپ‌ها</p>
-          <h2 id="devops-teaser" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35] tracking-tight">تیم دواپس شما، بدون استخدام</h2>
+          <h2 id="devops-teaser" className="mt-4 text-[1.8rem] sm:text-5xl font-black leading-[1.35]">تیم دواپس شما، بدون استخدام</h2>
           <p className="mt-4 text-white/70 leading-8">زیرساختتان را می‌سازیم، خودکار می‌کنیم و شبانه‌روز نگه می‌داریم؛ روی گره یا هر زیرساخت دیگری. قرارداد ماهانه بدون حداقل مدت، یا پروژه با قیمت ثابت.</p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3">
             <Link href="/devops" className={BTN_P + " px-6 py-3"}><Icon name="rocket" size={18} />آشنایی با خدمات دواپس</Link>
@@ -204,7 +204,7 @@ function Cta() {
         <GirihField fade={false} />
         <div className="relative">
           <div className="mx-auto w-fit"><Logo size={56} /></div>
-          <h2 className="mt-6 text-[1.9rem] sm:text-6xl font-black leading-[1.3] tracking-tight hero-title">اولین سرورتان را امروز بسازید</h2>
+          <h2 className="mt-6 text-[1.9rem] sm:text-6xl font-black leading-[1.3] hero-title">اولین سرورتان را امروز بسازید</h2>
           <p className="mt-4 text-white/75 leading-8">۷ روز ضمانت بازگشت وجه. بدون قرارداد، بدون هزینه پنهان.</p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <a href="#builder" className={BTN + " bg-white text-slate-900 px-7 py-3.5 hover:bg-white/90 shadow-xl"}><Icon name="rocket" size={18} /> ساخت سرور</a>

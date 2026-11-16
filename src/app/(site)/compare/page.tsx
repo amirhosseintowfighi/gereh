@@ -59,9 +59,9 @@ export default function ComparePage() {
         <div className={GLASS + " rounded-2xl overflow-x-auto max-sm:hidden"} tabIndex={0} role="region" aria-label="جدول مقایسه">
           <table className="w-full text-sm min-w-[640px]">
             <caption className="sr-only">مقایسه ویژگی‌های گره با هاستینگ سنتی ایرانی و ابرهای خارجی</caption>
-            <thead><tr className="bg-white/[0.04]"><th scope="col" className="text-right p-4 font-bold">ویژگی</th>{COLS.map((c, i) => <th key={c} scope="col" className={"p-4 text-center font-bold " + (i === 0 ? "acc" : "text-white/75")}>{c}</th>)}</tr></thead>
+            <thead><tr className="bg-white/[0.04]"><th scope="col" className="text-start p-4 font-bold">ویژگی</th>{COLS.map((c, i) => <th key={c} scope="col" className={"p-4 text-center font-bold " + (i === 0 ? "acc" : "text-white/75")}>{c}</th>)}</tr></thead>
             <tbody>{ROWS.map(([f, ...vals]) => (
-              <tr key={f} className="border-t border-white/[0.06]"><th scope="row" className="text-right p-4 font-medium leading-7">{f}</th>{vals.map((v, i) => <td key={i} className={"p-4 text-center " + (i === 0 ? "bg-sky-400/[0.04]" : "")}><Mark v={v} /></td>)}</tr>
+              <tr key={f} className="border-t border-white/[0.06]"><th scope="row" className="text-start p-4 font-medium leading-7">{f}</th>{vals.map((v, i) => <td key={i} className={"p-4 text-center " + (i === 0 ? "bg-sky-400/[0.04]" : "")}><Mark v={v} /></td>)}</tr>
             ))}</tbody>
           </table>
         </div>

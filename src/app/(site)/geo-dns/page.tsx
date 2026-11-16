@@ -42,13 +42,13 @@ export default async function GeoPage() {
       <section className="relative overflow-hidden">
         <GirihField />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 grid lg:grid-cols-[1.15fr_1fr] gap-10 items-center hero-in">
-          <div className="text-center lg:text-right">
+          <div className="text-center lg:text-start">
             <nav aria-label="مسیر صفحه" className="flex items-center justify-center lg:justify-start gap-2 text-xs text-white/55">
               <Link href="/" className="hover:text-white flex items-center gap-1"><Icon name="house" size={13} />خانه</Link>
               <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">Geo DNS</span>
             </nav>
             <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="radar" size={14} className="acc" />Geo DNS · دسترسی کاربران داخل + حفظ جایگاه در گوگل</p>
-            <h1 className="hero-title mt-6 text-[2rem] sm:text-6xl font-black leading-[1.35] tracking-tight">قطعی اینترنت،<br />رتبه گوگل شما را نبرد</h1>
+            <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">قطعی اینترنت،<br />رتبه گوگل شما را نبرد</h1>
             <p className="mt-6 text-white/70 max-w-xl mx-auto lg:mx-0 leading-8 sm:text-lg">بازدیدکننده ایرانی به سرور ایران، گوگل و کاربران خارج به سرور خارج. وقتی اینترنت بین‌الملل قطع می‌شود، سایت شما برای هر دو طرف باز می‌ماند؛ همگام‌سازی فایل‌ها و پایگاه داده هم با ما.</p>
             <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
               <Link href={"/panel/geo?new=1" as never} className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="radar" size={18} />فعال‌سازی برای دامنه من</Link>
@@ -85,8 +85,8 @@ export default async function GeoPage() {
         <ul className="grid lg:grid-cols-3 gap-4">
           {plans.map((p, i) => (
             <li key={p.id} className={GLASS + " rounded-[1.75rem] p-7 flex flex-col relative " + (i === 1 ? "ring-1 ring-sky-300/40" : "")}>
-              {i === 1 && <span className="absolute -top-3 right-7 text-xs font-bold px-3 py-1 rounded-full acc-bg">پیشنهاد ما</span>}
-              {i === 2 && <span className="absolute -top-3 right-7 text-xs font-bold px-3 py-1 rounded-full bg-emerald-400 text-black">بی‌دردسر</span>}
+              {i === 1 && <span className="absolute -top-3 start-7 text-xs font-bold px-3 py-1 rounded-full acc-bg">پیشنهاد ما</span>}
+              {i === 2 && <span className="absolute -top-3 start-7 text-xs font-bold px-3 py-1 rounded-full bg-emerald-400 text-black">بی‌دردسر</span>}
               <h3 className="text-xl font-black">{p.name}</h3>
               <p className="mt-4"><span className="text-3xl font-black tabular">{fa(p.price / 1000)}</span> <span className="text-sm text-white/60">هزار تومان / ماه</span></p>
               <ul className="mt-6 space-y-3 text-sm flex-1">

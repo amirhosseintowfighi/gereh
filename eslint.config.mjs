@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  // the VS Code extension and the CLI are plain Node programs outside the Next app; an extension must be CommonJS
+  { files: ["integrations/**/*.js"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

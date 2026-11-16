@@ -75,7 +75,7 @@ function PlanRow({ p }: { p: ReturnType<typeof useDB>["storage"]["plans"][number
         <Switch on={p.active} onChange={async (v) => { await api.storage.adminPlan(p.id, { active: v }); notify("ذخیره شد", "check"); }} label={"فعال بودن " + p.name} /></div>
       <div className="grid grid-cols-2 sm:grid-cols-[1fr_9rem_auto] gap-2 items-center">
         <input aria-label={"نام " + p.id} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={INPUT} />
-        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-left tabular"} />
+        <input aria-label={"قیمت " + p.id} value={f.price} inputMode="numeric" onChange={(e) => setF({ ...f, price: e.target.value })} dir="ltr" className={INPUT + " text-start tabular"} />
         <AsyncButton disabled={!dirty} className={BTN_G + BTN_MD} onClick={async () => { await api.storage.adminPlan(p.id, { name: f.name, price: num(f.price) }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
       </div>
     </li>

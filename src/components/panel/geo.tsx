@@ -57,17 +57,17 @@ function NewZone({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div role="radiogroup" aria-label="پلن" className="grid sm:grid-cols-3 gap-2">
           {plans.map((p) => (
             <button key={p.id} type="button" role="radio" aria-checked={f.planId === p.id} onClick={() => setF({ ...f, planId: p.id })}
-              className={"text-right rounded-2xl p-4 border transition " + (f.planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
+              className={"text-start rounded-2xl p-4 border transition " + (f.planId === p.id ? "bg-sky-400/10 border-sky-300/50" : "bg-white/[0.03] border-white/[0.1] hover:border-white/25")}>
               <b>{p.name}</b>
               <span className="block text-sm tabular mt-1">{toman(p.price)}<span className="text-[11px] text-white/50"> / ماه</span></span>
               <span className="block text-[11px] text-white/55 mt-2 leading-5">تا {fa(p.records)} رکورد{p.healthChecks ? " · سوییچ خودکار هنگام قطعی" : ""}{p.sync !== "none" ? " · " + SYNC_LABEL[p.sync] : ""}</span>
             </button>
           ))}
         </div>
-        <Field label="دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="example.ir" className={INPUT + " text-left"} /></Field>
+        <Field label="دامنه"><input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="example.ir" className={INPUT + " text-start"} /></Field>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="IP سرور ایران" hint="بازدیدکنندگان داخل ایران"><input value={f.iran} onChange={(e) => setF({ ...f, iran: e.target.value.trim() })} dir="ltr" placeholder="185.x.x.x" className={INPUT + " text-left font-mono"} /></Field>
-          <Field label="IP سرور خارج" hint={plan?.sync === "full" ? "اگر ندارید خالی نگذارید؛ تیم ما پس از خرید با شما هماهنگ می‌کند" : "بقیه دنیا و موتورهای جست‌وجو"}><input value={f.world} onChange={(e) => setF({ ...f, world: e.target.value.trim() })} dir="ltr" placeholder="94.x.x.x" className={INPUT + " text-left font-mono"} /></Field>
+          <Field label="IP سرور ایران" hint="بازدیدکنندگان داخل ایران"><input value={f.iran} onChange={(e) => setF({ ...f, iran: e.target.value.trim() })} dir="ltr" placeholder="185.x.x.x" className={INPUT + " text-start font-mono"} /></Field>
+          <Field label="IP سرور خارج" hint={plan?.sync === "full" ? "اگر ندارید خالی نگذارید؛ تیم ما پس از خرید با شما هماهنگ می‌کند" : "بقیه دنیا و موتورهای جست‌وجو"}><input value={f.world} onChange={(e) => setF({ ...f, world: e.target.value.trim() })} dir="ltr" placeholder="94.x.x.x" className={INPUT + " text-start font-mono"} /></Field>
         </div>
         <p className="text-[11px] text-white/55 leading-6">رکوردهای ریشه (@) و www با همین دو IP ساخته می‌شوند؛ بقیه رکوردها (ایمیل، زیردامنه‌ها…) را بعداً اضافه کنید. ماه اول از کیف پول کسر می‌شود و سرویس پس از تغییر NS دامنه فعال می‌شود.</p>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/[0.08]">
@@ -171,8 +171,8 @@ function Records({ z }: { z: GeoZone }) {
                 </span>
               </div>
               <div className={"grid gap-2 mt-2 text-xs " + (geo ? "sm:grid-cols-2" : "")}>
-                <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">{geo ? "ایران" : "مقدار"}{r.type === "MX" ? " (اولویت " + fa(r.priority ?? 10) + ")" : ""}</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-right">{r.iran}</span>{geo && plan?.healthChecks && <span className="block mt-1"><Up v={r.iranUp} /></span>}</div>
-                {geo && <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">خارج و موتورهای جست‌وجو</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-right">{r.world}</span>{plan?.healthChecks && <span className="block mt-1"><Up v={r.worldUp} /></span>}</div>}
+                <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">{geo ? "ایران" : "مقدار"}{r.type === "MX" ? " (اولویت " + fa(r.priority ?? 10) + ")" : ""}</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-end">{r.iran}</span>{geo && plan?.healthChecks && <span className="block mt-1"><Up v={r.iranUp} /></span>}</div>
+                {geo && <div className="rounded-xl bg-white/[0.03] px-3 py-2 min-w-0"><span className="text-white/50">خارج و موتورهای جست‌وجو</span><span dir="ltr" className="block font-mono mt-0.5 break-all text-end">{r.world}</span>{plan?.healthChecks && <span className="block mt-1"><Up v={r.worldUp} /></span>}</div>}
               </div>
             </li>
           ); })}
@@ -194,14 +194,14 @@ function RecordModal({ z, edit, onClose }: { z: GeoZone; edit: { id: number | nu
     <Modal open={!!edit} onClose={onClose} title={edit?.id ? "ویرایش رکورد" : "رکورد جدید"} icon="network">
       <div className="space-y-4">
         <div className="grid grid-cols-[1fr_7rem] gap-3">
-          <Field label="نام" hint={"@ یعنی خود " + z.domain}><input value={r.name} onChange={(e) => setR({ ...r, name: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="www" className={INPUT + " text-left"} /></Field>
+          <Field label="نام" hint={"@ یعنی خود " + z.domain}><input value={r.name} onChange={(e) => setR({ ...r, name: e.target.value.trim().toLowerCase() })} dir="ltr" placeholder="www" className={INPUT + " text-start"} /></Field>
           <Field label="نوع"><Select label="نوع رکورد" value={r.type} onChange={(v) => setR({ ...r, type: v as GeoRecordType, world: GEO_TYPES.find((x) => x.id === v)!.geo ? r.world : "" })} options={GEO_TYPES.map((x) => ({ value: x.id, label: x.label }))} /></Field>
         </div>
-        <Field label={t.geo ? "مقدار برای ایران" : "مقدار"} hint={t.hint}><input value={r.iran} onChange={(e) => setR({ ...r, iran: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>
-        {t.geo && <Field label="مقدار برای خارج و موتورهای جست‌وجو" hint="خالی = برای همه یکسان (بدون تفکیک)"><input value={r.world} onChange={(e) => setR({ ...r, world: e.target.value })} dir="ltr" className={INPUT + " text-left font-mono"} /></Field>}
+        <Field label={t.geo ? "مقدار برای ایران" : "مقدار"} hint={t.hint}><input value={r.iran} onChange={(e) => setR({ ...r, iran: e.target.value })} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>
+        {t.geo && <Field label="مقدار برای خارج و موتورهای جست‌وجو" hint="خالی = برای همه یکسان (بدون تفکیک)"><input value={r.world} onChange={(e) => setR({ ...r, world: e.target.value })} dir="ltr" className={INPUT + " text-start font-mono"} /></Field>}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="TTL (ثانیه)" hint="برای رکوردهای تفکیک‌شده ۶۰ پیشنهاد می‌شود"><input value={r.ttl} inputMode="numeric" onChange={(e) => setR({ ...r, ttl: Number(e.target.value.replace(/\D/g, "")) || 60 })} dir="ltr" className={INPUT + " text-left"} /></Field>
-          {r.type === "MX" && <Field label="اولویت"><input value={r.priority ?? 10} inputMode="numeric" onChange={(e) => setR({ ...r, priority: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-left"} /></Field>}
+          <Field label="TTL (ثانیه)" hint="برای رکوردهای تفکیک‌شده ۶۰ پیشنهاد می‌شود"><input value={r.ttl} inputMode="numeric" onChange={(e) => setR({ ...r, ttl: Number(e.target.value.replace(/\D/g, "")) || 60 })} dir="ltr" className={INPUT + " text-start"} /></Field>
+          {r.type === "MX" && <Field label="اولویت"><input value={r.priority ?? 10} inputMode="numeric" onChange={(e) => setR({ ...r, priority: Number(e.target.value.replace(/\D/g, "")) || 0 })} dir="ltr" className={INPUT + " text-start"} /></Field>}
         </div>
         <AsyncButton onClick={async () => {
           if (edit?.id) await api.geo.updateRecord(z.id, edit.id, r); else await api.geo.addRecord(z.id, r);
@@ -223,7 +223,7 @@ function TestTool({ z }: { z: GeoZone }) {
       <ul className="space-y-2">
         {rows.map((r) => (
           <li key={r.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4">
-            <b dir="ltr" className="text-sm block text-right break-all">{(r.name === "@" ? "" : r.name + ".") + z.domain} <span className="text-white/50 font-normal">{r.type}</span></b>
+            <b dir="ltr" className="text-sm block text-end break-all">{(r.name === "@" ? "" : r.name + ".") + z.domain} <span className="text-white/50 font-normal">{r.type}</span></b>
             <div className="grid sm:grid-cols-2 gap-2 mt-3 text-sm">
               <div className="flex items-center justify-between gap-2 rounded-xl bg-black/25 px-3 py-2"><span className="text-white/60 text-xs">🇮🇷 کاربر ایران</span><code dir="ltr" className="font-mono break-all">{answerFor(r, "iran", opts)}</code></div>
               <div className="flex items-center justify-between gap-2 rounded-xl bg-black/25 px-3 py-2"><span className="text-white/60 text-xs">🌍 خارج و گوگل</span><code dir="ltr" className="font-mono break-all">{answerFor(r, "world", opts)}</code></div>
@@ -251,14 +251,14 @@ function Settings({ z }: { z: GeoZone }) {
       <Card title="تمدید و سلامت" icon="settings-2">
         <div className="flex items-center justify-between gap-3 text-sm"><span>تمدید خودکار ماهانه از کیف پول<span className="block text-[11px] text-white/50">اعتبار فعلی تا {z.paidUntil}</span></span><Switch on={z.autoRenew} onChange={async (v) => { await api.geo.settings(z.id, { autoRenew: v }); notify(v ? "تمدید خودکار روشن شد" : "تمدید خودکار خاموش شد", "refresh-cw"); }} label="تمدید خودکار" /></div>
         {plan?.healthChecks && <div className="mt-5">
-          <Field label="مسیر بررسی سلامت" hint="نام‌سرورها هر چند ثانیه این مسیر را با HTTPS روی هر دو سرور باز می‌کنند؛ اگر پاسخ نیاید، ترافیک به سرور دیگر می‌رود."><input value={path} onChange={(e) => setPath(e.target.value.trim())} dir="ltr" className={INPUT + " text-left"} /></Field>
+          <Field label="مسیر بررسی سلامت" hint="نام‌سرورها هر چند ثانیه این مسیر را با HTTPS روی هر دو سرور باز می‌کنند؛ اگر پاسخ نیاید، ترافیک به سرور دیگر می‌رود."><input value={path} onChange={(e) => setPath(e.target.value.trim())} dir="ltr" className={INPUT + " text-start"} /></Field>
           <AsyncButton disabled={path === z.healthPath} className={BTN_G + BTN_SM + " mt-2"} onClick={async () => { await api.geo.settings(z.id, { healthPath: path }); notify("ذخیره شد", "check"); }}>ذخیره</AsyncButton>
         </div>}
       </Card>
       <Card title="حذف از Geo DNS" icon="trash-2" className="lg:col-span-2">
         <p className="text-sm text-white/65 leading-7">پیش از حذف، NS دامنه را به سرویس DNS دیگری برگردانید؛ وگرنه دامنه از کار می‌افتد. مبلغ باقی‌مانده برگشت داده نمی‌شود.</p>
         <label className="block text-xs text-white/60 mt-3" htmlFor="geo-del">برای تأیید، دامنه را بنویسید: <b dir="ltr">{z.domain}</b></label>
-        <input id="geo-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-left mt-1.5 max-w-sm"} />
+        <input id="geo-del" value={conf} onChange={(e) => setConf(e.target.value)} dir="ltr" className={INPUT + " text-start mt-1.5 max-w-sm"} />
         <AsyncButton danger disabled={conf.trim().toLowerCase() !== z.domain} className={BTN_D + BTN_MD + " mt-3"} onClick={async () => { await api.geo.remove(z.id, conf); notify("حذف شد", "trash-2"); router.push("/panel/geo" as never); }}>حذف همیشگی</AsyncButton>
       </Card>
     </div>

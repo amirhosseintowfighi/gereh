@@ -68,7 +68,7 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <form className="flex gap-1" onSubmit={(e) => { e.preventDefault(); setApplied(q); setNonce((n) => n + 1); }}>
           <label className="sr-only" htmlFor="log-q">جست‌وجو در لاگ</label>
-          <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="search…" className={INPUT_BASE + " h-9 w-52 text-left text-xs"} />
+          <input id="log-q" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" placeholder="search…" className={INPUT_BASE + " h-9 w-52 text-start text-xs"} />
           <button type="submit" aria-label="جست‌وجو" className={BTN_G + " h-9 w-9"}><Icon name="search" size={14} /></button>
         </form>
         <span className="flex gap-1" role="group" aria-label="سطح لاگ">
@@ -76,12 +76,12 @@ export function AppLogsPro({ app }: { app: PaasApp }) {
         </span>
         <label className="text-[11px] text-white/55 flex items-center gap-1">از<input type="datetime-local" value={from} max={localInput(new Date())} onChange={(e) => setFrom(e.target.value)} className={INPUT_BASE + " h-8 w-auto text-[11px]"} /></label>
         <label className="text-[11px] text-white/55 flex items-center gap-1">تا<input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className={INPUT_BASE + " h-8 w-auto text-[11px]"} /></label>
-        <span className="flex items-center gap-1.5 text-[11px] text-white/70 mr-auto"><Switch on={live} onChange={setLive} label="دنبال کردن زنده" />زنده</span>
+        <span className="flex items-center gap-1.5 text-[11px] text-white/70 ms-auto"><Switch on={live} onChange={setLive} label="دنبال کردن زنده" />زنده</span>
         <span className="flex items-center gap-1.5 text-[11px] text-white/70"><Switch on={wrap} onChange={setWrap} label="شکستن خطوط" />شکستن خط</span>
         <a href={exportUrl()} className={BTN_G + BTN_SM + " text-[11px]"}><Icon name="download" size={14} />‎.txt</a>
       </div>
       {error && <p role="alert" className="text-sm text-rose-300 mb-2">{error}</p>}
-      <div ref={box} dir="ltr" tabIndex={0} role="log" aria-label="لاگ اپ" className={"text-left text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[60vh] overflow-auto " + (wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
+      <div ref={box} dir="ltr" tabIndex={0} role="log" aria-label="لاگ اپ" className={"text-start text-[12px] leading-6 font-mono bg-black/50 rounded-xl p-4 h-[60vh] overflow-auto " + (wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
         {more !== null && <button type="button" onClick={() => older(more)} className="text-[11px] acc mb-2">↑ older</button>}
         {lines === null ? "…" : lines.length === 0 ? <span className="text-white/50">{app.status === "running" ? "لاگی با این فیلترها پیدا نشد؛ لاگ‌ها هر ۵ دقیقه جمع‌آوری می‌شوند." : "اپ در حال اجرا نیست."}</span>
           : lines.map((l) => <div key={l.id} className={LEVEL_TONE[l.level]}><span className="text-white/50">{l.at.slice(5, 19).replace("T", " ")} </span>{l.instance && <span className="text-white/30">[{l.instance.slice(-5)}] </span>}{l.line}</div>)}
@@ -167,7 +167,7 @@ export function EnvBulk({ app }: { app: PaasApp }) {
       {raw === null ? <p className="text-xs text-white/55 leading-6">فایل ‎.env را وارد کنید (متغیرهای هم‌نام جایگزین می‌شوند)، از همه متغیرها (با مقدار محرمانه‌ها؛ ثبت می‌شود) خروجی بگیرید، یا همه را یک‌جا به‌صورت متن ویرایش کنید.</p> : (
         <div>
           <label className="sr-only" htmlFor="env-raw">متغیرها به‌صورت متن</label>
-          <textarea id="env-raw" value={raw} onChange={(e) => setRaw(e.target.value)} dir="ltr" spellCheck={false} rows={14} className={TEXTAREA + " font-mono text-xs leading-6 text-left resize-y"} />
+          <textarea id="env-raw" value={raw} onChange={(e) => setRaw(e.target.value)} dir="ltr" spellCheck={false} rows={14} className={TEXTAREA + " font-mono text-xs leading-6 text-start resize-y"} />
           <p className="text-[11px] text-white/50 mt-1">هر خط KEY=value. مقدار خالی برای متغیر محرمانه یعنی بدون تغییر؛ خط‌هایی که حذف کنید، متغیرشان حذف می‌شود.</p>
           <div className="flex justify-end gap-2 mt-3">
             <button type="button" onClick={() => setRaw(null)} className={BTN_G + BTN_MD}>انصراف</button>

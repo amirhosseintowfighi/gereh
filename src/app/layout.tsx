@@ -40,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fa" dir="rtl">
       <body className="font-sans min-h-screen">
-        <a href="#main" className="sr-only-focusable fixed top-2 right-2 z-[100] rounded-xl bg-white text-slate-900 px-4 py-2 font-bold">رفتن به محتوای اصلی</a>
+        <a href="#main" className="sr-only-focusable fixed top-2 start-2 z-[100] rounded-xl bg-white text-slate-900 px-4 py-2 font-bold">رفتن به محتوای اصلی</a>
         <JsonLd data={[orgLd, { "@type": "WebSite", "@id": SITE_URL + "/#site", url: SITE_URL, name: SITE_NAME, inLanguage: "fa-IR", publisher: { "@id": orgLd["@id"] },
           potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: SITE_URL + "/domains?q={search_term_string}" }, "query-input": "required name=search_term_string" } }]} />
         <MeshBackground />

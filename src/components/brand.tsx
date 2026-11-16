@@ -45,9 +45,9 @@ export function Wordmark({ size = 34, sub = true }: { size?: number; sub?: boole
   return (
     <span className="flex items-center gap-2.5">
       <Logo size={size} decorative />
-      <span className="text-right leading-none">
-        <span className="block font-black text-[1.3rem] tracking-tight">گره</span>
-        {sub && <span className="block text-[10px] text-white/50 mt-1 ltr text-right tracking-[0.18em]">gereh.net</span>}
+      <span className="text-start leading-none">
+        <span className="block font-black text-[1.3rem]">گره</span>
+        {sub && <span className="block text-[10px] text-white/50 mt-1 ltr text-end tracking-[0.18em]">gereh.net</span>}
       </span>
     </span>
   );

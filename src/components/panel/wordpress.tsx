@@ -69,7 +69,7 @@ function SiteRow({ s }: { s: PaasApp }) {
           {plan && <AsyncButton className={BTN_G + BTN_SM} confirmText={"بسته به " + (plan.id === "eco" ? "توربو" : "اکو") + " تغییر کند؟ سایت چند ثانیه راه‌اندازی مجدد می‌شود."} onClick={async () => { await api.wp.changePlan(s.id, plan.id === "eco" ? "turbo" : "eco"); notify("بسته تغییر کرد", "gauge"); }}>{plan.id === "eco" ? "ارتقا به توربو" : "تغییر به اکو"}</AsyncButton>}
         </div>
       </div>
-      {job?.status === "failed" && <pre dir="ltr" className="mt-3 text-left text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-40 overflow-auto whitespace-pre-wrap">{job.output.split("\n").slice(-8).join("\n")}</pre>}
+      {job?.status === "failed" && <pre dir="ltr" className="mt-3 text-start text-[11px] leading-5 font-mono bg-black/40 rounded-xl p-3 max-h-40 overflow-auto whitespace-pre-wrap">{job.output.split("\n").slice(-8).join("\n")}</pre>}
       {imp && <ImportModal site={s} onClose={() => setImp(false)} />}
     </Card>
   );
@@ -105,9 +105,9 @@ function CreateSite({ initial, onClose }: { initial: WpPlan; onClose: () => void
     <Modal open onClose={onClose} title="سایت وردپرس جدید" icon="layers" size="max-w-xl">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
-          {WP_PLANS.map((p) => <button key={p.id} type="button" aria-pressed={plan.id === p.id} onClick={() => setPlan(p)} className={"rounded-xl p-3 text-right border transition " + (plan.id === p.id ? "border-sky-300/60 bg-sky-400/10" : "border-white/10 hover:border-white/25")}><b>{p.name}</b><span className="block text-xs text-white/60 mt-1 tabular">{toman(wpMonthly(p, db.paasPlans))} در ماه</span></button>)}
+          {WP_PLANS.map((p) => <button key={p.id} type="button" aria-pressed={plan.id === p.id} onClick={() => setPlan(p)} className={"rounded-xl p-3 text-start border transition " + (plan.id === p.id ? "border-sky-300/60 bg-sky-400/10" : "border-white/10 hover:border-white/25")}><b>{p.name}</b><span className="block text-xs text-white/60 mt-1 tabular">{toman(wpMonthly(p, db.paasPlans))} در ماه</span></button>)}
         </div>
-        <Field label="نام سایت" hint={(name || "mysite") + ".gereh.dev — بعداً دامنه خودتان را وصل کنید"}><input dir="ltr" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} placeholder="mysite" className={INPUT + " font-mono text-left"} /></Field>
+        <Field label="نام سایت" hint={(name || "mysite") + ".gereh.dev — بعداً دامنه خودتان را وصل کنید"}><input dir="ltr" value={name} onChange={(e) => setName(e.target.value.toLowerCase().trim())} placeholder="mysite" className={INPUT + " font-mono text-start"} /></Field>
         <div className="flex items-center justify-between rounded-xl bg-white/[0.03] px-4 py-3 text-sm"><span>انتقال سایت موجود از cPanel</span><Switch on={migrate} onChange={setMigrate} label="انتقال از cPanel" /></div>
         {migrate && <>
           <BackupPicker onUploaded={setUpload} />

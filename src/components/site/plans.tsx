@@ -30,8 +30,8 @@ function PlanCard({ p, rows, onAdd, badge = "پرفروش‌ترین", priceBase
     <article className={"spot relative rounded-[1.75rem] p-6 flex flex-col backdrop-blur-md border transition-all duration-300 " +
       (p.popular ? "bg-white/[0.09] border-white/25 lg:-translate-y-3" : "bg-white/[0.045] border-white/[0.1] hover:border-white/20 hover:-translate-y-1")}
       style={p.popular ? { boxShadow: "0 40px 90px -40px rgba(125,180,255,.45), inset 0 1px 0 rgba(255,255,255,.12)" } : { boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)" }}>
-      {p.popular && <span className="absolute -top-3 right-6 text-[11px] font-black px-3 py-1 rounded-full bg-white text-slate-900 shadow-lg flex items-center gap-1"><Icon name="sparkles" size={12} />{badge}</span>}
-      <h3 className="text-xl font-black ltr text-right">{p.name}</h3>
+      {p.popular && <span className="absolute -top-3 start-6 text-[11px] font-black px-3 py-1 rounded-full bg-white text-slate-900 shadow-lg flex items-center gap-1"><Icon name="sparkles" size={12} />{badge}</span>}
+      <h3 className="text-xl font-black ltr text-end">{p.name}</h3>
       {p.tag && <p className="text-xs text-white/55 mt-1.5">{p.tag}</p>}
       <div className="mt-5"><PriceTag base={priceBase} /></div>
       {extra}
@@ -132,24 +132,24 @@ export function VpsPlans() {
             <div className={GLASS + " rounded-[1.75rem] overflow-x-auto"} tabIndex={0} role="region" aria-label={"جدول مقایسه پلن‌های " + (k === "cloud" ? "سرور ابری" : "سرور اختصاصی")}>
               <table className="w-full min-w-[680px] text-sm">
                 <thead><tr className="border-b border-white/15">
-                  <th scope="col" className="text-right font-medium text-white/50 p-4">ویژگی</th>
+                  <th scope="col" className="text-start font-medium text-white/50 p-4">ویژگی</th>
                   {plans.map((p) => <th scope="col" key={p.id} className="p-4 text-center font-black ltr">{p.name}{p.popular && <Icon name="sparkles" size={13} className="inline acc mx-1" />}</th>)}
                 </tr></thead>
                 <tbody>
                   {VPS_ALL.map(([ic, label, key], i) => (
                     <tr key={key} className={"hover:bg-white/[0.06] transition-colors " + (i % 2 ? "bg-white/[0.03]" : "")}>
-                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/55" />{label}</span></th>
+                      <th scope="row" className="p-4 text-white/70 font-normal text-start"><span className="flex items-center gap-2"><Icon name={ic} size={15} className="text-white/55" />{label}</span></th>
                       {plans.map((p) => <td key={p.id} className="p-4 text-center">{String(p[key] ?? "")}</td>)}
                     </tr>
                   ))}
                   {["محافظت DDoS", "دسترسی root و کنسول", "آی‌پی نسخه ۶"].map((f) => (
                     <tr key={f} className="hover:bg-white/[0.06] transition-colors">
-                      <th scope="row" className="p-4 text-white/70 font-normal text-right"><span className="flex items-center gap-2"><Icon name="shield-check" size={15} className="text-white/55" />{f}</span></th>
+                      <th scope="row" className="p-4 text-white/70 font-normal text-start"><span className="flex items-center gap-2"><Icon name="shield-check" size={15} className="text-white/55" />{f}</span></th>
                       {plans.map((p) => <td key={p.id} className="p-4 text-center"><Icon name="circle-check" size={18} className="inline text-emerald-300" /><span className="sr-only-focusable">دارد</span></td>)}
                     </tr>
                   ))}
                   <tr className="border-t border-white/15">
-                    <th scope="row" className="p-4 font-bold text-right">قیمت ماهانه</th>
+                    <th scope="row" className="p-4 font-bold text-start">قیمت ماهانه</th>
                     {plans.map((p) => <td key={p.id} className="p-4 text-center font-black">{toman(monthly(p, k))}</td>)}
                   </tr>
                 </tbody>
@@ -194,7 +194,7 @@ export function HostingPlans() {
         <label htmlFor="bundle-domain" className="text-sm font-bold flex items-center gap-2"><Icon name="globe" size={16} className="acc" />دامنه سایت (اختیاری)</label>
         <div className="mt-3 flex flex-col sm:flex-row gap-3 sm:items-center">
           <input id="bundle-domain" value={domain} onChange={(e) => setDomain(e.target.value)} dir="ltr" placeholder="mybrand.ir" aria-invalid={!!domainErr}
-            className="flex-1 h-11 rounded-xl bg-black/20 border border-white/15 focus:border-white/40 outline-none px-3 text-left" />
+            className="flex-1 h-11 rounded-xl bg-black/20 border border-white/15 focus:border-white/40 outline-none px-3 text-start" />
           <label className="flex items-center gap-2 text-sm text-white/75 cursor-pointer"><input type="checkbox" checked={register} onChange={(e) => setRegister(e.target.checked)} className="accent-white" />دامنه را هم ثبت کن</label>
         </div>
         {domainErr ? <div role="alert" className="text-xs text-rose-300 mt-2">{domainErr}</div>

@@ -36,7 +36,7 @@ export function UserAffiliate() {
           <button type="button" onClick={share} className={BTN_P + BTN_MD + " mt-5"}><Icon name="share-2" size={16} /> اشتراک‌گذاری</button>
         </Card>
         <Card title="چطور کار می‌کند" icon="life-buoy">
-          <ol className="space-y-3 text-sm text-white/70 leading-7 list-decimal pr-5">
+          <ol className="space-y-3 text-sm text-white/70 leading-7 list-decimal ps-5">
             <li>لینک را برای دوستان و مشتریان‌تان بفرستید.</li>
             <li>هرکس با لینک شما ثبت‌نام کند، معرَّف شما ثبت می‌شود.</li>
             <li>از هر صورتحسابی که تا یک سال پرداخت می‌کند، {fa(db.settings.affiliateRate)}٪ به کیف پول شما می‌رود.</li>
@@ -79,9 +79,9 @@ export function OfficialInvoiceModal({ inv, onClose }: { inv: Invoice; onClose: 
       <p className="text-sm text-white/60 leading-7 mb-5">مشخصات خریدار طبق کارت ملی یا آگهی تأسیس شرکت. این اطلاعات روی فاکتور رسمی چاپ می‌شود.</p>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field className="sm:col-span-2" label="نام شخص یا شرکت"><input value={f.name} onChange={set("name")} className={INPUT} /></Field>
-        <Field label="کد ملی / شناسه ملی شرکت"><input value={f.nationalId} onChange={set("nationalId")} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-        <Field label="کد اقتصادی (اختیاری)"><input value={f.economicCode} onChange={set("economicCode")} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
-        <Field label="کد پستی"><input value={f.postalCode} onChange={set("postalCode")} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="کد ملی / شناسه ملی شرکت"><input value={f.nationalId} onChange={set("nationalId")} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+        <Field label="کد اقتصادی (اختیاری)"><input value={f.economicCode} onChange={set("economicCode")} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
+        <Field label="کد پستی"><input value={f.postalCode} onChange={set("postalCode")} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
         <Field className="sm:col-span-2" label="نشانی"><textarea value={f.address} onChange={set("address")} rows={2} className={INPUT + " h-auto py-2"} /></Field>
       </div>
     </Modal>
@@ -106,7 +106,7 @@ export function InvoicePrint({ id }: { id: string }) {
         <header className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
           <div className="[&_*]:!text-slate-900"><Wordmark size={34} sub={false} /></div>
           <div className="text-center"><h1 className="text-xl font-black">{o ? "صورتحساب فروش کالا و خدمات" : "صورتحساب"}</h1>{!o && <div className="text-xs text-slate-500 mt-1">برای فاکتور رسمی، مشخصات خریدار را ثبت کنید.</div>}</div>
-          <div className="text-left text-xs space-y-1"><div>شماره: <b className="mono">{inv.id}</b></div><div>تاریخ: {inv.date}</div>{inv.paidAt && <div>پرداخت: {inv.paidAt}</div>}</div>
+          <div className="text-end text-xs space-y-1"><div>شماره: <b className="mono">{inv.id}</b></div><div>تاریخ: {inv.date}</div>{inv.paidAt && <div>پرداخت: {inv.paidAt}</div>}</div>
         </header>
         <section className="mt-5 rounded-xl border border-slate-300 p-4">
           <h2 className="font-black mb-2">مشخصات فروشنده</h2>
@@ -119,11 +119,11 @@ export function InvoicePrint({ id }: { id: string }) {
         </section>
         <table className="w-full mt-5 border border-slate-300 text-center">
           <thead className="bg-slate-100"><tr>{["ردیف", "شرح کالا یا خدمت", "مبلغ (تومان)"].map((h) => <th key={h} scope="col" className="border border-slate-300 p-2 font-bold">{h}</th>)}</tr></thead>
-          <tbody>{inv.items.map((it, i) => <tr key={i}><td className="border border-slate-300 p-2">{fa(i + 1)}</td><td className="border border-slate-300 p-2 text-right">{it.desc}</td><td className="border border-slate-300 p-2 tabular">{fa(it.amount)}</td></tr>)}</tbody>
+          <tbody>{inv.items.map((it, i) => <tr key={i}><td className="border border-slate-300 p-2">{fa(i + 1)}</td><td className="border border-slate-300 p-2 text-start">{it.desc}</td><td className="border border-slate-300 p-2 tabular">{fa(it.amount)}</td></tr>)}</tbody>
           <tfoot>
-            <tr><td colSpan={2} className="border border-slate-300 p-2 text-left font-bold">جمع</td><td className="border border-slate-300 p-2 tabular">{fa(sub)}</td></tr>
-            <tr><td colSpan={2} className="border border-slate-300 p-2 text-left font-bold">مالیات و عوارض ارزش افزوده ({fa(inv.tax ?? s.tax)}٪)</td><td className="border border-slate-300 p-2 tabular">{fa(tax)}</td></tr>
-            <tr className="bg-slate-100"><td colSpan={2} className="border border-slate-300 p-2 text-left font-black">مبلغ کل</td><td className="border border-slate-300 p-2 tabular font-black">{fa(total)}</td></tr>
+            <tr><td colSpan={2} className="border border-slate-300 p-2 text-end font-bold">جمع</td><td className="border border-slate-300 p-2 tabular">{fa(sub)}</td></tr>
+            <tr><td colSpan={2} className="border border-slate-300 p-2 text-end font-bold">مالیات و عوارض ارزش افزوده ({fa(inv.tax ?? s.tax)}٪)</td><td className="border border-slate-300 p-2 tabular">{fa(tax)}</td></tr>
+            <tr className="bg-slate-100"><td colSpan={2} className="border border-slate-300 p-2 text-end font-black">مبلغ کل</td><td className="border border-slate-300 p-2 tabular font-black">{fa(total)}</td></tr>
           </tfoot>
         </table>
         <footer className="mt-6 flex justify-between items-center text-xs text-slate-500">

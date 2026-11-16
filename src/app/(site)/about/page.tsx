@@ -46,24 +46,27 @@ export default async function AboutPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-24">
         <section className="grid lg:grid-cols-2 gap-10 items-center">
           <div>
-            <h2 className="text-2xl sm:text-4xl font-black leading-[1.45] tracking-tight">چرا گره را ساختیم</h2>
+            <h2 className="text-2xl sm:text-4xl font-black leading-[1.45]">چرا گره را ساختیم</h2>
             <div className="mt-5 space-y-4 text-white/65 leading-8">
               <p>سال‌ها برای مشتریان‌مان وب‌سایت و اپلیکیشن ساختیم و هر بار به یک دیوار مشترک خوردیم: سرورهایی که در ساعت اوج کند می‌شدند، پشتیبانی‌ای که مسئله را نمی‌فهمید و قیمت‌هایی که هیچ‌وقت شفاف نبودند.</p>
               <p>گره پاسخ ما به همان دیوار است. همان دقتی که در طراحی یک رابط کاربری خرج می‌کنیم، این‌جا خرج انتخاب سخت‌افزار، طراحی شبکه و نوشتن هر خط از پنل شده است.</p>
             </div>
           </div>
-          <dl className="grid grid-cols-2 gap-3">
+          {/* the link card is the fourth cell of the grid, but not part of the definition list */}
+          <div className="grid grid-cols-2 gap-3">
+            <dl className="contents">
             {STATS.map(([v, s, l]) => (
               <div key={l} className={"spot rounded-[1.4rem] p-6 flex flex-col-reverse " + GLASS}>
                 <dt className="text-sm text-white/50 mt-2">{l}</dt>
                 <dd className="text-3xl sm:text-4xl font-black silver tabular"><Counter to={v} suffix={s} /></dd>
               </div>
             ))}
+            </dl>
             <Link href={"/status" as never} className={"spot rounded-[1.4rem] p-6 flex flex-col justify-end hover:border-white/30 " + GLASS}>
               <span className="text-lg font-black flex items-center gap-2"><Icon name="activity" size={18} className="acc" />آپتایم واقعی</span>
               <span className="text-sm text-white/50 mt-2">از بررسی‌های خودکار، در صفحه وضعیت</span>
             </Link>
-          </dl>
+          </div>
         </section>
 
         <section>
@@ -80,10 +83,10 @@ export default async function AboutPage() {
 
         <section className="max-w-3xl mx-auto">
           <SectionHead title="مسیری که آمده‌ایم" />
-          <ol className="relative border-r border-white/10 pr-8 space-y-10">
+          <ol className="relative border-s border-white/10 ps-8 space-y-10">
             {TIMELINE.map(([y, t, d]) => (
               <li key={y} className="relative">
-                <span className="absolute -right-[41px] top-1 w-4 h-4 rounded-full bg-[#04050b] border-2 border-[#9cc9ff]" aria-hidden="true" />
+                <span className="absolute -start-[41px] top-1 w-4 h-4 rounded-full bg-[#04050b] border-2 border-[#9cc9ff]" aria-hidden="true" />
                 <div className="mono text-xs text-white/55"><time>{y}</time></div>
                 <h3 className="font-extrabold text-lg mt-1">{t}</h3>
                 <p className="text-white/55 text-sm leading-7 mt-1">{d}</p>
@@ -106,7 +109,7 @@ export default async function AboutPage() {
 
         <section id="virgule">
           <div className={GLASS_STRONG + " rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[auto_1fr] gap-8 items-center relative overflow-hidden"}>
-            <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(156,201,255,.18), transparent)" }} />
+            <div className="absolute -top-20 -end-20 w-72 h-72 rounded-full pointer-events-none" style={{ background: "radial-gradient(closest-side, rgba(156,201,255,.18), transparent)" }} />
             <div className="flex items-center gap-4">
               <Logo size={64} />
               <span className="text-3xl text-white/50 font-light" aria-hidden="true">×</span>

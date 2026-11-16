@@ -58,7 +58,7 @@ export function UserDevops() {
                         <li key={m.id} className="flex items-center gap-3 text-sm">
                           <Icon name={m.done ? "circle-check" : "clock"} size={17} className={m.done ? "text-emerald-300" : "text-white/50"} />
                           <span className={m.done ? "text-white/60 line-through decoration-white/30" : ""}>{m.title}</span>
-                          {m.due && <span className="text-[11px] text-white/50 mr-auto">{m.due}</span>}
+                          {m.due && <span className="text-[11px] text-white/50 ms-auto">{m.due}</span>}
                           <span className="sr-only">{m.done ? "انجام شد" : "در جریان"}</span>
                         </li>
                       ))}</ol>
@@ -68,7 +68,7 @@ export function UserDevops() {
                 <section aria-label="گزارش‌های پیشرفت">
                   <h3 className="font-extrabold mb-3 text-sm">گزارش‌های تیم</h3>
                   {p.updates.length === 0 ? <p className="text-sm text-white/55">هنوز گزارشی ثبت نشده است.</p> : (
-                    <ol className="space-y-3 border-r border-white/10 pr-4">{p.updates.map((u, i) => (
+                    <ol className="space-y-3 border-s border-white/10 ps-4">{p.updates.map((u, i) => (
                       <li key={i} className="text-sm leading-7"><span className="text-[11px] text-white/50 block">{u.by} · {u.at}</span><p className="whitespace-pre-wrap text-white/80">{u.text}</p></li>
                     ))}</ol>
                   )}

@@ -13,7 +13,7 @@ export function PageHeader({ icon, title, sub, crumb }: { icon: string; title: s
           <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">{crumb}</span>
         </nav>
         <div className="mt-6 mx-auto w-fit"><IconTile name={icon} size={26} cls="w-16 h-16 rounded-[1.25rem]" /></div>
-        <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">{title}</h1>
+        <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">{title}</h1>
         <p className="mt-4 text-white/65 max-w-xl mx-auto leading-8">{sub}</p>
       </div>
     </div>

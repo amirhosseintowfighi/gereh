@@ -63,7 +63,7 @@ export function Navbar() {
 
   return (
     <header className="sticky z-40 px-3 sm:px-6 pt-3" style={{ top: "env(safe-area-inset-top, 0px)" }}>
-      <nav aria-label="منوی اصلی" className={"relative mx-auto max-w-6xl rounded-2xl pl-2 pr-3 sm:pr-4 h-16 flex items-center justify-between gap-2 backdrop-blur-xl border transition-all duration-500 " +
+      <nav aria-label="منوی اصلی" className={"relative mx-auto max-w-6xl rounded-2xl pe-2 ps-3 sm:ps-4 h-16 flex items-center justify-between gap-2 backdrop-blur-xl border transition-all duration-500 " +
         (scrolled ? "bg-[#05060d]/80 border-white/[0.12] shadow-2xl shadow-black/60" : "bg-white/[0.04] border-white/[0.1]")}>
         <Link href="/" aria-label="گره، صفحه اصلی" className="shrink-0"><Wordmark size={34} sub={false} /></Link>
         <DemoBadge className="max-sm:hidden" />
@@ -99,7 +99,7 @@ export function Navbar() {
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Link href="/en" hrefLang="en" lang="en" aria-label="English version" className="hidden xl:grid h-10 px-3 place-items-center rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-xs font-bold">EN</Link>
           <button type="button" onClick={openPalette} aria-keyshortcuts="Control+K"
-            className="hidden xl:flex items-center gap-2 h-10 pr-3 pl-2 rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-sm">
+            className="hidden xl:flex items-center gap-2 h-10 ps-3 pe-2 rounded-xl bg-white/[0.07] border border-white/15 text-white/60 hover:text-white hover:bg-white/15 transition text-sm">
             <Icon name="search" size={16} /> جست‌وجو
             <kbd className="ltr text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 border border-white/15 text-white/70">Ctrl K</kbd>
           </button>
@@ -108,10 +108,10 @@ export function Navbar() {
           <button type="button" onClick={openCart} aria-label={"سبد خرید" + (cart.length ? "، " + fa(cart.length) + " مورد" : "")}
             className="relative w-10 h-10 grid place-items-center rounded-xl bg-white/10 border border-white/20 hover:bg-white/[0.18] transition">
             <Icon name="shopping-cart" size={18} />
-            {cart.length > 0 && <span key={cart.length} className="pop-in absolute -top-1.5 -left-1.5 min-w-[20px] h-5 px-1 rounded-full acc-bg text-[11px] font-black grid place-items-center">{fa(cart.length)}</span>}
+            {cart.length > 0 && <span key={cart.length} className="pop-in absolute -top-1.5 -end-1.5 min-w-[20px] h-5 px-1 rounded-full acc-bg text-[11px] font-black grid place-items-center">{fa(cart.length)}</span>}
           </button>
           {session ? (
-            <Menu label="حساب کاربری" triggerClass="hidden sm:flex items-center gap-2 h-10 pr-1 pl-3 rounded-xl bg-white/[0.06] border border-white/[0.12] hover:bg-white/[0.1]"
+            <Menu label="حساب کاربری" triggerClass="hidden sm:flex items-center gap-2 h-10 ps-1 pe-3 rounded-xl bg-white/[0.06] border border-white/[0.12] hover:bg-white/[0.1]"
               trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{session.name[0]}</span><span className="text-sm max-w-[7rem] truncate">{session.name.split(" ")[0]}</span></>}
               items={[
                 { icon: "layout-dashboard", label: "پنل کاربری", run: () => router.push("/panel") },
@@ -134,7 +134,7 @@ export function Navbar() {
               <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-white/45">{g.group}</p>
               {g.items.map((i) => (
                 <Link key={i.href} href={i.href as never} aria-current={path === i.href ? "page" : undefined}
-                  className={"w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-right " + (path === i.href ? "bg-white/15 font-bold" : "hover:bg-white/10 text-white/85")}>
+                  className={"w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-start " + (path === i.href ? "bg-white/15 font-bold" : "hover:bg-white/10 text-white/85")}>
                   <Icon name={i.icon} size={18} className="acc shrink-0" />
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm">{i.label}{i.badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 font-bold">{i.badge}</span>}</span><span className="block text-[11px] text-white/50 truncate">{i.desc}</span></span>
                 </Link>
@@ -177,7 +177,7 @@ export function ScrollChrome() {
       <div aria-hidden="true" className="fixed inset-x-0 h-[2px] z-50 origin-right acc-bg" ref={bar} style={{ transform: "scaleX(0)", top: "env(safe-area-inset-top, 0px)" }} />
       {showTop && (
         <button type="button" onClick={() => window.scrollTo({ top: 0 })} aria-label="بازگشت به بالا"
-          className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.14] pop-in fixed left-4 sm:left-6 z-40 w-12 h-12 rounded-2xl grid place-items-center hover:bg-white/20 shadow-xl"
+          className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.14] pop-in fixed end-4 sm:end-6 z-40 w-12 h-12 rounded-2xl grid place-items-center hover:bg-white/20 shadow-xl"
           style={{ bottom: "calc(20px + env(safe-area-inset-bottom, 0px))" }}>
           <Icon name="chevron-down" size={20} className="rotate-180" />
         </button>

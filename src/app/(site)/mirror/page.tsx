@@ -34,9 +34,9 @@ export default function MirrorPage() {
             <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">میرور مخازن</span>
           </nav>
           <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="download" size={14} className="acc" />رایگان، بدون ثبت‌نام</p>
-          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35] tracking-tight">npm install<br />حتی وقتی اینترنت قطع است</h1>
+          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">npm install<br />حتی وقتی اینترنت قطع است</h1>
           <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">میرور گره بسته‌های npm، PyPI، Composer، Go، Maven، crates.io، ایمیج‌های Docker Hub، GHCR و Quay و مخازن ۱۰ توزیع لینوکس را داخل ایران کش می‌کند تا نصب و بیلد پروژه‌ها سریع و بدون وابستگی به اینترنت بین‌الملل انجام شود.</p>
-          <div className={GLASS + " rounded-2xl mt-9 p-3 sm:p-4 text-left flex items-center gap-3 max-w-2xl mx-auto"} dir="ltr">
+          <div className={GLASS + " rounded-2xl mt-9 p-3 sm:p-4 text-start flex items-center gap-3 max-w-2xl mx-auto"} dir="ltr">
             <code tabIndex={0} aria-label="دستور نصب" className="min-w-0 text-[12px] sm:text-sm font-mono text-white/85 overflow-x-auto no-scrollbar whitespace-nowrap flex-1">{oneLiner}</code>
             <CopyButton text={oneLiner} label="کپی دستور نصب" />
           </div>

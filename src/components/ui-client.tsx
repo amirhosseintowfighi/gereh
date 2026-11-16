@@ -129,11 +129,19 @@ export function Tabs({ options, value, onChange, full = false, size = "md", labe
   );
 }
 
-export function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+/** runs a handler that may be async and shows its failure as a toast (a rejected promise from an onClick is otherwise lost) */
+function useGuarded() {
+  const { notify } = useApp();
+  const report = (e: unknown) => notify(e instanceof Error ? e.message : "خطایی رخ داد", "circle-alert");
+  return (fn: () => unknown) => { try { const r = fn(); if (r instanceof Promise) r.catch(report); } catch (e) { report(e); } };
+}
+
+export function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => unknown; label: string; disabled?: boolean }) {
+  const guarded = useGuarded();
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
+    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => guarded(() => onChange(!on))}
       className={"relative w-11 h-6 shrink-0 rounded-full transition-colors duration-300 border disabled:opacity-50 " + (on ? "acc-bg border-transparent" : "bg-white/15 border-white/20")}>
-      <span className={"absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow transition-all duration-300 " + (on ? "right-[22px]" : "right-0.5")} />
+      <span className={"absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow transition-all duration-300 " + (on ? "start-[22px]" : "start-0.5")} />
     </button>
   );
 }
@@ -142,12 +150,12 @@ export type Opt = string | { value: string; label: string };
 export function Select({ value, onChange, options, className = "", ltr = false, label }: { value: string; onChange: (v: string) => void; options: Opt[]; className?: string; ltr?: boolean; label?: string }) {
   return (
     <div className={"relative max-w-full " + className}>
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className={INPUT + " appearance-none pl-9 " + (ltr ? "ltr text-left" : "")}>
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className={INPUT + " appearance-none " + (ltr ? "ltr text-start ps-9" : "pe-9")}>
         {options.map((o) => typeof o === "string"
           ? <option key={o} value={o} className="bg-[#0d1018]">{o}</option>
           : <option key={o.value} value={o.value} className="bg-[#0d1018]">{o.label}</option>)}
       </select>
-      <Icon name="chevron-down" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/55 pointer-events-none" />
+      <Icon name="chevron-down" size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-white/55 pointer-events-none" />
     </div>
   );
 }
@@ -247,7 +255,7 @@ export function SideDrawer({ open, onClose, title, children, width = "w-[520px]"
     <Portal>
       <div className="fixed inset-0 z-[95] fade-in">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-        <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={"drawer-in absolute left-0 top-0 bottom-0 " + width + " max-w-[94vw] bg-[#0b0d16] border-r border-white/[0.12] flex flex-col outline-none"}
+        <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={"drawer-in absolute end-0 top-0 bottom-0 " + width + " max-w-[94vw] bg-[#0b0d16] border-s border-white/[0.12] flex flex-col outline-none"}
           style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <div className="flex items-center justify-between gap-3 px-5 sm:px-6 h-16 border-b border-white/[0.08] shrink-0">
             <h2 className="font-extrabold text-base truncate min-w-0">{title}</h2>
@@ -311,7 +319,7 @@ export function CopyText({ text, className = "", label }: { text: string; classN
   const copy = useCopy();
   return (
     <button type="button" dir="ltr" onClick={(e) => { e.stopPropagation(); copy(text); }} title="کپی" aria-label={"کپی " + (label ?? (text.length > 80 ? text.slice(0, 60) + "…" : text))}
-      className={"group inline-flex max-w-full min-w-0 items-center gap-1.5 text-left align-middle hover:text-white transition " + className}>
+      className={"group inline-flex max-w-full min-w-0 items-center gap-1.5 text-start align-middle hover:text-white transition " + className}>
       <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span><Icon name="copy" size={13} className="shrink-0 opacity-40 group-hover:opacity-100" />
     </button>
   );
@@ -357,14 +365,14 @@ export function StatCard({ icon, label, value, suffix, sub, tone, href }: { icon
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <span className="block text-xs text-white/55 leading-5">{label}</span>
-          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-w-0"><span className={(long ? "text-base min-[420px]:text-lg sm:text-2xl xl:text-[1.75rem]" : "text-lg sm:text-[1.75rem]") + " leading-tight font-black tracking-tight silver tabular [overflow-wrap:anywhere]"}>{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-[11px] sm:text-xs text-white/55">{suffix}</span>}</div>
+          <div className="mt-1 sm:mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 min-w-0"><span className={(long ? "text-base min-[420px]:text-lg sm:text-2xl xl:text-[1.75rem]" : "text-lg sm:text-[1.75rem]") + " leading-tight font-black silver tabular [overflow-wrap:anywhere]"}>{typeof value === "number" ? <Num value={value} /> : value}</span>{suffix && <span className="text-[11px] sm:text-xs text-white/55">{suffix}</span>}</div>
         </div>
         <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl tile grid place-items-center shrink-0" aria-hidden="true"><Icon name={icon} size={16} /></span>
       </div>
       {sub && <div className={"text-[11px] mt-1.5 leading-5 " + (tone === "up" ? "text-emerald-300" : tone === "down" ? "text-rose-300" : "text-white/55")}>{sub}</div>}
     </>
   );
-  const cls = "spot block min-w-0 text-right rounded-2xl sm:rounded-[1.4rem] p-3.5 sm:p-5 " + GLASS;
+  const cls = "spot block min-w-0 text-start rounded-2xl sm:rounded-[1.4rem] p-3.5 sm:p-5 " + GLASS;
   return href ? <Link href={href as never} className={cls + " hover:border-white/20 transition-colors"}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
 
@@ -445,8 +453,8 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 flex-1 min-w-0">
             {searchKeys.length > 0 && (
               <div className="relative sm:w-72">
-                <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
-                <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder={searchPlaceholder} aria-label={searchPlaceholder} className={INPUT + " pr-9"} />
+                <Icon name="search" size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+                <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder={searchPlaceholder} aria-label={searchPlaceholder} className={INPUT + " ps-9"} />
               </div>
             )}
             {(filters || []).map((f) => (
@@ -483,7 +491,7 @@ export function DataTable<T extends { id: string | number }>({ columns, rows, se
         <table className="w-full text-sm min-w-[720px]">
           <thead><tr className="border-b border-white/[0.08] text-white/55 text-xs">
             {columns.map((c) => (
-              <th key={c.key} scope="col" className={"font-medium px-4 py-3.5 text-right align-middle whitespace-nowrap " + (c.className || "")} aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
+              <th key={c.key} scope="col" className={"font-medium px-4 py-3.5 text-start align-middle whitespace-nowrap " + (c.className || "")} aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
                 {c.sortable ? (
                   <button type="button" onClick={() => setSort((s) => (s && s.key === c.key ? { key: c.key, dir: s.dir === 1 ? -1 : 1 } : { key: c.key, dir: 1 }))} className="inline-flex items-center gap-1 hover:text-white">
                     {c.label}<Icon name="arrow-down-up" size={12} className={sort?.key === c.key ? "text-white" : "opacity-40"} />
@@ -560,7 +568,7 @@ export function Menu({ trigger, label, items, align = "left", triggerClass = "",
           <div ref={pop} role="menu" aria-label={label} onClick={(e) => e.stopPropagation()} style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
             className={"pop-in fixed z-[90] " + width + " max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto overscroll-contain rounded-2xl bg-[#0b0d16]/95 backdrop-blur-2xl border border-white/[0.12] shadow-2xl p-1.5"}>
             {items.filter(Boolean).map((it, i) => it === "-" ? <div key={i} className="h-px bg-white/[0.08] my-1.5" /> : it && (
-              <button type="button" role="menuitem" key={i} onClick={() => { setOpen(false); it.run(); }} className={"w-full flex items-center gap-2.5 px-3 min-h-10 py-2 rounded-xl text-sm leading-6 text-right hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " + (it.danger ? "text-rose-300" : "text-white/85")}>
+              <button type="button" role="menuitem" key={i} onClick={() => { setOpen(false); it.run(); }} className={"w-full flex items-center gap-2.5 px-3 min-h-10 py-2 rounded-xl text-sm leading-6 text-start hover:bg-white/[0.07] focus-visible:bg-white/[0.07] " + (it.danger ? "text-rose-300" : "text-white/85")}>
                 <Icon name={it.icon} size={16} className={"shrink-0 " + (it.danger ? "" : "text-white/55")} /><span className="flex-1 min-w-0">{it.label}</span>{it.dot && <span className="w-2 h-2 rounded-full bg-[#9cc9ff] shrink-0" aria-label="خوانده‌نشده" />}
               </button>
             ))}
@@ -574,7 +582,8 @@ export function Menu({ trigger, label, items, align = "left", triggerClass = "",
 export const ICON_BTN = "w-9 h-9 shrink-0 rounded-xl inline-grid place-items-center align-middle text-white/65 hover:text-white hover:bg-white/[0.08] transition";
 export const ICON_BTN_MD = "w-10 h-10 shrink-0 rounded-xl inline-grid place-items-center align-middle text-white/65 hover:text-white hover:bg-white/[0.08] transition";
 export function IconBtn({ icon, label, onClick, className = "" }: { icon: string; label: string; onClick: (e: React.MouseEvent) => unknown; className?: string }) {
-  return <button type="button" onClick={onClick} aria-label={label} title={label} className={ICON_BTN + " " + className}><Icon name={icon} size={17} /></button>;
+  const guarded = useGuarded();
+  return <button type="button" onClick={(e) => guarded(() => onClick(e))} aria-label={label} title={label} className={ICON_BTN + " " + className}><Icon name={icon} size={17} /></button>;
 }
 
 export function PageTitle({ title, sub, action, back }: { title: React.ReactNode; sub?: React.ReactNode; action?: React.ReactNode; back?: [string, string] }) {
@@ -582,7 +591,7 @@ export function PageTitle({ title, sub, action, back }: { title: React.ReactNode
     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-7">
       <div className="min-w-0">
         {back && <Link href={back[0] as never} className="text-xs text-white/55 hover:text-white inline-flex items-center gap-1 mb-2 rounded-md"><Icon name="chevron-right" size={14} />{back[1]}</Link>}
-        <h1 className="text-2xl sm:text-[1.9rem] leading-snug font-black tracking-tight [overflow-wrap:anywhere]">{title}</h1>
+        <h1 className="text-2xl sm:text-[1.9rem] leading-snug font-black [overflow-wrap:anywhere]">{title}</h1>
         {sub && <div className="text-sm text-white/55 leading-6 mt-1.5">{sub}</div>}
       </div>
       {action && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{action}</div>}
@@ -627,7 +636,7 @@ export function OtpInput({ value, onChange }: { value: string; onChange: (v: str
 export function PriceTag({ base, suffix = "تومان / ماه", big = true }: { base: number; suffix?: string; big?: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1.5 min-w-0">
-      <Num value={base} className={(big ? "text-[1.85rem] xl:text-[2.1rem] leading-tight" : "text-xl") + " font-black tracking-tight tabular silver"} />
+      <Num value={base} className={(big ? "text-[1.85rem] xl:text-[2.1rem] leading-tight" : "text-xl") + " font-black tabular silver"} />
       <span className="text-xs text-white/55">{suffix}</span>
     </div>
   );

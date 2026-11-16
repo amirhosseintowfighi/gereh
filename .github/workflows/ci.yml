@@ -12,7 +12,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # the server suite takes about 12 minutes and the e2e suite about 10
+    timeout-minutes: 45
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:

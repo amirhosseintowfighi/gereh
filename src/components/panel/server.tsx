@@ -87,8 +87,8 @@ function AlertsCard({ s }: { s: Server }) {
     <Card title="هشدار مصرف" icon="bell-ring">
       <p className="text-xs text-white/55 leading-6 mb-4">با عبور از این آستانه‌ها، اعلان و طبق تنظیمات حساب، ایمیل یا پیامک می‌گیرید. خالی یعنی خاموش.</p>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="CPU بالای (٪) به مدت ۱۵ دقیقه"><input value={cpu} onChange={(e) => setCpu(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۹۰" className={INPUT + " text-left tabular"} /></Field>
-        <Field label="ترافیک ماهانه بالای (٪ سهمیه)"><input value={bw} onChange={(e) => setBw(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۸۰" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="CPU بالای (٪) به مدت ۱۵ دقیقه"><input value={cpu} onChange={(e) => setCpu(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۹۰" className={INPUT + " text-start tabular"} /></Field>
+        <Field label="ترافیک ماهانه بالای (٪ سهمیه)"><input value={bw} onChange={(e) => setBw(e.target.value)} inputMode="numeric" dir="ltr" placeholder="مثلاً ۸۰" className={INPUT + " text-start tabular"} /></Field>
       </div>
       <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { await api.servers.setAlerts(s.id, { cpu: num(cpu), bw: num(bw) }); notify("هشدارها ذخیره شد", "bell-ring"); }}>ذخیره</AsyncButton></div>
     </Card>
@@ -213,7 +213,7 @@ function VncPanel({ s }: { s: Server }) {
         </Card>
         <Card title="تغییر رمز VNC" icon="lock">
           <form onSubmit={(e) => e.preventDefault()}>
-            <input type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} dir="ltr" placeholder="حداقل ۶ کاراکتر" aria-label="رمز جدید VNC" className={INPUT + " text-left"} />
+            <input type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} dir="ltr" placeholder="حداقل ۶ کاراکتر" aria-label="رمز جدید VNC" className={INPUT + " text-start"} />
             <div className="mt-3 flex justify-end"><AsyncButton onClick={async () => { await api.servers.setVncPass(s.id, pass); setPass(""); notify("رمز VNC تغییر کرد"); }}>ذخیره</AsyncButton></div>
           </form>
         </Card>
@@ -230,12 +230,12 @@ function ServerAccess({ s }: { s: Server }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Card title="Hostname" icon="globe">
-        <Field label="نام میزبان کامل (FQDN)" hint="بعد از ری‌استارت در سیستم‌عامل اعمال می‌شود."><input value={host} onChange={(e) => setHost(e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+        <Field label="نام میزبان کامل (FQDN)" hint="بعد از ری‌استارت در سیستم‌عامل اعمال می‌شود."><input value={host} onChange={(e) => setHost(e.target.value)} dir="ltr" className={INPUT + " text-start mono"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const h = host.trim().toLowerCase(); if (!/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/.test(h)) throw new Error("hostname معتبر نیست."); await api.servers.setHostname(s.id, h); setHost(h); notify("hostname تغییر کرد"); }}>ذخیره</AsyncButton></div>
       </Card>
       <Card title={"رمز " + loginUser(s.os)} icon="key-round">
         <Field label="رمز جدید" hint="سرور برای اعمال رمز ری‌استارت می‌شود.">
-          <div className="flex gap-2"><input value={pw} onChange={(e) => setPw(e.target.value)} dir="ltr" autoComplete="new-password" className={INPUT + " text-left mono"} /><button type="button" onClick={() => setPw(genPassword())} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div>
+          <div className="flex gap-2"><input value={pw} onChange={(e) => setPw(e.target.value)} dir="ltr" autoComplete="new-password" className={INPUT + " text-start mono"} /><button type="button" onClick={() => setPw(genPassword())} className={BTN_G + BTN_MD + " shrink-0"}>ساخت تصادفی</button></div>
           <StrengthBar value={pw} />
         </Field>
         <div className="mt-4 flex justify-end"><AsyncButton confirmText="سرور برای تغییر رمز ری‌استارت می‌شود. ادامه می‌دهید؟" onClick={async () => { await api.servers.resetRootPassword(s.id, pw); setPw(""); notify("رمز " + loginUser(s.os) + " تغییر کرد", "key-round"); }}>تغییر رمز</AsyncButton></div>
@@ -268,7 +268,7 @@ function ServerNetwork({ s }: { s: Server }) {
       </Card>
       <Card title="Reverse DNS" icon="globe">
         <p className="text-sm text-white/50 leading-7 mb-4">برای ارسال ایمیل از سرور، PTR را روی دامنه خودتان تنظیم کنید.</p>
-        <Field label={"PTR برای " + s.ip}><input value={rdns} onChange={(e) => setRdns(e.target.value)} dir="ltr" placeholder="mail.example.com" className={INPUT + " text-left"} /></Field>
+        <Field label={"PTR برای " + s.ip}><input value={rdns} onChange={(e) => setRdns(e.target.value)} dir="ltr" placeholder="mail.example.com" className={INPUT + " text-start"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const v = rdns.trim().toLowerCase(); if (v && !/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v)) throw new Error("نام دامنه معتبر نیست."); await api.servers.setRdns(s.id, v); setRdns(v); notify("Reverse DNS ذخیره شد"); }}>ذخیره</AsyncButton></div>
       </Card>
       <NetworkExtras s={s} />
@@ -286,12 +286,12 @@ function ServerFirewall({ s }: { s: Server }) {
     <Card title="قوانین ورودی" icon="shield-check" action={<button type="button" onClick={() => setForm({ proto: "TCP", port: "", source: "0.0.0.0/0", action: "allow", note: "" })} className={BTN_P + BTN_SM}><Icon name="plus" size={14} /> قانون جدید</button>} pad="p-3 sm:p-4">
       {s.firewall.length === 0 ? <Empty icon="shield" title="قانونی تعریف نشده" text="همه ترافیک ورودی مجاز است. برای امنیت بیشتر، فقط پورت‌های لازم را باز کنید." /> : (
         <div className="overflow-x-auto"><table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-xs text-white/55"><th scope="col" className="text-right font-medium p-3">پروتکل</th><th scope="col" className="text-right font-medium p-3">پورت</th><th scope="col" className="text-right font-medium p-3">مبدأ</th><th scope="col" className="text-right font-medium p-3">عملکرد</th><th scope="col" className="text-right font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
+          <thead><tr className="text-xs text-white/55"><th scope="col" className="text-start font-medium p-3">پروتکل</th><th scope="col" className="text-start font-medium p-3">پورت</th><th scope="col" className="text-start font-medium p-3">مبدأ</th><th scope="col" className="text-start font-medium p-3">عملکرد</th><th scope="col" className="text-start font-medium p-3">توضیح</th><th><span className="sr-only-focusable">حذف</span></th></tr></thead>
           <tbody>{s.firewall.map((r) => (
             <tr key={r.id} className="border-t border-white/[0.06]">
-              <td className="p-3 mono">{r.proto}</td><td className="p-3 mono ltr text-right">{r.port}</td><td className="p-3 mono ltr text-right text-white/60">{r.source}</td>
+              <td className="p-3 mono">{r.proto}</td><td className="p-3 mono ltr text-end">{r.port}</td><td className="p-3 mono ltr text-end text-white/60">{r.source}</td>
               <td className="p-3"><Badge tone={r.action === "allow" ? "green" : "red"}>{r.action === "allow" ? "اجازه" : "مسدود"}</Badge></td><td className="p-3 text-white/60">{r.note}</td>
-              <td className="p-3 text-left"><IconBtn icon="trash-2" label={"حذف قانون " + r.port} className="hover:text-rose-300" onClick={async () => { if (await confirm("قانون " + r.proto + " " + r.port + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.servers.removeRule(s.id, r.id); notify("قانون حذف شد"); } }} /></td>
+              <td className="p-3 text-end"><IconBtn icon="trash-2" label={"حذف قانون " + r.port} className="hover:text-rose-300" onClick={async () => { if (await confirm("قانون " + r.proto + " " + r.port + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.servers.removeRule(s.id, r.id); notify("قانون حذف شد"); } }} /></td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -308,8 +308,8 @@ function ServerFirewall({ s }: { s: Server }) {
       {form && <div className="grid grid-cols-2 gap-4">
         <Field label="پروتکل"><Select value={form.proto} label="پروتکل" onChange={(v) => setForm((f) => f && { ...f, proto: v })} options={["TCP", "UDP", "ICMP"]} ltr /></Field>
         <Field label="عملکرد"><Select value={form.action} label="عملکرد" onChange={(v) => setForm((f) => f && { ...f, action: v as "allow" | "deny" })} options={[{ value: "allow", label: "اجازه" }, { value: "deny", label: "مسدود" }]} /></Field>
-        <Field label="پورت" hint="مثال: 22 یا 8000-8100"><input value={form.proto === "ICMP" ? "—" : form.port} disabled={form.proto === "ICMP"} onChange={(e) => setForm((f) => f && { ...f, port: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-        <Field label="مبدأ"><input value={form.source} onChange={(e) => setForm((f) => f && { ...f, source: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+        <Field label="پورت" hint="مثال: 22 یا 8000-8100"><input value={form.proto === "ICMP" ? "—" : form.port} disabled={form.proto === "ICMP"} onChange={(e) => setForm((f) => f && { ...f, port: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+        <Field label="مبدأ"><input value={form.source} onChange={(e) => setForm((f) => f && { ...f, source: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
         <Field className="col-span-2" label="توضیح"><input value={form.note} maxLength={60} onChange={(e) => setForm((f) => f && { ...f, note: e.target.value })} className={INPUT} /></Field>
       </div>}
     </Modal>
@@ -335,7 +335,7 @@ function ServerBackups({ s }: { s: Server }) {
         {s.snapshots.length === 0 ? <Empty icon="camera" title="اسنپ‌شاتی ندارید" text="پیش از تغییرات بزرگ، یک نسخه لحظه‌ای بگیرید." />
           : s.snapshots.map((sn) => (
             <div key={sn.id} className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-              <div><div className="text-sm font-bold ltr text-right">{sn.name}</div><div className="text-[11px] text-white/55">{sn.at}، {fa(sn.size, 1)} گیگابایت</div></div>
+              <div><div className="text-sm font-bold ltr text-end">{sn.name}</div><div className="text-[11px] text-white/55">{sn.at}، {fa(sn.size, 1)} گیگابایت</div></div>
               <div className="flex gap-1 items-center">
                 <AsyncButton className={BTN_G + BTN_SM} danger confirmText="سرور به این اسنپ‌شات بازگردانده شود؟" onClick={async () => { await api.servers.restore(s.id, "اسنپ‌شات " + sn.name); notify("بازیابی انجام شد"); }}>بازیابی</AsyncButton>
                 <IconBtn icon="trash-2" label={"حذف اسنپ‌شات " + sn.name} className="hover:text-rose-300" onClick={async () => { if (await confirm("اسنپ‌شات " + sn.name + " حذف شود؟", { danger: true, ok: "حذف" })) { await api.servers.deleteSnapshot(s.id, sn.id); notify("اسنپ‌شات حذف شد"); } }} />
@@ -361,7 +361,7 @@ function ServerBoot({ s }: { s: Server }) {
         <p className="text-sm text-white/55 leading-7">سرور با یک سیستم نجات بوت می‌شود تا بتوانید دیسک اصلی را mount و تعمیر کنید یا اطلاعات را نجات دهید.</p>
         {s.rescue ? <div className="mt-4"><AsyncButton danger confirmText="سرور از حالت ریسکیو خارج و ری‌استارت شود؟" onClick={async () => { await api.servers.setRescue(s.id, false); notify("حالت ریسکیو غیرفعال شد"); }}>خروج از ریسکیو</AsyncButton></div> : (
           <form className="mt-4 flex gap-2" onSubmit={(e) => e.preventDefault()}>
-            <input type="password" autoComplete="new-password" value={rp} onChange={(e) => setRp(e.target.value)} dir="ltr" placeholder="رمز ورود ریسکیو" aria-label="رمز ورود ریسکیو" className={INPUT + " text-left"} />
+            <input type="password" autoComplete="new-password" value={rp} onChange={(e) => setRp(e.target.value)} dir="ltr" placeholder="رمز ورود ریسکیو" aria-label="رمز ورود ریسکیو" className={INPUT + " text-start"} />
             <AsyncButton className={BTN_P + BTN_MD + " shrink-0"} confirmText="سرور ری‌استارت و وارد حالت ریسکیو می‌شود." onClick={async () => { await api.servers.setRescue(s.id, true, rp); setRp(""); notify("حالت ریسکیو فعال شد", "shield-half"); }}>فعال‌سازی</AsyncButton>
           </form>
         )}
@@ -370,7 +370,7 @@ function ServerBoot({ s }: { s: Server }) {
         <div className="space-y-2">
           {BOOT.map((b) => (
             <AsyncButton key={b.value} disabled={s.boot === b.value} onClick={async () => { await api.servers.setBoot(s.id, b.value); notify("ترتیب بوت ذخیره شد"); }}
-              className={"w-full flex items-center gap-3 p-3.5 rounded-[12px] border text-right text-sm transition disabled:cursor-default " + (s.boot === b.value ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
+              className={"w-full flex items-center gap-3 p-3.5 rounded-[12px] border text-start text-sm transition disabled:cursor-default " + (s.boot === b.value ? "bg-white/[0.08] border-white/35" : "bg-white/[0.02] border-white/[0.08] hover:bg-white/[0.05]")}>
               <span aria-hidden="true" className={"w-4 h-4 rounded-full border-2 " + (s.boot === b.value ? "border-white bg-white shadow-[inset_0_0_0_3px_#0b0d16]" : "border-white/30")} />{b.label}
             </AsyncButton>
           ))}
@@ -410,7 +410,7 @@ function ServerRebuild({ s }: { s: Server }) {
           </div>
         </div>
       ))}
-      <Field className="mt-5" label={"برای تأیید، نام سرور را بنویسید: " + s.name}><input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
+      <Field className="mt-5" label={"برای تأیید، نام سرور را بنویسید: " + s.name}><input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-start mono"} /></Field>
       <div className="mt-5 flex justify-end"><AsyncButton danger disabled={!os || confirmName.trim() !== s.name} onClick={async () => { await api.servers.reinstall(s.id, os); setOs(""); setConfirmName(""); notify("سیستم‌عامل نصب شد", "terminal"); }}>نصب مجدد</AsyncButton></div>
     </Card>
   );
@@ -432,7 +432,7 @@ function ServerResize({ s }: { s: Server }) {
           const smaller = d < curDisk;
           return (
             <button type="button" role="radio" aria-checked={plan === p.id} key={p.id} disabled={isCur || smaller} onClick={() => setPlan(p.id)}
-              className={"rounded-2xl p-4 text-right border transition " + (isCur || smaller ? "opacity-50 cursor-not-allowed border-white/10" : plan === p.id ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
+              className={"rounded-2xl p-4 text-start border transition " + (isCur || smaller ? "opacity-50 cursor-not-allowed border-white/10" : plan === p.id ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
               <div className="flex justify-between"><span className="font-bold">{p.name}</span>{isCur && <Badge>فعلی</Badge>}{smaller && !isCur && <Badge>دیسک کوچک‌تر</Badge>}</div>
               <div className="text-xs text-white/50 mt-2">{fa(c)} هسته، {fa(r)} گیگ رم، {fa(d)} گیگ</div>
               <div className="font-black mt-3 tabular">{toman(p.price)}</div>
@@ -455,12 +455,12 @@ function ServerSettings({ s }: { s: Server }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Card title="تغییر نام" icon="pencil">
-        <Field label="نام سرور" hint="فقط حروف انگلیسی، عدد و خط تیره"><input value={name} onChange={(e) => setName(e.target.value)} dir="ltr" className={INPUT + " text-left mono"} /></Field>
+        <Field label="نام سرور" hint="فقط حروف انگلیسی، عدد و خط تیره"><input value={name} onChange={(e) => setName(e.target.value)} dir="ltr" className={INPUT + " text-start mono"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton onClick={async () => { const n = name.trim(); if (!/^[a-z0-9-]{2,40}$/i.test(n)) throw new Error("نام معتبر نیست؛ ۲ تا ۴۰ کاراکتر از حروف انگلیسی، عدد و خط تیره."); await api.servers.rename(s.id, n); notify("نام سرور تغییر کرد"); }}>ذخیره</AsyncButton></div>
       </Card>
       <Card title="حذف سرور" icon="trash-2">
         <p className="text-sm text-white/55 leading-7">سرور و همه بکاپ‌ها و اسنپ‌شات‌هایش برای همیشه حذف می‌شوند و هزینه از همین لحظه متوقف می‌شود.</p>
-        <Field className="mt-4" label={"نام سرور را بنویسید: " + s.name}><input value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-left mono"} /></Field>
+        <Field className="mt-4" label={"نام سرور را بنویسید: " + s.name}><input value={del} onChange={(e) => setDel(e.target.value)} dir="ltr" autoComplete="off" className={INPUT + " text-start mono"} /></Field>
         <div className="mt-4 flex justify-end"><AsyncButton danger disabled={del.trim() !== s.name} onClick={async () => { await api.servers.remove(s.id); notify("سرور حذف شد", "trash-2"); router.push("/panel/servers"); }}>حذف همیشگی</AsyncButton></div>
       </Card>
       <WalletLink s={s} />

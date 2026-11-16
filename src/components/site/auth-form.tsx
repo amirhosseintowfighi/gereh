@@ -18,7 +18,7 @@ export function AuthForm() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const session = useSession();
-  const [mode, setMode] = useState(params.get("ref") ? "register" : "login");
+  const [mode, setMode] = useState(params.get("ref") || params.get("mode") === "register" ? "register" : params.get("mode") === "otp" ? "otp" : "login");
   const [f, setF] = useState({ id: "", password: "", name: "", email: "", phone: "", agree: false });
   const [show, setShow] = useState(false);
   const [otpStep, setOtpStep] = useState(0);
@@ -43,12 +43,12 @@ export function AuthForm() {
     <div className="fade-in">
       <button type="button" onClick={() => { switchMode("login"); setSentForgot(false); }} className="text-xs text-white/50 hover:text-white flex items-center gap-1 mb-6"><Icon name="chevron-right" size={14} />بازگشت به ورود</button>
       <h1 className="text-3xl font-black">بازیابی رمز عبور</h1>
-      <p className="text-white/50 text-sm mt-2 leading-7">ایمیل حساب را وارد کنید تا لینک بازیابی را بفرستیم.</p>
-      {sentForgot ? <div role="status" className="mt-8 rounded-2xl bg-emerald-400/10 border border-emerald-300/25 p-5 text-sm text-emerald-100 leading-7 flex gap-3"><Icon name="circle-check" size={20} />لینک بازیابی به {f.email} ارسال شد. پوشه اسپم را هم بررسی کنید.</div> : (
+      <p className="text-white/50 text-sm mt-2 leading-7">ایمیل حساب را وارد کنید تا یک رمز موقت برایتان بفرستیم. رمز فعلی تا وقتی با رمز موقت وارد نشده‌اید معتبر می‌ماند.</p>
+      {sentForgot ? <div role="status" className="mt-8 rounded-2xl bg-emerald-400/10 border border-emerald-300/25 p-5 text-sm text-emerald-100 leading-7 flex gap-3"><Icon name="circle-check" size={20} className="shrink-0 mt-1" /><span>اگر حسابی با <span className="ltr">{f.email}</span> وجود داشته باشد، رمز موقت به آن ارسال شد و تا ۳۰ دقیقه معتبر است. پوشه اسپم را هم بررسی کنید.</span></div> : (
         <form className="mt-8 space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <Field label="ایمیل"><input type="email" autoComplete="email" value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-left h-12"} placeholder="name@example.com" /></Field>
+          <Field label="ایمیل"><input type="email" autoComplete="email" value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-start h-12"} placeholder="name@example.com" /></Field>
           {errorLine}
-          <AsyncButton onClick={wrap(async () => { await api.auth.forgot(f.email.trim()); setSentForgot(true); })} className={BTN_P + " w-full h-12"}>ارسال لینک بازیابی</AsyncButton>
+          <AsyncButton onClick={wrap(async () => { await api.auth.forgot(f.email.trim()); setSentForgot(true); })} className={BTN_P + " w-full h-12"}>ارسال رمز موقت</AsyncButton>
         </form>
       )}
     </div>
@@ -61,15 +61,14 @@ export function AuthForm() {
       <div className="mt-7"><Tabs full value={mode} onChange={switchMode} label="روش ورود" options={[{ id: "login", label: "ورود" }, { id: "otp", label: "ورود با کد" }, { id: "register", label: "ثبت‌نام" }]} /></div>
       <form key={mode + otpStep} className="fade-in mt-7 space-y-4" onSubmit={(e) => e.preventDefault()} noValidate>
         {mode === "login" && <>
-          <Field label="ایمیل یا موبایل"><input name="username" value={f.id} onChange={set("id")} dir="ltr" autoComplete="username" className={INPUT + " text-left h-12"} placeholder="name@example.com" /></Field>
+          <Field label="ایمیل یا موبایل"><input name="username" value={f.id} onChange={set("id")} dir="ltr" autoComplete="username" className={INPUT + " text-start h-12"} placeholder="name@example.com" /></Field>
           <Field label="رمز عبور">
             <div className="relative">
-              <input name="password" type={show ? "text" : "password"} value={f.password} onChange={set("password")} dir="ltr" autoComplete="current-password" className={INPUT + " text-left h-12 pl-11"} />
-              <button type="button" onClick={() => setShow((s) => !s)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-white/55 hover:text-white" aria-label={show ? "پنهان کردن رمز" : "نمایش رمز"} aria-pressed={show}><Icon name={show ? "eye-off" : "eye"} size={17} /></button>
+              <input name="password" type={show ? "text" : "password"} value={f.password} onChange={set("password")} dir="ltr" autoComplete="current-password" className={INPUT + " text-start h-12 ps-11"} />
+              <button type="button" onClick={() => setShow((s) => !s)} className="absolute end-2 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center text-white/55 hover:text-white" aria-label={show ? "پنهان کردن رمز" : "نمایش رمز"} aria-pressed={show}><Icon name={show ? "eye-off" : "eye"} size={17} /></button>
             </div>
           </Field>
-          <div className="flex items-center justify-between text-xs">
-            <label className="flex items-center gap-2 text-white/60 cursor-pointer"><input type="checkbox" className="accent-white" defaultChecked /> مرا به خاطر بسپار</label>
+          <div className="flex items-center justify-end text-xs">
             <button type="button" onClick={() => switchMode("forgot")} className="text-white/60 hover:text-white">فراموشی رمز</button>
           </div>
           {errorLine}
@@ -86,7 +85,7 @@ export function AuthForm() {
           })} className={BTN_P + " w-full h-12"}><Icon name="log-in" size={17} /> ورود</AsyncButton>
         </>}
         {mode === "otp" && (otpStep === 0 ? <>
-          <Field label="شماره موبایل" hint="کد یک‌بارمصرف پیامک می‌شود."><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-left h-12 tabular"} placeholder="09121234567" /></Field>
+          <Field label="شماره موبایل" hint="کد یک‌بارمصرف پیامک می‌شود."><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-start h-12 tabular"} placeholder="09121234567" /></Field>
           {errorLine}
           <AsyncButton onClick={wrap(async () => { await api.auth.sendOtp(phone); setOtpStep(1); setTimer(90); setCode(""); })} className={BTN_P + " w-full h-12"}><Icon name="smartphone" size={17} /> دریافت کد</AsyncButton>
         </> : <>
@@ -101,11 +100,11 @@ export function AuthForm() {
         </>)}
         {mode === "register" && <>
           <Field label="نام و نام خانوادگی"><input name="name" autoComplete="name" value={f.name} onChange={set("name")} className={INPUT + " h-12"} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="ایمیل"><input name="email" type="email" autoComplete="email" value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-left h-12"} /></Field>
-            <Field label="موبایل"><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-left h-12 tabular"} placeholder="0912…" /></Field>
+          <div className="grid min-[420px]:grid-cols-2 gap-4 min-[420px]:gap-3">
+            <Field label="ایمیل"><input name="email" type="email" autoComplete="email" value={f.email} onChange={set("email")} dir="ltr" className={INPUT + " text-start h-12"} /></Field>
+            <Field label="موبایل"><input name="tel" type="tel" autoComplete="tel" value={f.phone} onChange={set("phone")} dir="ltr" inputMode="tel" className={INPUT + " text-start h-12 tabular"} placeholder="0912…" /></Field>
           </div>
-          <Field label="رمز عبور"><input name="new-password" type="password" autoComplete="new-password" value={f.password} onChange={set("password")} dir="ltr" className={INPUT + " text-left h-12"} /><StrengthBar value={f.password} /></Field>
+          <Field label="رمز عبور"><input name="new-password" type="password" autoComplete="new-password" value={f.password} onChange={set("password")} dir="ltr" className={INPUT + " text-start h-12"} /><StrengthBar value={f.password} /></Field>
           <label className="flex items-start gap-2.5 text-xs text-white/60 cursor-pointer leading-6"><input type="checkbox" checked={f.agree} onChange={set("agree")} className="accent-white mt-1" /><span><Link href="/terms" target="_blank" className="underline underline-offset-4 hover:text-white">قوانین و حریم خصوصی</Link> گره را خوانده‌ام و می‌پذیرم.</span></label>
           {errorLine}
           <AsyncButton onClick={wrap(async () => {

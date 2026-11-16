@@ -42,7 +42,6 @@ export function EnFooter() {
           <h2 className="font-extrabold mb-3">Contact</h2>
           <ul className="space-y-2 text-white/60">
             <li><a href={"mailto:" + EMAIL} className="hover:text-white">{EMAIL}</a></li>
-            <li><a href="tel:+982191000000" className="hover:text-white">+98 21 9100 0000</a></li>
             <li>Valiasr St, Tehran, Iran</li>
             <li>24/7 support in Persian and English</li>
           </ul>

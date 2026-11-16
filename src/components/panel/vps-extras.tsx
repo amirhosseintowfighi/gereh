@@ -60,7 +60,7 @@ function PtrRow({ sid, ip, onDone }: { sid: string; ip: VpsExtrasView["ips"][num
   return (
     <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2 items-center p-3 rounded-xl hover:bg-white/[0.03]">
       <div className="flex items-center gap-2"><span className="mono text-sm ltr">{ip.ip}</span>{ip.primary ? <Badge>اصلی</Badge> : <Badge tone="blue">{toman(ip.price)}/ماه</Badge>}</div>
-      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلاً mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT_BASE + " h-9 text-left text-xs"} />
+      <input value={ptr} onChange={(e) => setPtr(e.target.value)} dir="ltr" placeholder="PTR، مثلاً mail.example.com" aria-label={"PTR برای " + ip.ip} className={INPUT_BASE + " h-9 text-start text-xs"} />
       <div className="flex gap-1 justify-end">
         <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { const h = ptr.trim().toLowerCase().replace(/\.$/, ""); if (h && !FQDN_RE.test(h)) throw new Error("نام دامنه معتبر نیست."); await vpsApi.setPtr(sid, ip.id, h); notify("PTR ذخیره شد"); onDone(); }}>ذخیره</AsyncButton>
         {!ip.primary && <IconBtn icon="trash-2" label={"حذف " + ip.ip} className="hover:text-rose-300" onClick={async () => { if (await confirm("آدرس " + ip.ip + " حذف و به استخر برگردانده شود؟", { danger: true, ok: "حذف" })) { await vpsApi.removeIp(sid, ip.id); notify("آدرس حذف شد"); onDone(); } }} />}
@@ -80,7 +80,7 @@ export function DisksPanel({ s }: { s: Server }) {
       <p className="text-xs text-white/55 leading-6 px-2 mb-3">هر گیگابایت {toman(v.prices.diskGb)} در ماه، ساعتی از کیف پول. اندازه دیسک فقط افزایش می‌یابد؛ پس از افزایش، پارتیشن را در سیستم‌عامل بزرگ کنید. دیسک جداشده داده‌هایش را نگه می‌دارد و به سرورهای همین موقعیت وصل می‌شود.</p>
       {v.disks.length === 0 ? <Empty icon="hard-drive" title="دیسک اضافه‌ای ندارید" text="برای داده، لاگ یا بکاپ، یک دیسک جدا بسازید." /> : v.disks.map((d) => (
         <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl hover:bg-white/[0.03]">
-          <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-right">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}{!d.billed && " · افزوده‌شده توسط پشتیبانی، بدون هزینه"}</div></div></div>
+          <div className="flex items-center gap-3"><Icon name="hard-drive" size={17} className="text-white/55" /><div><div className="text-sm font-bold ltr text-end">{d.name}</div><div className="text-[11px] text-white/55">{fa(d.sizeGb)} گیگابایت، اسلات {fa(d.slot ?? 0)}، {d.at}{!d.billed && " · افزوده‌شده توسط پشتیبانی، بدون هزینه"}</div></div></div>
           <div className="flex gap-1">
             <button type="button" onClick={() => { const min = Math.floor(d.sizeGb / 10) * 10 + 10; setGrow({ id: d.id, name: d.name, size: String(min), min }); }} className={BTN_G + BTN_SM}>افزایش اندازه</button>
             <AsyncButton className={BTN_G + BTN_SM} confirmText={"دیسک " + d.name + " از سرور جدا شود؟ پیش از آن، آن را در سیستم‌عامل unmount کنید."} onClick={async () => { await vpsApi.detachDisk(d.id); notify("دیسک جدا شد"); x.reload(); }}>جدا کردن</AsyncButton>
@@ -101,13 +101,13 @@ export function DisksPanel({ s }: { s: Server }) {
     </Card>}
     <Modal open={!!add} onClose={() => setAdd(null)} title="دیسک جدید" icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!add) return; await vpsApi.addDisk(s.id, { name: add.name.trim().toLowerCase(), sizeGb: num(add.size) }); setAdd(null); notify("دیسک ساخته و وصل شد", "hard-drive"); x.reload(); }}>ساخت</AsyncButton><button type="button" onClick={() => setAdd(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
       {add && <div className="grid grid-cols-2 gap-4">
-        <Field label="نام" hint="حروف کوچک انگلیسی، عدد و خط تیره"><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} dir="ltr" className={INPUT + " text-left mono"} /></Field>
-        <Field label="اندازه (گیگابایت)" error={add.size && diskSizeError(num(add.size), v.prices.maxDiskGb) || undefined} hint={"مضرب ۱۰، از ۱۰ تا " + fa(v.prices.maxDiskGb)}><input value={add.size} onChange={(e) => setAdd({ ...add, size: e.target.value })} onBlur={() => setAdd({ ...add, size: String(clampDisk(num(add.size), v.prices.maxDiskGb)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>
+        <Field label="نام" hint="حروف کوچک انگلیسی، عدد و خط تیره"><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} dir="ltr" className={INPUT + " text-start mono"} /></Field>
+        <Field label="اندازه (گیگابایت)" error={add.size && diskSizeError(num(add.size), v.prices.maxDiskGb) || undefined} hint={"مضرب ۱۰، از ۱۰ تا " + fa(v.prices.maxDiskGb)}><input value={add.size} onChange={(e) => setAdd({ ...add, size: e.target.value })} onBlur={() => setAdd({ ...add, size: String(clampDisk(num(add.size), v.prices.maxDiskGb)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>
         <p className="col-span-2 text-xs text-white/55">هزینه ماهانه: {toman(num(add.size) * v.prices.diskGb)}</p>
       </div>}
     </Modal>
     <Modal open={!!grow} onClose={() => setGrow(null)} title={"افزایش دیسک " + (grow?.name ?? "")} icon="hard-drive" footer={<><AsyncButton onClick={async () => { if (!grow) return; await vpsApi.resizeDisk(grow.id, num(grow.size)); setGrow(null); notify("اندازه دیسک افزایش یافت"); x.reload(); }}>اعمال</AsyncButton><button type="button" onClick={() => setGrow(null)} className={BTN_G + BTN_MD}>انصراف</button></>}>
-      {grow && <Field label="اندازه جدید (گیگابایت)" hint={"مضرب ۱۰، دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} onBlur={() => setGrow({ ...grow, size: String(clampDisk(num(grow.size), v.prices.maxDiskGb, grow.min)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-left tabular"} /></Field>}
+      {grow && <Field label="اندازه جدید (گیگابایت)" hint={"مضرب ۱۰، دست‌کم " + fa(grow.min)}><input value={grow.size} onChange={(e) => setGrow({ ...grow, size: e.target.value })} onBlur={() => setGrow({ ...grow, size: String(clampDisk(num(grow.size), v.prices.maxDiskGb, grow.min)) })} inputMode="numeric" dir="ltr" className={INPUT + " text-start tabular"} /></Field>}
     </Modal>
   </>}</Wrap>;
 }
@@ -189,7 +189,7 @@ function TrafficBuy({ sid, prices, onDone }: { sid: string; prices: VpsExtrasVie
       <Field label="حجم (گیگابایت)" hint={"در گام‌های " + fa(TRAFFIC_STEP_GB) + " گیگابایتی؛ هر " + fa(TRAFFIC_STEP_GB) + " گیگ " + toman(prices.pack500Price)}>
         <div className="flex items-center gap-1">
           <IconBtn icon="minus" label="کم کردن حجم" onClick={() => setGb(String(snap(n - TRAFFIC_STEP_GB)))} />
-          <input value={gb} onChange={(e) => setGb(e.target.value)} onBlur={() => setGb(String(snap(n)))} inputMode="numeric" dir="ltr" aria-label="حجم ترافیک (گیگابایت)" className={INPUT + " w-28 text-left tabular"} />
+          <input value={gb} onChange={(e) => setGb(e.target.value)} onBlur={() => setGb(String(snap(n)))} inputMode="numeric" dir="ltr" aria-label="حجم ترافیک (گیگابایت)" className={INPUT + " w-28 text-start tabular"} />
           <IconBtn icon="plus" label="افزایش حجم" onClick={() => setGb(String(snap(n + TRAFFIC_STEP_GB)))} />
         </div>
       </Field>
@@ -282,7 +282,7 @@ export function PlanChange({ s }: { s: Server }) {
           const cur = p.name === s.plan;
           return (
             <button type="button" role="radio" aria-checked={plan === p.id} key={p.id} disabled={cur || !stopped} onClick={() => setPlan(p.id)}
-              className={"rounded-2xl p-4 text-right border transition " + (cur || !stopped ? "opacity-50 cursor-not-allowed border-white/10" : plan === p.id ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
+              className={"rounded-2xl p-4 text-start border transition " + (cur || !stopped ? "opacity-50 cursor-not-allowed border-white/10" : plan === p.id ? "bg-white/[0.1] border-white/40" : "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]")}>
               <div className="flex justify-between"><span className="font-bold">{p.name}</span>{cur && <Badge>فعلی</Badge>}</div>
               <div className="text-xs text-white/50 mt-2">{fa(c)} هسته، {fa(r)} گیگ رم، {fa(Math.max(d, s.disk))} گیگ</div>
             </button>
@@ -322,8 +322,8 @@ export function FirewallGroups({ s }: { s: Server }) {
           return (
             <div key={i} className="grid grid-cols-2 sm:grid-cols-[90px_1fr_1fr_100px_1fr_auto] gap-2 items-center">
               <Select label="پروتکل" value={r.proto} onChange={(p) => set({ proto: p })} options={["TCP", "UDP", "ICMP"]} ltr />
-              <input value={r.proto === "ICMP" ? "—" : r.port} disabled={r.proto === "ICMP"} onChange={(e) => set({ port: e.target.value })} dir="ltr" placeholder="پورت" aria-label="پورت" className={INPUT + " text-left mono text-xs"} />
-              <input value={r.source} onChange={(e) => set({ source: e.target.value })} dir="ltr" aria-label="مبدأ" className={INPUT + " text-left mono text-xs"} />
+              <input value={r.proto === "ICMP" ? "—" : r.port} disabled={r.proto === "ICMP"} onChange={(e) => set({ port: e.target.value })} dir="ltr" placeholder="پورت" aria-label="پورت" className={INPUT + " text-start mono text-xs"} />
+              <input value={r.source} onChange={(e) => set({ source: e.target.value })} dir="ltr" aria-label="مبدأ" className={INPUT + " text-start mono text-xs"} />
               <Select label="عملکرد" value={r.action} onChange={(a) => set({ action: a as "allow" | "deny" })} options={[{ value: "allow", label: "اجازه" }, { value: "deny", label: "مسدود" }]} />
               <input value={r.note} maxLength={60} onChange={(e) => set({ note: e.target.value })} placeholder="توضیح" aria-label="توضیح" className={INPUT + " text-xs"} />
               <IconBtn icon="x" label="حذف قانون" onClick={() => setEdit({ ...edit, rules: edit.rules.filter((_, j) => j !== i) })} />

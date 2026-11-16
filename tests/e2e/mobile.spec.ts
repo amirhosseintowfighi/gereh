@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { stubThirdParty } from "./third-party";
+
+stubThirdParty();
 
 test("mobile menu opens, navigates and closes on route change", async ({ page, isMobile }) => {
   test.skip(!isMobile, "mobile only");

@@ -113,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         </>}>
         {asking && <form id="app-prompt" onSubmit={(e) => { e.preventDefault(); if (asking.opts.allowEmpty || asking.value.trim()) reply(asking.value); }}>
           <Field label={asking.label} hint={asking.opts.hint}>
-            <input autoFocus value={asking.value} onChange={(e) => setAsking({ ...asking, value: e.target.value })} placeholder={asking.opts.placeholder} dir={asking.opts.ltr ? "ltr" : undefined} className={INPUT + (asking.opts.ltr ? " text-left font-mono" : "")} />
+            <input autoFocus value={asking.value} onChange={(e) => setAsking({ ...asking, value: e.target.value })} placeholder={asking.opts.placeholder} dir={asking.opts.ltr ? "ltr" : undefined} className={INPUT + (asking.opts.ltr ? " text-start font-mono" : "")} />
           </Field>
         </form>}
       </Modal>
@@ -176,7 +176,7 @@ function Palette({ onClose, onCart }: { onClose: () => void; onCart: () => void 
               <Fragment key={it.id}>
                 {head}
                 <button type="button" role="option" aria-selected={i === cur} onMouseEnter={() => setIdx(i)} onClick={() => run(it)}
-                  className={"w-full flex items-center gap-3 px-3 py-3 rounded-xl text-right transition " + (i === cur ? "bg-white/[0.12]" : "")}>
+                  className={"w-full flex items-center gap-3 px-3 py-3 rounded-xl text-start transition " + (i === cur ? "bg-white/[0.12]" : "")}>
                   <span className={"w-9 h-9 rounded-xl grid place-items-center " + (i === cur ? "acc-bg" : "bg-white/[0.08] text-white/70")}><Icon name={it.icon} size={17} /></span>
                   <span className="flex-1 text-sm">{it.label}</span>
                   {i === cur && <Icon name="corner-down-left" size={16} className="text-white/55" />}
@@ -224,7 +224,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
   return (
     <div className="fixed inset-0 z-[55] fade-in">
       <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
-      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="سبد خرید" className="drawer-in absolute left-0 top-0 bottom-0 w-[400px] max-w-[92vw] bg-[#0a0c14]/90 backdrop-blur-2xl border-r border-white/15 shadow-2xl flex flex-col outline-none"
+      <aside ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label="سبد خرید" className="drawer-in absolute end-0 top-0 bottom-0 w-[400px] max-w-[92vw] bg-[#0a0c14]/90 backdrop-blur-2xl border-s border-white/15 shadow-2xl flex flex-col outline-none"
         style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="flex items-center justify-between px-6 h-16 border-b border-white/10">
           <h2 className="flex items-center gap-2 font-extrabold text-base"><Icon name="shopping-cart" size={19} className="acc" /> سبد خرید {cart.length > 0 && <span className="text-white/50 font-normal text-sm">({fa(cart.length)})</span>}</h2>
@@ -254,7 +254,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
                 <li key={i.id} className="pop-in flex items-start gap-3 rounded-2xl bg-white/[0.06] border border-white/[0.12] p-3.5">
                   <span className="w-10 h-10 rounded-xl bg-white/[0.08] grid place-items-center acc"><Icon name={i.icon || "box"} size={19} /></span>
                   <div className="flex-1 min-w-0">
-                    <div className={"text-sm font-bold truncate " + (i.ltr ? "ltr text-right" : "")}>{i.title}</div>
+                    <div className={"text-sm font-bold truncate " + (i.ltr ? "ltr text-end" : "")}>{i.title}</div>
                     {i.meta && <div className="text-xs text-white/50 mt-1 leading-5">{i.meta}</div>}
                     <div className="text-xs mt-1.5 text-white/85">{toman(i.base)}</div>
                   </div>
@@ -271,7 +271,7 @@ function CartDrawer({ cart, onClose }: { cart: CartItem[]; onClose: () => void }
               ) : (
                 <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>
                   <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} dir="ltr" aria-label="کد تخفیف" placeholder="کد تخفیف" aria-invalid={!!codeErr}
-                    className="flex-1 min-w-0 h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3 outline-none focus:border-white/40 mono text-left" />
+                    className="flex-1 min-w-0 h-10 rounded-xl bg-white/[0.06] border border-white/15 px-3 outline-none focus:border-white/40 mono text-start" />
                   <button type="submit" disabled={!code.trim() || checking} className={BTN_G + BTN_MD}>{checking ? <Icon name="loader-circle" size={16} className="animate-spin" /> : "اعمال"}</button>
                 </form>
               )}

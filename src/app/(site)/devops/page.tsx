@@ -33,7 +33,7 @@ export default function DevopsPage() {
             <Icon name="chevron-left" size={13} /><span className="text-white/75" aria-current="page">خدمات دواپس</span>
           </nav>
           <p className="mt-8 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.12] text-white/75"><Icon name="sparkles" size={14} className="acc" />برای شرکت‌ها، استارتاپ‌ها و سازمان‌ها</p>
-          <h1 className="hero-title mt-6 text-[2.2rem] sm:text-7xl font-black leading-[1.3] tracking-tight">تیم دواپس شما،<br />بدون استخدام</h1>
+          <h1 className="hero-title mt-6 text-[2.1rem] sm:text-6xl font-black leading-[1.35]">تیم دواپس شما،<br />بدون استخدام</h1>
           <p className="mt-6 text-white/70 max-w-2xl mx-auto leading-8 sm:text-lg">زیرساختتان را می‌سازیم، خودکار می‌کنیم و شبانه‌روز نگه می‌داریم تا تیم شما روی محصول تمرکز کند. روی گره، هر سرویس‌دهنده دیگر یا سرورهای داخل سازمان خودتان.</p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center">
             <a href="#request" className={BTN_P + " h-13 px-7 py-3.5 text-base"}><Icon name="message-circle" size={18} />جلسه آشنایی رایگان</a>
