@@ -60,7 +60,7 @@ export const devopsRpc = {
     const email = f.email.toLowerCase();
     if (!EMAIL_RE.test(email)) fail("ایمیل معتبر نیست.");
     const phone = toEnDigits(f.phone).replace(/[\s-]/g, "");
-    if (!PHONE_ANY.test(phone)) fail("شماره تماس معتبر نیست؛ مثلا ۰۹۱۲۱۲۳۴۵۶۷ یا ۰۲۱۹۱۰۰۰۰۰۰.");
+    if (!PHONE_ANY.test(phone)) fail("شماره تماس معتبر نیست؛ مثلا ۰۹۱۲۱۲۳۴۵۶۷ یا ۰۲۱۱۲۳۴۵۶۷۸.");
     if (f.website && !/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(f.website)) fail("نشانی وب‌سایت معتبر نیست.");
     if (f.message.length < 20) fail("کمی بیشتر از وضعیت و نیازتان بنویسید (حداقل ۲۰ نویسه).");
     const ref = await nextId(ctx.db, "DO", 1000);

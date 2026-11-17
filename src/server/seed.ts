@@ -28,7 +28,7 @@ import { randomSecret, sha256 } from "./util";
 
 export const DEMO_PASSWORD = "Demo1234!";
 export const DEFAULT_SETTINGS = {
-  siteName: "گره", supportEmail: "support@gereh.net", supportPhone: "۰۲۱-۹۱۰۰۰۰۰۰", registration: true, maintenance: false, tax: 10,
+  siteName: "گره", supportEmail: "support@gereh.net", supportPhone: "", registration: true, maintenance: false, tax: 10,
   gateways: { zarinpal: true, idpay: true, wallet: true, crypto: false } as Record<string, boolean>,
   smsProvider: "کاوه‌نگار", smsKeySet: false, smtpHost: "smtp.gereh.net", smtpPort: 587,
   /** % of a referred customer's paid invoices credited to the referrer during their first year */

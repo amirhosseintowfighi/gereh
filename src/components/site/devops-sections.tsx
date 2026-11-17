@@ -148,7 +148,7 @@ export function DevopsRequest({ preset, source, title = "جلسه آشنایی �
           <h2 className="text-2xl sm:text-4xl font-black leading-[1.4]">{title}</h2>
           <p className="mt-4 text-white/65 leading-8">چند سؤال کوتاه تا قبل از جلسه، وضعیت شما را بشناسیم و وقت هیچ‌کس هدر نرود.</p>
           <ul className="mt-6 space-y-3 text-sm text-white/70">
-            {[["clock", "پاسخ ظرف یک روز کاری؛ موارد فوری همان روز"], ["file-check", "امضای NDA پیش از جلسه، در صورت نیاز"], ["shield-check", "بدون نیاز به ارسال رمز یا دسترسی"], ["phone", "یا مستقیم تماس بگیرید: ۰۲۱-۹۱۰۰۰۰۰۰"]].map(([ic, t]) => <li key={t} className="flex gap-2.5"><Icon name={ic} size={17} className="acc shrink-0 mt-0.5" />{t}</li>)}
+            {[["clock", "پاسخ ظرف یک روز کاری؛ موارد فوری همان روز"], ["file-check", "امضای NDA پیش از جلسه، در صورت نیاز"], ["shield-check", "بدون نیاز به ارسال رمز یا دسترسی"]].map(([ic, t]) => <li key={t} className="flex gap-2.5"><Icon name={ic} size={17} className="acc shrink-0 mt-0.5" />{t}</li>)}
           </ul>
         </div>
         <div className={GLASS + " rounded-[1.75rem] p-6 sm:p-8 relative"}><DevopsRequestForm preset={preset} source={source} /></div>

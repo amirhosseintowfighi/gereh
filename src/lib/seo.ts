@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://gereh.net").replace(/\/$/, "");
 export const SITE_NAME = "گره";
 export const SITE_DESC = "سرور ابری با دیسک NVMe، سرور اختصاصی، هاست وب پرسرعت و ثبت دامنه .ir و بین‌المللی. آماده‌سازی سرور در کمتر از یک دقیقه، آپتایم ۹۹٫۹۹٪ و پشتیبانی فنی شبانه‌روزی.";
-export const PHONE = "+98-21-91000000";
 export const EMAIL = "hello@gereh.net";
 
 /** Per-page metadata with canonical URL + OG/Twitter that inherit the site defaults. */
@@ -26,9 +25,8 @@ export const orgLd = {
   url: SITE_URL,
   logo: SITE_URL + "/icon-512.png",
   email: EMAIL,
-  telephone: PHONE,
   address: { "@type": "PostalAddress", streetAddress: "خیابان ولیعصر", addressLocality: "تهران", addressCountry: "IR" },
-  contactPoint: [{ "@type": "ContactPoint", telephone: PHONE, contactType: "customer support", availableLanguage: ["fa", "en"], areaServed: "IR", hoursAvailable: "Mo-Su 00:00-23:59" }],
+  contactPoint: [{ "@type": "ContactPoint", email: EMAIL, contactType: "customer support", availableLanguage: ["fa", "en"], areaServed: "IR", hoursAvailable: "Mo-Su 00:00-23:59" }],
   parentOrganization: { "@type": "Organization", name: "ویرگول", alternateName: "Virgule", url: "https://virgule.studio" },
 };
 
