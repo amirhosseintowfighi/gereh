@@ -94,7 +94,7 @@ export function Terminal() {
             </div>
           )}
         </div>
-        <div className="h-[2px] bg-white/[0.06]"><div className="h-full acc-bg transition-all duration-300" style={{ width: (sec / 54) * 100 + "%" }} /></div>
+        <div className="h-[2px] bg-white/[0.06]"><div className="h-full acc-bg transition-transform duration-300 rtl:origin-right ltr:origin-left" style={{ transform: "scaleX(" + Math.min(1, sec / 54) + ")" }} /></div>
         <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white/[0.02]">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label="پلن نمونه">
             {TERM_PLANS.map((x) => (
@@ -445,7 +445,7 @@ export function Steps() {
       <SectionHead title="از انتخاب تا اجرا، کمتر از پنج دقیقه" />
       <ol className="relative grid md:grid-cols-3 gap-4">
         <div aria-hidden="true" className="hidden md:block absolute top-[38px] start-[16%] end-[16%] h-px bg-white/15">
-          <div className="h-full acc-bg transition-all duration-700" style={{ width: (act / 2) * 100 + "%" }} />
+          <div className="h-full acc-bg transition-transform duration-700 rtl:origin-right ltr:origin-left" style={{ transform: "scaleX(" + Math.min(1, act / 2) + ")" }} />
         </div>
         {STEPS.map((s, i) => (
           <li key={i}>
