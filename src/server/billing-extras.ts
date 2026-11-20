@@ -184,7 +184,7 @@ export async function lowCreditAlerts(db: DB) {
 }
 
 export const LEVELS = {
-  developer: { label: "توسعه‌دهنده", sla: "۹۹٫۵٪", support: "عادی (پاسخ تا ۴ ساعت)", priority: "normal" },
+  developer: { label: "توسعه‌دهنده", sla: "۹۹٫۹٪", support: "عادی (پاسخ تا ۴ ساعت)", priority: "normal" },
   startup: { label: "استارتاپ", sla: "۹۹٫۹٪", support: "بالا (پاسخ تا ۱ ساعت)", priority: "high" },
-  enterprise: { label: "سازمانی", sla: "۹۹٫۹۵٪", support: "ویژه (پاسخ تا ۱۵ دقیقه، مدیر حساب اختصاصی)", priority: "high" },
+  enterprise: { label: "سازمانی", sla: "۹۹٫۹٪", support: "ویژه (پاسخ تا ۱۵ دقیقه، مدیر حساب اختصاصی)", priority: "high" },
 } as const;
