@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { ArticleView } from "@/components/site/article";
@@ -19,7 +20,7 @@ export default function Page() {
         aside={(
           <div className={GLASS_SOFT + " rounded-2xl p-4 space-y-2"}>
             <a href="/panel/keys" className={BTN_P + " w-full h-10 text-sm"}><Icon name="key-round" size={15} />ساخت توکن</a>
-            <a href="/docs/api" className={BTN_G + " w-full h-10 text-sm"}><Icon name="code-xml" size={15} />API عمومی</a>
+            <Link href="/docs/api" className={BTN_G + " w-full h-10 text-sm"}><Icon name="code-xml" size={15} />API عمومی</Link>
           </div>
         )} />
     </>

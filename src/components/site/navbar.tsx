@@ -90,7 +90,7 @@ export function Navbar() {
               ))}
               <div className="col-span-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08] mt-1 pt-3 px-3 text-xs text-white/55">
                 <span>همه سرویس‌ها با یک حساب، یک کیف پول و فاکتور رسمی</span>
-                <span className="flex gap-4"><Link href="/docs/api" className="hover:text-white">مستندات API</Link><Link href="/status" className="hover:text-white">وضعیت سرویس‌ها</Link><Link href="/contact" className="hover:text-white">تماس با فروش</Link></span>
+                <span className="flex gap-4"><Link href="/docs" className="hover:text-white">مستندات</Link><Link href="/docs/api" className="hover:text-white">API</Link><Link href="/status" className="hover:text-white">وضعیت سرویس‌ها</Link><Link href="/contact" className="hover:text-white">تماس با فروش</Link></span>
               </div>
             </div>
           )}

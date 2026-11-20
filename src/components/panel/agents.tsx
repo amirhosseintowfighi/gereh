@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { MCP_CLIENTS } from "@/content/mcp";
 import { SITE_URL } from "@/lib/seo";
@@ -13,7 +14,7 @@ export function AgentConnect() {
   const code = c.code(SITE_URL, "grh_YOUR_TOKEN");
   return (
     <Card title="اتصال ایجنت‌های هوش مصنوعی (MCP)" icon="bot" className="mt-4" pad="p-3 sm:p-4"
-      action={<a href="/docs/mcp" className="text-xs acc inline-flex items-center gap-1"><Icon name="book-open" size={13} />راهنما</a>}>
+      action={<Link href={"/docs/mcp" as never} className="text-xs acc inline-flex items-center gap-1"><Icon name="book-open" size={13} />راهنما</Link>}>
       <p className="text-sm text-white/65 leading-7 mb-3">Claude Code، Cursor، Codex یا Copilot را به حساب گره وصل کنید تا با زبان طبیعی دیپلوی کنند، لاگ و خطای بیلد را بخوانند، متغیرها را تنظیم و DNS را ویرایش کنند. برای ایجنت یک توکن جدا بسازید؛ توکن «فقط خواندن» برای شروع امن‌تر است.</p>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {MCP_CLIENTS.map((x) => <button key={x.id} type="button" aria-pressed={id === x.id} onClick={() => setId(x.id)} className={"h-8 px-3 rounded-lg text-xs transition " + (id === x.id ? "bg-white text-black font-bold" : "bg-white/[0.05] text-white/65 hover:text-white")}>{x.label}</button>)}
