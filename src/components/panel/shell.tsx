@@ -21,6 +21,13 @@ import { Badge, Empty } from "../ui";
 import { AsyncButton, Menu, useDialog } from "../ui-client";
 import { DemoBadge } from "../demo-badge";
 
+/* Panel content width. Up to ~1920px screens the content fills the space beside the sidebar; past that (2K, 4K and
+   ultrawide monitors) it stops at a comfortable reading width and is centred, instead of sticking to the sidebar
+   with a wide empty band on the other side. The header bar and the banners use the same width. */
+const PANEL_WIDTH = "w-full max-w-[1760px] mx-auto";
+/* the same column with the page padding around it (border-box), for <main> and the banners above it */
+const PANEL_COLUMN = "w-full max-w-[1824px] mx-auto px-4 sm:px-8";
+
 type NavItem = { href: string; label: string; icon: string; group?: string; tag?: string };
 const USER_NAV: NavItem[] = [
   { href: "/panel", label: "داشبورد", icon: "layout-dashboard" },
@@ -176,7 +183,9 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
       <aside className="hidden lg:block w-[264px] shrink-0 fixed inset-y-0 start-0 bg-[#06070e]/70 backdrop-blur-2xl border-e border-white/[0.07]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>{side()}</aside>
       {mobile && <NavDrawer label={kind === "admin" ? "منوی مدیریت" : "منوی پنل"} onClose={closeNav}>{side(closeNav)}</NavDrawer>}
       <div className="flex-1 lg:ms-[264px] min-w-0">
-        <header className="sticky z-30 h-16 px-4 sm:px-8 flex items-center justify-between gap-3 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
+        <header className="sticky z-30 h-16 px-4 sm:px-8 bg-[#04050b]/70 backdrop-blur-2xl border-b border-white/[0.07]" style={{ top: "env(safe-area-inset-top, 0px)" }}>
+          {/* the bar's contents line up with <main> below, so on a wide monitor they do not drift to the screen edges */}
+          <div className={"h-full flex items-center justify-between gap-3 " + PANEL_WIDTH}>
           <div className="flex items-center gap-2">
             <button type="button" className="lg:hidden w-10 h-10 grid place-items-center rounded-xl bg-white/[0.05] border border-white/10" onClick={() => setMobile(true)} aria-label="منو" aria-expanded={mobile}><Icon name="menu" size={19} /></button>
             <button type="button" onClick={openPalette} className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/55 hover:text-white text-sm w-56 lg:w-64 min-w-0 transition">
@@ -201,20 +210,21 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
                 { icon: "log-out", label: "خروج از حساب", danger: true, run: logout },
               ]} />
           </div>
+          </div>
         </header>
         {kind === "user" && session?.role === "admin" && session.actorId && session.userId !== session.actorId && (
-          <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
+          <div className={PANEL_COLUMN}><div role="status" className="mt-4 rounded-xl border border-amber-300/30 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="eye" size={16} />در حال مشاهده پنل <b>{user.name}</b> به‌عنوان مدیر؛ همه اقدامات در گزارش فعالیت ثبت می‌شود.</span>
             <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.admin.stopImpersonate(); notify("به حساب مدیر برگشتید", "shield-half"); router.push("/admin/users"); }}>پایان و بازگشت به مدیریت</AsyncButton>
-          </div>
+          </div></div>
         )}
         {kind === "user" && session?.teamRole && (
-          <div role="status" className="mx-4 sm:mx-8 mt-4 rounded-xl border border-sky-300/25 bg-sky-400/[0.07] px-4 py-3 text-sm text-sky-100 flex flex-wrap items-center justify-between gap-3">
+          <div className={PANEL_COLUMN}><div role="status" className="mt-4 rounded-xl border border-sky-300/25 bg-sky-400/[0.07] px-4 py-3 text-sm text-sky-100 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-2"><Icon name="users-round" size={16} />در حساب <b>{user?.name}</b> با نقش «{roleLabel(session.teamRole)}» کار می‌کنید.</span>
             <AsyncButton className={BTN_G + BTN_SM} onClick={async () => { await api.team.switchTo(null); router.push("/panel"); }}>بازگشت به حساب خودم</AsyncButton>
-          </div>
+          </div></div>
         )}
-        <main id="main" key={path} className="fade-page p-4 max-sm:pb-24 sm:p-8 max-w-[1400px]">{children}</main>
+        <main id="main" key={path} className={"fade-page py-4 max-sm:pb-24 sm:py-8 " + PANEL_COLUMN}>{children}</main>
       </div>
       {kind === "user" && <AssistantLauncher />}
       {kind === "admin" && session?.role === "admin" && (!session.actorId || session.actorId === session.userId) && <AssistantLauncher staff />}

@@ -12,7 +12,7 @@
      BASE_URL      server to audit (default http://localhost:3210)
      BROWSER       chromium (default) | firefox | webkit
      CHROMIUM_PATH preinstalled Chromium (default: Playwright's own lookup)
-     WIDTHS        comma separated (default 360,390,768,1024,1440)
+     WIDTHS        comma separated (default 360,390,768,1024,1440,2560,3440: phones to ultrawide)
      ONLY          regular expression; only routes matching it are visited
      TABS          0 = do not click through tab bars (default 1)
      SHOTS         0 = no screenshots, "tabs" = also one per tab (default 1)
@@ -25,7 +25,7 @@ import { join } from "node:path";
 import * as pw from "playwright";
 
 const BASE = (process.env.BASE_URL || "http://localhost:3210").replace(/\/$/, "");
-const WIDTHS = (process.env.WIDTHS || "360,390,768,1024,1440").split(",").map(Number);
+const WIDTHS = (process.env.WIDTHS || "360,390,768,1024,1440,2560,3440").split(",").map(Number);
 const ONLY = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 const OUT = process.env.OUT || "test-results/responsive";
 const SHOTS = process.env.SHOTS ?? "1";
