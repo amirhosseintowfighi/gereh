@@ -29,10 +29,10 @@ import { SYNCABLE } from "../virt/sync";
 import { virt } from "../virt/driver";
 import { isAiError } from "./endpoints";
 import { simulateExplain, type SimFacts } from "./explain-sim";
+import { internalModel, upstreamFor } from "./internal";
 import { openMeter, panelCaller, resolveModel, type ResolvedModel } from "./service";
 import { OptCall } from "./optimizer/call";
 import { readChat, type ChatMessage } from "./translate";
-import { aiUpstream } from "./upstream";
 
 const MAX_ERR = 4000, MAX_OUT = 900;
 const RPC_REF_TTL_MS = 2 * 3600_000, FIX_TTL_MS = 24 * 3600_000;
@@ -298,6 +298,8 @@ export function buildMessages(kind: ExplainKind, subj: Subject, errorText: strin
 
 /** a cheap, fast chat model: AI_EXPLAIN_MODEL, else the active priced chat model with the lowest price */
 export async function explainModel(db: DB): Promise<ResolvedModel | null> {
+  const own = internalModel();
+  if (own) return own;
   const wanted = process.env.AI_EXPLAIN_MODEL;
   if (wanted) { const m = await resolveModel(db, wanted, [], "chat"); if (!isAiError(m) && m.outPrice > 0) return m; }
   const [m] = await db.select().from(aiModels).where(and(eq(aiModels.active, true), eq(aiModels.kind, "chat"), gt(aiModels.outPrice, 0), gte(aiModels.context, 32_000)))
@@ -361,7 +363,7 @@ export async function explainError(ctx: Ctx, kind: ExplainKind, resourceId: stri
   const sim = simulateExplain(kind, errorText, subj.facts);
   let answer: { summary: string; cause: string; steps: string[]; ids: string[] } = { summary: sim.summary, cause: sim.cause, steps: sim.steps, ids: sim.prefer };
   let simulated = true, charged = 0;
-  const up = aiUpstream();
+  const up = upstreamFor(model);
   if (up.name === "sim") {
     const outT = estimateTokens(JSON.stringify(sim).length);
     charged = await meter.close("success", { inTokens: inEst, outTokens: outT, charged: fee(inEst, outT), estimated: true, finish: "stop" });

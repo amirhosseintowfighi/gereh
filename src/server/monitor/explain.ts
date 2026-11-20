@@ -14,7 +14,7 @@ import { explainModel } from "../ai/explain";
 import { openMeter, platformCaller, resolveModel, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { internalModel, upstreamFor } from "../ai/internal";
 import type { DB, Tx } from "../db/client";
 import { kv } from "../db/schema";
 
@@ -108,6 +108,8 @@ export function buildPrompt(title: string, template: string): ChatMessage[] {
 }
 
 export async function monitorModel(db: DB): Promise<ResolvedModel | null> {
+  const own = internalModel();
+  if (own) return own;
   const wanted = process.env.AI_MONITOR_MODEL;
   if (wanted) { const m = await resolveModel(db, wanted, [], "chat"); if (!isAiError(m) && m.outPrice > 0) return m; }
   return explainModel(db);
@@ -118,10 +120,11 @@ export type Explained = { text: string; ai: boolean; cost: number };
 export async function explainIncident(db: DB, ref: string, i: { detector: Detector; kind: ResourceKind; severity: Severity; title: string; evidence: MonitorEvidence }, allowAi = true): Promise<Explained> {
   const template = templateExplanation(i.detector, i.kind, i.severity, i.evidence);
   const fallback = { text: template, ai: false, cost: 0 };
-  const up = aiUpstream();
-  if (up.name === "sim" || !allowAi) return fallback;
+  if (!allowAi) return fallback;
   const model = await monitorModel(db);
   if (!model) return fallback;
+  const up = upstreamFor(model);
+  if (up.name === "sim") return fallback;
   const messages = buildPrompt(i.title, template);
   const inEst = estimateTokens(JSON.stringify(messages).length);
   const meter = await openMeter(db, { caller: platformCaller(PURPOSE, ref, (await monitorSettings(db)).dailyCap), model, format: "panel", reserve: costOf(inEst, MAX_OUT, model) });

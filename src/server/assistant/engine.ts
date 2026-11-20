@@ -11,7 +11,7 @@ import { isAiError } from "../ai/endpoints";
 import { openMeter, panelCaller, upstreamError, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readSSE, readUsage, type ChatMessage, type ChatUsage, type ToolCall } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { upstreamFor } from "../ai/internal";
 import type { Ctx } from "../ctx";
 import { assistantMessages, assistantThreads, paasApps, paasDbs, servers } from "../db/schema";
 import { logActivity, rid } from "../util";
@@ -99,7 +99,7 @@ type StepOut = { text: string; calls: ToolCall[]; usage: ChatUsage | null };
 
 /** one model answer, streamed: the upstream with tools (a dropped connection before any text retries), or the simulator */
 async function step(o: { model: ResolvedModel; messages: ChatMessage[]; tools: Json[]; signal: AbortSignal; sim: () => ReturnType<typeof simPlan>; onDelta: (d: string) => void; partial: { text: string }; opt: OptCall }): Promise<StepOut> {
-  const up = aiUpstream();
+  const up = upstreamFor(o.model);
   if (up.name === "sim") {
     const r = o.sim(), wait = simDelay();
     for (let i = 0; i < r.text.length; i += 24) {

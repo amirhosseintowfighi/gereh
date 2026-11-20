@@ -20,7 +20,7 @@ import { redact } from "../ai/explain";
 import { openMeter, panelCaller, resolveModel, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { internalModel, upstreamFor } from "../ai/internal";
 import { assistantModels, refuseModel } from "../assistant/prompt";
 import { rateLimit } from "../auth";
 import { actor, needUser, teamAllows, type Ctx } from "../ctx";
@@ -136,6 +136,8 @@ export async function execute(x: Access, database: string, query: string, limit:
 /* ---------------- the model ---------------- */
 /** DBQ_MODEL first, then the assistant's candidates (configured, balanced default, the rest) */
 export async function dbqModels(ctx: Ctx): Promise<ResolvedModel[]> {
+  const own = internalModel();
+  if (own) return [own];
   const out: ResolvedModel[] = [];
   if (process.env.DBQ_MODEL) { const m = await resolveModel(ctx.db, process.env.DBQ_MODEL, [], "chat"); if (!isAiError(m) && m.outPrice > 0) out.push(m); }
   for (const m of await assistantModels(ctx.db)) if (!out.some((x) => x.id === m.id)) out.push(m);
@@ -185,8 +187,7 @@ async function callModel(x: Access, messages: ChatMessage[], sim: string | null,
   const caller = await panelCaller(x.ctx.db, x.impersonating ? x.actorId : x.uid);
   const inEst = estimateTokens(JSON.stringify(messages).length);
   const fee = (m: ResolvedModel, inT: number, outT: number) => Math.max(DBQ_MIN_FEE, costOf(inT, outT, m));
-  const up = aiUpstream();
-  if (up.name === "sim") {
+  if (upstreamFor(models[0]).name === "sim") {
     if (sim === null) return null;
     const m = models[0];
     const meter = await openMeter(x.ctx.db, { caller, model: m, format: "panel", reserve: fee(m, inEst, MAX_OUT) });
@@ -200,7 +201,7 @@ async function callModel(x: Access, messages: ChatMessage[], sim: string | null,
     if (isAiError(meter)) return fail(meter.message, meter.http);
     try {
       const opt = new OptCall("dbquery");
-      const res = await up.chat({ model: m.upstream || m.id, messages, max_tokens: MAX_OUT, temperature: 0 }, AbortSignal.timeout(60_000), undefined, opt);
+      const res = await upstreamFor(m).chat({ model: m.upstream || m.id, messages, max_tokens: MAX_OUT, temperature: 0 }, AbortSignal.timeout(60_000), undefined, opt);
       if (!res.ok) {
         const detail = (await res.text().catch(() => "")).slice(0, 200);
         await meter.close("error", { error: "upstream " + res.status + " " + detail });

@@ -13,7 +13,7 @@ import { isAiError } from "../ai/endpoints";
 import { OptCall } from "../ai/optimizer/call";
 import { openMeter, platformCaller } from "../ai/service";
 import { readChat, type ChatMessage } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { internalModel, upstreamFor } from "../ai/internal";
 import type { DB } from "../db/client";
 import { builderProjects, monitorIncidents, paasApps, paasEvents, paasMetrics, servers, usageSamples, watchChecks } from "../db/schema";
 import { paas } from "../paas/driver";
@@ -125,11 +125,11 @@ export async function runCheck(db: DB, f: Facts, o: { trigger: WatchTrigger; pla
 }
 
 async function aiReport(db: DB, f: Facts, trigger: WatchTrigger, signal?: AbortSignal) {
-  const up = aiUpstream();
-  if (up.name === "sim") return null;
-  const s = await watchSettings(db);
-  const model = await watchModel(db, s);
+  // the checks run on Gereh's own model when there is one; the plan's price quote keeps using watchModel
+  const model = internalModel() ?? (await watchModel(db, await watchSettings(db)));
   if (!model) return null;
+  const up = upstreamFor(model);
+  if (up.name === "sim") return null;
   const messages = checkMessages(f, trigger);
   const inEst = estimateTokens(JSON.stringify(messages).length);
   const meter = await openMeter(db, { caller: platformCaller(PURPOSE, f.kind + ":" + f.id), model, format: "panel", reserve: costOf(inEst, MAX_OUT, model) });

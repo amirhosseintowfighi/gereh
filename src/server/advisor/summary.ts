@@ -13,7 +13,7 @@ import { explainModel } from "../ai/explain";
 import { openMeter, platformCaller, resolveModel, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { internalModel, upstreamFor } from "../ai/internal";
 import type { DB, Tx } from "../db/client";
 import { kv } from "../db/schema";
 import type { Finding } from "./engine";
@@ -91,6 +91,8 @@ export function buildPrompt(list: Finding[]): ChatMessage[] {
 }
 
 async function advisorModel(db: DB): Promise<ResolvedModel | null> {
+  const own = internalModel();
+  if (own) return own;
   const wanted = process.env.AI_ADVISOR_MODEL;
   if (wanted) { const m = await resolveModel(db, wanted, [], "chat"); if (!isAiError(m) && m.outPrice > 0) return m; }
   return explainModel(db);
@@ -101,10 +103,10 @@ export type Summary = { text: string; simulated: boolean; cost: number };
 export async function writeSummary(db: DB, uid: string, list: Finding[]): Promise<Summary> {
   const template = { text: templateSummary(list), simulated: true, cost: 0 };
   if (!list.length) return template;
-  const up = aiUpstream();
-  if (up.name === "sim") return template;
   const model = await advisorModel(db);
   if (!model) return template;
+  const up = upstreamFor(model);
+  if (up.name === "sim") return template;
   const messages = buildPrompt(list);
   const inEst = estimateTokens(JSON.stringify(messages).length);
   const meter = await openMeter(db, { caller: platformCaller(PURPOSE, uid, (await advisorSettings(db)).dailyCap), model, format: "panel", reserve: costOf(inEst, MAX_OUT, model) });

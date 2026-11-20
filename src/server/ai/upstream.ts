@@ -27,23 +27,27 @@ export const routeHeaders = (routing: string | null | undefined): Record<string,
 
 const base = () => (process.env.AI_UPSTREAM_URL || "https://codecraftapi.com/v1").replace(/\/$/, "");
 
-class HttpUpstream implements Upstream {
+/** an OpenAI-compatible HTTP provider. `extra` is merged into every chat request body (provider-specific
+    switches, e.g. {"reasoning_effort": "none"} for a local thinking model). */
+export class HttpUpstream implements Upstream {
   readonly name = "http" as const;
+  constructor(private url: () => string = base, private key: () => string = () => process.env.AI_UPSTREAM_KEY || "", private extra: () => Record<string, unknown> = () => ({})) {}
+  private auth(): Record<string, string> { const k = this.key(); return k ? { authorization: "Bearer " + k } : {}; }
   chat(req: ChatRequest, signal?: AbortSignal, headers: Record<string, string> = {}) {
-    return fetch(base() + "/chat/completions", {
+    return fetch(this.url() + "/chat/completions", {
       method: "POST", signal,
-      headers: { ...headers, authorization: "Bearer " + process.env.AI_UPSTREAM_KEY, "content-type": "application/json", accept: req.stream ? "text/event-stream" : "application/json" },
-      body: JSON.stringify(req),
+      headers: { ...headers, ...this.auth(), "content-type": "application/json", accept: req.stream ? "text/event-stream" : "application/json" },
+      body: JSON.stringify({ ...req, ...this.extra() }),
     });
   }
   post(path: string, body: Record<string, unknown>, signal?: AbortSignal, headers: Record<string, string> = {}) {
-    return fetch(base() + "/" + path, { method: "POST", signal, headers: { ...headers, authorization: "Bearer " + process.env.AI_UPSTREAM_KEY, "content-type": "application/json" }, body: JSON.stringify(body) });
+    return fetch(this.url() + "/" + path, { method: "POST", signal, headers: { ...headers, ...this.auth(), "content-type": "application/json" }, body: JSON.stringify(body) });
   }
   form(path: string, body: FormData, signal?: AbortSignal, headers: Record<string, string> = {}) {
-    return fetch(base() + "/" + path, { method: "POST", signal, headers: { ...headers, authorization: "Bearer " + process.env.AI_UPSTREAM_KEY }, body });
+    return fetch(this.url() + "/" + path, { method: "POST", signal, headers: { ...headers, ...this.auth() }, body });
   }
   async models() {
-    const res = await fetch(base() + "/models", { headers: { authorization: "Bearer " + process.env.AI_UPSTREAM_KEY }, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(this.url() + "/models", { headers: this.auth(), signal: AbortSignal.timeout(20_000) });
     if (!res.ok) throw new Error("upstream /models " + res.status);
     const j = (await res.json()) as { data?: { id: string }[] };
     return (j.data ?? []).filter((m) => typeof m.id === "string");

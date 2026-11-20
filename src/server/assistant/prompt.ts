@@ -4,6 +4,7 @@ import "server-only";
 import { and, asc, eq, gt } from "drizzle-orm";
 import { ZodError } from "zod";
 import { isAiError } from "../ai/endpoints";
+import { IDENTITY, internalModel } from "../ai/internal";
 import { resolveModel, type ResolvedModel } from "../ai/service";
 import type { DB } from "../db/client";
 import { aiModels, kv } from "../db/schema";
@@ -36,6 +37,9 @@ const isRefused = (id: string) => (refused.get(id) ?? 0) > Date.now();
 /** the models to try, best first: the configured one, then a balanced default (the first tool-capable chat model of
     the catalog priced at or below the median, since every turn is several metered calls), then the rest */
 export async function assistantModels(db: DB, max = 4): Promise<ResolvedModel[]> {
+  // Gereh's own model (AI_INTERNAL_*) answers alone: no paid fallback
+  const own = internalModel();
+  if (own) return [own];
   const out: ResolvedModel[] = [];
   const add = (m: ResolvedModel | null | undefined) => { if (m && usable(m) && !isRefused(m.id) && !out.some((x) => x.id === m.id)) out.push(m); };
   for (const id of [process.env.ASSISTANT_MODEL, (await assistantSettings(db)).model]) {
@@ -70,7 +74,8 @@ export function errorText(e: unknown) {
 
 export function systemPrompt(o: { name: string; context: string; summary: string; readOnly: boolean; today: string }) {
   return [
-    "You are «دستیار گره» (Gereh Assistant), the in-panel agent of Gereh (گره), an Iranian cloud platform. You operate the signed-in customer's account through the tools you are given; every tool runs with the customer's own permissions.",
+    IDENTITY,
+    "You are the in-panel agent of Gereh (گره), an Iranian cloud platform. You operate the signed-in customer's account through the tools you are given; every tool runs with the customer's own permissions.",
     "Gereh's products: cloud servers (VPS, Tehran/Isfahan and abroad, monthly or hourly billing), Gereh Apps (PaaS: deploy from Git, image or ZIP; logs, env, jobs, previews), managed databases (DBaaS: PostgreSQL, MySQL, MariaDB, MongoDB, Redis with backups), S3-compatible object storage, the mail service, domains and DNS, the AI API (OpenAI/Anthropic/Gemini compatible), «بافت» (Baft, the AI site and app builder: builder_create, builder_edit, builder_deploy) and managed DevOps/maintenance. Money is in Toman (تومان) and everything is paid from the wallet.",
     "Rules:",
     "- Reply in the customer's language (usually Persian), short and concrete, with real numbers from tools. Use Markdown lists or small tables when they help. No raw HTML.",
@@ -92,7 +97,8 @@ const ROLE_EN: Record<string, string> = { owner: "owner (all areas)", support: "
 /** the staff console on /admin: an operator's tool, not the customer's helper */
 export function staffSystemPrompt(o: { name: string; role: string; tools: string[]; summary: string; today: string }) {
   return [
-    "You are «دستیار گره» in operator-console mode, working for a Gereh (گره) STAFF member inside the admin panel. Gereh is an Iranian cloud platform (cloud servers on Virtualizor, apps, databases, storage, mail, domains, hosting, an AI API). Money is in Toman (تومان).",
+    IDENTITY,
+    "You are in operator-console mode, working for a Gereh (گره) STAFF member inside the admin panel. Gereh is an Iranian cloud platform (cloud servers on Virtualizor, apps, databases, storage, mail, domains, hosting, an AI API). Money is in Toman (تومان).",
     "You can look across customers, but only through the tools you are given; they are exactly what this staff member's role allows, and every tool checks the role again. If something needs a tool you do not have, say that the staff member's role does not cover it; never improvise around it.",
     "Rules:",
     "- Answer in Persian unless the staff member writes in another language: short and operational, with real ids, numbers and names from tools (order keys, server ids, ticket ids, Toman amounts). Prefer small tables or lists. No raw HTML.",

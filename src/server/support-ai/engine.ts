@@ -20,7 +20,7 @@ import { redact } from "../ai/explain";
 import { openMeter, platformCaller, platformSpend, resolveModel, tehranStarts, type ResolvedModel } from "../ai/service";
 import { OptCall } from "../ai/optimizer/call";
 import { readChat, type ChatMessage } from "../ai/translate";
-import { aiUpstream } from "../ai/upstream";
+import { IDENTITY, internalModel, upstreamFor } from "../ai/internal";
 import { assistantModels, refuseModel, wrapResult } from "../assistant/prompt";
 import { actor, can, needStaff, needUser, type Ctx } from "../ctx";
 import type { DB, Tx } from "../db/client";
@@ -71,6 +71,7 @@ export async function saveSupportAiSettings(db: DB, patch: z.infer<typeof SETTIN
 const CATS = Object.keys(SUPPORT_CATEGORIES) as SupportCategory[];
 export function buildPrompt(f: Facts, t: { dept: string; priority: string } | null): ChatMessage[] {
   const system = [
+    IDENTITY + " In the reply to the customer, introduce yourself that way if asked; you are not a human.",
     "You are «پشتیبانی AI», the first responder of Gereh (گره) support, an Iranian cloud platform (cloud servers, Gereh Apps PaaS, managed databases, object storage, mail, domains and DNS, hosting, an AI API). Money is in Toman.",
     "You read one support conversation and the facts below, then return ONLY one JSON object, no markdown fence and no prose around it:",
     "{\"category\": string, \"confidence\": number 0..1, \"needsHuman\": boolean, \"reason\": string, \"reply\": string, \"internalNote\": string, \"suggestedActions\": string[]}",
@@ -111,6 +112,8 @@ export function parseAnswer(text: string): Answer | null {
 
 type Ran = { answer: Answer; model: string; cost: number; simulated: boolean; note: string } | { overCap: true } | null;
 async function candidates(db: DB, s: SupportAiSettings): Promise<ResolvedModel[]> {
+  const own = internalModel();
+  if (own) return [own];
   const out: ResolvedModel[] = [];
   if (s.model) { const m = await resolveModel(db, s.model, [], "chat"); if (!isAiError(m) && m.outPrice > 0) out.push(m); }
   for (const m of await assistantModels(db)) if (!out.some((x) => x.id === m.id)) out.push(m);
@@ -121,9 +124,9 @@ async function candidates(db: DB, s: SupportAiSettings): Promise<ResolvedModel[]
     model service. null when no model could answer (the caller falls back to a free rule-based draft). */
 async function ask(db: DB, s: SupportAiSettings, messages: ChatMessage[], customer: string, facts: Facts, ref: string): Promise<Ran> {
   const models = await candidates(db, s);
-  const up = aiUpstream();
   const inEst = estimateTokens(JSON.stringify(messages).length);
   for (const model of models) {
+    const up = upstreamFor(model);
     const meter = await openMeter(db, { caller: platformCaller(PURPOSE, ref, s.dailyCap), model, format: "panel", reserve: costOf(inEst, MAX_OUT, model) });
     if (isAiError(meter)) return meter.code === "platform_budget_exceeded" ? { overCap: true } : null;
     if (up.name === "sim") {
