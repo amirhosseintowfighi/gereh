@@ -20,6 +20,7 @@ import { Icon } from "../icon";
 import { Badge, Empty } from "../ui";
 import { AsyncButton, Menu, useDialog } from "../ui-client";
 import { DemoBadge } from "../demo-badge";
+import { PanelViewToggle, SIMPLE_NAV, usePanelView } from "./simple";
 
 /* Panel content width. Up to ~1920px screens the content fills the space beside the sidebar; past that (2K, 4K and
    ultrawide monitors) it stops at a comfortable reading width and is centred, instead of sticking to the sidebar
@@ -132,7 +133,11 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
   const closeNav = useCallback(() => setMobile(false), []);
   // team members only see the sections their role can use
   const TEAM_HIDE: Record<string, string[]> = { admin: ["/panel/account", "/panel/affiliate"], tech: ["/panel/billing", "/panel/account", "/panel/affiliate"], billing: ["/panel/build", "/panel/servers", "/panel/monitor", "/panel/apps", "/panel/databases", "/panel/db-ask", "/panel/wordpress", "/panel/geo", "/panel/storage", "/panel/ai", "/panel/inquiry", "/panel/mail", "/panel/hosting", "/panel/domains", "/panel/devops", "/panel/keys", "/panel/account", "/panel/affiliate"] };
-  const nav = kind === "admin" ? ADMIN_NAV : USER_NAV.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
+  const view = usePanelView();
+  const simple = kind === "user" && view === "simple";
+  // the simple view lists «پروژه‌های من» only when there is a project to follow
+  const userNav = simple ? SIMPLE_NAV.filter((n) => n.href !== "/panel/devops" || db.devopsProjects.some((p) => p.userId === myId)) : USER_NAV;
+  const nav = kind === "admin" ? ADMIN_NAV : userNav.filter((n) => !session?.teamRole || !TEAM_HIDE[session.teamRole].includes(n.href));
   const active = nav.slice().sort((a, b) => b.href.length - a.href.length).find((n) => path === n.href || path.startsWith(n.href + "/")) || nav[0];
   const user = byId(db.users, myId)!;
   const me = kind === "admin" ? { name: session?.name || "مدیر سیستم" } : user;
@@ -165,7 +170,8 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
           </Link>
         </Fragment>))}
       </nav>
-      {kind === "user" && (
+      {kind === "user" && <PanelViewToggle className="mx-3 mb-2 h-10 px-3 rounded-xl text-xs text-white/55 hover:text-white hover:bg-white/[0.04] flex items-center gap-2 transition" />}
+      {kind === "user" && !simple && (
         <div className="mx-3 mb-3 rounded-2xl p-4 bg-white/[0.04] border border-white/[0.08]">
           <div className="text-[11px] text-white/55">موجودی کیف پول</div>
           <div className="font-black mt-1 tabular">{toman(user.balance)}</div>
@@ -205,6 +211,7 @@ function PanelShell({ kind, children }: { kind: "user" | "admin"; children: Reac
               trigger={<><span className="w-8 h-8 rounded-lg tile grid place-items-center text-sm font-black">{me.name[0]}</span><span className="hidden sm:block text-sm">{me.name}</span><Icon name="chevron-down" size={14} className="text-white/55" /></>}
               items={[
                 kind === "user" && { icon: "settings-2", label: "تنظیمات حساب", run: () => router.push("/panel/account") },
+                kind === "user" && { icon: simple ? "sliders-horizontal" : "eye", label: simple ? "نمای کامل پنل" : "نمای ساده پنل", run: () => api.account.setPanelView(simple ? "full" : "simple") },
                 { icon: "house", label: "بازگشت به سایت", run: () => router.push("/") },
                 "-",
                 { icon: "log-out", label: "خروج از حساب", danger: true, run: logout },

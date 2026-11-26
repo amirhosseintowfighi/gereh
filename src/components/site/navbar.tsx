@@ -15,9 +15,10 @@ import { Menu } from "../ui-client";
 
 /** links shown in the bar itself (the rest live in the products menu) */
 const BAR = [
+  { href: "/business", label: "راه‌اندازی کسب‌وکار" },
   { href: "/build", label: BUILDER.name },
   { href: "/paas", label: "گره اپ" },
-  { href: "/ai-api", label: "API هوش مصنوعی" },
+  { href: "/ai-api", label: "API هوش مصنوعی", wide: true },
   { href: "/inquiry", label: "API استعلام", wide: true },
   { href: "/devops", label: "دواپس", wide: true },
 ];
@@ -129,6 +130,10 @@ export function Navbar() {
       </nav>
       {open && (
         <div id="mobile-nav" className="pop-in lg:hidden mx-auto max-w-6xl mt-2 rounded-2xl p-2 bg-[#05060d]/95 backdrop-blur-xl border border-white/[0.12] max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain">
+          <Link href="/business" aria-current={path === "/business" ? "page" : undefined} className="m-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-sky-400/10 border border-sky-300/25 hover:bg-sky-400/15">
+            <Icon name="store" size={18} className="acc shrink-0" />
+            <span className="min-w-0 flex-1"><span className="block text-sm font-bold">راه‌اندازی کسب‌وکار</span><span className="block text-[11px] text-white/55 truncate">سایت و فروشگاه آنلاین؛ کارهای فنی با ما</span></span>
+          </Link>
           {PRODUCTS.map((g) => (
             <div key={g.group} className="mb-1">
               <p className="px-4 pt-3 pb-1 text-[11px] font-bold text-white/45">{g.group}</p>

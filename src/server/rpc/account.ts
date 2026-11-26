@@ -72,6 +72,12 @@ export const accountRpc = {
     await ctx.db.update(users).set({ notifPrefs: sql`${users.notifPrefs} || ${JSON.stringify({ [key]: val })}::jsonb` }).where(eq(users.id, a.uid));
   }),
 
+  /** customer panel: simple (few cards, plain words) or full; per person, so a team member keeps their own */
+  "account.setPanelView": method(z.tuple([z.enum(["simple", "full"])]), async (ctx, [v]) => {
+    const a = needUser(ctx);
+    await ctx.db.update(users).set({ panelView: v }).where(eq(users.id, a.user.id));
+  }),
+
   "account.setAutoPay": method(z.tuple([z.boolean()]), async (ctx, [on]) => {
     const a = needUser(ctx);
     await ctx.db.update(users).set({ autoPay: on }).where(eq(users.id, a.uid));

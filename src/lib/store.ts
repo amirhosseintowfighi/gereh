@@ -252,6 +252,7 @@ export const api = {
     send: (m: { name: string; email: string; dept: string; subject: string; message: string }) => rpc("contact.send", m),
   },
   account: {
+    setPanelView: (v: "simple" | "full") => rpc("account.setPanelView", v),
     updateProfile: (p: { name?: string; email?: string; phone?: string; company?: string }) => rpc("account.updateProfile", p),
     changePassword: (cur: string, next: string) => rpc("account.changePassword", cur, next),
     setTwofa: (on: boolean, secret?: string, code?: string) => rpc("account.setTwofa", on, secret, code),
@@ -621,6 +622,9 @@ export const api = {
     adminPlan: (id: string, patch: { name?: string; price?: number; dailyLimit?: number; monthlyLimit?: number; mailboxes?: number; quotaMb?: number; active?: boolean }) => rpc("mail.adminPlan", id, patch),
     adminDomain: (id: string, p: { suspend: boolean }) => rpc("mail.adminDomain", id, p),
     adminTest: () => rpc<{ driver: string; detail: string }>("mail.adminTest"),
+  },
+  business: {
+    request: (f: { name: string; business: string; phone: string; email: string; pkg: string; goal: string; message: string; consent: boolean; source: string; hp: string }) => rpc<{ ref: string }>("business.request", f),
   },
   devops: {
     request: (f: Record<string, unknown>) => rpc<{ ref: string }>("devops.request", f),

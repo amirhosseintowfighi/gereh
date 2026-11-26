@@ -60,7 +60,7 @@ const ago = (d: Date) => {
 
 export function clientSession(auth: Auth | null): Session | null {
   if (!auth) return null;
-  return { userId: auth.uid, role: auth.user.role, name: auth.user.name, actorId: auth.user.id, staffRole: auth.user.staffRole ?? undefined, teamRole: auth.teamRole };
+  return { userId: auth.uid, role: auth.user.role, name: auth.user.name, actorId: auth.user.id, staffRole: auth.user.staffRole ?? undefined, teamRole: auth.teamRole, panelView: auth.user.panelView ?? undefined };
 }
 
 /** scope "admin" only for staff on /admin; customers and impersonation get "customer" */

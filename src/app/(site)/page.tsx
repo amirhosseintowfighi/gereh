@@ -5,6 +5,7 @@ import { Builder, DomainSearchBox, Faq, Hardware, Network, Newsletter, QuickStar
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { BuilderShowcase } from "@/components/site/builder-sections";
+import { BizGoals, BizPackages, BizSteps } from "@/components/site/business-sections";
 import { IconTile, SectionHead } from "@/components/ui";
 import { Counter } from "@/components/ui-client";
 import { HOME_FAQ, HOSTING, VPS } from "@/lib/catalog";
@@ -13,15 +14,55 @@ import { BTN, BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
 import { faqLd, pageMeta } from "@/lib/seo";
 
+const HOME_TITLE = "گره | سایت و فروشگاه آنلاین، سرور ابری و هاست";
 const meta = pageMeta({
-  title: "گره | سرور ابری، هاست، PaaS و Geo DNS",
-  description: "سرور ابری NVMe با آماده‌سازی زیر یک دقیقه، سرور اختصاصی، هاست وب، دامنه، استقرار اپ از Git (PaaS)، Geo DNS برای حفظ رتبه گوگل در قطعی اینترنت و API استعلام هویتی و بانکی؛ همه با یک حساب.",
+  title: HOME_TITLE,
+  description: "سایت یا فروشگاه آنلاین کسب‌وکارتان را ما می‌سازیم و نگه می‌داریم؛ برای برنامه‌نویس‌ها هم سرور ابری، هاست، دامنه، استقرار اپ از Git (PaaS)، Geo DNS و API استعلام؛ همه با یک حساب.",
   path: "/", en: "/en",
 });
 // absolute so the "%s | گره" template doesn't repeat the brand
-export const metadata = { ...meta, title: { absolute: "گره | سرور ابری، هاست، PaaS و Geo DNS" } };
+export const metadata = { ...meta, title: { absolute: HOME_TITLE } };
 
+/** first screen for everyone: a business owner picks what to launch; developers have their own way in */
 function Hero() {
+  return (
+    <section className="relative overflow-hidden">
+      <GirihField />
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-16">
+        <div className="text-center max-w-3xl mx-auto">
+          <p className="hero-in text-sm font-bold acc">سایت، فروشگاه آنلاین و هر چیزی که کسب‌وکارتان در اینترنت لازم دارد</p>
+          <h1 className="hero-in d2 hero-title mt-4 text-[2.35rem] sm:text-[4.2rem] font-black leading-[1.25] sm:leading-[1.15]">
+            کسب‌وکارتان را آنلاین کنید؛ کارهای فنی با ما
+          </h1>
+          <p className="hero-in d3 mt-6 text-white/65 text-base sm:text-lg leading-8">
+            لازم نیست چیزی از سرور و هاست بدانید. بگویید چه می‌خواهید؛ ما می‌سازیم، راه می‌اندازیم و هر ماه نگه می‌داریم.
+          </p>
+        </div>
+        <h2 className="hero-in d3 mt-12 text-center font-extrabold text-lg">می‌خواهید چه چیزی راه بیندازید؟</h2>
+        <div className="hero-in d4 mt-5"><BizGoals /></div>
+      </div>
+    </section>
+  );
+}
+
+function BizHome() {
+  return (
+    <>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="home-packages">
+        <SectionHead id="home-packages" title="بسته‌های آماده برای کسب‌وکارها" sub="یک هزینه راه‌اندازی و یک هزینه ماهانه ثابت؛ دامنه، ایمیل، امنیت و پشتیبانی همه در بسته است." />
+        <BizPackages />
+      </section>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="home-steps">
+        <SectionHead id="home-steps" title="از تماس تا آنلاین شدن، در سه قدم" />
+        <BizSteps />
+        <div className="mt-8 text-center"><Link href="/business#request" className={BTN_P + " px-7 h-12"}><Icon name="phone-call" size={18} />با من تماس بگیرید</Link></div>
+      </section>
+    </>
+  );
+}
+
+/** the developer side: everything technical, behind its own heading */
+function DevHero() {
   const metrics = [
     { v: 55, s: " ثانیه", l: "تا آنلاین شدن سرور" },
     { v: 7000, s: "", l: "مگابایت بر ثانیه، دیسک NVMe" },
@@ -29,9 +70,8 @@ function Hero() {
     { v: 99.9, d: 1, s: "٪", l: "تعهد آپتایم ماهانه (SLA)" },
   ];
   return (
-    <section className="relative overflow-hidden">
-      <GirihField />
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-20 grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
+    <section id="developers" className="relative overflow-hidden scroll-mt-20 border-t border-white/[0.08]" aria-labelledby="dev-title">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-20 grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
         <div>
           <Link href={"/status" as never} className="hero-in inline-flex items-center gap-2.5 text-xs text-white/60 hover:text-white transition group">
             <Icon name="activity" size={14} className="acc" />
@@ -41,10 +81,10 @@ function Hero() {
           <Link href={"/build" as never} className="hero-in d2 mt-6 flex w-fit max-w-full items-center gap-2 text-xs sm:text-sm px-3 py-1.5 rounded-full bg-violet-400/10 border border-violet-300/25 text-violet-100 hover:bg-violet-400/20 transition">
             <Icon name="sparkles" size={14} className="text-violet-300 shrink-0" /><span className="min-w-0 truncate"><b>{BUILDER.name}:</b> ایده را بنویسید، AI می‌سازد و منتشر می‌کند</span><Icon name="chevron-left" size={14} className="shrink-0" />
           </Link>
-          <p className="hero-in d2 mt-5 text-sm font-bold acc">سرعت ابر، استواری زمین</p>
-          <h1 className="hero-in d2 hero-title mt-3 text-[2.35rem] sm:text-[4.4rem] font-black leading-[1.25] sm:leading-[1.15]">
-            زیرساختی که کسب‌وکارتان را آنلاین نگه می‌دارد
-          </h1>
+          <p className="hero-in d2 mt-5 text-sm font-bold acc flex items-center gap-1.5"><Icon name="code-xml" size={15} />برای برنامه‌نویس‌ها و تیم‌های فنی</p>
+          <h2 id="dev-title" className="hero-in d2 hero-title mt-3 text-[2rem] sm:text-[3.4rem] font-black leading-[1.25] sm:leading-[1.15]">
+            زیرساختی که خودتان مدیریت می‌کنید
+          </h2>
           <p className="hero-in d3 mt-6 text-white/65 max-w-lg text-base sm:text-lg leading-8">
             ساخت و نگهداری اپ با هوش مصنوعی، سرور ابری آماده در کمتر از یک دقیقه، هاست و دامنه، استقرار اپ از Git، Geo DNS برای عبور از قطعی اینترنت و API هوش مصنوعی و استعلام؛ همه با یک حساب، یک کیف پول و پشتیبانی شبانه‌روزی.
           </p>
@@ -204,11 +244,11 @@ function Cta() {
         <GirihField fade={false} />
         <div className="relative">
           <div className="mx-auto w-fit"><Logo size={56} /></div>
-          <h2 className="mt-6 text-[1.9rem] sm:text-6xl font-black leading-[1.3] hero-title">اولین سرورتان را امروز بسازید</h2>
-          <p className="mt-4 text-white/75 leading-8">۷ روز ضمانت بازگشت وجه. بدون قرارداد، بدون هزینه پنهان.</p>
+          <h2 className="mt-6 text-[1.9rem] sm:text-6xl font-black leading-[1.3] hero-title">کسب‌وکارتان را امروز آنلاین کنید</h2>
+          <p className="mt-4 text-white/75 leading-8">تماس اول رایگان است. بدون قرارداد بلندمدت، بدون هزینه پنهان.</p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="#builder" className={BTN + " bg-white text-slate-900 px-7 py-3.5 hover:bg-white/90 shadow-xl"}><Icon name="rocket" size={18} /> ساخت سرور</a>
-            <Link href="/hosting" className={BTN_G + " px-7 py-3.5"}><Icon name="layers" size={18} /> پلن‌های هاست</Link>
+            <Link href="/business#request" className={BTN + " bg-white text-slate-900 px-7 py-3.5 hover:bg-white/90 shadow-xl"}><Icon name="phone-call" size={18} /> با من تماس بگیرید</Link>
+            <a href="#builder" className={BTN_G + " px-7 py-3.5"}><Icon name="rocket" size={18} /> ساخت سرور</a>
           </div>
           <Newsletter />
         </div>
@@ -222,7 +262,9 @@ export default function HomePage() {
     <div className="fade-page">
       <JsonLd data={faqLd(HOME_FAQ)} />
       <Hero />
+      <BizHome />
       <BuilderShowcase />
+      <DevHero />
       <QuickStart />
       <Bento />
       <Hardware />

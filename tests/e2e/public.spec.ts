@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { stubThirdParty } from "./third-party";
 
-const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api", "/blog", "/blog/nvme-vs-ssd", "/domains/ir", "/domains/com", "/compare", "/devops", "/devops/kubernetes", "/devops/managed-devops", "/paas", "/paas/databases", "/paas/nextjs", "/paas/django", "/docs/paas", "/inquiry", "/docs/inquiry", "/geo-dns", "/docs/geo-dns", "/ai-api", "/docs/ai-api", "/docs/mcp", "/mirror", "/wordpress", "/paas/rust"];
+const PAGES = ["/", "/vps", "/hosting", "/domains", "/about", "/contact", "/terms", "/privacy", "/sla", "/status", "/kb", "/kb/connect-to-server-ssh", "/docs/api", "/blog", "/blog/nvme-vs-ssd", "/domains/ir", "/domains/com", "/compare", "/devops", "/devops/kubernetes", "/devops/managed-devops", "/paas", "/paas/databases", "/paas/nextjs", "/paas/django", "/docs/paas", "/inquiry", "/docs/inquiry", "/geo-dns", "/docs/geo-dns", "/ai-api", "/docs/ai-api", "/docs/mcp", "/mirror", "/wordpress", "/paas/rust", "/business"];
 
 stubThirdParty();
 

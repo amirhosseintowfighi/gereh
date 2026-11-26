@@ -13,6 +13,15 @@ const login = async (page: Page, id = "demo@gereh.net") => {
   await page.getByRole("button", { name: "ورود", exact: true }).click();
 };
 
+/** picks an item from a header menu; a re-render right after the panel loads can close the menu, so reopen it */
+const pickMenu = async (page: Page, menu: string, item: string) => {
+  await expect(async () => {
+    const it = page.getByRole("menuitem", { name: item });
+    if (!(await it.isVisible())) await page.getByRole("button", { name: menu }).click();
+    await it.click({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
+};
+
 test.describe("domains", () => {
   test("search from the URL, add to cart, cart survives reload", async ({ page }) => {
     await page.goto("/domains?q=novinbrand.ir");
@@ -75,6 +84,8 @@ test.describe("user panel", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await expect(page).toHaveURL(/\/panel$/);
+    // the panel finishes loading the account first; a menu opened before that is closed by the re-render
+    await expect(page.getByRole("heading", { name: /سلام/ })).toBeVisible();
   });
 
   test("dashboard → server detail → power off with confirmation", async ({ page }) => {
@@ -100,8 +111,7 @@ test.describe("user panel", () => {
   });
 
   test("logout ends the server session", async ({ page, context }) => {
-    await page.getByRole("button", { name: "حساب" }).click();
-    await page.getByRole("menuitem", { name: "خروج از حساب" }).click();
+    await pickMenu(page, "حساب", "خروج از حساب");
     await expect(page).toHaveURL(/\/$/);
     expect((await context.cookies()).find((c) => c.name === "gereh_sid")).toBeUndefined();
     await page.goto("/panel");
@@ -425,5 +435,38 @@ test.describe("gereh apps (paas)", () => {
     await page.getByRole("tab", { name: "زیرساخت" }).click();
     await page.getByRole("button", { name: "تست اتصال" }).click();
     await expect(page.getByText("اتصال برقرار است")).toContainText("simulator");
+  });
+});
+
+test.describe("small businesses", () => {
+  test("home goal → package preselected → request reaches the sales pipeline", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: /فروشگاه آنلاین/ }).first().click();
+    await expect(page).toHaveURL(/\/business\?goal=shop/);
+    const form = page.getByRole("form", { name: "درخواست بسته کسب‌وکار" });
+    await expect(form.getByRole("radio", { name: /فروشگاه/ })).toHaveAttribute("aria-checked", "true");
+    await form.getByRole("radio", { name: /شروع/ }).click();
+    await expect(form.getByRole("radio", { name: /شروع/ })).toHaveAttribute("aria-checked", "true");
+    await form.getByLabel("نام شما").fill("حسن رضایی");
+    await form.getByLabel("نام کسب‌وکار").fill("سوپرمارکت ستاره");
+    await form.getByLabel("شماره موبایل").fill("09121234567");
+    await form.getByRole("checkbox").check();
+    await form.getByRole("button", { name: "با من تماس بگیرید" }).click();
+    await expect(page.getByRole("heading", { name: "درخواستتان رسید" })).toBeVisible();
+    await login(page, "admin@gereh.net");
+    await expect(page).toHaveURL(/\/(panel|admin)/);
+    await page.goto("/admin/devops");
+    await expect(page.getByText("سوپرمارکت ستاره").first()).toBeVisible();
+  });
+
+  test("a customer switches between the simple and the full panel", async ({ page }) => {
+    await login(page);
+    await expect(page).toHaveURL(/\/panel/);
+    await expect(page.getByRole("heading", { name: /سلام/ })).toBeVisible();
+    await pickMenu(page, "حساب", "نمای ساده پنل");
+    await expect(page.getByRole("link", { name: /پیام به پشتیبانی/ })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "منوی پنل" }).getByRole("link", { name: "سرورهای ابری" })).toHaveCount(0);
+    await page.getByRole("button", { name: "نمای کامل (برای کاربران فنی)" }).first().click();
+    await expect(page.getByRole("navigation", { name: "منوی پنل" }).getByRole("link", { name: "سرورهای ابری" })).toBeVisible();
   });
 });

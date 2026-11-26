@@ -74,6 +74,10 @@ integrations/           terraform-provider-gereh (Go)
 - REST API at `/api/v1` with bearer tokens from the panel (read or read/write scope, 120 requests per minute). The OpenAPI 3.1 spec is at `/api/v1/openapi.json`, and the docs page is `/docs/api`.
 - `integrations/terraform-provider-gereh` provides the `gereh_dns_record` resource and the `gereh_server` data source. CI runs `go vet`, `go test` and `go build`.
 
+## Small businesses
+
+The home page starts with «می‌خواهید چه چیزی راه بیندازید؟»: a business owner picks a goal (online shop, business site, menu or booking) and lands on `/business`, with four done-for-you packages priced as a setup fee plus a fixed monthly fee, in plain words. Requests join the sales pipeline in `/admin/devops`. Developers have their own section further down the page (`#developers`). Customers who run no technical services get a simple panel (four cards and a short menu) and can switch to the full panel at any time. See [`docs/business.md`](docs/business.md).
+
 ## DevOps services
 
 - **Public pages:** `/devops` is the landing page, with:

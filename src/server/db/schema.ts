@@ -28,6 +28,8 @@ export const users = pgTable("users", {
   /** pay renewal invoices from the wallet automatically */
   autoPay: boolean("auto_pay").notNull().default(true),
   virtUid: integer("virt_uid"),
+  /** customer panel: "simple" (few cards, plain words) or "full"; null = chosen from what the account runs */
+  panelView: text("panel_view", { enum: ["simple", "full"] }),
   createdAt: created(),
 }, (t) => [uniqueIndex("users_email_uq").on(sql`lower(${t.email})`), uniqueIndex("users_ref_uq").on(t.referralCode), index("users_phone_ix").on(t.phone)]);
 

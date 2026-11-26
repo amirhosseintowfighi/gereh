@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { DEVOPS_SERVICES, LEAD_STAGES } from "@/content/devops";
+import { bizPackage, bizPackageLabel } from "@/lib/business";
 import { BTN_G, BTN_LG, BTN_MD, BTN_P, BTN_SM, INPUT, INPUT_BASE, TEXTAREA } from "@/lib/cls";
 import { PLAN_FA, PROJECT_STATUS } from "@/lib/devops-labels";
 import { fa, toEnDigits, toman } from "@/lib/format";
@@ -12,7 +13,8 @@ import { Badge, Card, Empty, Field } from "../ui";
 import { AsyncButton, Modal, PageTitle, Select, SideDrawer, StatCard, Switch, Tabs } from "../ui-client";
 
 const stage = (id: string) => LEAD_STAGES.find((s) => s.id === id) ?? LEAD_STAGES[0];
-const svc = (slug: string) => DEVOPS_SERVICES.find((s) => s.slug === slug)?.title ?? slug;
+const svc = (slug: string) => slug === "business" ? "راه‌اندازی کسب‌وکار" : DEVOPS_SERVICES.find((s) => s.slug === slug)?.title ?? slug;
+const DEVOPS_SLUGS = new Set(DEVOPS_SERVICES.map((s) => s.slug));
 const num = (s: string) => Number(toEnDigits(s).replace(/[^\d]/g, "")) || 0;
 
 /** staff: DevOps sales pipeline and signed engagements */
@@ -22,7 +24,7 @@ export function AdminDevops() {
   const [filter, setFilter] = useState("open");
   const [lead, setLead] = useState<string | null>(null);
   const [proj, setProj] = useState<string | null>(null);
-  const [create, setCreate] = useState<{ leadId?: string; userId: string; title: string; services: string[] } | null>(null);
+  const [create, setCreate] = useState<{ leadId?: string; userId: string; title: string; services: string[]; plan?: string; fee?: string; hours?: string } | null>(null);
   const leads = db.devopsLeads.filter((l) => filter === "all" ? true : filter === "open" ? !["won", "lost"].includes(l.status) : l.status === filter);
   const open = db.devopsLeads.filter((l) => !["won", "lost"].includes(l.status));
   const pipeline = open.reduce((s, l) => s + l.value, 0);
@@ -78,7 +80,7 @@ export function AdminDevops() {
       )}
 
       <SideDrawer open={!!L} onClose={() => setLead(null)} title={L ? L.company + " (" + L.id + ")" : ""} width="w-[600px]">
-        {L && <LeadDetail l={L} onProject={() => { const u = db.users.find((x) => x.role === "user" && x.email.toLowerCase() === L.email); setCreate({ leadId: L.id, userId: L.userId || u?.id || "", title: "خدمات دواپس " + L.company, services: L.services }); setLead(null); }} />}
+        {L && <LeadDetail l={L} onProject={() => { const u = db.users.find((x) => x.role === "user" && x.email.toLowerCase() === L.email); const biz = bizPackage(L.pkg); setCreate({ leadId: L.id, userId: L.userId || u?.id || "", title: biz ? bizPackageLabel(L.pkg) + "، " + L.company : "خدمات دواپس " + L.company, services: L.services.filter((x) => DEVOPS_SLUGS.has(x)), ...(biz ? { plan: "project", fee: String(biz.monthly), hours: "0" } : {}) }); setLead(null); }} />}
       </SideDrawer>
       <SideDrawer open={!!P} onClose={() => setProj(null)} title={P?.title ?? ""} width="w-[640px]">
         {P && <ProjectDetail key={P.id} p={P} />}
@@ -97,7 +99,7 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
     ["تماس", <span key="c" className="flex flex-col gap-1"><a href={"mailto:" + l.email} className="acc ltr text-end">{l.email}</a><a href={"tel:" + l.phone} className="acc ltr text-end">{l.phone}</a></span>],
     ["وب‌سایت", l.website ? <a key="w" href={(/^https?:/.test(l.website) ? "" : "https://") + l.website} target="_blank" rel="noopener noreferrer" className="acc ltr">{l.website}</a> : "—"],
     ["شرکت", l.size + "، " + l.stage], ["زیرساخت", l.infra.join("، ")], ["خدمات", l.services.map(svc).join("، ")],
-    ["نوع همکاری", l.pkg || "—"], ["بودجه", l.budget], ["زمان شروع", l.urgency], ["NDA", l.needsNda ? "لازم است" : "خیر"], ["مبدأ", <span key="s" className="ltr">{l.source || "—"}</span>],
+    ["نوع همکاری", bizPackageLabel(l.pkg) || l.pkg || "—"], ["بودجه", l.budget], ["زمان شروع", l.urgency], ["NDA", l.needsNda ? "لازم است" : "خیر"], ["مبدأ", <span key="s" className="ltr">{l.source || "—"}</span>],
   ];
   return (
     <div className="p-5 space-y-6">
@@ -119,10 +121,10 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
   );
 }
 
-function CreateProject({ init, onClose, onCreated }: { init: { leadId?: string; userId: string; title: string; services: string[] }; onClose: () => void; onCreated: (id: string) => void }) {
+function CreateProject({ init, onClose, onCreated }: { init: { leadId?: string; userId: string; title: string; services: string[]; plan?: string; fee?: string; hours?: string }; onClose: () => void; onCreated: (id: string) => void }) {
   const db = useDB();
   const { notify } = useApp();
-  const [f, setF] = useState({ ...init, plan: "growth", fee: "58000000", hours: "50", engineer: "", start: true });
+  const [f, setF] = useState({ plan: "growth", fee: "58000000", hours: "50", engineer: "", start: true, ...init });
   const customers = db.users.filter((u) => u.role === "user");
   return (
     <Modal open onClose={onClose} title="پروژه دواپس جدید" icon="rocket" size="max-w-xl"

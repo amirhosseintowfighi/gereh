@@ -70,7 +70,7 @@ export const isStaff = (ctx: Ctx, area: Area) => !!ctx.auth && ctx.auth.user.rol
 export const actor = (ctx: Ctx) => ctx.auth ? ctx.auth.user.name + (ctx.auth.uid !== ctx.auth.user.id ? " (به‌جای " + ctx.auth.uid + ")" : "") : "سیستم";
 
 /** what a team member may do inside the owner's account (enforced for every RPC call) */
-const MEMBER_SELF = ["team.switch", "team.leave", "team.accept", "account.readAll", "account.readOne"];
+const MEMBER_SELF = ["team.switch", "team.leave", "team.accept", "account.readAll", "account.readOne", "account.setPanelView", "business.request"];
 const TEAM_POLICY: Record<"admin" | "tech" | "billing", { groups: string[]; allow: string[]; deny: string[] }> = {
   admin: { groups: ["auth", "servers", "hosting", "domains", "billing", "tickets", "contact", "devops", "paas", "builder", "dbaas", "inquiry", "geo", "ai", "storage", "mail", "assistant", "advisor", "monitor", "watch", "dbquery"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey", "account.createToken", "account.revokeToken", "account.setNotif"], deny: [] },
   tech: { groups: ["auth", "servers", "hosting", "domains", "tickets", "contact", "devops", "paas", "builder", "dbaas", "inquiry", "geo", "ai", "storage", "mail", "assistant", "advisor", "monitor", "watch", "dbquery"], allow: [...MEMBER_SELF, "account.addKey", "account.removeKey"], deny: ["domains.renew", "hosting.renew", "domains.transferIn"] },

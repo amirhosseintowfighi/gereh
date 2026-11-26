@@ -41,6 +41,7 @@ export const PRODUCTS: { group: string; items: { href: string; label: string; ic
 /** top-level pages (command palette, header links) */
 export const PAGES = [
   { href: "/", label: "خانه", icon: "house" },
+  { href: "/business", label: "راه‌اندازی کسب‌وکار", icon: "store" },
   ...PRODUCTS.flatMap((g) => g.items.filter((i) => !i.href.includes("#"))),
   { href: "/blog", label: "بلاگ", icon: "newspaper" },
   { href: "/kb", label: "راهنما", icon: "book-open" },

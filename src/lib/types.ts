@@ -155,7 +155,7 @@ export type PaasPlanRow = { id: string; kind: "app" | "db"; name: string; cpu: n
 export type CartItem = { id: string; sku: Sku; title: string; meta?: string; base: number; icon?: string; ltr?: boolean };
 /** userId is whose data the panel shows (differs from actorId while staff impersonate) */
 export type TeamRole = "admin" | "tech" | "billing";
-export type Session = { userId: string; role: Role; name: string; actorId?: string; staffRole?: StaffRole; teamRole?: TeamRole };
+export type Session = { userId: string; role: Role; name: string; actorId?: string; staffRole?: StaffRole; teamRole?: TeamRole; panelView?: "simple" | "full" };
 
 export type Settings = {
   siteName: string; supportEmail: string; supportPhone: string; registration: boolean; maintenance: boolean; tax: number;
