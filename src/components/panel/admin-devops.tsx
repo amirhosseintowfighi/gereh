@@ -80,7 +80,7 @@ export function AdminDevops() {
       )}
 
       <SideDrawer open={!!L} onClose={() => setLead(null)} title={L ? L.company + " (" + L.id + ")" : ""} width="w-[600px]">
-        {L && <LeadDetail l={L} onProject={() => { const u = db.users.find((x) => x.role === "user" && x.email.toLowerCase() === L.email); const biz = bizPackage(L.pkg); setCreate({ leadId: L.id, userId: L.userId || u?.id || "", title: biz ? bizPackageLabel(L.pkg) + "، " + L.company : "خدمات دواپس " + L.company, services: L.services.filter((x) => DEVOPS_SLUGS.has(x)), ...(biz ? { plan: "project", fee: String(biz.monthly), hours: "0" } : {}) }); setLead(null); }} />}
+        {L && <LeadDetail l={L} onProject={() => { const u = db.users.find((x) => x.role === "user" && x.email.toLowerCase() === L.email); const biz = bizPackage(db.bizPackages, L.pkg); setCreate({ leadId: L.id, userId: L.userId || u?.id || "", title: biz ? bizPackageLabel(db.bizPackages, L.pkg) + "، " + L.company : "خدمات دواپس " + L.company, services: L.services.filter((x) => DEVOPS_SLUGS.has(x)), ...(biz ? { plan: "project", fee: String(biz.monthly), hours: "0" } : {}) }); setLead(null); }} />}
       </SideDrawer>
       <SideDrawer open={!!P} onClose={() => setProj(null)} title={P?.title ?? ""} width="w-[640px]">
         {P && <ProjectDetail key={P.id} p={P} />}
@@ -99,7 +99,7 @@ function LeadDetail({ l, onProject }: { l: DevopsLead; onProject: () => void }) 
     ["تماس", <span key="c" className="flex flex-col gap-1"><a href={"mailto:" + l.email} className="acc ltr text-end">{l.email}</a><a href={"tel:" + l.phone} className="acc ltr text-end">{l.phone}</a></span>],
     ["وب‌سایت", l.website ? <a key="w" href={(/^https?:/.test(l.website) ? "" : "https://") + l.website} target="_blank" rel="noopener noreferrer" className="acc ltr">{l.website}</a> : "—"],
     ["شرکت", l.size + "، " + l.stage], ["زیرساخت", l.infra.join("، ")], ["خدمات", l.services.map(svc).join("، ")],
-    ["نوع همکاری", bizPackageLabel(l.pkg) || l.pkg || "—"], ["بودجه", l.budget], ["زمان شروع", l.urgency], ["NDA", l.needsNda ? "لازم است" : "خیر"], ["مبدأ", <span key="s" className="ltr">{l.source || "—"}</span>],
+    ["نوع همکاری", bizPackageLabel(db.bizPackages, l.pkg) || l.pkg || "—"], ["بودجه", l.budget], ["زمان شروع", l.urgency], ["NDA", l.needsNda ? "لازم است" : "خیر"], ["مبدأ", <span key="s" className="ltr">{l.source || "—"}</span>],
   ];
   return (
     <div className="p-5 space-y-6">

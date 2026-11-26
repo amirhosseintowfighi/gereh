@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { BIZ_PACKAGES } from "@/lib/business";
+import { BIZ_DEFAULTS } from "@/lib/business";
 import { context } from "@/server/ctx";
 import { devopsLeads, users } from "@/server/db/schema";
 import { outbox } from "@/server/messaging";
 import { buildState } from "@/server/state";
 import { drain } from "@/server/worker";
-import { asUser, call, db, fails, fresh, jar } from "./helpers";
+import { asAdmin, asUser, call, db, fails, fresh, jar, login } from "./helpers";
 
 beforeEach(fresh);
 const form = { name: "حسن رضایی", business: "سوپرمارکت ستاره", phone: "۰۹۱۲ ۱۲۳ ۴۵۶۷", email: "", pkg: "biz-shop", goal: "shop", message: "", consent: true, source: "/business", hp: "" };
@@ -17,7 +17,7 @@ describe("business package requests", () => {
     const { ref } = await call<{ ref: string }>("business.request", form);
     expect(ref).toMatch(/^BZ-\d+$/);
     const [l] = await (await db()).select().from(devopsLeads).where(eq(devopsLeads.id, ref));
-    const shop = BIZ_PACKAGES.find((p) => p.id === "biz-shop")!;
+    const shop = BIZ_DEFAULTS.find((p) => p.id === "biz-shop")!;
     expect(l).toMatchObject({ company: "سوپرمارکت ستاره", phone: "09121234567", email: "", pkg: "biz-shop", services: ["business"], status: "new", value: shop.setup, source: "business:/business" });
     await drain(await db());
     expect(outbox.some((m) => m.subject?.includes("درخواست بسته کسب‌وکار " + ref))).toBe(true);
@@ -69,5 +69,43 @@ describe("simple panel view", () => {
   it("needs a signed-in user", async () => {
     jar.clear();
     await fails("account.setPanelView", "simple");
+  });
+});
+
+describe("package prices set by staff", () => {
+  const edited = () => BIZ_DEFAULTS.map((p) => (p.id === "biz-shop" ? { ...p, monthly: 1_250_000, setup: 17_000_000 } : p.id === "biz-grow" ? { ...p, active: false } : p));
+
+  it("staff with the products area save the list; the catalog and new leads use it", async () => {
+    await asAdmin();
+    await call("business.adminSave", edited());
+    jar.clear();
+    const c = await context();
+    const pub = (await buildState(c.db, c.auth, "customer")).db.bizPackages;
+    expect(pub.find((p) => p.id === "biz-shop")).toMatchObject({ monthly: 1_250_000, setup: 17_000_000 });
+    const { ref } = await call<{ ref: string }>("business.request", form);
+    const [l] = await (await db()).select().from(devopsLeads).where(eq(devopsLeads.id, ref));
+    expect(l.value).toBe(17_000_000);
+    // a hidden package is no longer offered
+    await fails("business.request", { ...form, pkg: "biz-grow" });
+  });
+
+  it("rejects a broken list and people without the products area", async () => {
+    await asAdmin();
+    await fails("business.adminSave", BIZ_DEFAULTS.map((p) => ({ ...p, active: false })));
+    await fails("business.adminSave", [...BIZ_DEFAULTS, BIZ_DEFAULTS[0]]);
+    await fails("business.adminSave", BIZ_DEFAULTS.map((p) => (p.id === "biz-start" ? { ...p, monthly: 0, setup: 0 } : p)));
+    await login("kaveh@gereh.net"); // support
+    await fails("business.adminSave", edited());
+    await asUser();
+    await fails("business.adminSave", edited());
+    await fails("business.adminReset");
+  });
+
+  it("reset brings the defaults back", async () => {
+    await asAdmin();
+    await call("business.adminSave", edited());
+    await call("business.adminReset");
+    const c = await context();
+    expect((await buildState(c.db, c.auth, "customer")).db.bizPackages).toEqual(BIZ_DEFAULTS);
   });
 });

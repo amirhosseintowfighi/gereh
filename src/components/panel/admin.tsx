@@ -1,4 +1,5 @@
 "use client";
+import { AdminBizPackages } from "./admin-business";
 import { AdvisorAdminCard } from "./advisor";
 import { MonitorAdminCard } from "./monitor";
 import { BotAdminCard } from "./assistant-bots";
@@ -309,9 +310,9 @@ export function AdminProducts() {
   return (
     <div>
       <PageTitle title="محصولات و قیمت‌گذاری" sub="قیمت‌ها پس از ذخیره در سایت اعمال می‌شوند." />
-      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="دسته محصول" options={[{ id: "cloud", label: "سرور ابری", icon: "cloud" }, { id: "metal", label: "سرور اختصاصی", icon: "server-cog" }, { id: "hosting", label: "هاست", icon: "layers" }, { id: "tld", label: "پسوند دامنه", icon: "globe" }]} /></div>
+      <div className="mb-5"><Tabs size="sm" value={tab} onChange={setTab} label="دسته محصول" options={[{ id: "cloud", label: "سرور ابری", icon: "cloud" }, { id: "metal", label: "سرور اختصاصی", icon: "server-cog" }, { id: "hosting", label: "هاست", icon: "layers" }, { id: "tld", label: "پسوند دامنه", icon: "globe" }, { id: "biz", label: "بسته‌های کسب‌وکار", icon: "store" }]} /></div>
       <div key={tab} className="fade-in" role="tabpanel">
-        {tab !== "tld" ? (
+        {tab === "biz" ? <AdminBizPackages /> : tab !== "tld" ? (
           <DataTable rows={db.plans[tab as "cloud" | "metal" | "hosting"]}
             columns={[
               { key: "name", label: "نام پلن", render: (r) => <span className="font-bold">{r.name}{r.popular && <> <Badge tone="blue">پیشنهادی</Badge></>}</span> },

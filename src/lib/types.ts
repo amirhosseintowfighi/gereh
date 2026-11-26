@@ -204,6 +204,8 @@ export type ClientDB = {
   /** blog posts incl. drafts (staff only) */
   posts: Post[];
   /** DevOps: sales pipeline (staff) and engagements (customer: own; staff: all) */
+  /** small-business packages as staff set them (public catalog) */
+  bizPackages: import("./business").BizPackage[];
   devopsLeads: DevopsLead[];
   devopsProjects: DevopsProject[];
   /** Gereh Apps (PaaS): own resources (staff: all, without env values) */

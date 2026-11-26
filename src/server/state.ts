@@ -26,6 +26,7 @@ import { gatewaysFor } from "./pay/gateways";
 import { undeliveredCount } from "./provisioning";
 import { DEFAULT_SETTINGS, DEFAULT_VIRT } from "./seed";
 import { demoMode } from "./demo";
+import { bizPackages } from "./business";
 
 const STAFF_LABEL: Record<string, string> = { owner: "مدیر کل", support: "پشتیبانی فنی", finance: "مالی", sales: "فروش", viewer: "فقط مشاهده" };
 export const staffLabel = (r: string | null | undefined) => STAFF_LABEL[r || "viewer"] || "فقط مشاهده";
@@ -76,7 +77,7 @@ export async function buildState(db: DB, auth: Auth | null, scope: "customer" | 
   const empty: ClientDB = {
     users: [], servers: [], hosting: [], domains: [], invoices: [], transactions: [], tickets: [], sshKeys: [], apiTokens: [], sessions: [],
     notifPrefs: {}, channels: [], bots: { telegram: false, bale: false }, twofa: false, inbox: [], notifications: [], activity: [], nodes: [], locations: [], virtGroups: [], coupons: [], announcements: [], audit: [], staff: [],
-    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, storage: EMPTY_STORAGE, team: { members: [], invites: [], memberships: [] },
+    settings: { ...settings, smsKeySet: false }, plans, tlds, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], bizPackages: await bizPackages(db), devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: EMPTY_INQUIRY, ai: EMPTY_AI, geo: EMPTY_GEO, storage: EMPTY_STORAGE, team: { members: [], invites: [], memberships: [] },
   };
   if (!auth) return { session: null, db: empty };
 

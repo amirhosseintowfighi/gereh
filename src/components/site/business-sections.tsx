@@ -1,8 +1,11 @@
-/* «راه‌اندازی کسب‌وکار» sections shared by /business and the home page: plain words, no resource specs. */
+"use client";
+/* «راه‌اندازی کسب‌وکار» sections shared by /business and the home page: plain words, no resource specs.
+   Client side: the packages come from the catalog in the store, like plan prices. */
 import Link from "next/link";
-import { BIZ_GOALS, BIZ_PACKAGES, BIZ_STEPS } from "@/lib/business";
+import { BIZ_GOALS, BIZ_STEPS, bizVisible } from "@/lib/business";
 import { BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
 import { fa, toman } from "@/lib/format";
+import { useDB } from "@/lib/store";
 import { Icon } from "../icon";
 
 /** «می‌خواهید چه چیزی راه بیندازید؟» — each goal leads to the package that fits it; «من برنامه‌نویسم» to the developer side */
@@ -29,9 +32,11 @@ export function BizGoals({ devHref = "/#developers" }: { devHref?: string }) {
 
 /** the four packages with what each one includes; prices excluding VAT */
 export function BizPackages() {
+  // as staff set them in /admin/products (the defaults until the catalog loads)
+  const list = bizVisible(useDB().bizPackages);
   return (
-    <ul className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-      {BIZ_PACKAGES.map((p) => (
+    <ul className={"grid md:grid-cols-2 gap-4 " + (list.length >= 4 ? "xl:grid-cols-4" : list.length === 3 ? "xl:grid-cols-3" : "")}>
+      {list.map((p) => (
         <li key={p.id} id={p.id} className={"relative rounded-[1.75rem] p-6 flex flex-col " + (p.popular ? "border-2 border-sky-300/50 bg-sky-400/[0.06]" : GLASS)}>
           {p.popular && <span className="absolute -top-3 start-6 text-[11px] font-bold px-2.5 py-1 rounded-full acc-bg">بیشترین انتخاب</span>}
           <h3 className="text-xl font-black">بسته {p.name}</h3>

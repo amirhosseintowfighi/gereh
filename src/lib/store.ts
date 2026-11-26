@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from "react";
 import type { Loc, Sku } from "./catalog";
 import { HOSTING, TLDS, VPS } from "./catalog";
+import { BIZ_DEFAULTS, type BizPackage } from "./business";
 import { invGross, invTotal } from "./money";
 import type { EgressMode } from "./paas-egress";
 import type { RuntimeConfig } from "./paas-runtime";
@@ -33,7 +34,7 @@ export const EMPTY_DB: ClientDB = {
   settings: { siteName: "گره", supportEmail: "", supportPhone: "", registration: true, maintenance: false, tax: 10, gateways: {}, smsProvider: "", smsKeySet: false, smtpHost: "", smtpPort: 587, affiliateRate: 10, payGateway: "",
     legalName: "", sellerNationalId: "", sellerEconomicCode: "", sellerAddress: "", sellerPostalCode: "", paasDomain: "gereh.dev" },
   plans: { cloud: VPS.cloud, metal: VPS.metal, hosting: HOSTING.linux.concat(HOSTING.wordpress) },
-  tlds: TLDS, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], projects: [], kbs: [], settings: { retentionDays: 30, logBodies: false, lowBalance: 0 }, stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" }, storage: { plans: [], buckets: [], keys: [], endpoint: "", region: "", driver: "" },
+  tlds: TLDS, virt: {}, virtLog: [], planMap: [], undelivered: 0, osTemplates: [], isos: [], affiliate: { code: "", referred: 0, earned: 0 }, incidents: [], chats: [], posts: [], bizPackages: BIZ_DEFAULTS, devopsLeads: [], devopsProjects: [], paasApps: [], paasDbs: [], paasPlans: [], paasDriver: "", inquiry: { services: [], account: null, calls: [], stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [] }, grants: [], accounts: [], provider: "" }, ai: { models: [], keys: [], usage: [], projects: [], kbs: [], settings: { retentionDays: 30, logBodies: false, lowBalance: 0 }, stats: { todayCount: 0, todaySpend: 0, monthCount: 0, monthSpend: 0, daily: [], byModel: [] }, endpoint: "https://api.gereh.dev", upstream: "" }, geo: { plans: [], zones: [], nameservers: [], driver: "" }, storage: { plans: [], buckets: [], keys: [], endpoint: "", region: "", driver: "" },
   team: { members: [], invites: [], memberships: [] },
 };
 
@@ -624,6 +625,8 @@ export const api = {
     adminTest: () => rpc<{ driver: string; detail: string }>("mail.adminTest"),
   },
   business: {
+    adminSave: (list: BizPackage[]) => rpc<BizPackage[]>("business.adminSave", list),
+    adminReset: () => rpc("business.adminReset"),
     request: (f: { name: string; business: string; phone: string; email: string; pkg: string; goal: string; message: string; consent: boolean; source: string; hp: string }) => rpc<{ ref: string }>("business.request", f),
   },
   devops: {

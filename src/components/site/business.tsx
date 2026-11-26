@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { BIZ_GOALS, BIZ_PACKAGES, bizPackage, type BizGoal } from "@/lib/business";
+import { BIZ_GOALS, bizForGoal, bizPackage, bizVisible, type BizGoal, type BizPackage } from "@/lib/business";
 import { BTN_G, BTN_P, INPUT, TEXTAREA } from "@/lib/cls";
 import { EMAIL_RE, toEnDigits, toman } from "@/lib/format";
 import { api, useDB, useSession } from "@/lib/store";
@@ -12,9 +12,10 @@ import { CheckDraw, Field } from "../ui";
 type F = { name: string; business: string; phone: string; email: string; message: string; consent: boolean; hp: string };
 
 /** what the visitor picked: ?pkg= from a package card, else the package a ?goal= points to, else «فروشگاه» */
-function fromUrl(q: URLSearchParams) {
+function fromUrl(q: URLSearchParams, list: BizPackage[]) {
   const goal = BIZ_GOALS.find((g) => g.id === q.get("goal"));
-  const pkg = bizPackage(q.get("pkg") || "")?.id ?? goal?.pkg ?? "biz-shop";
+  const asked = bizPackage(list, q.get("pkg") || "");
+  const pkg = (asked?.active ? asked : bizForGoal(list, goal?.id ?? "shop"))?.id ?? "";
   return { pkg, goal: (goal?.id ?? "") as BizGoal | "" };
 }
 
@@ -22,7 +23,9 @@ function fromUrl(q: URLSearchParams) {
 export function BusinessRequestForm({ source }: { source: string }) {
   const q = useSearchParams();
   const qs = q.toString();
-  const url = fromUrl(q);
+  const all = useDB().bizPackages;
+  const list = bizVisible(all);
+  const url = fromUrl(q, all);
   // a choice made in the form holds until the visitor clicks another package card (the URL changes)
   const [picked, setPicked] = useState<{ v: string; under: string } | null>(null);
   const pkg = picked && picked.under === qs ? picked.v : url.pkg;
@@ -38,7 +41,7 @@ export function BusinessRequestForm({ source }: { source: string }) {
   const acct = { name: "name", business: "company", phone: "phone", email: "email" } as const;
   const val = (k: keyof typeof acct) => (touched[k] || !session || !me ? f[k] : String(me[acct[k]] ?? ""));
   const goal = BIZ_GOALS.find((g) => g.id === url.goal);
-  const chosen = bizPackage(pkg)!;
+  const chosen = bizPackage(list, pkg) ?? list[0];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,9 +86,9 @@ export function BusinessRequestForm({ source }: { source: string }) {
 
       <fieldset>
         <legend className="font-extrabold mb-3">کدام بسته؟</legend>
-        {goal && goal.pkg && <p className="text-sm text-white/60 mb-3">برای «{goal.title}» بسته «{bizPackage(goal.pkg)!.name}» را پیشنهاد می‌کنیم؛ اگر مطمئن نیستید، در تماس با هم انتخاب می‌کنیم.</p>}
+        {goal && goal.pkg && chosen && <p className="text-sm text-white/60 mb-3">برای «{goal.title}» بسته «{(bizForGoal(all, goal.id) ?? chosen).name}» را پیشنهاد می‌کنیم؛ اگر مطمئن نیستید، در تماس با هم انتخاب می‌کنیم.</p>}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" role="radiogroup" aria-label="بسته">
-          {BIZ_PACKAGES.map((p) => {
+          {list.map((p) => {
             const on = p.id === pkg;
             return (
               <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => setPicked({ v: p.id, under: qs })}
@@ -114,7 +117,7 @@ export function BusinessRequestForm({ source }: { source: string }) {
       {err.consent && <p id="e-biz-consent" role="alert" className="text-xs text-rose-300">{err.consent}</p>}
       {err.form && <div role="alert" className="text-sm text-rose-300 flex gap-1.5"><Icon name="circle-alert" size={16} />{err.form}</div>}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-xs text-white/55 flex items-center gap-1.5"><Icon name="lock" size={14} />{chosen.quote ? "جلسه آشنایی رایگان است." : "تا وقتی در تماس تأیید نکنید، پولی پرداخت نمی‌کنید."}</p>
+        <p className="text-xs text-white/55 flex items-center gap-1.5"><Icon name="lock" size={14} />{chosen?.quote ? "جلسه آشنایی رایگان است." : "تا وقتی در تماس تأیید نکنید، پولی پرداخت نمی‌کنید."}</p>
         <button type="submit" disabled={busy} className={BTN_P + " px-7 h-12"}>{busy ? <Icon name="loader-circle" size={17} className="animate-spin" /> : <Icon name="phone-call" size={17} />} با من تماس بگیرید</button>
       </div>
     </form>

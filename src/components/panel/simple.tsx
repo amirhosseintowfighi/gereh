@@ -3,7 +3,7 @@
    support, renewals) and a short menu. The full panel stays one click away. The choice is saved per person
    (users.panel_view); with no choice yet, an account that runs no servers, apps or databases starts simple. */
 import Link from "next/link";
-import { BIZ_PACKAGES } from "@/lib/business";
+import { bizFromMonthly } from "@/lib/business";
 import { BTN_G, BTN_MD, BTN_P } from "@/lib/cls";
 import { fa, nowFa, toman } from "@/lib/format";
 import { api, byId, invGross, useDB, useMyId, useSession } from "@/lib/store";
@@ -103,7 +103,7 @@ function SimpleDashboard() {
           <span className="flex items-center justify-between"><Icon name="store" size={26} className="acc" />{sites.length > 0 && <Badge tone={sites.every((s) => s.on) ? "green" : "amber"} dot>{sites.every((s) => s.on) ? "فعال" : "نیاز به توجه"}</Badge>}</span>
           <span className="text-lg font-black">سایت من</span>
           <span className="text-sm text-white/60 leading-7 flex-1">{sites.length ? names.join("، ") : "هنوز سایتی ندارید. یک بسته انتخاب کنید تا برایتان بسازیم، یا خودتان با هوش مصنوعی بسازید."}</span>
-          <span className="text-xs font-bold acc inline-flex items-center gap-1">{sites.length ? "مدیریت سایت" : "بسته‌ها، از ماهی " + toman(Math.min(...BIZ_PACKAGES.filter((p) => !p.quote).map((p) => p.monthly)))}<Icon name="chevron-left" size={14} /></span>
+          <span className="text-xs font-bold acc inline-flex items-center gap-1">{sites.length ? "مدیریت سایت" : (bizFromMonthly(db.bizPackages) ? "بسته‌ها، از ماهی " + toman(bizFromMonthly(db.bizPackages)) : "بسته‌های کسب‌وکار")}<Icon name="chevron-left" size={14} /></span>
         </Link>
         <Link href="/panel/billing" className={big + (unpaid.length ? " !border-amber-300/40" : "")}>
           <Icon name="wallet" size={26} className="acc" />
