@@ -439,10 +439,11 @@ test.describe("gereh apps (paas)", () => {
 });
 
 test.describe("small businesses", () => {
-  test("home goal → package preselected → request reaches the sales pipeline", async ({ page }) => {
+  test("home → packages; a goal preselects its package; the request reaches the sales pipeline", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /فروشگاه آنلاین/ }).first().click();
-    await expect(page).toHaveURL(/\/business\?goal=shop/);
+    await page.getByRole("link", { name: "بسته‌ها و قیمت" }).first().click();
+    await expect(page).toHaveURL(/\/business$/);
+    await page.goto("/business?goal=shop#request");
     const form = page.getByRole("form", { name: "درخواست بسته کسب‌وکار" });
     await expect(form.getByRole("radio", { name: /فروشگاه/ })).toHaveAttribute("aria-checked", "true");
     await form.getByRole("radio", { name: /شروع/ }).click();
@@ -469,4 +470,15 @@ test.describe("small businesses", () => {
     await page.getByRole("button", { name: "نمای کامل (برای کاربران فنی)" }).first().click();
     await expect(page.getByRole("navigation", { name: "منوی پنل" }).getByRole("link", { name: "سرورهای ابری" })).toBeVisible();
   });
+});
+
+test("the home page search box hands an idea to the AI builder", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/panel/);
+  await page.goto("/");
+  await page.getByRole("tab", { name: "ساخت سایت با AI" }).click();
+  await page.getByLabel("سایتی که می‌خواهید را توضیح دهید").fill("سایت کافه با منو و آدرس");
+  await page.getByRole("button", { name: "بساز", exact: true }).click();
+  await expect(page).toHaveURL(/\/panel\/build/);
+  await expect(page.locator("#idea")).toHaveValue("سایت کافه با منو و آدرس");
 });

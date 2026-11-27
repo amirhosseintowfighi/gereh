@@ -18,11 +18,20 @@ const useChatModels = () => useDB().ai.models.filter((m) => m.kind === "chat" &&
 const LANGUAGE_OPTIONS = [{ value: "auto", label: "زبان: خودکار" }, ...SITE_LANGUAGES.map((l) => ({ value: l.id, label: l.label + " · " + l.native }))];
 
 /* ================= projects + the idea box ================= */
+const IDEA_KEY = "gereh-build-idea";
+function initialIdea() {
+  if (typeof window === "undefined") return "";
+  const q = new URLSearchParams(window.location.search).get("idea") ?? "";
+  let kept = "";
+  try { kept = sessionStorage.getItem(IDEA_KEY) ?? ""; sessionStorage.removeItem(IDEA_KEY); } catch { /* storage blocked */ }
+  return (q || kept).slice(0, 4000);
+}
 export function BuildHome() {
   const router = useRouter();
   const { notify } = useApp();
   const models = useChatModels();
-  const [prompt, setPrompt] = useState("");
+  // an idea typed on the home page: ?idea=, or kept in sessionStorage across the sign-in redirect
+  const [prompt, setPrompt] = useState(initialIdea);
   const [stack, setStack] = useState<"auto" | "static" | "node">("auto");
   const [model, setModel] = useState(BUILDER_DEFAULT_MODEL);
   const [language, setLanguage] = useState("auto");

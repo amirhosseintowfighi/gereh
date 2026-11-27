@@ -10,7 +10,7 @@ asks the first question first; everything technical stays, under its own heading
 |---|---|
 | Packages, goals, steps, FAQ (the one place to change contents and prices) | `src/lib/business.ts` |
 | Public page `/business` | `src/app/(site)/business/page.tsx`, `src/components/site/business-sections.tsx`, `src/components/site/business.tsx` (request form) |
-| Home page: goal picker, packages, then the developer section (`#developers`) | `src/app/(site)/page.tsx` |
+| Home page: search box (domain or AI builder), product cards, packages, then the technical sections | `src/app/(site)/page.tsx`, `src/components/home/front.tsx` |
 | Request RPC `business.request` | `src/server/rpc/business.ts` |
 | Simple panel, `account.setPanelView` | `src/components/panel/simple.tsx`, `src/server/rpc/account.ts`, migration `0046_business` |
 | Tests | `tests/server/business.test.ts`, `tests/e2e/flows.spec.ts` («small businesses») |
@@ -21,7 +21,7 @@ Four packages, each a done-for-you service with a one-time setup fee and a fixed
 «شروع», «فروشگاه», «رشد» and «سازمانی» (priced after a call; its button goes to the DevOps request form). The page
 never names a resource; it lists what the customer gets in plain words.
 
-The prices in `BIZ_PACKAGES` are a first draft: review them before launch.
+Staff edit everything about a package (prices, contents, order, visibility, «بیشترین انتخاب») in `/admin/products` › «بسته‌های کسب‌وکار»; it is stored in kv `business`. `BIZ_DEFAULTS` in `src/lib/business.ts` is only the first set, used until the first save and by «بازگرداندن پیش‌فرض».
 
 ## Request flow
 

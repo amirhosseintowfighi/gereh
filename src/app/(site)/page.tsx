@@ -1,17 +1,15 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { GirihField } from "@/components/girih";
-import { Builder, DomainSearchBox, Faq, Hardware, Network, Newsletter, QuickStart, Steps, Terminal } from "@/components/home/interactive";
+import { FrontHero, ProductCards } from "@/components/home/front";
+import { Builder, Faq, Hardware, Network, Newsletter, Steps } from "@/components/home/interactive";
 import { Icon } from "@/components/icon";
 import { JsonLd } from "@/components/json-ld";
 import { BuilderShowcase } from "@/components/site/builder-sections";
-import { BizGoals, BizPackages, BizSteps } from "@/components/site/business-sections";
+import { BizPackages } from "@/components/site/business-sections";
 import { IconTile, SectionHead } from "@/components/ui";
-import { Counter } from "@/components/ui-client";
-import { HOME_FAQ, HOSTING, VPS } from "@/lib/catalog";
-import { BUILDER } from "@/lib/builder";
+import { HOME_FAQ } from "@/lib/catalog";
 import { BTN, BTN_G, BTN_P, GLASS, GLASS_SOFT } from "@/lib/cls";
-import { fa, toman } from "@/lib/format";
 import { faqLd, pageMeta } from "@/lib/seo";
 
 const HOME_TITLE = "گره | سایت و فروشگاه آنلاین، سرور ابری و هاست";
@@ -23,142 +21,13 @@ const meta = pageMeta({
 // absolute so the "%s | گره" template doesn't repeat the brand
 export const metadata = { ...meta, title: { absolute: HOME_TITLE } };
 
-/** first screen for everyone: a business owner picks what to launch; developers have their own way in */
-function Hero() {
+/** for every size of business: the packages, priced in /admin/products */
+function BizSection() {
   return (
-    <section className="relative overflow-hidden">
-      <GirihField />
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-16">
-        <div className="text-center max-w-3xl mx-auto">
-          <p className="hero-in text-sm font-bold acc">سایت، فروشگاه آنلاین و هر چیزی که کسب‌وکارتان در اینترنت لازم دارد</p>
-          <h1 className="hero-in d2 hero-title mt-4 text-[2.35rem] sm:text-[4.2rem] font-black leading-[1.25] sm:leading-[1.15]">
-            کسب‌وکارتان را آنلاین کنید؛ کارهای فنی با ما
-          </h1>
-          <p className="hero-in d3 mt-6 text-white/65 text-base sm:text-lg leading-8">
-            لازم نیست چیزی از سرور و هاست بدانید. بگویید چه می‌خواهید؛ ما می‌سازیم، راه می‌اندازیم و هر ماه نگه می‌داریم.
-          </p>
-        </div>
-        <h2 className="hero-in d3 mt-12 text-center font-extrabold text-lg">می‌خواهید چه چیزی راه بیندازید؟</h2>
-        <div className="hero-in d4 mt-5"><BizGoals /></div>
-      </div>
-    </section>
-  );
-}
-
-function BizHome() {
-  return (
-    <>
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="home-packages">
-        <SectionHead id="home-packages" title="بسته‌های آماده برای کسب‌وکارها" sub="یک هزینه راه‌اندازی و یک هزینه ماهانه ثابت؛ دامنه، ایمیل، امنیت و پشتیبانی همه در بسته است." />
-        <BizPackages />
-      </section>
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="home-steps">
-        <SectionHead id="home-steps" title="از تماس تا آنلاین شدن، در سه قدم" />
-        <BizSteps />
-        <div className="mt-8 text-center"><Link href="/business#request" className={BTN_P + " px-7 h-12"}><Icon name="phone-call" size={18} />با من تماس بگیرید</Link></div>
-      </section>
-    </>
-  );
-}
-
-/** the developer side: everything technical, behind its own heading */
-function DevHero() {
-  const metrics = [
-    { v: 55, s: " ثانیه", l: "تا آنلاین شدن سرور" },
-    { v: 7000, s: "", l: "مگابایت بر ثانیه، دیسک NVMe" },
-    // the monthly commitment in the SLA (/sla), not a measurement; measured uptime is on /status
-    { v: 99.9, d: 1, s: "٪", l: "تعهد آپتایم ماهانه (SLA)" },
-  ];
-  return (
-    <section id="developers" className="relative overflow-hidden scroll-mt-20 border-t border-white/[0.08]" aria-labelledby="dev-title">
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-20 grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
-        <div>
-          <Link href={"/status" as never} className="hero-in inline-flex items-center gap-2.5 text-xs text-white/60 hover:text-white transition group">
-            <Icon name="activity" size={14} className="acc" />
-            وضعیت لحظه‌ای سرویس‌ها
-            <Icon name="chevron-left" size={14} className="transition group-hover:-translate-x-0.5" />
-          </Link>
-          <Link href={"/build" as never} className="hero-in d2 mt-6 flex w-fit max-w-full items-center gap-2 text-xs sm:text-sm px-3 py-1.5 rounded-full bg-violet-400/10 border border-violet-300/25 text-violet-100 hover:bg-violet-400/20 transition">
-            <Icon name="sparkles" size={14} className="text-violet-300 shrink-0" /><span className="min-w-0 truncate"><b>{BUILDER.name}:</b> ایده را بنویسید، AI می‌سازد و منتشر می‌کند</span><Icon name="chevron-left" size={14} className="shrink-0" />
-          </Link>
-          <p className="hero-in d2 mt-5 text-sm font-bold acc flex items-center gap-1.5"><Icon name="code-xml" size={15} />برای برنامه‌نویس‌ها و تیم‌های فنی</p>
-          <h2 id="dev-title" className="hero-in d2 hero-title mt-3 text-[2rem] sm:text-[3.4rem] font-black leading-[1.25] sm:leading-[1.15]">
-            زیرساختی که خودتان مدیریت می‌کنید
-          </h2>
-          <p className="hero-in d3 mt-6 text-white/65 max-w-lg text-base sm:text-lg leading-8">
-            ساخت و نگهداری اپ با هوش مصنوعی، سرور ابری آماده در کمتر از یک دقیقه، هاست و دامنه، استقرار اپ از Git، Geo DNS برای عبور از قطعی اینترنت و API هوش مصنوعی و استعلام؛ همه با یک حساب، یک کیف پول و پشتیبانی شبانه‌روزی.
-          </p>
-          <div className="hero-in d3 mt-9 flex flex-wrap gap-3">
-            <a href="#builder" className={BTN_P + " px-6 h-12"}><Icon name="rocket" size={18} /> ساخت سرور</a>
-            <Link href="/vps" className={BTN_G + " px-6 h-12"}>مشاهده قیمت‌ها</Link>
-          </div>
-          <dl className="hero-in d4 mt-12 grid grid-cols-3 max-w-lg">
-            {metrics.map((m, i) => (
-              <div key={m.l} className={"pe-4 flex flex-col-reverse " + (i ? "border-s border-white/10 ps-4" : "")}>
-                <dt className="text-[11px] sm:text-xs text-white/55 mt-1.5 leading-5">{m.l}</dt>
-                <dd className="text-2xl sm:text-3xl font-black silver tabular"><Counter to={m.v} d={m.d || 0} suffix={m.s} /></dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="hero-in d3"><Terminal /></div>
-      </div>
-    </section>
-  );
-}
-
-function Bento() {
-  const card = "spot min-w-0 rounded-[1.75rem] p-6 sm:p-7 " + GLASS + " hover:border-white/30 transition-colors duration-300";
-  const more = "mt-5 text-sm font-bold inline-flex items-center gap-1.5 acc hover:gap-2.5 transition-all";
-  return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
-      <SectionHead title="هر چیزی که برای آنلاین ماندن لازم دارید" sub="از اولین وب‌سایت تا کلاستر سرورهای اختصاصی، همه در یک حساب و یک صورت‌حساب." />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-        <article className={card + " md:col-span-2 md:row-span-2 flex flex-col"}>
-          <div className="flex items-start justify-between gap-4">
-            <IconTile name="cloud" />
-            <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-300/25">پرفروش‌ترین سرویس</span>
-          </div>
-          <h3 className="mt-6 text-2xl sm:text-3xl font-black">سرور ابری</h3>
-          <p className="mt-3 text-white/65 leading-8 max-w-lg">منابع تضمین‌شده روی دیسک NVMe، دسترسی کامل root و ارتقای منابع بدون خاموشی. ساعتی بپردازید، هر وقت خواستید حذف کنید.</p>
-          <ul className="mt-6 flex flex-wrap gap-2">
-            {[["cpu", "تا ۳۲ هسته"], ["memory-stick", "تا ۱۲۸ گیگ رم"], ["hard-drive", "NVMe نسل ۴"], ["shield-half", "ضد DDoS"]].map(([ic, t]) => (
-              <li key={t} className="flex items-center gap-1.5 text-xs rounded-xl px-3 py-2 bg-white/[0.07] border border-white/[0.12]"><Icon name={ic} size={15} className="acc" />{t}</li>
-            ))}
-          </ul>
-          <div className="mt-auto pt-7 flex items-end justify-between gap-4">
-            <div><div className="text-[11px] text-white/50">شروع قیمت از</div><div className="font-black text-xl">{fa(VPS.cloud[0].price)} <span className="text-xs font-normal text-white/50">تومان / ماه</span></div></div>
-            <Link href="/vps" className={BTN_P + " px-5 py-3 text-sm"}>مشاهده پلن‌ها <Icon name="arrow-left" size={16} /></Link>
-          </div>
-        </article>
-        <article className={card + " flex flex-col"}>
-          <IconTile name="server-cog" />
-          <h3 className="mt-5 text-xl font-black">سرور اختصاصی</h3>
-          <p className="mt-2 text-white/60 text-sm leading-7 flex-1">سخت‌افزار کامل برای شما؛ Xeon و EPYC با پورت تا ۱۰ گیگابیت.</p>
-          <Link href="/vps#dedicated" className={more}>از {toman(VPS.metal[0].price)} <Icon name="chevron-left" size={16} /></Link>
-        </article>
-        <article className={card + " flex flex-col"}>
-          <IconTile name="layers" />
-          <h3 className="mt-5 text-xl font-black">هاست وب</h3>
-          <p className="mt-2 text-white/60 text-sm leading-7 flex-1">LiteSpeed، SSL رایگان و بکاپ روزانه؛ برای وردپرس و فروشگاه.</p>
-          <Link href="/hosting" className={more}>از {toman(HOSTING.linux[0].price)} <Icon name="chevron-left" size={16} /></Link>
-        </article>
-        <article className={card + " md:col-span-2"}>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-            <div className="flex items-center gap-4 sm:w-56 shrink-0">
-              <IconTile name="globe" />
-              <div><h3 className="text-xl font-black">ثبت دامنه</h3><p className="text-white/55 text-xs mt-1">بیش از ۱۶ پسوند، ثبت آنی</p></div>
-            </div>
-            <div className="flex-1"><DomainSearchBox /></div>
-          </div>
-        </article>
-        <article className={card + " flex flex-col"}>
-          <IconTile name="heart-handshake" />
-          <h3 className="mt-5 text-xl font-black">انتقال رایگان</h3>
-          <p className="mt-2 text-white/60 text-sm leading-7 flex-1">سایت و سرورتان را بدون قطعی به گره می‌آوریم.</p>
-          <a href="#faq" className={more}>چطور کار می‌کند <Icon name="chevron-left" size={16} /></a>
-        </article>
-      </div>
+    <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="home-packages">
+      <SectionHead id="home-packages" title="سایت و فروشگاه، برای هر اندازه کسب‌وکار" sub="کارهای فنی با ما: می‌سازیم، راه می‌اندازیم و هر ماه نگه می‌داریم. یک هزینه راه‌اندازی و یک هزینه ماهانه ثابت." />
+      <BizPackages />
+      <div className="mt-8 text-center"><Link href="/business#request" className={BTN_G + " px-7 h-12"}><Icon name="phone-call" size={18} />مطمئن نیستید کدام؟ با شما تماس می‌گیریم</Link></div>
     </section>
   );
 }
@@ -261,12 +130,10 @@ export default function HomePage() {
   return (
     <div className="fade-page">
       <JsonLd data={faqLd(HOME_FAQ)} />
-      <Hero />
-      <BizHome />
+      <FrontHero />
+      <ProductCards />
+      <BizSection />
       <BuilderShowcase />
-      <DevHero />
-      <QuickStart />
-      <Bento />
       <Hardware />
       <Builder />
       <Network />

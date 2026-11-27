@@ -76,7 +76,7 @@ integrations/           terraform-provider-gereh (Go)
 
 ## Small businesses
 
-The home page starts with «می‌خواهید چه چیزی راه بیندازید؟»: a business owner picks a goal (online shop, business site, menu or booking) and lands on `/business`, with four done-for-you packages priced as a setup fee plus a fixed monthly fee, in plain words. Requests join the sales pipeline in `/admin/devops`. Developers have their own section further down the page (`#developers`). Customers who run no technical services get a simple panel (four cards and a short menu) and can switch to the full panel at any time. See [`docs/business.md`](docs/business.md).
+The home page follows what comparable hosts do (IranServer, Hostinger): one promise, one search box (a domain, or a site described to the AI builder), the four main products with «شروع قیمت از», then packages for small businesses («سایت و فروشگاه، برای هر اندازه کسب‌وکار»), followed by the technical sections. `/business` carries the done-for-you packages; their prices and contents are edited in `/admin/products` › «بسته‌های کسب‌وکار». Requests join the sales pipeline in `/admin/devops`. Customers who run no technical services get a simple panel and can switch to the full one. See [`docs/business.md`](docs/business.md).
 
 ## DevOps services
 

@@ -18,7 +18,7 @@ const fromDraft = (d: Draft): BizPackage => ({
   id: d.id, name: d.name.trim(), for: d.for.trim(), setup: d.quote ? 0 : +digits(d.setup), monthly: d.quote ? 0 : +digits(d.monthly), quote: d.quote || undefined,
   days: d.days.trim(), includes: d.includes.split("\n").map((x) => x.trim()).filter(Boolean), popular: d.popular || undefined, active: d.active,
 });
-const newId = () => "biz-" + Math.random().toString(36).slice(2, 8);
+const newId = () => "biz-" + crypto.randomUUID().slice(0, 8);
 
 export function AdminBizPackages() {
   const list = useDB().bizPackages;
